@@ -342,6 +342,7 @@ final class RetailDiscoveryController extends Controller
             ->select(
                 'l.id as listing_id', 'l.price', 'l.currency', 'l.stock',
                 'l.min_order_qty',
+                'l.max_order_qty',
                 'l.unit',
                 'p.id as product_id', 'p.name_ar as product_name_ar', 'p.name_en as product_name_en',
                 'p.main_image as product_image',
@@ -360,6 +361,7 @@ final class RetailDiscoveryController extends Controller
             'currency' => $r->currency ?: 'EGP',
             'stock' => $r->stock !== null ? (int) $r->stock : null,
             'min_order_qty' => $r->min_order_qty !== null ? (int) $r->min_order_qty : null,
+            'max_order_qty' => $r->max_order_qty !== null ? (int) $r->max_order_qty : null,
             'unit' => $r->unit ?: null,
             'product' => [
                 'id' => (int) $r->product_id,
@@ -419,6 +421,7 @@ final class RetailDiscoveryController extends Controller
             ->get([
                 'l.id as listing_id', 'l.price', 'l.currency', 'l.stock',
                 'l.min_order_qty',
+                'l.max_order_qty',
                 'l.unit',
                 'p.id as product_id', 'p.name_ar as product_name_ar', 'p.name_en as product_name_en',
                 'p.main_image as product_image',
@@ -429,6 +432,7 @@ final class RetailDiscoveryController extends Controller
                 'currency' => $r->currency ?: 'EGP',
                 'stock' => $r->stock !== null ? (int) $r->stock : null,
                 'min_order_qty' => $r->min_order_qty !== null ? (int) $r->min_order_qty : null,
+                'max_order_qty' => $r->max_order_qty !== null ? (int) $r->max_order_qty : null,
                 'unit' => $r->unit ?: null,
                 'product' => [
                     'id' => (int) $r->product_id,

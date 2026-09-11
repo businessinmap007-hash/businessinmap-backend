@@ -768,7 +768,7 @@ class CustomerCartService
         $bill = $this->billing->orderBill($cart);
 
         $this->assertMeetsMenuMinimum((int) $cart->business_id, (float) $bill['menu_subtotal']);
-        $this->assertMeetsRetailMinimumQty($cart);
+        $this->assertMeetsRetailQtyBounds($cart);
         $this->assertAndDecrementRetailStock($cart);
 
         $delivery = round((float) $cart->delivery_fee, 2);
@@ -876,13 +876,15 @@ class CustomerCartService
     }
 
     /**
-     * Each retail line's own «حدٌّ أدنى للطلب» — a per-LISTING minimum
-     * QUANTITY (e.g. 20 كيلو from stock of 500), not a cart-wide currency
-     * amount: a wholesale buyer's constraint is how much of THIS product
-     * they take, not what an unrelated mix of items in the same cart adds
-     * up to. See BusinessCatalogListing::min_order_qty.
+     * Each retail line's own «حدٌّ أدنى/أقصى للطلب» — a per-LISTING minimum
+     * and maximum QUANTITY (e.g. 20-100 كيلو from stock of 500), not a
+     * cart-wide currency amount: a wholesale buyer's constraint is how much
+     * of THIS product they take, not what an unrelated mix of items in the
+     * same cart adds up to. The maximum exists so one buyer can't clear out
+     * a whole shelf in one checkout. Either bound is independently optional
+     * — see BusinessCatalogListing::min_order_qty / max_order_qty.
      */
-    private function assertMeetsRetailMinimumQty(Order $cart): void
+    private function assertMeetsRetailQtyBounds(Order $cart): void
     {
         $lines = $cart->items()->where('offering_type', BusinessCatalogListing::class)->get();
 
@@ -899,8 +901,10 @@ class CustomerCartService
         foreach ($lines as $line) {
             $listing = $listings->get((int) $line->offering_id);
             $minQty = $listing ? (int) ($listing->min_order_qty ?? 0) : 0;
+            $maxQty = $listing ? (int) ($listing->max_order_qty ?? 0) : 0;
+            $qty = (int) $line->qty;
 
-            if ($minQty <= 0 || (int) $line->qty >= $minQty) {
+            if (($minQty <= 0 || $qty >= $minQty) && ($maxQty <= 0 || $qty <= $maxQty)) {
                 continue;
             }
 
@@ -911,11 +915,21 @@ class CustomerCartService
                     : ($product->name_ar ?: $product->name_en))
                 : (string) $line->name;
 
+            if ($minQty > 0 && $qty < $minQty) {
+                throw ValidationException::withMessages([
+                    'cart' => __('الحد الأدنى لطلب :product هو :min (طلبك الحالي :qty).', [
+                        'product' => $name,
+                        'min' => $minQty,
+                        'qty' => $qty,
+                    ]),
+                ]);
+            }
+
             throw ValidationException::withMessages([
-                'cart' => __('الحد الأدنى لطلب :product هو :min (طلبك الحالي :qty).', [
+                'cart' => __('الحد الأقصى لطلب :product هو :max (طلبك الحالي :qty).', [
                     'product' => $name,
-                    'min' => $minQty,
-                    'qty' => (int) $line->qty,
+                    'max' => $maxQty,
+                    'qty' => $qty,
                 ]),
             ]);
         }

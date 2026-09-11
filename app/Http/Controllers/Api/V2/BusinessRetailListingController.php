@@ -219,6 +219,7 @@ final class BusinessRetailListingController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
             'min_order_qty' => ['nullable', 'integer', 'min:1'],
+            'max_order_qty' => ['nullable', 'integer', 'min:1'],
             'unit' => ['nullable', 'string', 'max:20'],
             'sku' => ['nullable', 'string', 'max:100'],
             'currency' => ['nullable', 'string', 'max:10'],
@@ -248,11 +249,23 @@ final class BusinessRetailListingController extends Controller
             'price' => round((float) $data['price'], 2),
             'stock' => isset($data['stock']) && $data['stock'] !== null ? max(0, (int) $data['stock']) : null,
             'min_order_qty' => isset($data['min_order_qty']) && $data['min_order_qty'] !== null ? (int) $data['min_order_qty'] : null,
+            'max_order_qty' => isset($data['max_order_qty']) && $data['max_order_qty'] !== null ? (int) $data['max_order_qty'] : null,
             'unit' => trim((string) ($data['unit'] ?? '')) ?: null,
             'sku' => trim((string) ($data['sku'] ?? '')) ?: null,
             'currency' => strtoupper(trim((string) ($data['currency'] ?? 'EGP'))) ?: 'EGP',
             'is_active' => (int) $request->boolean('is_active', true),
         ];
+
+        // Checked against the RESOLVED values (this form always replaces
+        // both, so a request touching only one still has the other's
+        // current-or-null value here) rather than a `gte:min_order_qty`
+        // request rule, which breaks the moment a request sends one bound
+        // without the other.
+        if ($out['min_order_qty'] !== null && $out['max_order_qty'] !== null && $out['max_order_qty'] < $out['min_order_qty']) {
+            throw ValidationException::withMessages([
+                'max_order_qty' => [__('الحد الأقصى يجب أن يكون أكبر من أو يساوي الحد الأدنى.')],
+            ]);
+        }
 
         if ($withProduct) {
             $out['catalog_product_id'] = (int) $data['catalog_product_id'];

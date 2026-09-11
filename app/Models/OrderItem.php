@@ -98,8 +98,19 @@ class OrderItem extends Model
             return (string) ($item->loc('name') ?: ('#' . $this->menu_id));
         }
 
-        // a retail listing names itself from the shared catalog, not from here
+        // a retail listing names itself from the shared catalog, not from
+        // here — orders placed before offering_label existed for retail
+        // lines have nothing snapshotted, so fall back to a live lookup
+        // rather than showing the bare listing id.
         if ((string) $this->offering_type === BusinessCatalogListing::class) {
+            $product = $this->offering?->product;
+
+            if ($product) {
+                return (string) (app()->getLocale() === 'en'
+                    ? ($product->name_en ?: $product->name_ar)
+                    : ($product->name_ar ?: $product->name_en));
+            }
+
             return __('منتج #') . $this->offering_id;
         }
 

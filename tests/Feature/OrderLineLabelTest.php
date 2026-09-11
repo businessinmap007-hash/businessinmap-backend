@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\OptionGroup;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\SeedsRetailCatalog;
 use Tests\TestCase;
 
 /**
@@ -23,6 +25,7 @@ use Tests\TestCase;
 class OrderLineLabelTest extends TestCase
 {
     use DatabaseTransactions;
+    use SeedsRetailCatalog;
 
     private function business(): User
     {
@@ -204,5 +207,70 @@ class OrderLineLabelTest extends TestCase
         $response->assertOk();
 
         $this->assertStringContainsString('كنبة ركنة', json_encode($response->json(), JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * A retail line snapshots the shared catalog product's own name, not a
+     * bare listing id — this used to fall through to "منتج #<id>" because
+     * BusinessCatalogListing had no offeringLabel() for the freezing hook to
+     * call. See BusinessCatalogListing::offeringLabel().
+     */
+    public function test_a_retail_line_freezes_the_catalog_products_name(): void
+    {
+        $business = $this->business();
+        $productId = $this->makeCatalogProduct('furniture', 'أفوكادو');
+
+        $listing = BusinessCatalogListing::create([
+            'business_id' => $business->id,
+            'catalog_product_id' => $productId,
+            'price' => 10,
+            'currency' => 'EGP',
+            'stock' => 100,
+            'is_active' => 1,
+        ]);
+
+        $row = $this->order($business)->items()->create([
+            'offering_type' => BusinessCatalogListing::class,
+            'offering_id' => $listing->id,
+            'qty' => 1,
+            'price' => 10,
+            'total_price' => 10,
+        ]);
+
+        $this->assertSame('أفوكادو', $row->offering_label);
+        $this->assertSame('أفوكادو', $row->displayName());
+    }
+
+    /**
+     * A retail order line placed BEFORE offeringLabel() existed has no
+     * snapshot at all — displayName() must still resolve the product's name
+     * live rather than showing the bare listing id.
+     */
+    public function test_a_retail_line_with_no_frozen_label_still_shows_the_products_name(): void
+    {
+        $business = $this->business();
+        $productId = $this->makeCatalogProduct('furniture', 'فراولة');
+
+        $listing = BusinessCatalogListing::create([
+            'business_id' => $business->id,
+            'catalog_product_id' => $productId,
+            'price' => 10,
+            'currency' => 'EGP',
+            'stock' => 100,
+            'is_active' => 1,
+        ]);
+
+        $row = $this->order($business)->items()->create([
+            'offering_type' => BusinessCatalogListing::class,
+            'offering_id' => $listing->id,
+            'offering_label' => null,
+            'qty' => 1,
+            'price' => 10,
+            'total_price' => 10,
+        ]);
+
+        DB::table('order_items')->where('id', $row->id)->update(['offering_label' => null]);
+
+        $this->assertSame('فراولة', $row->fresh()->displayName());
     }
 }

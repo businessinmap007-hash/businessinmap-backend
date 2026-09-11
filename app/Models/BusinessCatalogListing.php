@@ -38,6 +38,7 @@ class BusinessCatalogListing extends Model
         'currency',
         'stock',
         'min_order_qty',
+        'max_order_qty',
         'unit',
         'is_active',
         'visibility',
@@ -51,6 +52,7 @@ class BusinessCatalogListing extends Model
         'cost_price' => 'decimal:2',
         'stock' => 'integer',
         'min_order_qty' => 'integer',
+        'max_order_qty' => 'integer',
         'source_listing_id' => 'integer',
         'is_active' => 'boolean',
     ];
@@ -86,5 +88,23 @@ class BusinessCatalogListing extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(CatalogProduct::class, 'catalog_product_id');
+    }
+
+    /**
+     * A retail listing has no name of its own — it sells the shared catalog
+     * product, so that's what an order line snapshots. See
+     * OrderItem::booted(), which calls this at order-creation time.
+     */
+    public function offeringLabel(?string $fallback = null): string
+    {
+        $product = $this->relationLoaded('product') ? $this->product : $this->product()->first(['name_ar', 'name_en']);
+
+        if (! $product) {
+            return (string) ($fallback ?? '');
+        }
+
+        return app()->getLocale() === 'en'
+            ? (string) ($product->name_en ?: $product->name_ar)
+            : (string) ($product->name_ar ?: $product->name_en);
     }
 }

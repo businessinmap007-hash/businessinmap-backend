@@ -20,6 +20,7 @@ class BusinessRetailListingResource extends JsonResource
             'currency' => $this->currency ?: 'EGP',
             'stock' => $this->stock !== null ? (int) $this->stock : null,
             'min_order_qty' => $this->min_order_qty !== null ? (int) $this->min_order_qty : null,
+            'max_order_qty' => $this->max_order_qty !== null ? (int) $this->max_order_qty : null,
             'unit' => $this->unit ?: null,
             'sku' => $this->sku,
             'is_active' => (bool) $this->is_active,

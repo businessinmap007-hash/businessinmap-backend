@@ -856,6 +856,7 @@ Route::prefix('v2')->group(function () {
             Route::get('/', [NotificationCenterController::class, 'index']);
             Route::get('unread-count', [NotificationCenterController::class, 'unreadCount']);
             Route::post('mark-all-read', [NotificationCenterController::class, 'markAllRead']);
+            Route::post('archive-all', [NotificationCenterController::class, 'archiveAll']);
             Route::get('{notification}', [NotificationCenterController::class, 'show'])->whereNumber('notification');
             Route::post('{notification}/read', [NotificationCenterController::class, 'markRead'])->whereNumber('notification');
             Route::post('{notification}/archive', [NotificationCenterController::class, 'archive'])->whereNumber('notification');

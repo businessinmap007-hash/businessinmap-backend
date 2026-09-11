@@ -121,6 +121,30 @@ final class NotificationCenterController extends Controller
         ]);
     }
 
+    /** Clears the whole list at once — everything not already archived. */
+    public function archiveAll(Request $request)
+    {
+        $userId = (int) $request->user()->id;
+
+        $updated = AppNotification::query()
+            ->where('user_id', $userId)
+            ->where('status', '!=', AppNotification::STATUS_ARCHIVED)
+            ->update([
+                'status' => AppNotification::STATUS_ARCHIVED,
+                'archived_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications cleared.',
+            'data' => [
+                'updated' => (int) $updated,
+                'unread_count' => 0,
+            ],
+        ]);
+    }
+
     public function archive(Request $request, int $notification)
     {
         $row = $this->owned($request, $notification)->firstOrFail();

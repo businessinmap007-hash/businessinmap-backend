@@ -133,6 +133,26 @@ class NotificationCenterApiTest extends TestCase
         $this->assertNotNull($notif->archived_at);
     }
 
+    public function test_archive_all_clears_only_own_non_archived_notifications(): void
+    {
+        $mineUnread = $this->makeNotification($this->user->id);
+        $mineRead = $this->makeNotification($this->user->id, ['status' => AppNotification::STATUS_READ]);
+        $mineArchived = $this->makeNotification($this->user->id, ['status' => AppNotification::STATUS_ARCHIVED]);
+        $foreign = $this->makeNotification($this->other->id);
+
+        $this->actingAs($this->user, 'sanctum')
+            ->postJson('/api/v2/notifications/archive-all')
+            ->assertOk()
+            ->assertJsonPath('data.unread_count', 0);
+
+        $this->assertSame(0, AppNotification::query()->where('user_id', $this->user->id)->where('status', '!=', AppNotification::STATUS_ARCHIVED)->count());
+
+        $this->assertSame(AppNotification::STATUS_ARCHIVED, $mineUnread->fresh()->status);
+        $this->assertSame(AppNotification::STATUS_ARCHIVED, $mineRead->fresh()->status);
+        $this->assertSame(AppNotification::STATUS_ARCHIVED, $mineArchived->fresh()->status);
+        $this->assertSame(AppNotification::STATUS_UNREAD, $foreign->fresh()->status);
+    }
+
     public function test_index_filters_by_status(): void
     {
         $unread = $this->makeNotification($this->user->id);

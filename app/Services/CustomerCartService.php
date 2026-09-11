@@ -769,6 +769,7 @@ class CustomerCartService
 
         $this->assertMeetsMenuMinimum((int) $cart->business_id, (float) $bill['menu_subtotal']);
         $this->assertMeetsRetailMinimumQty($cart);
+        $this->assertAndDecrementRetailStock($cart);
 
         $delivery = round((float) $cart->delivery_fee, 2);
         $discount = round((float) $cart->discount, 2);
@@ -919,6 +920,53 @@ class CustomerCartService
             ]);
         }
     }
+
+    /**
+     * Each retail line's own stock takes the hit at the same choke point as
+     * the minimum-quantity check — checkout, not add-to-cart, so two
+     * customers racing for the last few units both get an honest answer
+     * (lockForUpdate, inside the same transaction placeOrder() already runs
+     * in). Null stock means "not tracked" (see BusinessRetailListingResource)
+     * and is never touched or checked here.
+     */
+    private function assertAndDecrementRetailStock(Order $cart): void
+    {
+        $lines = $cart->items()->where('offering_type', BusinessCatalogListing::class)->get();
+
+        if ($lines->isEmpty()) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            $listing = BusinessCatalogListing::query()
+                ->whereKey($line->offering_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $listing || $listing->stock === null) {
+                continue;
+            }
+
+            if ((int) $listing->stock < (int) $line->qty) {
+                $product = $listing->product()->first(['name_ar', 'name_en']);
+                $name = $product
+                    ? (app()->getLocale() === 'en'
+                        ? ($product->name_en ?: $product->name_ar)
+                        : ($product->name_ar ?: $product->name_en))
+                    : (string) $line->name;
+
+                throw ValidationException::withMessages([
+                    'cart' => __(':product غير متاح بهذه الكمية (المتاح :available فقط).', [
+                        'product' => $name,
+                        'available' => (int) $listing->stock,
+                    ]),
+                ]);
+            }
+
+            $listing->decrement('stock', (int) $line->qty);
+        }
+    }
+
 
 
     /**

@@ -246,7 +246,7 @@ final class BusinessRetailListingController extends Controller
 
         $out = [
             'price' => round((float) $data['price'], 2),
-            'stock' => max(0, (int) ($data['stock'] ?? 0)),
+            'stock' => isset($data['stock']) && $data['stock'] !== null ? max(0, (int) $data['stock']) : null,
             'min_order_qty' => isset($data['min_order_qty']) && $data['min_order_qty'] !== null ? (int) $data['min_order_qty'] : null,
             'unit' => trim((string) ($data['unit'] ?? '')) ?: null,
             'sku' => trim((string) ($data['sku'] ?? '')) ?: null,

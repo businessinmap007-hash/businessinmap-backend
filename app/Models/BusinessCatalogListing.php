@@ -43,6 +43,7 @@ class BusinessCatalogListing extends Model
         'is_active',
         'visibility',
         'source_listing_id',
+        'governorate_ids',
     ];
 
     protected $casts = [
@@ -55,6 +56,7 @@ class BusinessCatalogListing extends Model
         'max_order_qty' => 'integer',
         'source_listing_id' => 'integer',
         'is_active' => 'boolean',
+        'governorate_ids' => 'array',
     ];
 
     public function business(): BelongsTo

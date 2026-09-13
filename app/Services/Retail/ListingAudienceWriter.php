@@ -79,6 +79,12 @@ class ListingAudienceWriter
             'audience_category_ids.*' => ['integer', 'exists:categories,id'],
 
             'source_listing_id' => ['nullable', 'integer'],
+
+            // Sits ABOVE the audience above -- a geographic narrowing that
+            // applies whoever the viewer is, wholesale buyer or plain
+            // customer. Empty/absent means every governorate.
+            'governorate_ids' => ['nullable', 'array', 'max:27'],
+            'governorate_ids.*' => ['integer', 'exists:governorates,id'],
         ];
     }
 
@@ -103,7 +109,32 @@ class ListingAudienceWriter
         return [
             'visibility' => $mode,
             'source_listing_id' => $this->resolveSource($request, $businessId, $productId),
+            'governorate_ids' => $this->resolveGovernorates($request),
         ];
+    }
+
+    /**
+     * Unique, positive governorate ids the merchant chose, or null for no
+     * restriction at all -- a listing that names every governorate is the
+     * same as one that names none, so an empty selection is stored as null
+     * rather than an empty array a query would still have to special-case.
+     *
+     * @return array<int,int>|null
+     */
+    private function resolveGovernorates(Request $request): ?array
+    {
+        if (! $request->has('governorate_ids')) {
+            return null;
+        }
+
+        $ids = collect((array) $request->input('governorate_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        return $ids === [] ? null : $ids;
     }
 
     /**

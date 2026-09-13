@@ -33,6 +33,7 @@ class BusinessRetailListingResource extends JsonResource
              */
             'visibility' => (string) ($this->visibility ?: 'public'),
             'audience' => $this->audiencePayload(),
+            'governorates' => $this->governoratePayload(),
             'source_listing_id' => $this->source_listing_id ? (int) $this->source_listing_id : null,
 
             'product' => $product ? [
@@ -83,6 +84,27 @@ class BusinessRetailListingResource extends JsonResource
             'businesses' => $businesses->map(fn ($b) => ['id' => (int) $b->id, 'name' => $b->displayName()])->values(),
             'children' => $children->map(fn ($c) => ['id' => (int) $c->id, 'name' => $this->localize($c->name_ar, $c->name_en)])->values(),
             'categories' => $categories->map(fn ($c) => ['id' => (int) $c->id, 'name' => $this->localize($c->name_ar, $c->name_en)])->values(),
+        ];
+    }
+
+    /**
+     * Same shape as audiencePayload() -- bare ids for the save payload, plus
+     * resolved names for the screen. Empty ids means no restriction at all
+     * (see RetailListingVisibility), not "no governorates allowed".
+     *
+     * @return array<string,mixed>
+     */
+    private function governoratePayload(): array
+    {
+        $ids = (array) ($this->governorate_ids ?? []);
+
+        $rows = $ids
+            ? \App\Models\Governorate::query()->whereIn('id', $ids)->get(['id', 'name_ar', 'name_en'])
+            : collect();
+
+        return [
+            'ids' => array_values(array_map('intval', $ids)),
+            'items' => $rows->map(fn ($g) => ['id' => (int) $g->id, 'name' => $this->localize($g->name_ar, $g->name_en)])->values(),
         ];
     }
 

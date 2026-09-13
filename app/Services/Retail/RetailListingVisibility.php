@@ -55,7 +55,7 @@ class RetailListingVisibility
      */
     public function apply($query, ?User $viewer, string $table = 'business_catalog_listings')
     {
-        return $query->where(function ($outer) use ($viewer, $table) {
+        $query = $query->where(function ($outer) use ($viewer, $table) {
             $outer->where("{$table}.visibility", self::PUBLIC);
 
             if (! $viewer) {
@@ -74,27 +74,73 @@ class RetailListingVisibility
                     });
             });
         });
+
+        return $query->where(function ($geo) use ($viewer, $table) {
+            $this->matchGovernorate($geo, $viewer, $table);
+        });
     }
 
     /** True when this viewer may see this one listing. */
     public function canSee(BusinessCatalogListing $listing, ?User $viewer): bool
     {
-        if ((string) $listing->visibility !== self::RESTRICTED) {
+        if ((string) $listing->visibility === self::RESTRICTED) {
+            if (! $viewer) {
+                return false;
+            }
+
+            if ((int) $listing->business_id !== (int) $viewer->id) {
+                $named = CatalogListingAudience::query()
+                    ->where('business_catalog_listing_id', $listing->id)
+                    ->where(fn ($match) => $this->matchAudience($match, $viewer))
+                    ->exists();
+
+                if (! $named) {
+                    return false;
+                }
+            }
+        }
+
+        return $this->passesGovernorateGate($listing, $viewer);
+    }
+
+    /**
+     * The owner always sees their own listing, whatever governorates it
+     * names. Everyone else needs a governorate on their own profile that
+     * appears in the listing's list -- an empty/null list names none, which
+     * means no restriction at all.
+     */
+    private function passesGovernorateGate(BusinessCatalogListing $listing, ?User $viewer): bool
+    {
+        $allowed = (array) ($listing->governorate_ids ?? []);
+
+        if ($allowed === []) {
             return true;
         }
 
-        if (! $viewer) {
-            return false;
-        }
-
-        if ((int) $listing->business_id === (int) $viewer->id) {
+        if ($viewer && (int) $listing->business_id === (int) $viewer->id) {
             return true;
         }
 
-        return CatalogListingAudience::query()
-            ->where('business_catalog_listing_id', $listing->id)
-            ->where(fn ($match) => $this->matchAudience($match, $viewer))
-            ->exists();
+        return $viewer && $viewer->governorate_id && in_array((int) $viewer->governorate_id, $allowed, true);
+    }
+
+    /**
+     * Query-builder twin of {@see passesGovernorateGate()} -- same rule,
+     * expressed as SQL so it composes onto the same builder the visibility
+     * OR-clause just did, as an AND on top of it.
+     */
+    private function matchGovernorate($query, ?User $viewer, string $table): void
+    {
+        $query->whereNull("{$table}.governorate_ids")
+            ->orWhereRaw("JSON_LENGTH({$table}.governorate_ids) = 0");
+
+        if ($viewer) {
+            $query->orWhere("{$table}.business_id", (int) $viewer->id);
+
+            if ($viewer->governorate_id) {
+                $query->orWhereJsonContains("{$table}.governorate_ids", (int) $viewer->governorate_id);
+            }
+        }
     }
 
     /**

@@ -250,16 +250,15 @@ final class OrderController extends Controller
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
 
-    /** POST /api/v2/business/orders/{order}/preparing — accepted → preparing. */
+    /**
+     * POST /api/v2/business/orders/{order}/preparing — accepted → preparing.
+     * Deliberately silent: with the order tracker screen now showing every
+     * step live, a push for this one adds noise without a decision for the
+     * customer to make -- only accepted/ready/completed still notify.
+     */
     public function businessPreparing(Request $request, int $order)
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_ACCEPTED, Order::PREP_PREPARING);
-
-        $businessName = optional($model->business)->name;
-        $this->notifyCustomer($model, 'menu_order_preparing', BusinessContext::id($request), [
-            'body_ar' => 'طلبك رقم #' . $model->id . ' قيد التحضير الآن' . ($businessName ? ' في ' . $businessName : '') . '.',
-            'body_en' => 'Your order #' . $model->id . ' is now being prepared' . ($businessName ? ' at ' . $businessName : '') . '.',
-        ]);
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }

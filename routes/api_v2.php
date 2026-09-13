@@ -826,8 +826,9 @@ Route::prefix('v2')->group(function () {
         Route::post('handover/{token}/confirm', [OrderHandoverController::class, 'confirm']);
 
         // Connected delivery loop: driver accepts → pickup QR (stage 1) → delivery
-        // QR (stage 2) → completed + restaurant notified + success ledgered.
+        // QR (stage 2) -> completed + restaurant notified + success ledgered.
         Route::prefix('delivery')->group(function () {
+            Route::get('me', [DeliveryController::class, 'me']);
             Route::post('register', [DeliveryController::class, 'register']);
             Route::post('availability', [DeliveryController::class, 'availability']);
             Route::post('location', [DeliveryController::class, 'pingLocation']);

@@ -60,6 +60,18 @@ class DeliveryDispatchService
         return $driver;
     }
 
+    /**
+     * The driver row for a user, or null -- never creates or mutates one.
+     * The dashboard's own "am I already a driver, and on/off duty?" check
+     * must stay read-only: register() reactivates on purpose (updateOrCreate
+     * sets is_active=true), which would silently undo a business's own
+     * deactivation of this same driver if a plain status check called it.
+     */
+    public function myStatus(int $userId): ?DeliveryDriver
+    {
+        return DeliveryDriver::query()->where('user_id', $userId)->first();
+    }
+
     /** The active driver row for a user, or 403. */
     public function driverOrFail(int $userId): DeliveryDriver
     {

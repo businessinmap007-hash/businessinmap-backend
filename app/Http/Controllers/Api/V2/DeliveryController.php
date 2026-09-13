@@ -19,6 +19,17 @@ final class DeliveryController extends Controller
     {
     }
 
+    /**
+     * GET /api/v2/delivery/me -- read-only: `null` data means "not a driver
+     * yet", never registers or reactivates one (see myStatus()'s own note).
+     */
+    public function me(Request $request)
+    {
+        $driver = $this->delivery->myStatus((int) $request->user()->id);
+
+        return response()->json(['success' => true, 'data' => $driver ? $this->driverPayload($driver) : null]);
+    }
+
     /** POST /api/v2/delivery/register */
     public function register(Request $request)
     {

@@ -296,4 +296,39 @@ class BusinessDriverAssignmentTest extends TestCase
             ->assertJsonPath('data.status', 'completed')
             ->assertJsonPath('data.delivery_stage', DeliveryDispatchService::STAGE_DELIVERED);
     }
+
+    /** GET /delivery/me is read-only: a user who never registered gets null, not a freshly-minted row. */
+    public function test_a_never_registered_user_reads_null_driver_status(): void
+    {
+        $user = $this->makeUser(User::TYPE_CLIENT, 'Nobody');
+
+        $this->actingWithToken($this->tokenFor($user))
+            ->getJson('/api/v2/delivery/me')
+            ->assertOk()
+            ->assertJsonPath('data', null);
+
+        $this->assertSame(0, DeliveryDriver::query()->where('user_id', $user->id)->count());
+    }
+
+    /** GET /delivery/me must never reactivate a driver a business explicitly turned off. */
+    public function test_checking_status_never_reactivates_a_deactivated_driver(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest');
+        $rider = $this->makeUser(User::TYPE_CLIENT, 'Rider');
+        $this->actingAs($owner)->post('/business/delivery-drivers', ['phone' => $rider->phone])->assertRedirect();
+        $driverId = (int) DeliveryDriver::query()->where('user_id', $rider->id)->value('id');
+        $this->actingAs($owner)->put("/business/delivery-drivers/{$driverId}", ['is_active' => 0])->assertRedirect();
+
+        $riderToken = $this->tokenFor($rider);
+
+        $this->actingWithToken($riderToken)
+            ->getJson('/api/v2/delivery/me')
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false);
+
+        // Checking again changes nothing.
+        $this->actingWithToken($riderToken)->getJson('/api/v2/delivery/me')->assertOk();
+
+        $this->assertFalse((bool) DeliveryDriver::query()->find($driverId)->is_active);
+    }
 }

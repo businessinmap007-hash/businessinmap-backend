@@ -671,6 +671,9 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
             Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
             Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
+            // Pickup/dine-in only -- delivery completes via the QR handover
+            // (DeliveryDispatchService::confirmDelivery) instead.
+            Route::post('business/orders/{order}/complete', [OrderController::class, 'businessComplete'])->whereNumber('order');
             Route::get('business/delivery-drivers', [DeliveryController::class, 'roster']);
             Route::post('business/orders/{order}/assign-driver', [DeliveryController::class, 'assignDriver'])->whereNumber('order');
             // A specific line turns out unavailable while preparing — applies

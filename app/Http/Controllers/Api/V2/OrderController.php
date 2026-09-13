@@ -278,6 +278,59 @@ final class OrderController extends Controller
     }
 
     /**
+     * POST /api/v2/business/orders/{order}/complete — ready -> completed, for
+     * pickup and dine-in orders only. Delivery orders complete through
+     * DeliveryDispatchService's two-QR handover instead (confirmDelivery()) --
+     * that loop proves the customer actually received the order, which a
+     * one-tap business button can't. "Complete" here stands in for "the
+     * customer picked it up" (pickup) or "the table was served" (dine-in).
+     */
+    public function businessComplete(Request $request, int $order)
+    {
+        $businessId = BusinessContext::id($request);
+
+        $model = DB::transaction(function () use ($businessId, $order) {
+            /** @var Order|null $m */
+            $m = Order::query()
+                ->where('business_id', $businessId)
+                ->whereNull('booking_id')
+                ->lockForUpdate()
+                ->find($order);
+
+            if (! $m) {
+                abort(404, __('الطلب غير موجود.'));
+            }
+            if ((string) $m->fulfillment_type === Order::FULFILLMENT_DELIVERY) {
+                abort(409, __('طلبات التوصيل تكتمل عبر مسح رمز التسليم، وليس من هنا.'));
+            }
+            if ((string) $m->status !== 'pending' || (string) $m->prep_status !== Order::PREP_READY) {
+                abort(409, __('لا يمكن إكمال هذا الطلب في حالته الحالية.'));
+            }
+
+            $m->status = 'completed';
+            $m->save();
+
+            return $m;
+        });
+
+        $this->ratingService->recordForBothParties(
+            businessUserId: (int) $model->business_id,
+            clientUserId: (int) $model->user_id,
+            outcome: \App\Models\RatingOutcomeEvent::OUTCOME_SUCCESS,
+            operationType: \App\Models\RatingOutcomeEvent::OP_ORDER,
+            operationId: (int) $model->id,
+        );
+
+        $businessName = optional($model->business)->name;
+        $this->notifyCustomer($model, 'menu_order_completed', $businessId, [
+            'body_ar' => 'تم استلام طلبك رقم #' . $model->id . ($businessName ? ' من ' . $businessName : '') . ' بنجاح.',
+            'body_en' => 'Your order #' . $model->id . ($businessName ? ' from ' . $businessName : '') . ' was completed successfully.',
+        ]);
+
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
+    }
+
+    /**
      * POST /api/v2/business/orders/{order}/items/{item}/unavailable — the
      * business discovers, while preparing, that one line can't actually be
      * fulfilled. Applies whatever the customer pre-consented to at checkout

@@ -105,6 +105,15 @@ class PlatformServiceController extends Controller
             ->with('success', __('تم حذف خدمة النظام بنجاح.'));
     }
 
+    public function toggleActive(PlatformService $platformService)
+    {
+        $platformService->update([
+            'is_active' => ! (bool) $platformService->is_active,
+        ]);
+
+        return back()->with('success', __('تم تحديث حالة الخدمة بنجاح.'));
+    }
+
     protected function validateData(Request $request, ?int $ignoreId = null): array
     {
         $request->merge([

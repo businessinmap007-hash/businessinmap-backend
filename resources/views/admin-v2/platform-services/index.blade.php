@@ -154,6 +154,13 @@
 
                         <td>
                             <div class="a2-table-actions">
+                                <form method="POST" action="{{ route('admin.platform-services.toggle-active', $r) }}">
+                                    @csrf
+                                    <button class="a2-btn a2-btn-ghost a2-btn-sm" type="submit">
+                                        {{ $r->is_active ? 'Deactivate' : 'Activate' }}
+                                    </button>
+                                </form>
+
                                 <a class="a2-btn a2-btn-ghost a2-btn-sm" href="{{ route('admin.platform-services.edit', $r) }}">
                                     Edit
                                 </a>

@@ -212,6 +212,10 @@ class DeliveryDispatchService
                 'delivered_today' => (int) ($deliveredToday[$driver->id] ?? 0),
                 'delivered_count' => (int) $driver->delivered_count,
                 'location_available' => $driver->hasFreshLocation(),
+                // Where this driver actually is RIGHT NOW, regardless of
+                // whether they're already carrying something — the "nearest
+                // on the map" sort the merchant's assignment screen wants.
+                'distance_km' => $driver->distanceKmTo($restaurantLat, $restaurantLng),
                 'active_orders' => $orders->map(function (Order $o) use ($driver, $restaurantLat, $restaurantLng) {
                     [$customerLat, $customerLng] = $o->customerLatLng() ?? [null, null];
 
@@ -331,6 +335,74 @@ class DeliveryDispatchService
         ]);
 
         return $order;
+    }
+
+    /**
+     * The merchant hands a ready delivery order directly to one of ITS OWN
+     * roster drivers -- the counterpart to acceptOrder() (driver-initiated,
+     * from the open pool). A freelance driver (business_id null) can never
+     * be assigned this way; they still only ever self-select, per
+     * nearbyFreelanceDrivers()'s own docblock.
+     */
+    public function assignDriver(int $businessId, int $orderId, int $driverId): Order
+    {
+        $order = DB::transaction(function () use ($businessId, $orderId, $driverId) {
+            $order = Order::query()->lockForUpdate()->find($orderId);
+
+            if (! $order || (int) $order->business_id !== $businessId) {
+                abort(404, __('طلب التوصيل غير موجود.'));
+            }
+            if ((string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
+                throw ValidationException::withMessages(['order' => __('هذا الطلب ليس طلب توصيل.')]);
+            }
+            if ((string) $order->status !== self::STATUS_PENDING || $order->delivery_driver_id) {
+                abort(409, __('هذا الطلب غير متاح للإسناد.'));
+            }
+
+            $driver = DeliveryDriver::query()
+                ->where('id', $driverId)
+                ->where('business_id', $businessId)
+                ->first();
+
+            if (! $driver) {
+                abort(404, __('هذا الموصّل لا يخص نشاطك.'));
+            }
+            if (! $driver->is_active) {
+                throw ValidationException::withMessages(['driver_id' => __('هذا الموصّل غير مفعّل حاليًا.')]);
+            }
+
+            $order->delivery_driver_id = $driver->id;
+            $order->delivery_stage = self::STAGE_ASSIGNED;
+            $order->save();
+
+            $driver->increment('assigned_count');
+
+            return $order;
+        });
+
+        $this->notifyDriver($order, 'delivery_task_assigned', $businessId, [
+            'body_ar' => 'تم إسناد طلب جديد رقم #' . $order->id . ' إليك.',
+            'body_en' => 'A new delivery order #' . $order->id . ' was assigned to you.',
+        ]);
+
+        return $order;
+    }
+
+    /**
+     * A driver's own currently in-progress deliveries (assigned or picked
+     * up) -- full Order models, ready for OrderResource, so the driver's app
+     * shows the whole invoice/address/customer without a second round trip.
+     */
+    public function myActiveOrders(int $userId)
+    {
+        $driver = $this->driverOrFail($userId);
+
+        return Order::query()
+            ->where('delivery_driver_id', $driver->id)
+            ->whereIn('delivery_stage', [self::STAGE_ASSIGNED, self::STAGE_PICKED_UP])
+            ->with(['business:id,name,logo', 'user:id,name,phone', 'items.menuItem:id,name_ar,name_en'])
+            ->orderBy('id')
+            ->get();
     }
 
     // ─────────────────────────── Stage 1: pickup ───────────────────────────
@@ -464,6 +536,28 @@ class DeliveryDispatchService
         ]);
 
         return $order;
+    }
+
+    /** Notify the order's assigned driver through the full pipeline. Best-effort. */
+    private function notifyDriver(Order $order, string $eventKey, int $actorId, array $data): void
+    {
+        $driverUserId = optional($order->deliveryDriver)->user_id;
+        if (! $driverUserId) {
+            return;
+        }
+
+        try {
+            $this->notifications->dispatch($eventKey, (int) $driverUserId, array_merge([
+                'type' => AppNotification::TYPE_SYSTEM,
+                'actor_id' => $actorId,
+                'notifiable_type' => Order::class,
+                'notifiable_id' => (int) $order->id,
+                'source_id' => (int) $order->id,
+                'meta' => ['order_id' => (int) $order->id],
+            ], $data));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** Notify the order's restaurant through the full pipeline. Best-effort. */

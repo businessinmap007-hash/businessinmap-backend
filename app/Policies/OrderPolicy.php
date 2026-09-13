@@ -18,6 +18,7 @@ class OrderPolicy
 
         return (int) $order->user_id === $userId
             || (int) $order->business_id === $userId
-            || $order->participants()->where('user_id', $userId)->exists();
+            || $order->participants()->where('user_id', $userId)->exists()
+            || ($order->delivery_driver_id && optional($order->deliveryDriver)->user_id === $userId);
     }
 }

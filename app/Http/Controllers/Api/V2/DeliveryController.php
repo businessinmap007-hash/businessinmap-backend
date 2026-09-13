@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\V2\OrderResource;
 use App\Models\Order;
 use App\Services\DeliveryDispatchService;
 use Illuminate\Http\Request;
@@ -86,6 +87,50 @@ final class DeliveryController extends Controller
             'order_id' => (int) $model->id,
             'delivery_stage' => (string) $model->delivery_stage,
         ]], 201);
+    }
+
+    /**
+     * GET /api/v2/business/delivery-drivers — the merchant's own roster,
+     * with live workload and (when the business has a saved location) each
+     * driver's current distance, for the "choose who delivers this" screen
+     * that opens right after marking a delivery order ready.
+     */
+    public function roster(Request $request)
+    {
+        $business = $request->user();
+
+        $roster = $this->delivery->businessRoster(
+            (int) $business->id,
+            $business->latitude !== null ? (float) $business->latitude : null,
+            $business->longitude !== null ? (float) $business->longitude : null,
+        );
+
+        return response()->json(['success' => true, 'data' => ['drivers' => $roster]]);
+    }
+
+    /** POST /api/v2/business/orders/{order}/assign-driver */
+    public function assignDriver(Request $request, int $order)
+    {
+        $data = $request->validate(['driver_id' => ['required', 'integer']]);
+
+        $model = $this->delivery->assignDriver((int) $request->user()->id, $order, (int) $data['driver_id']);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'delivery_stage' => (string) $model->delivery_stage,
+        ]]);
+    }
+
+    /**
+     * GET /api/v2/delivery/my-orders — the driver's own active deliveries,
+     * full invoice + customer address/phone/location included so the
+     * driver's app never has to make a second call before setting off.
+     */
+    public function myOrders(Request $request)
+    {
+        $orders = $this->delivery->myActiveOrders((int) $request->user()->id);
+
+        return OrderResource::collection($orders)->additional(['success' => true]);
     }
 
     /** POST /api/v2/delivery/orders/{order}/pickup-token — restaurant issues stage-1 token. */

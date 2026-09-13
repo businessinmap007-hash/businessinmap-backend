@@ -45,6 +45,15 @@ class OrderResource extends JsonResource
                 'accepted_without_cover' => (bool) $this->deposit_accepted_without_cover,
             ],
             'address' => $this->address,
+            'delivery_coordinates' => $this->customerLatLng()
+                ? ['lat' => $this->customerLatLng()[0], 'lng' => $this->customerLatLng()[1]]
+                : null,
+            'delivery_driver' => $this->whenLoaded('deliveryDriver', fn () => $this->deliveryDriver ? [
+                'id' => (int) $this->deliveryDriver->id,
+                'name' => optional($this->deliveryDriver->user)->name,
+                'phone' => $this->deliveryDriver->phone ?: optional($this->deliveryDriver->user)->phone,
+                'vehicle_label' => $this->deliveryDriver->vehicle_label,
+            ] : null),
             'notes' => $this->notes,
             'out_of_stock_policy' => $this->out_of_stock_policy,
             // Whether the business linked a project timeline to this order —

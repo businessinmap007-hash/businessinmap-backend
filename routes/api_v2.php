@@ -671,6 +671,8 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/accept', [OrderController::class, 'businessAccept'])->whereNumber('order');
             Route::post('business/orders/{order}/preparing', [OrderController::class, 'businessPreparing'])->whereNumber('order');
             Route::post('business/orders/{order}/ready', [OrderController::class, 'businessReady'])->whereNumber('order');
+            Route::get('business/delivery-drivers', [DeliveryController::class, 'roster']);
+            Route::post('business/orders/{order}/assign-driver', [DeliveryController::class, 'assignDriver'])->whereNumber('order');
             // A specific line turns out unavailable while preparing — applies
             // whatever the customer chose at checkout (out_of_stock_policy).
             Route::post('business/orders/{order}/items/{item}/unavailable', [OrderController::class, 'businessMarkItemUnavailable'])
@@ -835,6 +837,7 @@ Route::prefix('v2')->group(function () {
             Route::post('orders/{order}/delivery-token', [DeliveryController::class, 'issueDeliveryToken'])->whereNumber('order');
             Route::post('pickup/{token}/confirm', [DeliveryController::class, 'confirmPickup']);
             Route::post('deliver/{token}/confirm', [DeliveryController::class, 'confirmDelivery']);
+            Route::get('my-orders', [DeliveryController::class, 'myOrders']);
 
             // Same driver pool, same loop, for prescription delivery — see
             // PrescriptionDeliveryService.

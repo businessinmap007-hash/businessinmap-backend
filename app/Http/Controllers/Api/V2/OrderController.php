@@ -12,6 +12,7 @@ use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\OrderFeeSettlementService;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -604,6 +605,79 @@ final class OrderController extends Controller
         } catch (\Throwable $e) {
             report($e);
         }
+    }
+
+    /**
+     * GET /api/v2/business/orders/reports — order-level analytics for the
+     * business's own orders over a date range (default: the last 30 days,
+     * inclusive of today). Aggregates only, computed in SQL rather than
+     * pulled row-by-row into PHP — this is meant to stay cheap even once a
+     * business has thousands of orders. `businessIndex()` already covers
+     * "show me this specific order"; this is never a substitute for it.
+     */
+    public function businessReports(Request $request)
+    {
+        $businessId = BusinessContext::id($request);
+
+        $data = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+        ]);
+
+        $to = isset($data['to']) ? Carbon::parse($data['to'])->endOfDay() : now()->endOfDay();
+        $from = isset($data['from']) ? Carbon::parse($data['from'])->startOfDay() : $to->copy()->subDays(29)->startOfDay();
+
+        $base = Order::query()
+            ->where('business_id', $businessId)
+            ->whereNull('booking_id')
+            ->where('status', '!=', 'cart')
+            ->whereBetween('created_at', [$from, $to]);
+
+        $summary = (clone $base)->selectRaw("
+            COUNT(*) as total_orders,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
+            SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_orders,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
+            SUM(CASE WHEN status = 'completed' THEN final_total ELSE 0 END) as total_revenue
+        ")->first();
+
+        $completedOrders = (int) $summary->completed_orders;
+        $totalRevenue = (float) $summary->total_revenue;
+
+        $daily = (clone $base)
+            ->selectRaw("DATE(created_at) as day, COUNT(*) as orders_count, SUM(CASE WHEN status = 'completed' THEN final_total ELSE 0 END) as revenue")
+            ->groupBy('day')
+            ->orderBy('day')
+            ->get()
+            ->map(fn ($row) => [
+                'date' => (string) $row->day,
+                'orders_count' => (int) $row->orders_count,
+                'revenue' => (float) $row->revenue,
+            ]);
+
+        $byFulfillmentType = (clone $base)
+            ->selectRaw('fulfillment_type, COUNT(*) as c')
+            ->groupBy('fulfillment_type')
+            ->pluck('c', 'fulfillment_type');
+
+        return response()->json([
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'summary' => [
+                'total_orders' => (int) $summary->total_orders,
+                'completed_orders' => $completedOrders,
+                'cancelled_orders' => (int) $summary->cancelled_orders,
+                'pending_orders' => (int) $summary->pending_orders,
+                'total_revenue' => $totalRevenue,
+                'average_order_value' => $completedOrders > 0 ? round($totalRevenue / $completedOrders, 2) : 0,
+            ],
+            'daily' => $daily,
+            'by_fulfillment_type' => [
+                'delivery' => (int) ($byFulfillmentType['delivery'] ?? 0),
+                'pickup' => (int) ($byFulfillmentType['pickup'] ?? 0),
+                'dine_in' => (int) ($byFulfillmentType['dine_in'] ?? 0),
+            ],
+        ]);
     }
 
     /** @return array<string,mixed> */

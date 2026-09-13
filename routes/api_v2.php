@@ -664,6 +664,10 @@ Route::prefix('v2')->group(function () {
         // Owner OR a delegated staff member granted the `orders` capability.
         Route::middleware('business.member:' . BusinessCapability::ORDERS)->group(function () {
             Route::get('business/orders', [OrderController::class, 'businessIndex']);
+            // Aggregates only -- registered before {order} for readability,
+            // though whereNumber() below already keeps "reports" from ever
+            // matching as an id.
+            Route::get('business/orders/reports', [OrderController::class, 'businessReports']);
             Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
             Route::post('business/orders/{order}/reject', [OrderController::class, 'businessReject'])->whereNumber('order');
             // Prep lifecycle: accept (settles BIM fee from the business wallet) →

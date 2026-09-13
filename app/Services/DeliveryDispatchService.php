@@ -542,9 +542,16 @@ class DeliveryDispatchService
             operationId: (int) $order->id,
         );
 
+        $businessName = optional($order->business)->name;
+
         $this->notifyBusiness($order, 'menu_order_completed', $byUserId, [
-            'body_ar' => 'اكتمل توصيل طلبك رقم #' . $order->id . ' بنجاح.',
-            'body_en' => 'Your order #' . $order->id . ' was delivered successfully.',
+            'body_ar' => 'تم توصيل الطلب رقم #' . $order->id . ' للعميل بنجاح.',
+            'body_en' => 'Order #' . $order->id . ' was delivered to the customer successfully.',
+        ]);
+
+        $this->notifyOrderCustomer($order, 'menu_order_completed', (int) $order->business_id, [
+            'body_ar' => 'تم توصيل طلبك رقم #' . $order->id . ($businessName ? ' من ' . $businessName : '') . ' بنجاح.',
+            'body_en' => 'Your order #' . $order->id . ($businessName ? ' from ' . $businessName : '') . ' was delivered successfully.',
         ]);
 
         return $order;
@@ -587,10 +594,39 @@ class DeliveryDispatchService
                 'notifiable_type' => Order::class,
                 'notifiable_id' => (int) $order->id,
                 'source_id' => (int) $order->id,
+                'action_type' => 'open_business_order',
+                'action_url' => '/business/orders/' . $order->id,
                 'meta' => ['order_id' => (int) $order->id, 'delivery_driver_id' => (int) $order->delivery_driver_id],
             ], $data));
         } catch (\Throwable $e) {
             report($e);
+        }
+    }
+
+    /** Notify the order's customer(s) through the full pipeline. Best-effort. */
+    private function notifyOrderCustomer(Order $order, string $eventKey, int $actorId, array $data): void
+    {
+        $ids = [(int) $order->user_id];
+        if ($order->is_shared) {
+            $ids = array_merge($ids, $order->participants()->pluck('user_id')->all());
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn ($id) => $id > 0)));
+
+        foreach ($ids as $recipientId) {
+            try {
+                $this->notifications->dispatch($eventKey, $recipientId, array_merge([
+                    'type' => AppNotification::TYPE_SYSTEM,
+                    'actor_id' => $actorId,
+                    'notifiable_type' => Order::class,
+                    'notifiable_id' => (int) $order->id,
+                    'source_id' => (int) $order->id,
+                    'action_type' => 'open_customer_order',
+                    'action_url' => '/orders/' . $order->id,
+                    'meta' => ['order_id' => (int) $order->id, 'business_id' => (int) $order->business_id],
+                ], $data));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 }

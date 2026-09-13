@@ -181,9 +181,10 @@ final class OrderController extends Controller
         );
 
         // Tell the customer the restaurant rejected their order.
+        $businessName = optional($model->business)->name;
         $this->notifyCancellation($model, (int) $model->user_id, $businessId, $reason, [
-            'body_ar' => 'اعتذر المطعم عن تنفيذ طلبك رقم #' . $model->id . '.',
-            'body_en' => 'The restaurant could not fulfil your order #' . $model->id . '.',
+            'body_ar' => 'اعتذر ' . ($businessName ?: 'المطعم') . ' عن تنفيذ طلبك رقم #' . $model->id . '.',
+            'body_en' => ($businessName ?: 'The restaurant') . ' could not fulfil your order #' . $model->id . '.',
         ]);
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
@@ -239,9 +240,10 @@ final class OrderController extends Controller
             return $m;
         });
 
+        $businessName = optional($model->business)->name;
         $this->notifyCustomer($model, 'menu_order_accepted', $businessId, [
-            'body_ar' => 'قبِل المطعم طلبك رقم #' . $model->id . ' وسيبدأ التحضير.',
-            'body_en' => 'The restaurant accepted your order #' . $model->id . '.',
+            'body_ar' => 'قبِل ' . ($businessName ?: 'المطعم') . ' طلبك رقم #' . $model->id . ' وسيبدأ التحضير.',
+            'body_en' => ($businessName ?: 'The restaurant') . ' accepted your order #' . $model->id . '.',
         ]);
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
@@ -252,9 +254,10 @@ final class OrderController extends Controller
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_ACCEPTED, Order::PREP_PREPARING);
 
+        $businessName = optional($model->business)->name;
         $this->notifyCustomer($model, 'menu_order_preparing', BusinessContext::id($request), [
-            'body_ar' => 'طلبك رقم #' . $model->id . ' قيد التحضير الآن.',
-            'body_en' => 'Your order #' . $model->id . ' is now being prepared.',
+            'body_ar' => 'طلبك رقم #' . $model->id . ' قيد التحضير الآن' . ($businessName ? ' في ' . $businessName : '') . '.',
+            'body_en' => 'Your order #' . $model->id . ' is now being prepared' . ($businessName ? ' at ' . $businessName : '') . '.',
         ]);
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
@@ -265,9 +268,10 @@ final class OrderController extends Controller
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_PREPARING, Order::PREP_READY);
 
+        $businessName = optional($model->business)->name;
         $this->notifyCustomer($model, 'menu_order_ready', BusinessContext::id($request), [
-            'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز.',
-            'body_en' => 'Your order #' . $model->id . ' is ready.',
+            'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز' . ($businessName ? ' في ' . $businessName : '') . '.',
+            'body_en' => 'Your order #' . $model->id . ' is ready' . ($businessName ? ' at ' . $businessName : '') . '.',
         ]);
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
@@ -496,7 +500,9 @@ final class OrderController extends Controller
                     'notifiable_type' => Order::class,
                     'notifiable_id' => (int) $order->id,
                     'source_id' => (int) $order->id,
-                    'meta' => ['order_id' => (int) $order->id, 'prep_status' => $order->prep_status],
+                    'action_type' => 'open_customer_order',
+                    'action_url' => '/orders/' . $order->id,
+                    'meta' => ['order_id' => (int) $order->id, 'prep_status' => $order->prep_status, 'business_id' => (int) $order->business_id],
                 ], $bodies));
             } catch (\Throwable $e) {
                 report($e);
@@ -529,6 +535,8 @@ final class OrderController extends Controller
             return;
         }
 
+        $recipientIsBusiness = $notifyUserId === (int) $order->business_id;
+
         try {
             $this->notifications->dispatch('menu_order_cancelled', $notifyUserId, array_merge([
                 'type' => AppNotification::TYPE_OFFER,
@@ -536,7 +544,9 @@ final class OrderController extends Controller
                 'notifiable_type' => Order::class,
                 'notifiable_id' => (int) $order->id,
                 'source_id' => (int) $order->id,
-                'meta' => ['order_id' => (int) $order->id, 'reason' => $reason],
+                'action_type' => $recipientIsBusiness ? 'open_business_order' : 'open_customer_order',
+                'action_url' => ($recipientIsBusiness ? '/business/orders/' : '/orders/') . $order->id,
+                'meta' => ['order_id' => (int) $order->id, 'reason' => $reason, 'business_id' => (int) $order->business_id],
             ], $bodies));
         } catch (\Throwable $e) {
             report($e);

@@ -8,6 +8,22 @@ use App\Models\NotificationDeliveryLog;
 
 final class NotificationDispatcherService
 {
+    /**
+     * $data['skip_realtime'] (bool) forces this one call past the
+     * realtime/operator-session check even when the event key's rule has
+     * it enabled. Needed because several event keys (menu_order_completed,
+     * menu_order_cancelled, ...) are dispatched to BOTH a business AND a
+     * customer/driver depending on the call site, and RealtimeNotificationService::
+     * hasActiveSession() matches the recipient id against ANY online
+     * business_operator_sessions row (business_id OR user_id) with no
+     * business scoping -- a customer who is unrelatedly also a business
+     * owner with their OWN dashboard open would otherwise have this order's
+     * push silently swapped for a "realtime" delivery that only the
+     * business/AdminV2 panel ever polls, never bim_app's customer side.
+     * Callers that only ever notify a customer or a driver (who never poll
+     * that feed either) should always pass this; callers that notify the
+     * business/operator should not.
+     */
     public function dispatch(string $eventKey, int $userId, array $data = []): array
     {
         NotificationChannelRule::ensureDefault($eventKey);
@@ -49,7 +65,7 @@ final class NotificationDispatcherService
         $firebaseResult = null;
         $realtimeSent = false;
 
-        if ($rule->realtime_enabled) {
+        if ($rule->realtime_enabled && ! ($data['skip_realtime'] ?? false)) {
             $realtimeResult = app(RealtimeNotificationService::class)->sendToUser($userId, $notification, [
                 'event_key' => $eventKey,
                 'service_type' => $data['service_type'] ?? null,

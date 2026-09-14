@@ -572,6 +572,10 @@ class DeliveryDispatchService
                 'notifiable_type' => Order::class,
                 'notifiable_id' => (int) $order->id,
                 'source_id' => (int) $order->id,
+                // A driver is a mobile-app user, never a business-panel
+                // operator -- see NotificationDispatcherService::dispatch()'s
+                // doc on skip_realtime for why this matters.
+                'skip_realtime' => true,
                 'meta' => ['order_id' => (int) $order->id],
             ], $data));
         } catch (\Throwable $e) {
@@ -622,6 +626,7 @@ class DeliveryDispatchService
                     'source_id' => (int) $order->id,
                     'action_type' => 'open_customer_order',
                     'action_url' => '/orders/' . $order->id,
+                    'skip_realtime' => true,
                     'meta' => ['order_id' => (int) $order->id, 'business_id' => (int) $order->business_id],
                 ], $data));
             } catch (\Throwable $e) {

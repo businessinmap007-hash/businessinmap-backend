@@ -555,6 +555,7 @@ final class OrderController extends Controller
                     'source_id' => (int) $order->id,
                     'action_type' => 'open_customer_order',
                     'action_url' => '/orders/' . $order->id,
+                    'skip_realtime' => true,
                     'meta' => ['order_id' => (int) $order->id, 'prep_status' => $order->prep_status, 'business_id' => (int) $order->business_id],
                 ], $bodies));
             } catch (\Throwable $e) {
@@ -599,6 +600,10 @@ final class OrderController extends Controller
                 'source_id' => (int) $order->id,
                 'action_type' => $recipientIsBusiness ? 'open_business_order' : 'open_customer_order',
                 'action_url' => ($recipientIsBusiness ? '/business/orders/' : '/orders/') . $order->id,
+                // The business side IS a real operator who may be polling
+                // the realtime feed; the customer side never is (see
+                // NotificationDispatcherService::dispatch()'s doc on skip_realtime).
+                'skip_realtime' => ! $recipientIsBusiness,
                 'meta' => ['order_id' => (int) $order->id, 'reason' => $reason, 'business_id' => (int) $order->business_id],
             ], $bodies));
         } catch (\Throwable $e) {

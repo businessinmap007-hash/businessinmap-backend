@@ -37,6 +37,8 @@ class BookableItemResource extends JsonResource
             'capacity' => $this->capacity !== null ? (int) $this->capacity : null,
             'quantity' => (int) $this->quantity,
             'is_active' => (bool) $this->is_active,
+            'status' => (string) ($this->status ?: \App\Models\BookableItem::STATUS_AVAILABLE),
+            'is_currently_booked' => $this->resource->isCurrentlyBooked(),
         ];
     }
 

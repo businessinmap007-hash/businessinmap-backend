@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V2\AlbumController;
 use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
+use App\Http\Controllers\Api\V2\BusinessBookingCheckTimesController;
 use App\Http\Controllers\Api\V2\BusinessMenuBundleController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
@@ -814,6 +815,14 @@ Route::prefix('v2')->group(function () {
             Route::get('{item}', [BusinessBookableItemController::class, 'show'])->whereNumber('item');
             Route::match(['put', 'patch'], '{item}', [BusinessBookableItemController::class, 'update'])->whereNumber('item');
             Route::delete('{item}', [BusinessBookableItemController::class, 'destroy'])->whereNumber('item');
+            Route::post('{item}/images', [BusinessBookableItemController::class, 'storeImages'])->whereNumber('item');
+            Route::delete('{item}/images/{image}', [BusinessBookableItemController::class, 'destroyImage'])->whereNumber(['item', 'image']);
+        });
+
+        // A stay's own check-in/check-out clock (business_booking_settings).
+        Route::prefix('business/booking-settings')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
+            Route::get('check-times', [BusinessBookingCheckTimesController::class, 'show']);
+            Route::put('check-times', [BusinessBookingCheckTimesController::class, 'update']);
         });
 
         // Business retail listings: a merchant's priced listings over the shared

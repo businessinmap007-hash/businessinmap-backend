@@ -6,6 +6,8 @@ use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\BookableItemResource;
 use App\Models\BookableItem;
+use App\Models\Image;
+use App\Services\Media\ImageUploadService;
 use Illuminate\Http\Request;
 
 /**
@@ -21,6 +23,8 @@ final class BusinessBookableItemController extends Controller
 {
     use ResolvesOwnerCatalog;
 
+    private const MAX_IMAGES = 10;
+
     /** GET /api/v2/business/bookable-items */
     public function index(Request $request)
     {
@@ -33,7 +37,7 @@ final class BusinessBookableItemController extends Controller
         $q = trim((string) ($data['q'] ?? ''));
 
         $rows = BookableItem::query()
-            ->with(['service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en'])
+            ->with(['service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en', 'images'])
             ->where('business_id', $this->businessId())
             ->when($data['service_id'] ?? null, fn ($query, $s) => $query->where('service_id', $s))
             ->when($q !== '', function ($query) use ($q) {
@@ -91,7 +95,7 @@ final class BusinessBookableItemController extends Controller
     /** GET /api/v2/business/bookable-items/{item} */
     public function show(int $item)
     {
-        $row = $this->scopedItem($item)->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en');
+        $row = $this->scopedItem($item)->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en', 'images');
 
         return (new BookableItemResource($row))->additional(['success' => true]);
     }
@@ -101,7 +105,7 @@ final class BusinessBookableItemController extends Controller
     {
         $row = BookableItem::create($this->validatedData($request) + ['business_id' => $this->businessId()]);
 
-        return (new BookableItemResource($row->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en')))
+        return (new BookableItemResource($row->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en', 'images')))
             ->additional(['success' => true])->response()->setStatusCode(201);
     }
 
@@ -111,8 +115,64 @@ final class BusinessBookableItemController extends Controller
         $row = $this->scopedItem($item);
         $row->update($this->validatedData($request));
 
-        return (new BookableItemResource($row->fresh()->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en')))
+        return (new BookableItemResource($row->fresh()->load('service:id,key,name_ar,name_en', 'lineOption:id,name_ar,name_en', 'images')))
             ->additional(['success' => true]);
+    }
+
+    /** POST /api/v2/business/bookable-items/{item}/images */
+    public function storeImages(Request $request, int $item)
+    {
+        $model = $this->scopedItem($item);
+
+        $request->validate([
+            'images' => ['required', 'array', 'min:1', 'max:' . self::MAX_IMAGES],
+            'images.*' => ImageUploadService::validationRules(),
+        ]);
+
+        $already = $model->images()->count();
+        $incoming = count($request->file('images', []));
+
+        if ($already + $incoming > self::MAX_IMAGES) {
+            return response()->json([
+                'success' => false,
+                'message' => __('الحد الأقصى :max صور للوحدة الواحدة.', ['max' => self::MAX_IMAGES]),
+            ], 422);
+        }
+
+        $uploads = app(ImageUploadService::class);
+        $saved = [];
+
+        foreach ($request->file('images') as $file) {
+            $saved[] = $model->images()->create([
+                'image' => $uploads->store($file),
+                'source' => Image::SOURCE_UPLOAD,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => ['images' => array_map(
+                fn (Image $image) => ['id' => (int) $image->id, 'image' => $image->image],
+                $saved
+            )],
+        ], 201);
+    }
+
+    /**
+     * DELETE /api/v2/business/bookable-items/{item}/images/{image}
+     *
+     * The file goes with the row, same rule as the menu gallery — see
+     * [[owned-image-galleries]].
+     */
+    public function destroyImage(Request $request, int $item, int $image)
+    {
+        $model = $this->scopedItem($item);
+        $row = $model->images()->findOrFail($image);
+
+        app(ImageUploadService::class)->delete($row->image);
+        $row->delete();
+
+        return response()->json(['success' => true]);
     }
 
     /** DELETE /api/v2/business/bookable-items/{item} */
@@ -146,6 +206,7 @@ final class BusinessBookableItemController extends Controller
             'capacity' => ['nullable', 'integer', 'min:1'],
             'quantity' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['nullable', 'boolean'],
+            'status' => ['nullable', 'in:' . BookableItem::STATUS_AVAILABLE . ',' . BookableItem::STATUS_MAINTENANCE],
         ]);
 
         $serviceId = (int) $data['service_id'];
@@ -169,6 +230,7 @@ final class BusinessBookableItemController extends Controller
             'capacity' => ! empty($data['capacity']) ? (int) $data['capacity'] : null,
             'quantity' => max(1, (int) ($data['quantity'] ?? 1)),
             'is_active' => (int) $request->boolean('is_active', true),
+            'status' => $data['status'] ?? BookableItem::STATUS_AVAILABLE,
         ];
     }
 

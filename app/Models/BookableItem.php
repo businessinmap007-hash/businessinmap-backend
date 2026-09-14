@@ -35,6 +35,15 @@ class BookableItem extends Model
      */
     use HasOwnedImages;
 
+    /**
+     * حالةٌ يقرّرها صاحبُ المحل يدويًا — «مغلقة للصيانة» توقف حجزَها حتى
+     * يعيدها. «محجوزة» ليست هنا: تُحسب من الحجوزات الحيّة نفسِ اللحظة
+     * (isCurrentlyBooked)، فلا تُكتب أبدًا فى هذا العمود.
+     */
+    public const STATUS_AVAILABLE = 'available';
+
+    public const STATUS_MAINTENANCE = 'maintenance';
+
     /** المفتاح الأجنبىّ هنا يرفض الصفر — «بلا نوع» تُكتب NULL. */
     protected function lineOptionColumnIsNullable(): bool
     {
@@ -65,6 +74,7 @@ class BookableItem extends Model
         'quantity',
 
         'is_active',
+        'status',
         'meta',
     ];
 
@@ -218,5 +228,30 @@ class BookableItem extends Model
             ->resolveForBookableItem($this);
 
         return round((float) ($price?->baseUnitPrice() ?? 0), 2);
+    }
+
+    /**
+     * True while a live booking overlaps this exact moment -- the same
+     * "live" definition BookableAvailabilityService::countLiveBookings()
+     * uses (everything but cancelled/rejected/completed). Never stored:
+     * a stored flag would drift the instant a stay ends.
+     */
+    public function isCurrentlyBooked(): bool
+    {
+        $now = now();
+
+        return Booking::query()
+            ->where('bookable_type', static::class)
+            ->where('bookable_id', $this->id)
+            ->whereNotIn('status', [
+                Booking::STATUS_CANCELLED,
+                Booking::STATUS_REJECTED,
+                Booking::STATUS_COMPLETED,
+            ])
+            ->whereNotNull('starts_at')
+            ->whereNotNull('ends_at')
+            ->where('starts_at', '<=', $now)
+            ->where('ends_at', '>=', $now)
+            ->exists();
     }
 }

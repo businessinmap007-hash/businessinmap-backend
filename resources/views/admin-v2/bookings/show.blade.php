@@ -50,6 +50,17 @@
         return $value ? 'نعم' : 'لا';
     };
 
+    $depositStatusMeta = function (array $depositUi) {
+        return match (true) {
+            !empty($depositUi['is_released']) => ['label' => 'تم فك التجميد (Released)', 'tone' => 'success'],
+            !empty($depositUi['is_refunded']) => ['label' => 'تم الاسترجاع (Refunded)', 'tone' => 'info'],
+            !empty($depositUi['is_split']) => ['label' => 'قُسّم بقرار تحكيم (Split)', 'tone' => 'info'],
+            !empty($depositUi['is_frozen']) => ['label' => 'لسه متجمّد (Frozen)', 'tone' => 'warning'],
+            !empty($depositUi['exists']) => ['label' => (string) ($depositUi['status'] ?? '—'), 'tone' => 'gray'],
+            default => ['label' => 'لا يوجد ديبوزت', 'tone' => 'gray'],
+        };
+    };
+
     $actionByKey = $actions->keyBy('key');
 
     $can = function (string $action) use ($actionByKey) {
@@ -201,9 +212,7 @@
                     <strong>
                         {{ !empty($depositUi['required']) ? $money($depositUi['amount'] ?? $depositUi['hold'] ?? 0, $depositUi['currency'] ?? 'EGP') : 'غير مطلوب' }}
                     </strong>
-                    <small>
-                        {{ !empty($depositUi['exists']) ? ('Status: ' . ($depositUi['status'] ?? '—')) : 'No deposit record' }}
-                    </small>
+                    <small>{{ $depositStatusMeta($depositUi)['label'] }}</small>
                 </div>
 
                 <div class="a2-card booking-show-mini-card">
@@ -373,21 +382,38 @@
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>{{ __('الحالة') }}</span>
-                            <strong>{{ $depositUi['status'] ?? '—' }}</strong>
-                            <small>frozen: {{ $boolLabel(!empty($depositUi['is_frozen'])) }}</small>
+                            <span>{{ __('حالة الإفراج') }}</span>
+                            @php
+                                $depositMeta = $depositStatusMeta($depositUi);
+                            @endphp
+                            <strong class="tone-{{ $depositMeta['tone'] }}">{{ $depositMeta['label'] }}</strong>
+                            <small>
+                                @if(!empty($depositUi['released_at']))
+                                    Released: {{ $depositUi['released_at'] }}
+                                @elseif(!empty($depositUi['refunded_at']))
+                                    Refunded: {{ $depositUi['refunded_at'] }}
+                                @else
+                                    raw status: {{ $depositUi['status'] ?? '—' }}
+                                @endif
+                            </small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>{{ __('التأكيدات') }}</span>
+                            <span>{{ __('تأكيد الاستعداد لبدء التنفيذ') }}</span>
                             <strong>
-                                Client: {{ $boolLabel(!empty($depositUi['client_confirmed'])) }}
+                                العميل: {{ $boolLabel(!empty($depositUi['client_confirmed'])) }}
                                 /
-                                Business: {{ $boolLabel(!empty($depositUi['business_confirmed'])) }}
+                                التاجر: {{ $boolLabel(!empty($depositUi['business_confirmed'])) }}
                             </strong>
-                            <small>deposit confirmations</small>
+                            <small>{{ __('تأكيد قبل بدء التنفيذ فقط — مش تأكيد استلام الخدمة أو الدفع') }}</small>
                         </div>
                     </div>
+
+                    @if(!empty($depositUi['required']) && !empty($depositUi['exists']) && empty($depositUi['is_final']))
+                        <div class="a2-alert a2-alert-warning" style="margin-top:12px;">
+                            {{ __('فكّ الديبوزت (Release) أو رده (Refund) إجراء يدوي من الأدمن دايمًا — مفيش فك تلقائي لمجرد إن الحجز بقى Completed. استخدم أزرار "Release Deposit" / "Refund Deposit" في قسم الإجراءات.') }}
+                        </div>
+                    @endif
                 </div>
 
                 <div class="a2-card booking-show-section">
@@ -421,17 +447,20 @@
                 </div>
 
                 <div class="a2-card booking-show-section">
-                    <h2 class="a2-section-title">{{ __('التأكيدات والنزاع') }}</h2>
+                    <h2 class="a2-section-title">{{ __('تأكيد الاستعداد لبدء التنفيذ والنزاع') }}</h2>
+                    <div class="a2-section-subtitle">
+                        {{ __('هذا تأكيد جاهزية الطرفين قبل بدء التنفيذ (Start) — وليس تأكيد استلام الخدمة أو إتمام الدفع، ولا يتحكم في فكّ الديبوزت.') }}
+                    </div>
 
                     <div class="booking-show-kv-grid">
                         <div class="booking-show-kv">
-                            <span>{{ __('تأكيد العميل') }}</span>
+                            <span>{{ __('تأكيد العميل (الاستعداد للبدء)') }}</span>
                             <strong>{{ !empty($confirmations['client_confirmed']) ? 'تم' : 'لم يتم' }}</strong>
                             <small>{{ $confirmations['source'] ?? '—' }}</small>
                         </div>
 
                         <div class="booking-show-kv">
-                            <span>{{ __('تأكيد البزنس') }}</span>
+                            <span>{{ __('تأكيد التاجر (الاستعداد للبدء)') }}</span>
                             <strong>{{ !empty($confirmations['business_confirmed']) ? 'تم' : 'لم يتم' }}</strong>
                             <small>{{ $confirmations['source'] ?? '—' }}</small>
                         </div>

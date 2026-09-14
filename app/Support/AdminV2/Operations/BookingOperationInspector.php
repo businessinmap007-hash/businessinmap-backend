@@ -318,6 +318,16 @@ final class BookingOperationInspector
             $warnings[] = 'رسوم استخدام الخدمة لا تسترد بعد دخول الحجز في حيز التنفيذ.';
         }
 
+        if (
+            (string) $booking->status === Booking::STATUS_COMPLETED
+            && $deposit
+            && $this->depositIsFrozen($deposit)
+        ) {
+            // Completing a booking never releases its deposit automatically —
+            // Release/Refund is always a separate, manual admin action.
+            $warnings[] = 'الحجز مكتمل والخدمة اتسلّمت، لكن الديبوزت لسه متجمّد — فكّه (Release) أو رده (Refund) إجراء يدوي من الأدمن، مفيش فك تلقائي بعد اكتمال الحجز.';
+        }
+
         return array_values(array_unique(array_filter($warnings)));
     }
 

@@ -5161,6 +5161,26 @@ body.admin-v2-auth{
     background: var(--a2-success);
 }
 
+.admin-v2-booking-show-ux .booking-show-kv strong.tone-success {
+    color: var(--a2-success);
+}
+
+.admin-v2-booking-show-ux .booking-show-kv strong.tone-warning {
+    color: var(--a2-warning);
+}
+
+.admin-v2-booking-show-ux .booking-show-kv strong.tone-info {
+    color: var(--a2-info);
+}
+
+.admin-v2-booking-show-ux .booking-show-kv strong.tone-danger {
+    color: var(--a2-danger);
+}
+
+.admin-v2-booking-show-ux .booking-show-kv strong.tone-gray {
+    color: var(--a2-muted);
+}
+
 .admin-v2-booking-show-ux .booking-show-step-body {
     min-width: 0;
     display: grid;

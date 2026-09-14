@@ -347,6 +347,16 @@ final class OperationPresenter
             'is_frozen' => $deposit && method_exists($deposit, 'isFrozen')
                 ? (bool) $deposit->isFrozen()
                 : ($depositStatus === 'frozen'),
+
+            'is_released' => $depositStatus === 'released',
+            'is_refunded' => $depositStatus === 'refunded',
+            'is_split' => $depositStatus === 'split',
+            'is_final' => $deposit && method_exists($deposit, 'isFinal')
+                ? (bool) $deposit->isFinal()
+                : in_array($depositStatus, ['released', 'refunded', 'split'], true),
+
+            'released_at' => optional($deposit?->released_at)->format('Y-m-d H:i'),
+            'refunded_at' => optional($deposit?->refunded_at)->format('Y-m-d H:i'),
         ];
     }
 

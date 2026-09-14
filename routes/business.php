@@ -247,6 +247,8 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('bookings/{id}', [BookingController::class, 'show'])->whereNumber('id')->name('bookings.show');
         Route::post('bookings/{id}/food', [BookingController::class, 'addFood'])->whereNumber('id')->name('bookings.food.add');
         Route::delete('bookings/{id}/food', [BookingController::class, 'removeFood'])->whereNumber('id')->name('bookings.food.remove');
+        Route::post('bookings/{id}/deposit/agree-release', [BookingController::class, 'agreeReleaseDeposit'])->whereNumber('id')->name('bookings.deposit.agree-release');
+        Route::post('bookings/{id}/deposit/agree-refund', [BookingController::class, 'agreeRefundDeposit'])->whereNumber('id')->name('bookings.deposit.agree-refund');
 
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');

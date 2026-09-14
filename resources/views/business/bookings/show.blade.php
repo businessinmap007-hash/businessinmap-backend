@@ -110,6 +110,38 @@
                 {{ __('الإجمالي يتحدّث تلقائيًا مع كل إضافة/حذف. التأمين ضمان يُخصم عند التنفيذ.') }}
             </div>
         </div>
+
+        @php
+            $deposit = $booking->latestDeposit;
+            $depositStatus = $deposit && $deposit->status instanceof \BackedEnum ? $deposit->status->value : (string) ($deposit->status ?? '');
+        @endphp
+        @if($deposit && in_array($depositStatus, ['frozen', 'released', 'refunded'], true))
+            <div class="a2-card a2-card--section a2-mt-16">
+                <div class="a2-card-head"><div><div class="a2-card-title">{{ __('تسوية الضمان') }}</div>
+                    <div class="a2-card-sub">{{ __('اتفاقك مع العميل على إتمام أو إلغاء المعاملة — الفكّ أو الرد يحصل أوتوماتيكيًا لما الطرفين يوافقوا، من غير تدخّل الأدمن.') }}</div></div></div>
+
+                @if($depositStatus === 'released')
+                    <div class="a2-alert a2-alert-success">{{ __('تم فكّ الضمان.') }}</div>
+                @elseif($depositStatus === 'refunded')
+                    <div class="a2-alert a2-alert-info">{{ __('تم استرجاع المبلغ للعميل.') }}</div>
+                @else
+                    @if($deposit->release_agreed_business)
+                        <div class="a2-hint a2-mb-8">{{ __('في انتظار تأكيد العميل على فكّ الضمان.') }}</div>
+                    @elseif($deposit->refund_agreed_business)
+                        <div class="a2-hint a2-mb-8">{{ __('في انتظار تأكيد العميل على استرجاع المبلغ.') }}</div>
+                    @endif
+
+                    <form method="POST" action="{{ route('business.bookings.deposit.agree-release', $booking->id) }}" style="display:inline-block;">
+                        @csrf
+                        <button class="a2-btn a2-btn-primary" type="submit">{{ __('تأكيد نجاح المعاملة') }}</button>
+                    </form>
+                    <form method="POST" action="{{ route('business.bookings.deposit.agree-refund', $booking->id) }}" style="display:inline-block; margin-inline-start:8px;">
+                        @csrf
+                        <button class="a2-btn a2-btn-ghost" type="submit">{{ __('المعاملة لم تتم') }}</button>
+                    </form>
+                @endif
+            </div>
+        @endif
     </div>
 </div>
 @endsection

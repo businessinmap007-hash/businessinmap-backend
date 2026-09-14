@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Business;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\MenuItem;
+use App\Services\BookingDepositService;
 use App\Services\BookingFoodService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,8 +19,10 @@ use Illuminate\View\View;
  */
 class BookingController extends Controller
 {
-    public function __construct(protected BookingFoodService $food)
-    {
+    public function __construct(
+        protected BookingFoodService $food,
+        protected BookingDepositService $bookingDepositService
+    ) {
     }
 
     private function businessId(): int
@@ -55,7 +58,7 @@ class BookingController extends Controller
     public function show(int $id): View
     {
         $booking = $this->scopedBooking($id);
-        $booking->load(['service:id,key,name_ar,name_en', 'bookable', 'orders.items']);
+        $booking->load(['service:id,key,name_ar,name_en', 'bookable', 'orders.items', 'latestDeposit']);
 
         $menuItems = MenuItem::query()
             ->where('business_id', $this->businessId())
@@ -110,5 +113,37 @@ class BookingController extends Controller
         $this->food->removeLine($booking, (int) $data['item_id']);
 
         return back()->with('success', 'تم حذف الصنف من الحجز.');
+    }
+
+    /**
+     * The business's own side of the self-service deposit settlement — the
+     * customer does the same from the app (Api\V2\BookingController::
+     * agreeReleaseDeposit). Once both sides agree, the deposit releases
+     * automatically; no admin action needed.
+     */
+    public function agreeReleaseDeposit(int $id): RedirectResponse
+    {
+        $booking = $this->scopedBooking($id);
+
+        try {
+            $this->bookingDepositService->agreeRelease($booking, $this->businessId());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return back()->with('success', 'تم حفظ إجابتك.');
+    }
+
+    public function agreeRefundDeposit(int $id): RedirectResponse
+    {
+        $booking = $this->scopedBooking($id);
+
+        try {
+            $this->bookingDepositService->agreeRefund($booking, $this->businessId());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return back()->with('success', 'تم حفظ إجابتك.');
     }
 }

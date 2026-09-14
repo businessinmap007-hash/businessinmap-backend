@@ -1825,9 +1825,13 @@ class ServiceExecutionEngine
     {
         $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
         $confirm = is_array($meta['_start_confirm'] ?? null) ? $meta['_start_confirm'] : [];
+        $apiConfirm = is_array($meta['confirmations'] ?? null) ? $meta['confirmations'] : [];
 
-        $metaClientConfirmed = ! empty($confirm['client']);
-        $metaBusinessConfirmed = ! empty($confirm['business']);
+        // The AdminV2 panel writes confirmations under `_start_confirm`; the
+        // mobile v2 API's client-confirm/business-confirm endpoints write
+        // under `confirmations` — either satisfies the gate.
+        $metaClientConfirmed = ! empty($confirm['client']) || ! empty($apiConfirm['client']['confirmed']);
+        $metaBusinessConfirmed = ! empty($confirm['business']) || ! empty($apiConfirm['business']['confirmed']);
 
         if ($deposit) {
             return [

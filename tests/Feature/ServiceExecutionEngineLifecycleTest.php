@@ -183,4 +183,31 @@ class ServiceExecutionEngineLifecycleTest extends TestCase
             'an unconfirmed booking must stay accepted'
         );
     }
+
+    public function test_move_to_in_progress_succeeds_when_confirmed_via_mobile_api_meta_key(): void
+    {
+        // The mobile v2 API's client-confirm/business-confirm endpoints stamp
+        // meta['confirmations'][party]['confirmed'], not meta['_start_confirm']
+        // (that key is the AdminV2 panel's own confirm action). Both must
+        // satisfy this gate — regression for a bug where a fully confirmed
+        // mobile booking could never start.
+        $this->prepareMovableConfirmedNoDeposit();
+
+        $meta = $this->booking->meta;
+        unset($meta['_start_confirm']);
+        $meta['confirmations'] = [
+            'client' => ['confirmed' => true],
+            'business' => ['confirmed' => true],
+        ];
+        $this->booking->meta = $meta;
+        $this->booking->save();
+
+        $this->engine->moveBookingToInProgress($this->booking);
+
+        $this->assertSame(
+            Booking::STATUS_IN_PROGRESS,
+            Booking::query()->whereKey($this->booking->id)->value('status'),
+            'confirmations recorded under the mobile API meta key must also unlock start()'
+        );
+    }
 }

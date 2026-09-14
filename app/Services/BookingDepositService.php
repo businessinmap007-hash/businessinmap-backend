@@ -323,15 +323,19 @@ class BookingDepositService
     {
         $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
         $confirm = is_array($meta['_start_confirm'] ?? null) ? $meta['_start_confirm'] : [];
+        $apiConfirm = is_array($meta['confirmations'] ?? null) ? $meta['confirmations'] : [];
+
+        $clientConfirmed = ! empty($confirm['client']) || ! empty($apiConfirm['client']['confirmed']);
+        $businessConfirmed = ! empty($confirm['business']) || ! empty($apiConfirm['business']['confirmed']);
 
         $dirty = false;
 
-        if (! empty($confirm['client']) && ! (bool) $deposit->client_confirmed) {
+        if ($clientConfirmed && ! (bool) $deposit->client_confirmed) {
             $deposit->client_confirmed = true;
             $dirty = true;
         }
 
-        if (! empty($confirm['business']) && ! (bool) $deposit->business_confirmed) {
+        if ($businessConfirmed && ! (bool) $deposit->business_confirmed) {
             $deposit->business_confirmed = true;
             $dirty = true;
         }

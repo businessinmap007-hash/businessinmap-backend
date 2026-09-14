@@ -2288,6 +2288,13 @@ paths:
     put: { tags: [Business Bookables], summary: Update a bookable unit, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
     patch: { tags: [Business Bookables], summary: Update a bookable unit, responses: { '200': { description: OK } } }
     delete: { tags: [Business Bookables], summary: Delete a bookable unit, responses: { '200': { description: OK } } }
+  /business/bookable-items/{item}/images:
+    post: { tags: [Business Bookables], summary: 'Upload photos for one bookable unit (multipart images[], max 10 per unit) — same gallery pattern as the menu item photos.', parameters: [{ name: item, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '422': { description: 'Not an image, or the 10-photo cap is reached' } } }
+  /business/bookable-items/{item}/images/{image}:
+    delete: { tags: [Business Bookables], summary: 'Delete one photo from a bookable unit. Removes the FILE as well as the row.', parameters: [{ name: item, in: path, required: true, schema: { type: integer } }, { name: image, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'Not this business unit, or no such photo' } } }
+  /business/booking-settings/check-times:
+    get: { tags: [Business Bookables], summary: A stay's check-in/check-out clock, responses: { '200': { description: OK } } }
+    put: { tags: [Business Bookables], summary: Set the check-in/check-out clock ('HH:mm' or null), responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
 
   # ─────────────────────── Business Retail ───────────────────────
   /business/retail-listings:

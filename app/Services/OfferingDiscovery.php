@@ -210,6 +210,7 @@ class OfferingDiscovery
             ->where('g.is_active', 1)
             ->orderByRaw(\App\Models\OptionGroup::displayOrderSql('g'))
             ->orderByRaw('COALESCE(g.reorder, 999999) ASC')
+            ->orderBy('o.sort_order')
             ->orderBy('o.id')
             ->get(['oo.offering_type', 'oo.offering_id', 'o.id', 'o.name_ar', 'o.name_en',
                 'g.id as group_id', 'g.name_ar as group_name_ar', 'g.name_en as group_name_en', 'g.price_role']);

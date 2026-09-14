@@ -41,6 +41,7 @@ final class LocationController extends Controller
                     ->orWhere('iso2', 'like', "%{$q}%")
                     ->orWhere('iso3', 'like', "%{$q}%");
             }))
+            ->orderBy('sort_order')
             ->orderBy('name_ar')
             ->get(['id', 'name_ar', 'name_en', 'iso2', 'iso3', 'phone_code', 'flag'])
             ->map(fn (Country $c) => [
@@ -76,6 +77,7 @@ final class LocationController extends Controller
             ->when($q !== '', fn ($query) => $query->where(function ($w) use ($q) {
                 $w->where('name_ar', 'like', "%{$q}%")->orWhere('name_en', 'like', "%{$q}%");
             }))
+            ->orderBy('sort_order')
             ->orderBy('name_ar')
             ->get(['id', 'country_id', 'name_ar', 'name_en', 'latitude', 'longitude'])
             ->map(fn (Governorate $g) => [
@@ -110,6 +112,7 @@ final class LocationController extends Controller
             ->when($q !== '', fn ($query) => $query->where(function ($w) use ($q) {
                 $w->where('name_ar', 'like', "%{$q}%")->orWhere('name_en', 'like', "%{$q}%");
             }))
+            ->orderBy('sort_order')
             ->orderBy('name_ar')
             ->limit(300)
             ->get(['id', 'governorate_id', 'name_ar', 'name_en', 'latitude', 'longitude'])

@@ -13,10 +13,12 @@ class Option extends Model
         'group_id',
         'name_ar',
         'name_en',
+        'sort_order',
     ];
 
     protected $casts = [
         'group_id' => 'integer',
+        'sort_order' => 'integer',
     ];
 
     public function group(): BelongsTo

@@ -34,6 +34,7 @@ class OptionController extends Controller
                     $q2->where('group_id', (int) $groupId);
                 }
             })
+            ->when($this->hasSortOrderColumn(), fn ($q2) => $q2->orderBy('sort_order'))
             ->orderBy('id', 'desc');
 
         $rows = $query->paginate(50)->withQueryString();

@@ -934,6 +934,8 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking');
             Route::post('{booking}/start', [BookingController::class, 'start'])->whereNumber('booking');
             Route::post('{booking}/complete', [BookingController::class, 'complete'])->whereNumber('booking');
+            Route::post('{booking}/deposit/agree-release', [BookingController::class, 'agreeReleaseDeposit'])->whereNumber('booking');
+            Route::post('{booking}/deposit/agree-refund', [BookingController::class, 'agreeRefundDeposit'])->whereNumber('booking');
         });
 
         Route::prefix('offers')->group(function () {

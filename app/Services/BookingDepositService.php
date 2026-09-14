@@ -157,6 +157,94 @@ class BookingDepositService
         return $deposit;
     }
 
+    /**
+     * A party's own account (client or business) agreeing that this
+     * booking's deposit should be RELEASED (the deal succeeded — money
+     * was settled off-app as usual). Once both sides have agreed, the
+     * release executes automatically — no admin action needed. This is
+     * the self-service counterpart to AdminV2\BookingController's manual
+     * Release Deposit button, which stays only as an admin fallback for
+     * disputes/deadlocks.
+     */
+    public function agreeRelease(Booking $booking, int $userId): Deposit
+    {
+        return $this->recordDepositAgreement($booking, $userId, 'release');
+    }
+
+    /**
+     * Same as agreeRelease(), but for the opposite outcome: both parties
+     * agreeing the deal did NOT succeed, so the deposit should be REFUNDED
+     * back to the client instead.
+     */
+    public function agreeRefund(Booking $booking, int $userId): Deposit
+    {
+        return $this->recordDepositAgreement($booking, $userId, 'refund');
+    }
+
+    protected function recordDepositAgreement(Booking $booking, int $userId, string $outcome): Deposit
+    {
+        if (! in_array((string) $booking->status, [Booking::STATUS_IN_PROGRESS, Booking::STATUS_COMPLETED], true)) {
+            throw ValidationException::withMessages([
+                'deposit' => __('لا يمكن الاتفاق على الديبوزت إلا بعد بدء التنفيذ.'),
+            ]);
+        }
+
+        $deposit = $this->latestDepositOrFail($booking);
+
+        if (! $deposit->isFrozen()) {
+            throw ValidationException::withMessages([
+                'deposit' => __('لا يوجد Deposit متجمّد يمكن الاتفاق عليه.'),
+            ]);
+        }
+
+        if ($this->hasLiveDispute($deposit)) {
+            throw ValidationException::withMessages([
+                'deposit' => __('يوجد نزاع مفتوح على هذا الحجز — الاتفاق بين الطرفين متوقف لحين حل النزاع.'),
+            ]);
+        }
+
+        $isClient = (int) $booking->user_id === $userId;
+        $isBusiness = (int) $booking->business_id === $userId;
+
+        if (! $isClient && ! $isBusiness) {
+            throw ValidationException::withMessages([
+                'deposit' => __('هذا الحساب ليس طرفًا في هذا الحجز.'),
+            ]);
+        }
+
+        $side = $isClient ? 'client' : 'business';
+        $otherOutcome = $outcome === 'release' ? 'refund' : 'release';
+
+        $deposit->{"{$outcome}_agreed_{$side}"} = true;
+        // Agreeing to one outcome withdraws any earlier agreement to the other.
+        $deposit->{"{$otherOutcome}_agreed_{$side}"} = false;
+        $deposit->save();
+
+        $this->event($deposit, "deposit_{$outcome}_agreed_{$side}");
+
+        $bothAgreed = (bool) $deposit->{"{$outcome}_agreed_client"} && (bool) $deposit->{"{$outcome}_agreed_business"};
+
+        if ($bothAgreed) {
+            $deposit = $outcome === 'release'
+                ? $this->releaseForBooking($booking)
+                : $this->refundForBooking($booking);
+        }
+
+        return $deposit->fresh();
+    }
+
+    protected function hasLiveDispute(Deposit $deposit): bool
+    {
+        return Dispute::query()
+            ->where('deposit_id', $deposit->id)
+            ->whereIn('status', [
+                Dispute::STATUS_OPEN,
+                Dispute::STATUS_UNDER_REVIEW,
+                Dispute::STATUS_MUTUAL_RESOLUTION,
+            ])
+            ->exists();
+    }
+
     public function submitExternalDeposit(
         Booking $booking,
         float $amount,

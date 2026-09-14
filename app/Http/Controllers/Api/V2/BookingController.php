@@ -34,7 +34,8 @@ final class BookingController extends Controller
         protected BookingShapeResolver $bookingShapes,
         protected FinancialLedgerService $ledger,
         protected AllocationConsumptionService $allocationConsumption,
-        protected WalletService $wallet
+        protected WalletService $wallet,
+        protected \App\Services\BookingDepositService $bookingDepositService
     ) {
     }
 
@@ -620,6 +621,36 @@ final class BookingController extends Controller
         $this->ledger->recordSale((int) $booking->business_id, \App\Models\BusinessFinancialLedger::SOURCE_BOOKING, $booking->finalPriceAmount(), 0.0);
 
         return $response;
+    }
+
+    /**
+     * Either party (client or business) agreeing the booking's deposit should
+     * be RELEASED — i.e. the deal succeeded and money was settled as usual
+     * off-app. Once both sides agree, the deposit releases automatically.
+     * Self-service counterpart to AdminV2\BookingController's manual
+     * Release Deposit action, which stays as an admin fallback only.
+     */
+    public function agreeReleaseDeposit(Request $request, Booking $booking)
+    {
+        $this->authorizeBookingAccess($request, $booking);
+
+        $this->bookingDepositService->agreeRelease($booking, (int) $request->user()->id);
+
+        return $this->bookingResponse($booking->fresh(), 'Release agreement recorded successfully.');
+    }
+
+    /**
+     * Same as agreeReleaseDeposit(), for the opposite outcome: both parties
+     * agreeing the deal did not go through, so the deposit should be
+     * REFUNDED to the client instead.
+     */
+    public function agreeRefundDeposit(Request $request, Booking $booking)
+    {
+        $this->authorizeBookingAccess($request, $booking);
+
+        $this->bookingDepositService->agreeRefund($booking, (int) $request->user()->id);
+
+        return $this->bookingResponse($booking->fresh(), 'Refund agreement recorded successfully.');
     }
 
     public function financialPreview(Request $request, Booking $booking)

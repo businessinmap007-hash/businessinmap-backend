@@ -3029,6 +3029,26 @@ paths:
     post: { tags: [Bookings], summary: Start execution, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/complete:
     post: { tags: [Bookings], summary: Complete, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/deposit/agree-release:
+    post:
+      tags: [Bookings]
+      summary: Agree the deposit should be released
+      description: 'Self-service: either party (client or business) marks their own side as agreeing the deal succeeded. Once both sides agree, the deposit releases automatically — no admin action needed. Withdraws that same party''s refund agreement, if any. Refused (422) if the deposit is not frozen, or a live dispute exists on it.'
+      parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '403': { description: Not a party to this booking }
+        '422': { $ref: '#/components/responses/Validation' }
+  /bookings/{booking}/deposit/agree-refund:
+    post:
+      tags: [Bookings]
+      summary: Agree the deposit should be refunded
+      description: 'Same as agree-release, for the opposite outcome — both parties agreeing the deal did not go through, so the deposit refunds to the client automatically once both sides agree.'
+      parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '403': { description: Not a party to this booking }
+        '422': { $ref: '#/components/responses/Validation' }
 
   # ─────────────────── Operation Guarantors ───────────────────
   /bookings/{booking}/guarantors:

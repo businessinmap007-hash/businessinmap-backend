@@ -62,6 +62,11 @@ class Deposit extends Model
         'client_outside_bim'   => 'boolean',
         'business_outside_bim' => 'boolean',
 
+        'release_agreed_client'   => 'boolean',
+        'release_agreed_business' => 'boolean',
+        'refund_agreed_client'    => 'boolean',
+        'refund_agreed_business'  => 'boolean',
+
         'released_at' => 'datetime',
         'refunded_at' => 'datetime',
         'booking_id' => 'integer',

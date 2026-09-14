@@ -716,6 +716,12 @@
                             $depositIsFinal = $depositIsReleased || $depositIsRefunded;
                         @endphp
 
+                        @if($depositIsFrozen && ($can(OperationAction::RELEASE_DEPOSIT) || $can(OperationAction::REFUND_DEPOSIT)))
+                            <div class="booking-show-desc" style="margin-bottom:8px;">
+                                {{ __('العميل والتاجر بيقدروا يتفقوا على فك أو رد الديبوزت بنفسهم من حسابهم (التطبيق أو الموقع) — بيتنفذ أوتوماتيكيًا لما الطرفين يوافقوا. الأزرار دي احتياطية بس، لوقت نزاع أو تعطّل.') }}
+                            </div>
+                        @endif
+
                         @if($can(OperationAction::RELEASE_DEPOSIT) && $depositIsFrozen)
                             <form method="POST" action="{{ route('admin.bookings.deposit.release', $booking) }}">
                                 @csrf

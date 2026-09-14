@@ -3039,6 +3039,13 @@ paths:
         '200': { description: OK }
         '403': { description: Not a party to this booking }
         '422': { $ref: '#/components/responses/Validation' }
+  /bookings/pending-settlements:
+    get:
+      tags: [Bookings]
+      summary: My bookings still awaiting my own deposit settlement decision
+      description: 'In-progress/completed bookings with a frozen deposit where THIS account has not yet agreed release or refund, and no live dispute already covers it. Drives the mandatory settlement prompt shown on app open/resume.'
+      responses:
+        '200': { description: OK }
   /bookings/{booking}/deposit/agree-refund:
     post:
       tags: [Bookings]

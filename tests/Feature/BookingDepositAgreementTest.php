@@ -236,4 +236,74 @@ class BookingDepositAgreementTest extends TestCase
 
         $dispute->delete();
     }
+
+    public function test_a_frozen_undecided_deposit_shows_up_as_pending_for_both_parties(): void
+    {
+        $clientIds = collect(
+            $this->actingAs($this->client, 'sanctum')
+                ->getJson('/api/v2/bookings/pending-settlements')
+                ->assertOk()
+                ->json('data.bookings')
+        )->pluck('id');
+
+        $businessIds = collect(
+            $this->actingAs($this->business, 'sanctum')
+                ->getJson('/api/v2/bookings/pending-settlements')
+                ->assertOk()
+                ->json('data.bookings')
+        )->pluck('id');
+
+        $this->assertContains($this->booking->id, $clientIds);
+        $this->assertContains($this->booking->id, $businessIds);
+    }
+
+    public function test_a_booking_drops_off_pending_settlements_once_this_party_decides(): void
+    {
+        $this->actingAs($this->client, 'sanctum')
+            ->postJson("/api/v2/bookings/{$this->booking->id}/deposit/agree-release")
+            ->assertOk();
+
+        $clientIds = collect(
+            $this->actingAs($this->client, 'sanctum')
+                ->getJson('/api/v2/bookings/pending-settlements')
+                ->assertOk()
+                ->json('data.bookings')
+        )->pluck('id');
+
+        // The client already decided — it's no longer pending for them...
+        $this->assertNotContains($this->booking->id, $clientIds);
+
+        // ...but the business still hasn't, so it's still pending for them.
+        $businessIds = collect(
+            $this->actingAs($this->business, 'sanctum')
+                ->getJson('/api/v2/bookings/pending-settlements')
+                ->assertOk()
+                ->json('data.bookings')
+        )->pluck('id');
+        $this->assertContains($this->booking->id, $businessIds);
+    }
+
+    public function test_a_booking_drops_off_pending_settlements_once_a_dispute_is_open(): void
+    {
+        $deposit = $this->deposit();
+
+        Dispute::create([
+            'disputeable_type' => Booking::class,
+            'disputeable_id' => $this->booking->id,
+            'opened_by_user_id' => $this->client->id,
+            'against_user_id' => $this->business->id,
+            'status' => Dispute::STATUS_OPEN,
+            'deposit_id' => $deposit->id,
+            'opened_at' => now(),
+        ]);
+
+        $clientIds = collect(
+            $this->actingAs($this->client, 'sanctum')
+                ->getJson('/api/v2/bookings/pending-settlements')
+                ->assertOk()
+                ->json('data.bookings')
+        )->pluck('id');
+
+        $this->assertNotContains($this->booking->id, $clientIds, 'a disputed booking must not also demand a settlement decision');
+    }
 }

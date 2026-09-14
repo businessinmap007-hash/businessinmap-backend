@@ -273,6 +273,53 @@ final class BookingController extends Controller
             ])->all();
     }
 
+    /**
+     * Bookings where THIS account (client or business) still hasn't made a
+     * deposit-settlement decision on a frozen deposit — the mandatory,
+     * un-skippable prompt shown right when the app opens/resumes (the
+     * mobile app's HomeShell), so a completed booking never just sits there
+     * with its deposit frozen because nobody remembered to go settle it.
+     * Excludes anything already decided by this account, and anything with
+     * a live dispute already open (that path is arbitration's job now).
+     */
+    public function pendingSettlements(Request $request)
+    {
+        $userId = (int) $request->user()->id;
+
+        $bookings = Booking::query()
+            ->whereIn('status', [Booking::STATUS_IN_PROGRESS, Booking::STATUS_COMPLETED])
+            ->where(function ($query) use ($userId) {
+                $query->where('user_id', $userId)->orWhere('business_id', $userId);
+            })
+            ->with($this->relations(true))
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->filter(function (Booking $booking) use ($userId) {
+                $deposit = $booking->latestDeposit;
+
+                if (! $deposit || ! $deposit->isFrozen()) {
+                    return false;
+                }
+
+                $isClient = (int) $booking->user_id === $userId;
+                $releaseAgreed = $isClient ? $deposit->release_agreed_client : $deposit->release_agreed_business;
+                $refundAgreed = $isClient ? $deposit->refund_agreed_client : $deposit->refund_agreed_business;
+
+                if ($releaseAgreed || $refundAgreed) {
+                    return false;
+                }
+
+                return ! $this->bookingDepositService->hasLiveDispute($deposit);
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['bookings' => $bookings],
+        ]);
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();

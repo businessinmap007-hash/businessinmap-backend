@@ -233,7 +233,7 @@ class BookingDepositService
         return $deposit->fresh();
     }
 
-    protected function hasLiveDispute(Deposit $deposit): bool
+    public function hasLiveDispute(Deposit $deposit): bool
     {
         return Dispute::query()
             ->where('deposit_id', $deposit->id)

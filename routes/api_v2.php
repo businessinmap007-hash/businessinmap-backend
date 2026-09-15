@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V2\DisputeObligationController;
 use App\Http\Controllers\Api\V2\BusinessHoursController;
 use App\Http\Controllers\Api\V2\BusinessProjectController;
 use App\Http\Controllers\Api\V2\BusinessStaffController;
+use App\Http\Controllers\Api\V2\StaffAttendanceController;
 use App\Http\Controllers\Api\V2\BusinessProjectTaskController;
 use App\Http\Controllers\Api\V2\ChatController;
 use App\Http\Controllers\Api\V2\FineController;
@@ -717,6 +718,16 @@ Route::prefix('v2')->group(function () {
             Route::patch('business/staff/{user}', [BusinessStaffController::class, 'update'])->whereNumber('user');
             Route::delete('business/staff/{user}', [BusinessStaffController::class, 'destroy'])->whereNumber('user');
             Route::get('business/staff-activity', [BusinessStaffController::class, 'activity']);
+            Route::get('business/staff/groups', [BusinessStaffController::class, 'groups']);
+        });
+
+        // A staff member's own check-in/check-out - any active capability
+        // qualifies, so this stays outside the roster-management group above
+        // (owner-only) on the bare `business.member` (no capability named).
+        Route::middleware('business.member')->group(function () {
+            Route::post('staff/attendance/check-in', [StaffAttendanceController::class, 'checkIn']);
+            Route::post('staff/attendance/check-out', [StaffAttendanceController::class, 'checkOut']);
+            Route::get('staff/attendance/today', [StaffAttendanceController::class, 'today']);
         });
         // A delegate (who may be a plain client) lists what they may manage.
         Route::get('business/memberships', [BusinessStaffController::class, 'memberships']);

@@ -8,6 +8,8 @@ use App\Models\Order;
 use App\Models\StaffActivityLog;
 use App\Models\User;
 use App\Services\Business\BusinessAccessService;
+use App\Services\Business\StaffAttendanceService;
+use App\Services\DeliveryDispatchService;
 use App\Support\BusinessCapability;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -21,8 +23,11 @@ use Illuminate\Support\Carbon;
  */
 class BusinessStaffController extends Controller
 {
-    public function __construct(private readonly BusinessAccessService $access)
-    {
+    public function __construct(
+        private readonly BusinessAccessService $access,
+        private readonly StaffAttendanceService $attendance,
+        private readonly DeliveryDispatchService $delivery,
+    ) {
     }
 
     /** GET /api/v2/business/capabilities — ما يستطيع هذا النشاط تفويضه. */
@@ -177,6 +182,87 @@ class BusinessStaffController extends Controller
                 'selected_user_id' => $userId,
             ],
         ]);
+    }
+
+    /**
+     * GET /api/v2/business/staff/groups — the roster grouped by capability,
+     * each card carrying what the owner needs at a glance: today's operation
+     * count (StaffActivityLog), today's attendance (StaffAttendanceService),
+     * and — drivers only — the live delivery workload
+     * (DeliveryDispatchService::businessRoster). A staff member with several
+     * capabilities appears once per group, not once overall: the group IS
+     * "what they're doing here", so it can differ by role.
+     */
+    public function groups(Request $request)
+    {
+        $businessId = (int) $request->user()->id;
+        $roster = $this->access->roster($businessId)->filter(fn (BusinessStaff $s) => $s->user);
+
+        $userIds = $roster->pluck('user_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+        $opsToday = StaffActivityLog::query()
+            ->where('business_id', $businessId)
+            ->whereDate('created_at', Carbon::today())
+            ->whereIn('user_id', $userIds)
+            ->selectRaw('user_id, count(*) as total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
+
+        $attendanceToday = $this->attendance->todayForMany($businessId, $userIds);
+
+        $needsDriverStatus = $roster->contains(
+            fn (BusinessStaff $s) => in_array(BusinessCapability::DRIVERS, (array) $s->capabilities, true)
+        );
+        $driverStatus = [];
+        if ($needsDriverStatus) {
+            foreach ($this->delivery->businessRoster($businessId) as $d) {
+                $driverStatus[(int) $d['user_id']] = [
+                    'busy' => (bool) $d['busy'],
+                    'active_order_count' => (int) $d['active_order_count'],
+                ];
+            }
+        }
+
+        $groups = [];
+        foreach (BusinessCapability::registry() as $key => [$nameAr, $nameEn]) {
+            $members = $roster->filter(fn (BusinessStaff $s) => in_array($key, (array) $s->capabilities, true));
+            if ($members->isEmpty()) {
+                continue;
+            }
+
+            $groups[] = [
+                'capability' => $key,
+                'name_ar' => $nameAr,
+                'name_en' => $nameEn,
+                'staff' => $members->map(function (BusinessStaff $s) use ($opsToday, $attendanceToday, $driverStatus, $key) {
+                    $user = $s->user;
+                    $att = $attendanceToday->get((int) $user->id);
+
+                    $card = [
+                        'user_id' => (int) $user->id,
+                        'name' => $user->name,
+                        'phone' => $user->phone,
+                        'logo' => $user->logo,
+                        'title' => $s->title,
+                        'is_active' => (bool) $s->is_active,
+                        'operations_today' => (int) ($opsToday[$user->id] ?? 0),
+                        'attendance' => [
+                            'checked_in_at' => optional($att?->checked_in_at)->toIso8601String(),
+                            'checked_out_at' => optional($att?->checked_out_at)->toIso8601String(),
+                            'is_present' => $att?->isPresent() ?? false,
+                        ],
+                    ];
+
+                    if ($key === BusinessCapability::DRIVERS && isset($driverStatus[(int) $user->id])) {
+                        $card['delivery_status'] = $driverStatus[(int) $user->id];
+                    }
+
+                    return $card;
+                })->values(),
+            ];
+        }
+
+        return response()->json(['success' => true, 'data' => ['groups' => $groups]]);
     }
 
     /** GET /api/v2/business/memberships — businesses I may manage as staff. */

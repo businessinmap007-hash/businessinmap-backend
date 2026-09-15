@@ -35,7 +35,8 @@ final class BookingController extends Controller
         protected FinancialLedgerService $ledger,
         protected AllocationConsumptionService $allocationConsumption,
         protected WalletService $wallet,
-        protected \App\Services\BookingDepositService $bookingDepositService
+        protected \App\Services\BookingDepositService $bookingDepositService,
+        protected \App\Services\Business\StaffActivityLogger $activity
     ) {
     }
 
@@ -526,7 +527,7 @@ final class BookingController extends Controller
     {
         $this->authorizeBusinessBooking($request, $booking);
 
-        return $this->changeStatus(
+        $response = $this->changeStatus(
             request: $request,
             booking: $booking,
             status: Booking::STATUS_ACCEPTED,
@@ -534,13 +535,17 @@ final class BookingController extends Controller
             source: 'api_v2.business.accept',
             message: 'Booking accepted successfully.'
         );
+
+        $this->activity->log($request, \App\Support\BusinessCapability::BOOKINGS, $booking, 'accepted');
+
+        return $response;
     }
 
     public function reject(Request $request, Booking $booking)
     {
         $this->authorizeBusinessBooking($request, $booking);
 
-        return $this->changeStatus(
+        $response = $this->changeStatus(
             request: $request,
             booking: $booking,
             status: Booking::STATUS_REJECTED,
@@ -548,6 +553,10 @@ final class BookingController extends Controller
             source: 'api_v2.business.reject',
             message: 'Booking rejected successfully.'
         );
+
+        $this->activity->log($request, \App\Support\BusinessCapability::BOOKINGS, $booking, 'rejected');
+
+        return $response;
     }
 
     public function cancel(Request $request, Booking $booking)
@@ -629,6 +638,8 @@ final class BookingController extends Controller
             payload: $this->eventPayload($booking, 'api_v2.business_confirm')
         );
 
+        $this->activity->log($request, \App\Support\BusinessCapability::BOOKINGS, $booking, 'confirmed');
+
         return $this->bookingResponse($booking, 'Business confirmation saved successfully.');
     }
 
@@ -645,6 +656,8 @@ final class BookingController extends Controller
             actorId: (int) $request->user()->id,
             payload: $this->eventPayload($booking, 'api_v2.business.start')
         );
+
+        $this->activity->log($request, \App\Support\BusinessCapability::BOOKINGS, $booking, 'started');
 
         return $this->bookingResponse($booking, 'Booking execution started successfully.');
     }
@@ -666,6 +679,8 @@ final class BookingController extends Controller
         $this->bookingGuaranteeIntegration->recordCompleted($booking);
         $this->bookingReminderService->cancelForBooking($booking);
         $this->ledger->recordSale((int) $booking->business_id, \App\Models\BusinessFinancialLedger::SOURCE_BOOKING, $booking->finalPriceAmount(), 0.0);
+
+        $this->activity->log($request, \App\Support\BusinessCapability::BOOKINGS, $booking, 'completed');
 
         return $response;
     }
@@ -782,11 +797,16 @@ final class BookingController extends Controller
         }
     }
 
+    /**
+     * A staff member acting for the business passes business.member:bookings
+     * before this ever runs, so BusinessContext already resolved who they
+     * act for — this only has to confirm it's THIS booking's business, not
+     * a colleague's. The owner path is unchanged (BusinessContext falls back
+     * to the authed user when no delegation middleware ran).
+     */
     private function authorizeBusinessBooking(Request $request, Booking $booking): void
     {
-        $user = $request->user();
-
-        if (! $user || ! $user->isBusiness() || (int) $booking->business_id !== (int) $user->id) {
+        if ((int) $booking->business_id !== \App\Support\BusinessContext::id($request)) {
             abort(403, 'Booking does not belong to this business account.');
         }
     }

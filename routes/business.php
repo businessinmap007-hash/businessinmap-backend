@@ -130,6 +130,7 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
         Route::put('staff/{user}', [StaffController::class, 'update'])->whereNumber('user')->name('staff.update');
         Route::delete('staff/{user}', [StaffController::class, 'destroy'])->whereNumber('user')->name('staff.destroy');
+        Route::get('staff-activity', [StaffController::class, 'activity'])->name('staff.activity');
 
         // Restaurant tables + their permanent QR stickers (BIM-13.3).
         // Storefront QR — "share your store" (BIM-13.4).

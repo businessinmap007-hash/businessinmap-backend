@@ -7,10 +7,12 @@ use App\Http\Resources\V2\OrderResource;
 use App\Models\AppNotification;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\Business\StaffActivityLogger;
 use App\Services\MenuOrderService;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\OrderFeeSettlementService;
 use App\Support\BusinessContext;
+use App\Support\BusinessCapability;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +38,7 @@ final class OrderController extends Controller
         private readonly \App\Services\Ratings\RatingService $ratingService,
         private readonly \App\Services\CustomerCartService $cart,
         private readonly MenuOrderService $menuOrders,
+        private readonly StaffActivityLogger $activity,
     ) {
     }
 
@@ -181,6 +184,8 @@ final class OrderController extends Controller
             $reason
         );
 
+        $this->activity->log($request, BusinessCapability::ORDERS, $model, 'rejected', ['reason' => $reason]);
+
         // Tell the customer the restaurant rejected their order.
         $businessName = optional($model->business)->name;
         $this->notifyCancellation($model, (int) $model->user_id, $businessId, $reason, [
@@ -240,6 +245,8 @@ final class OrderController extends Controller
 
             return $m;
         });
+
+        $this->activity->log($request, BusinessCapability::ORDERS, $model, 'accepted');
 
         $businessName = optional($model->business)->name;
         $this->notifyCustomer($model, 'menu_order_accepted', $businessId, [
@@ -312,6 +319,8 @@ final class OrderController extends Controller
 
             return $m;
         });
+
+        $this->activity->log($request, BusinessCapability::ORDERS, $model, 'completed');
 
         $this->ratingService->recordForBothParties(
             businessUserId: (int) $model->business_id,
@@ -410,6 +419,11 @@ final class OrderController extends Controller
         $line = $result['line'];
         $policy = $result['policy'];
 
+        $this->activity->log($request, BusinessCapability::ORDERS, $model, 'item_unavailable', [
+            'item' => $line->displayName(),
+            'policy' => $policy,
+        ]);
+
         if ($policy === Order::OUT_OF_STOCK_CANCEL) {
             $this->ratingService->recordForBothParties(
                 businessUserId: $businessId,
@@ -462,7 +476,7 @@ final class OrderController extends Controller
     {
         $businessId = BusinessContext::id($request);
 
-        return DB::transaction(function () use ($businessId, $order, $from, $to) {
+        $model = DB::transaction(function () use ($businessId, $order, $from, $to) {
             /** @var Order|null $m */
             $m = Order::query()
                 ->where('business_id', $businessId)
@@ -482,6 +496,10 @@ final class OrderController extends Controller
 
             return $m;
         });
+
+        $this->activity->log($request, BusinessCapability::ORDERS, $model, $to);
+
+        return $model;
     }
 
     /**

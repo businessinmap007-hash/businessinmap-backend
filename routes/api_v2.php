@@ -928,13 +928,13 @@ Route::prefix('v2')->group(function () {
             Route::post('/', [BookingController::class, 'store'])->middleware('dispute.settled');
             Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking');
             Route::get('{booking}/financial-preview', [BookingController::class, 'financialPreview'])->whereNumber('booking');
-            Route::post('{booking}/accept', [BookingController::class, 'accept'])->whereNumber('booking');
-            Route::post('{booking}/reject', [BookingController::class, 'reject'])->whereNumber('booking');
+            Route::post('{booking}/accept', [BookingController::class, 'accept'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            Route::post('{booking}/reject', [BookingController::class, 'reject'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/cancel', [BookingController::class, 'cancel'])->whereNumber('booking');
             Route::post('{booking}/client-confirm', [BookingController::class, 'clientConfirm'])->whereNumber('booking');
-            Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking');
-            Route::post('{booking}/start', [BookingController::class, 'start'])->whereNumber('booking');
-            Route::post('{booking}/complete', [BookingController::class, 'complete'])->whereNumber('booking');
+            Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            Route::post('{booking}/start', [BookingController::class, 'start'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            Route::post('{booking}/complete', [BookingController::class, 'complete'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/deposit/agree-release', [BookingController::class, 'agreeReleaseDeposit'])->whereNumber('booking');
             Route::post('{booking}/deposit/agree-refund', [BookingController::class, 'agreeRefundDeposit'])->whereNumber('booking');
         });

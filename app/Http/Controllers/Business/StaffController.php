@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Business;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessStaff;
+use App\Models\StaffActivityLog;
 use App\Models\User;
 use App\Services\Business\BusinessAccessService;
 use App\Support\BusinessCapability;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -110,5 +112,51 @@ class StaffController extends Controller
         $this->access->remove($this->businessId(), $user);
 
         return redirect()->route('business.staff.index')->with('success', 'تمت إزالة الموظف.');
+    }
+
+    /**
+     * "من عمل ماذا" — the end-of-shift review: every staff-attributed action
+     * (StaffActivityLogger) on this business, newest first, filterable by
+     * staff member and date range. Defaults to today, matching how an owner
+     * actually uses this — closing out a shift, not auditing history.
+     */
+    public function activity(Request $request): View
+    {
+        $businessId = $this->businessId();
+
+        $from = $request->filled('from')
+            ? Carbon::parse($request->input('from'))->startOfDay()
+            : Carbon::today();
+        $to = $request->filled('to')
+            ? Carbon::parse($request->input('to'))->endOfDay()
+            : Carbon::now();
+
+        $userId = $request->filled('user_id') ? (int) $request->input('user_id') : null;
+
+        $rows = StaffActivityLog::query()
+            ->where('business_id', $businessId)
+            ->whereBetween('created_at', [$from, $to])
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->with(['user:id,name,phone'])
+            ->latest('id')
+            ->paginate(50)
+            ->withQueryString();
+
+        // The roster (+ the owner themselves, who can also act directly) for
+        // the filter dropdown.
+        $actors = $this->access->roster($businessId)
+            ->pluck('user')
+            ->filter()
+            ->push(Auth::user())
+            ->unique('id')
+            ->values();
+
+        return view('business.staff.activity', [
+            'rows' => $rows,
+            'actors' => $actors,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'selectedUserId' => $userId,
+        ]);
     }
 }

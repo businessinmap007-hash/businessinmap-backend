@@ -62,8 +62,12 @@ class AttributesAxisApiTest extends TestCase
         $this->assertNotEmpty($groups, 'child 68 has real option links — the endpoint must surface them');
 
         $flat = collect($groups)->pluck('options')->flatten(1)->keyBy('id');
-        $this->assertTrue($flat->has(self::OPTION_DELIVERY), 'option 108 is linked to child 68');
-        $this->assertArrayHasKey('businesses', $flat[self::OPTION_DELIVERY]);
+        // Not option 108 — «التسليم والاستلام» (its group) was retired to option_groups.is_active=0 on 2026-09-15 and
+        // no longer surfaces here by design; option 292 stays on this child
+        // on an unrelated, still active group and proves the same listing
+        // plumbing.
+        $this->assertTrue($flat->has(self::OPTION_PREPAID), 'option 292 is linked to child 68');
+        $this->assertArrayHasKey('businesses', $flat[self::OPTION_PREPAID]);
     }
 
     /**

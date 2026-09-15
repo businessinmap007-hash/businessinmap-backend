@@ -133,17 +133,21 @@ class StaffController extends Controller
 
         $userId = $request->filled('user_id') ? (int) $request->input('user_id') : null;
 
-        $rows = StaffActivityLog::query()
+        $base = StaffActivityLog::query()
             ->where('business_id', $businessId)
-            ->whereBetween('created_at', [$from, $to])
+            ->whereBetween('created_at', [$from, $to]);
+
+        $rows = (clone $base)
             ->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->with(['user:id,name,phone'])
             ->latest('id')
             ->paginate(50)
             ->withQueryString();
 
+        $counts = (clone $base)->selectRaw('user_id, count(*) as total')->groupBy('user_id')->pluck('total', 'user_id');
+
         // The roster (+ the owner themselves, who can also act directly) for
-        // the filter dropdown.
+        // the filter dropdown and the per-staff operation-count summary.
         $actors = $this->access->roster($businessId)
             ->pluck('user')
             ->filter()
@@ -151,9 +155,15 @@ class StaffController extends Controller
             ->unique('id')
             ->values();
 
+        $summary = $actors->map(fn (User $actor) => [
+            'user' => $actor,
+            'count' => (int) ($counts[$actor->id] ?? 0),
+        ])->sortByDesc('count')->values();
+
         return view('business.staff.activity', [
             'rows' => $rows,
             'actors' => $actors,
+            'summary' => $summary,
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
             'selectedUserId' => $userId,

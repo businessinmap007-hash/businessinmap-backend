@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessStaff;
+use App\Models\Order;
+use App\Models\StaffActivityLog;
 use App\Models\User;
 use App\Services\Business\BusinessAccessService;
 use App\Support\BusinessCapability;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /**
  * A business owner delegates management of its page to staff (a clinic
@@ -106,6 +109,70 @@ class BusinessStaffController extends Controller
         $this->access->remove((int) $request->user()->id, $user);
 
         return response()->json(['success' => true, 'message' => __('تمت إزالة الموظف.')]);
+    }
+
+    /**
+     * GET /api/v2/business/staff-activity — the end-of-shift review, as JSON
+     * for the app. Owner-only, mirrors Business\StaffController::activity().
+     * Defaults to today; also returns a per-staff operation count for the
+     * selected period so the owner can see who did the most at a glance.
+     */
+    public function activity(Request $request)
+    {
+        $businessId = (int) $request->user()->id;
+
+        $from = $request->filled('from')
+            ? Carbon::parse($request->input('from'))->startOfDay()
+            : Carbon::today();
+        $to = $request->filled('to')
+            ? Carbon::parse($request->input('to'))->endOfDay()
+            : Carbon::now();
+        $userId = $request->filled('user_id') ? (int) $request->input('user_id') : null;
+
+        $base = StaffActivityLog::query()
+            ->where('business_id', $businessId)
+            ->whereBetween('created_at', [$from, $to]);
+
+        $rows = (clone $base)
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->with('user:id,name,phone')
+            ->latest('id')
+            ->paginate(30)
+            ->withQueryString()
+            ->through(fn (StaffActivityLog $log) => [
+                'id' => (int) $log->id,
+                'created_at' => $log->created_at?->toIso8601String(),
+                'user_id' => (int) $log->user_id,
+                'user_name' => optional($log->user)->name,
+                'is_owner' => (int) $log->user_id === $businessId,
+                'capability' => $log->capability,
+                'action' => $log->action,
+                'subject_type' => $log->subject_type === Order::class ? 'order' : 'booking',
+                'subject_id' => (int) $log->subject_id,
+            ]);
+
+        $counts = (clone $base)->selectRaw('user_id, count(*) as total')->groupBy('user_id')->pluck('total', 'user_id');
+
+        $summary = $this->access->roster($businessId)->pluck('user')->filter()
+            ->push($request->user())->unique('id')->values()
+            ->map(fn (User $actor) => [
+                'user_id' => (int) $actor->id,
+                'name' => $actor->name,
+                'is_owner' => (int) $actor->id === $businessId,
+                'count' => (int) ($counts[$actor->id] ?? 0),
+            ])
+            ->sortByDesc('count')->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'rows' => $rows,
+                'summary' => $summary,
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'selected_user_id' => $userId,
+            ],
+        ]);
     }
 
     /** GET /api/v2/business/memberships — businesses I may manage as staff. */

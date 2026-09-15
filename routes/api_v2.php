@@ -716,6 +716,7 @@ Route::prefix('v2')->group(function () {
             Route::post('business/staff', [BusinessStaffController::class, 'store']);
             Route::patch('business/staff/{user}', [BusinessStaffController::class, 'update'])->whereNumber('user');
             Route::delete('business/staff/{user}', [BusinessStaffController::class, 'destroy'])->whereNumber('user');
+            Route::get('business/staff-activity', [BusinessStaffController::class, 'activity']);
         });
         // A delegate (who may be a plain client) lists what they may manage.
         Route::get('business/memberships', [BusinessStaffController::class, 'memberships']);

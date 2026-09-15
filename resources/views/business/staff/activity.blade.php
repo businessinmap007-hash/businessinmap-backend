@@ -61,7 +61,22 @@
         </div>
     </form>
 
-    <div class="a2-table-wrap">
+    <div class="a2-stat-grid a2-mt-16">
+        @foreach($summary as $entry)
+            <div class="a2-stat-card">
+                <div class="a2-stat-label">
+                    {{ $entry['user']->name }}
+                    @if($entry['user']->id === auth()->id())
+                        <span class="a2-pill a2-pill-sub">{{ __('صاحب النشاط') }}</span>
+                    @endif
+                </div>
+                <div class="a2-stat-value">{{ $entry['count'] }}</div>
+                <div class="a2-stat-note">{{ __('عملية في هذه الفترة') }}</div>
+            </div>
+        @endforeach
+    </div>
+
+    <div class="a2-table-wrap a2-mt-16">
         <table class="a2-table">
             <thead>
                 <tr>

@@ -284,4 +284,88 @@ class StaffActivityLogTest extends TestCase
         $this->assertStringContainsString((string) $orderA->id, $html);
         $this->assertStringNotContainsString((string) $orderB->id, $html);
     }
+
+    public function test_the_owner_can_fetch_activity_as_json_with_per_staff_counts(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest4');
+        $waiterA = $this->makeUser(User::TYPE_CLIENT, 'WaiterC');
+        $waiterB = $this->makeUser(User::TYPE_CLIENT, 'WaiterD');
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'Cust6');
+
+        foreach ([$waiterA, $waiterB] as $w) {
+            BusinessStaff::create([
+                'business_id' => $owner->id,
+                'user_id' => $w->id,
+                'capabilities' => [BusinessCapability::ORDERS],
+                'is_active' => true,
+            ]);
+        }
+
+        $orderA1 = $this->makeOrder($owner, $customer);
+        $orderA2 = $this->makeOrder($owner, $customer);
+        $orderB1 = $this->makeOrder($owner, $customer);
+
+        $this->actingAs($waiterA, 'sanctum')->postJson("/api/v2/business/orders/{$orderA1->id}/accept")->assertOk();
+        $this->actingAs($waiterA, 'sanctum')->postJson("/api/v2/business/orders/{$orderA2->id}/accept")->assertOk();
+        $this->actingAs($waiterB, 'sanctum')->postJson("/api/v2/business/orders/{$orderB1->id}/accept")->assertOk();
+
+        $response = $this->actingAs($owner, 'sanctum')
+            ->getJson('/api/v2/business/staff-activity')
+            ->assertOk()
+            ->json('data');
+
+        $summary = collect($response['summary'])->keyBy('user_id');
+        $this->assertSame(2, $summary[$waiterA->id]['count']);
+        $this->assertSame(1, $summary[$waiterB->id]['count']);
+        $this->assertSame(0, $summary[$owner->id]['count']);
+        $this->assertFalse($summary[$waiterA->id]['is_owner']);
+        $this->assertTrue($summary[$owner->id]['is_owner']);
+
+        $this->assertCount(3, $response['rows']['data']);
+        $this->assertSame('order', $response['rows']['data'][0]['subject_type']);
+    }
+
+    public function test_a_non_owner_cannot_fetch_the_activity_json(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest5');
+        $waiter = $this->makeUser(User::TYPE_CLIENT, 'WaiterE');
+
+        BusinessStaff::create([
+            'business_id' => $owner->id,
+            'user_id' => $waiter->id,
+            'capabilities' => [BusinessCapability::ORDERS],
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($waiter, 'sanctum')
+            ->getJson('/api/v2/business/staff-activity')
+            ->assertForbidden();
+    }
+
+    public function test_the_web_review_screen_shows_the_operation_count_summary(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest6');
+        $waiter = $this->makeUser(User::TYPE_CLIENT, 'WaiterF');
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'Cust7');
+
+        BusinessStaff::create([
+            'business_id' => $owner->id,
+            'user_id' => $waiter->id,
+            'capabilities' => [BusinessCapability::ORDERS],
+            'is_active' => true,
+        ]);
+
+        $order = $this->makeOrder($owner, $customer);
+        $this->actingAs($waiter, 'sanctum')
+            ->postJson("/api/v2/business/orders/{$order->id}/accept")
+            ->assertOk();
+
+        $html = $this->actingAs($owner)
+            ->get(route('business.staff.activity', [], false))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('a2-stat-card', $html);
+        $this->assertStringContainsString($waiter->name, $html);
+    }
 }

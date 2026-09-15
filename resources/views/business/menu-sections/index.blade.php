@@ -61,7 +61,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="a2-empty">{{ __('لا أقسام بعد. أضف قسماً لتنظيم منيوك.') }}</td>
+                        <td colspan="6" class="a2-empty">{{ __('لا أقسام بعد. أضف قسماً لتنظيم المنيو.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

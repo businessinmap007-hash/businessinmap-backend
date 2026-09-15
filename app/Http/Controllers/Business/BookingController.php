@@ -94,7 +94,7 @@ class BookingController extends Controller
             ->first();
 
         if (! $menu) {
-            return back()->withErrors(['menu_id' => 'هذا الصنف غير متاح في منيوك.']);
+            return back()->withErrors(['menu_id' => 'هذا الصنف غير متاح في المنيو.']);
         }
 
         $this->food->addLine($booking, (int) $menu->id, (int) $data['qty'], (float) $menu->base_price);

@@ -143,6 +143,6 @@ class MenuPharmacyCatalogController extends Controller
         ]);
         $item->save();
 
-        return back()->with('success', __(':name أُضيف إلى منيوك.', ['name' => $medicine->name]));
+        return back()->with('success', __(':name أُضيف إلى المنيو.', ['name' => $medicine->name]));
     }
 }

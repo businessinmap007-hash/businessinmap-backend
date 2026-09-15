@@ -32,7 +32,7 @@
     <div>
         <div class="a2-card a2-card--section">
             <div class="a2-card-head"><div><div class="a2-card-title">{{ __('أصناف الأكل (dine-in)') }}</div>
-                <div class="a2-card-sub">{{ __('أضف من منيوك ما طلبه العميل على الطاولة.') }}</div></div></div>
+                <div class="a2-card-sub">{{ __('أضف من المنيو ما طلبه العميل على الطاولة.') }}</div></div></div>
 
             <div class="a2-table-wrap">
                 <table class="a2-table">
@@ -63,7 +63,7 @@
             </div>
 
             @if($menuItems->isEmpty())
-                <div class="a2-alert a2-alert-warning a2-mt-16">{{ __('لا توجد أصناف في منيوك. أضف أصنافًا من شاشة المنيو أولًا.') }}</div>
+                <div class="a2-alert a2-alert-warning a2-mt-16">{{ __('لا توجد أصناف في المنيو. أضف أصنافًا من شاشة المنيو أولًا.') }}</div>
             @else
                 <form method="POST" action="{{ route('business.bookings.food.add', $booking->id) }}" class="a2-filterbar" style="margin-top:16px;">
                     @csrf

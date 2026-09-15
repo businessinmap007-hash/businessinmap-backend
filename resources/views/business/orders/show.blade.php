@@ -75,7 +75,7 @@
             </div>
 
             @if($menuItems->isEmpty())
-                <div class="a2-alert a2-alert-warning a2-mt-16">{{ __('لا توجد أصناف في منيوك. أضف من شاشة المنيو أولًا.') }}</div>
+                <div class="a2-alert a2-alert-warning a2-mt-16">{{ __('لا توجد أصناف في المنيو. أضف من شاشة المنيو أولًا.') }}</div>
             @else
                 <form method="POST" action="{{ route('business.orders.food.add', $order->id) }}" class="a2-filterbar" style="margin-top:16px;">
                     @csrf

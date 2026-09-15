@@ -67,6 +67,13 @@ class CategoryChild extends Model
             ->when(\Illuminate\Support\Facades\Schema::hasColumn('options', 'is_active'), function ($q) {
                 $q->where('options.is_active', 1);
             })
+            // A deactivated GROUP is the schema's only real retirement
+            // boundary (options themselves have no is_active column) - see
+            // RetireDuplicateOptionsSeeder's own doc comment. This was
+            // previously unchecked here, so flipping option_groups.is_active
+            // never actually hid anything from the profile/discovery
+            // screens both built on this relation.
+            ->whereDoesntHave('group', fn ($q) => $q->where('is_active', 0))
             ->orderBy('category_child_option.reorder')
             ->orderBy('options.id');
     }

@@ -342,6 +342,11 @@ return [
             'menu_furniture' => ['موبليات', 'Furniture'],
             'menu_vehicles' => ['سيارات', 'Vehicles'],
             'menu_properties' => ['عقارات', 'Properties'],
+            // Added by hand 2026-09-15 (MenuServicesKindSeeder), not by this
+            // seeder's own collapse run — a service company's own catalogue
+            // (campaign packages, programming languages, ...), same
+            // section-names-it/items-are-its-branches shape as the rest.
+            'menu_services' => ['خدمات', 'Services'],
         ],
 
         'map' => [

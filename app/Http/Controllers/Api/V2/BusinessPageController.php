@@ -143,10 +143,16 @@ final class BusinessPageController extends Controller
                 // Which fulfillment methods the unified entry point should
                 // offer above the menu — see Order::FULFILLMENT_* and
                 // CustomerCartService::placeOrder for how the choice is spent.
+                // Labels vary by what the business actually sells (retail)
+                // rather than its category — see BusinessMenuSetting::labelsFor()
+                // (replaces the old "التسليم والاستلام" option group's tags).
                 'fulfillment' => [
                     'delivery' => $menuSettings ? (bool) $menuSettings->supports_delivery : true,
                     'pickup' => $menuSettings ? (bool) $menuSettings->supports_pickup : true,
                     'dine_in' => $hasActiveTables,
+                    'labels' => \App\Models\BusinessMenuSetting::labelsFor($model),
+                    'international_shipping' => $menuSettings ? (bool) $menuSettings->supports_international_shipping : true,
+                    'domestic_shipping' => $menuSettings ? (bool) $menuSettings->supports_domestic_shipping : true,
                 ],
             ],
         ]);

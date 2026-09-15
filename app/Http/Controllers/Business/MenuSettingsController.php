@@ -24,7 +24,10 @@ class MenuSettingsController extends Controller
     {
         $row = BusinessMenuSetting::query()->firstOrNew(['business_id' => $this->businessId()]);
 
-        return view('business.menu-settings.edit', ['row' => $row]);
+        return view('business.menu-settings.edit', [
+            'row' => $row,
+            'labels' => BusinessMenuSetting::labelsFor(Auth::user()),
+        ]);
     }
 
     public function update(Request $request): RedirectResponse
@@ -73,6 +76,8 @@ class MenuSettingsController extends Controller
                 'low_stock_threshold' => $lowStockThreshold,
                 'supports_delivery' => (int) $request->boolean('supports_delivery'),
                 'supports_pickup' => (int) $request->boolean('supports_pickup'),
+                'supports_international_shipping' => (int) $request->boolean('supports_international_shipping'),
+                'supports_domestic_shipping' => (int) $request->boolean('supports_domestic_shipping'),
             ]
         );
 

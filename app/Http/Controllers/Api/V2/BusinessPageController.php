@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessBookingSetting;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\FeedPost;
@@ -52,6 +53,14 @@ final class BusinessPageController extends Controller
 
         $hasMenu = DB::table('menu_items')->where('business_id', $business)->where('is_active', 1)->exists();
         $hasServices = DB::table('business_service_prices')->where('business_id', $business)->where('is_active', 1)->exists();
+
+        // A stay's own clock (hotels, vacation apartments, chalets — any
+        // booking business) -- set once from the business's own booking
+        // settings screen, shown here so a customer knows it before booking
+        // rather than finding out at check-in. Null on the common case
+        // (a business that never set one, or isn't a booking business at
+        // all) rather than a fabricated default.
+        $bookingSettings = BusinessBookingSetting::query()->where('business_id', $business)->first();
 
         // The one entry point (bim_app, above the menu, before checkout)
         // needs to know which methods to even offer. No row yet means the
@@ -121,6 +130,8 @@ final class BusinessPageController extends Controller
                 'social' => $this->socialLinks($model),
                 'rating' => $this->ratings->summaryFor((int) $model->id, UserOperationRating::ROLE_BUSINESS),
                 'open_now' => $this->hours->isOpenNow((int) $model->id),
+                'check_in_time' => $bookingSettings?->check_in_time,
+                'check_out_time' => $bookingSettings?->check_out_time,
                 'is_following' => $isFollowing,
                 'counts' => ['posts' => $postsCount, 'followers' => $followersCount],
                 // Which tabs the client should surface for this business.

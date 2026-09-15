@@ -64,6 +64,7 @@ class DatabaseSeeder extends Seeder
            RetailProductTaxonomySeeder::class,
            FreshProduceCatalogSeeder::class,
            BusinessOffersEnablementSeeder::class,
+           ExhibitionsAntiquesMenuSeeder::class,
 
            // Last, so it sees the final link/config set: an active config with
            // NO allowed_item_types reads as «every type», not «none». Bounds

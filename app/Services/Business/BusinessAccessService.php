@@ -3,7 +3,9 @@
 namespace App\Services\Business;
 
 use App\Models\BusinessStaff;
+use App\Models\DeliveryDriver;
 use App\Models\User;
+use App\Services\DeliveryDispatchService;
 use App\Support\BusinessCapability;
 
 /**
@@ -15,6 +17,10 @@ class BusinessAccessService
 {
     public const NO_ACCESS = 'no_access';
     public const AMBIGUOUS = 'ambiguous';
+
+    public function __construct(private readonly DeliveryDispatchService $delivery)
+    {
+    }
 
     /**
      * Work out the business context for a caller.
@@ -75,13 +81,21 @@ class BusinessAccessService
      */
     public function upsert(int $businessId, int $userId, ?string $title, array $capabilities, bool $isActive = true): BusinessStaff
     {
+        $sanitized = BusinessCapability::sanitize($capabilities);
+
+        if ($isActive && in_array(BusinessCapability::DRIVERS, $sanitized, true)) {
+            $this->linkDriver($businessId, $userId);
+        } else {
+            $this->setDriverActive($businessId, $userId, false);
+        }
+
         $staff = BusinessStaff::query()->firstOrNew([
             'business_id' => $businessId,
             'user_id' => $userId,
         ]);
 
         $staff->title = $title;
-        $staff->capabilities = BusinessCapability::sanitize($capabilities);
+        $staff->capabilities = $sanitized;
         $staff->is_active = $isActive;
         $staff->save();
 
@@ -94,6 +108,42 @@ class BusinessAccessService
             ->where('business_id', $businessId)
             ->where('user_id', $userId)
             ->delete();
+
+        $this->setDriverActive($businessId, $userId, false);
+    }
+
+    /**
+     * The `drivers` capability is the Staff & Permissions door onto the same
+     * private-fleet linking DeliveryDriverController's own "موصّليّ" screen
+     * uses (DeliveryDispatchService::linkBusinessDriver) — same find-by-phone
+     * rule, including the refusal to poach a driver already privately linked
+     * to a DIFFERENT business, which is why this runs BEFORE the staff row is
+     * saved: a poach attempt must fail the whole grant, not silently skip the
+     * one capability.
+     */
+    private function linkDriver(int $businessId, int $userId): void
+    {
+        $user = User::query()->find($userId);
+
+        if (! $user || ! $user->phone) {
+            return;
+        }
+
+        $this->delivery->linkBusinessDriver($businessId, (string) $user->phone);
+    }
+
+    /**
+     * Losing the capability (unchecked, staff deactivated, or removed
+     * entirely) only ever takes the driver off duty — never clears
+     * `business_id` — matching the dedicated roster screen's own rule that a
+     * driver row is never hard-detached, so its counters stay attributable.
+     */
+    private function setDriverActive(int $businessId, int $userId, bool $active): void
+    {
+        DeliveryDriver::query()
+            ->where('user_id', $userId)
+            ->where('business_id', $businessId)
+            ->update(['is_active' => $active]);
     }
 
     /** The businesses a user may act for as staff, with their capabilities. */

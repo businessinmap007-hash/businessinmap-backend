@@ -56,11 +56,15 @@ class BusinessStaffController extends Controller
 
         $user = $this->resolveUser($data, $businessId);
 
+        // Hiding the checkbox isn't enough: the request is sent by hand as
+        // easily as the app sends it, and whoever sends it grants their
+        // employee a permission they themselves don't have -- see the web
+        // Business\StaffController::store()'s own note on this.
         $staff = $this->access->upsert(
             $businessId,
             (int) $user->id,
             $data['title'] ?? null,
-            $data['capabilities'],
+            BusinessCapability::sanitizeFor($request->user(), $data['capabilities']),
             (bool) ($data['is_active'] ?? true),
         );
 
@@ -92,7 +96,7 @@ class BusinessStaffController extends Controller
             $businessId,
             $user,
             array_key_exists('title', $data) ? $data['title'] : $existing->title,
-            $data['capabilities'] ?? (array) $existing->capabilities,
+            BusinessCapability::sanitizeFor($request->user(), $data['capabilities'] ?? (array) $existing->capabilities),
             array_key_exists('is_active', $data) ? (bool) $data['is_active'] : (bool) $existing->is_active,
         );
 

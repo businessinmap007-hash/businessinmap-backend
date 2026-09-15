@@ -27,6 +27,7 @@ final class BusinessCapability
     public const PRICES = 'prices';
     public const TRAINING = 'training';
     public const CLINIC = 'clinic';
+    public const DRIVERS = 'drivers';
 
     /**
      * The registry: key => [ar, en]. Order here is the display order.
@@ -48,6 +49,7 @@ final class BusinessCapability
             self::SCHEDULES => ['خطوط التشغيل', 'Trip schedules'],
             self::TRAINING => ['خطط التدريب والتغذية', 'Training & nutrition plans'],
             self::CLINIC => ['مواعيد العيادة', 'Clinic appointments'],
+            self::DRIVERS => ['مناديب التوصيل', 'Delivery drivers'],
         ];
     }
 
@@ -76,6 +78,10 @@ final class BusinessCapability
         self::SCHEDULES => 'schedules',
         self::TRAINING => 'training',
         self::PROJECTS => 'projects',
+        // A business only manages its own delivery drivers once it actually
+        // offers delivery — see BusinessAccessService::syncDriverLink(),
+        // which links/unlinks the DeliveryDriver row this capability grants.
+        self::DRIVERS => 'delivery',
     ];
 
     /**

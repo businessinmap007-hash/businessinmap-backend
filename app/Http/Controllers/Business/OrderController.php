@@ -181,7 +181,7 @@ class OrderController extends Controller
             ->first();
 
         if (! $menu) {
-            return back()->withErrors(['menu_id' => 'هذا الصنف غير متاح في منيوك.']);
+            return back()->withErrors(['menu_id' => 'هذا الصنف غير متاح في المنيو.']);
         }
 
         $this->orders->addLine($order, (int) $menu->id, (int) $data['qty'], (float) $menu->base_price);

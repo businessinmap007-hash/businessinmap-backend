@@ -356,7 +356,7 @@ class TrainingPlanService
                 'title_en' => $accepted ? 'Training plan accepted' : 'Training plan declined',
                 'body_ar' => trim(($clientName !== '' ? $clientName . ' ' : '') . ($accepted ? 'قبل خطة ' : 'رفض خطة ') . $plan->title . '.'),
                 'body_en' => trim(($clientName !== '' ? $clientName . ' ' : '') . ($accepted ? 'accepted' : 'declined') . ' the plan ' . $plan->title . '.'),
-                'action_type' => 'open_training_plan',
+                'action_type' => 'open_training_plan_manage',
                 'notifiable_type' => TrainingPlan::class,
                 'notifiable_id' => (int) $plan->id,
                 'source_type' => $accepted ? 'training_plan_accepted' : 'training_plan_declined',

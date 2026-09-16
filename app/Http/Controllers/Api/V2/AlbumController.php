@@ -65,6 +65,13 @@ final class AlbumController extends Controller
     /** POST /api/v2/profile/albums */
     public function store(Request $request)
     {
+        // A plain client account has no photo album — only a business shows
+        // one on its public page (the read-only businesses/{id}/albums
+        // route above), so only a business needs to be able to create one.
+        if (! $request->user()->isBusiness()) {
+            abort(403, __('حساب العميل لا يملك ألبوم صور.'));
+        }
+
         $data = $request->validate([
             'title_ar' => ['required', 'string', 'max:191'],
             'title_en' => ['nullable', 'string', 'max:191'],

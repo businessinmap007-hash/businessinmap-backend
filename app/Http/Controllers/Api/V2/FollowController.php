@@ -54,6 +54,13 @@ final class FollowController extends Controller
             abort(422, __('لا يمكنك متابعة حسابك الخاص.'));
         }
 
+        // A plain client account has no followers concept at all — only a
+        // business is something to follow (its posts feed into the audience
+        // PostAudienceService builds for whoever follows it).
+        if (! User::query()->whereKey($followId)->where('type', User::TYPE_BUSINESS)->exists()) {
+            abort(422, __('لا يمكن متابعة حساب مستخدم عادي.'));
+        }
+
         $follow = FollowUser::query()->firstOrCreate([
             'user_id' => $userId,
             'follow_id' => $followId,

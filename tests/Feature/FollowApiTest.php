@@ -69,6 +69,23 @@ class FollowApiTest extends TestCase
             ->assertStatus(422);
     }
 
+    /** A client account has no followers concept — only a business is followable. */
+    public function test_following_a_client_account_is_rejected(): void
+    {
+        $anotherClient = new User();
+        $anotherClient->name = 'Another Client';
+        $anotherClient->email = 'another-client-'.uniqid().'@example.test';
+        $anotherClient->phone = '01'.random_int(100000000, 999999999);
+        $anotherClient->password = 'secret-password';
+        $anotherClient->type = 'client';
+        $anotherClient->api_token = \Illuminate\Support\Str::random(80);
+        $anotherClient->save();
+
+        $this->actingAs($this->business, 'sanctum')
+            ->postJson('/api/v2/follows', ['follow_id' => $anotherClient->id])
+            ->assertStatus(422);
+    }
+
     public function test_unfollow_removes_it_and_the_feed_stops_showing_that_author(): void
     {
         FollowUser::query()->create(['user_id' => $this->client->id, 'follow_id' => $this->business->id]);

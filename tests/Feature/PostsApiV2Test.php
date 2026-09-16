@@ -141,6 +141,16 @@ class PostsApiV2Test extends TestCase
 
     // ─────────────────────────── publishing ───────────────────────────
 
+    public function test_a_client_account_cannot_publish_a_post(): void
+    {
+        $client = $this->user('client');
+
+        $this->actingAs($client, 'sanctum')->postJson('/api/v2/posts', [
+            'title' => 'عنوان',
+            'body' => 'نص',
+        ])->assertForbidden();
+    }
+
     public function test_publishing_persists_the_body_and_stores_the_images(): void
     {
         $author = $this->user('business');

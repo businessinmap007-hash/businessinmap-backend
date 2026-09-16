@@ -229,6 +229,14 @@ final class PostController extends Controller
 
         $user = $request->user();
 
+        // A client only ever consumes what a business publishes — searches,
+        // buys, books, comments, follows a business/offer, applies to a job.
+        // Publishing a post (or a job vacancy — JobController::store() has
+        // its own copy of this same rule) is a business-only action.
+        if (! $user->isBusiness()) {
+            abort(403, __('حساب العميل لا يمكنه نشر منشور.'));
+        }
+
         $subject = $this->ownedSubject($data, (int) $user->id);
 
         $post = DB::transaction(function () use ($request, $data, $user, $subject) {

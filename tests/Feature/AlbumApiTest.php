@@ -23,8 +23,35 @@ class AlbumApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->user = User::query()->orderBy('id')->firstOrFail();
-        $this->other = User::query()->orderBy('id', 'desc')->firstOrFail();
+        // Album creation is business-only (a client account has no album at
+        // all) - a freshly made business account here, not "whatever
+        // happens to be first in this shared dev database", which is what
+        // broke this test the day that restriction was added.
+        $this->user = $this->makeUser(User::TYPE_BUSINESS);
+        $this->other = $this->makeUser(User::TYPE_BUSINESS);
+    }
+
+    private function makeUser(string $type): User
+    {
+        $u = new User();
+        $u->name = 'Album Test '.\Illuminate\Support\Str::random(6);
+        $u->email = 'album-test-'.uniqid().'@example.test';
+        $u->phone = '01'.random_int(100000000, 999999999);
+        $u->password = 'secret-password';
+        $u->type = $type;
+        $u->api_token = \Illuminate\Support\Str::random(80);
+        $u->save();
+
+        return $u;
+    }
+
+    public function test_a_client_account_cannot_create_an_album(): void
+    {
+        $client = $this->makeUser(User::TYPE_CLIENT);
+
+        $this->actingAs($client, 'sanctum')
+            ->postJson('/api/v2/profile/albums', ['title_ar' => 'البوم عميل'])
+            ->assertForbidden();
     }
 
     private const A_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';

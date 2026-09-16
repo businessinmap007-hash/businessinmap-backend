@@ -31,6 +31,13 @@ final class NotificationCenterController extends Controller
 
         if (! empty($data['status'])) {
             $query->where('status', (string) $data['status']);
+        } else {
+            // Archiving exists specifically to remove something from this
+            // list - a plain "give me my notifications" call (every load
+            // and refresh the app makes) must not hand archived ones back,
+            // or Clear All only ever looked cleared until the next refresh
+            // re-fetched them from the server.
+            $query->where('status', '!=', AppNotification::STATUS_ARCHIVED);
         }
 
         if (! empty($data['type'])) {

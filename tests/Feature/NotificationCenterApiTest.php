@@ -153,6 +153,28 @@ class NotificationCenterApiTest extends TestCase
         $this->assertSame(AppNotification::STATUS_UNREAD, $foreign->fresh()->status);
     }
 
+    /**
+     * archiveAll() only ever cleared the LIST screen's own client-side
+     * state — a plain refresh (no ?status=) re-fetched everything
+     * including what was just archived, so "Clear All" only looked
+     * cleared until the next reload.
+     */
+    public function test_a_plain_refresh_after_archiving_does_not_bring_notifications_back(): void
+    {
+        $archived = $this->makeNotification($this->user->id, ['status' => AppNotification::STATUS_ARCHIVED]);
+        $unread = $this->makeNotification($this->user->id);
+
+        $ids = collect(
+            $this->actingAs($this->user, 'sanctum')
+                ->getJson('/api/v2/notifications')
+                ->assertOk()
+                ->json('data.notifications.data')
+        )->pluck('id')->all();
+
+        $this->assertNotContains($archived->id, $ids);
+        $this->assertContains($unread->id, $ids);
+    }
+
     public function test_index_filters_by_status(): void
     {
         $unread = $this->makeNotification($this->user->id);

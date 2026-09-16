@@ -157,6 +157,7 @@ class BusinessStaffController extends Controller
         abort_if(! $staff, 404);
 
         $this->notifyResponse($request->user(), $staff, accepted: true);
+        $this->resolveInviteNotification((int) $request->user()->id, $business, accepted: true);
 
         return response()->json([
             'success' => true,
@@ -173,12 +174,44 @@ class BusinessStaffController extends Controller
         abort_if(! $staff, 404);
 
         $this->notifyResponse($request->user(), $staff, accepted: false);
+        $this->resolveInviteNotification((int) $request->user()->id, $business, accepted: false);
 
         return response()->json([
             'success' => true,
             'message' => __('تم رفض الدعوة.'),
             'data' => ['staff' => $this->serialize($staff->fresh('user'))],
         ]);
+    }
+
+    /**
+     * Rewrites the invited person's OWN "you've been invited" notification
+     * in place once they respond — its action_type moves off
+     * `open_staff_invitation` so tapping it again never re-opens the
+     * accept/decline popup, and its title/body say what was decided instead
+     * of still reading like an open invitation.
+     */
+    private function resolveInviteNotification(int $staffUserId, int $businessId, bool $accepted): void
+    {
+        try {
+            $businessName = trim((string) (User::query()->find($businessId)?->name ?? ''));
+
+            AppNotification::query()
+                ->where('user_id', $staffUserId)
+                ->where('action_type', 'open_staff_invitation')
+                ->where('notifiable_type', User::class)
+                ->where('notifiable_id', $businessId)
+                ->latest('id')
+                ->limit(1)
+                ->update([
+                    'title_ar' => $accepted ? 'تم قبول دعوة العمل' : 'تم رفض دعوة العمل',
+                    'title_en' => $accepted ? 'Work invitation accepted' : 'Work invitation declined',
+                    'body_ar' => trim(($accepted ? 'قبلت دعوة العمل من ' : 'رفضت دعوة العمل من ') . $businessName . '.'),
+                    'body_en' => trim(($accepted ? 'You accepted the work invitation from ' : 'You declined the work invitation from ') . $businessName . '.'),
+                    'action_type' => 'open_business',
+                ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** Tells the invited person a grant is waiting — tapping opens the business's page. */

@@ -131,6 +131,52 @@ class StaffInvitationAcceptanceTest extends TestCase
             ->assertJsonPath('data.invitations.0.business.id', $owner->id);
     }
 
+    public function test_accepting_rewrites_the_original_invite_notification_in_place(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Shop-Inv7');
+        $staffUser = $this->makeUser(User::TYPE_CLIENT, 'Employee-Inv7');
+
+        $this->actingAs($owner, 'sanctum')->postJson('/api/v2/business/staff', [
+            'phone' => $staffUser->phone, 'capabilities' => [BusinessCapability::ORDERS],
+        ])->assertCreated();
+
+        $invite = AppNotification::query()
+            ->where('user_id', $staffUser->id)
+            ->where('action_type', 'open_staff_invitation')
+            ->firstOrFail();
+
+        $this->actingAs($staffUser, 'sanctum')
+            ->postJson("/api/v2/staff/invitations/{$owner->id}/accept")
+            ->assertOk();
+
+        $invite->refresh();
+        $this->assertSame('open_business', $invite->action_type, 'a second tap must never re-open the accept/decline popup');
+        $this->assertStringContainsString('قبول', $invite->title_ar);
+    }
+
+    public function test_declining_rewrites_the_original_invite_notification_too(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Shop-Inv8');
+        $staffUser = $this->makeUser(User::TYPE_CLIENT, 'Employee-Inv8');
+
+        $this->actingAs($owner, 'sanctum')->postJson('/api/v2/business/staff', [
+            'phone' => $staffUser->phone, 'capabilities' => [BusinessCapability::ORDERS],
+        ])->assertCreated();
+
+        $invite = AppNotification::query()
+            ->where('user_id', $staffUser->id)
+            ->where('action_type', 'open_staff_invitation')
+            ->firstOrFail();
+
+        $this->actingAs($staffUser, 'sanctum')
+            ->postJson("/api/v2/staff/invitations/{$owner->id}/decline")
+            ->assertOk();
+
+        $invite->refresh();
+        $this->assertSame('open_business', $invite->action_type);
+        $this->assertStringContainsString('رفض', $invite->title_ar);
+    }
+
     public function test_editing_an_already_accepted_member_does_not_reset_their_status(): void
     {
         $owner = $this->makeUser(User::TYPE_BUSINESS, 'Shop-Inv6');

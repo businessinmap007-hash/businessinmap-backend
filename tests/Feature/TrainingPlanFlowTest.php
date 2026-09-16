@@ -54,12 +54,23 @@ class TrainingPlanFlowTest extends TestCase
         ])->assertCreated()->json('data.plan.id');
     }
 
+    /** A fresh plan needs the client's own acceptance before it's active. */
+    private function createActivePlan(User $trainer, User $client): int
+    {
+        $id = $this->createPlan($trainer, $client);
+
+        Sanctum::actingAs($client);
+        $this->postJson("/api/v2/training-plans/{$id}/accept")->assertOk();
+
+        return $id;
+    }
+
     public function test_trainer_builds_a_plan_and_the_client_reads_and_logs_progress(): void
     {
         $trainer = $this->user(User::TYPE_BUSINESS, 'Gym');
         $client = $this->user(User::TYPE_CLIENT, 'Trainee');
 
-        $id = $this->createPlan($trainer, $client);
+        $id = $this->createActivePlan($trainer, $client);
 
         // The client was notified.
         $this->assertTrue(
@@ -88,7 +99,7 @@ class TrainingPlanFlowTest extends TestCase
     {
         $trainer = $this->user(User::TYPE_BUSINESS, 'Gym');
         $client = $this->user(User::TYPE_CLIENT, 'Trainee');
-        $id = $this->createPlan($trainer, $client);
+        $id = $this->createActivePlan($trainer, $client);
 
         // Grab the first exercise (Squat, 4 sets).
         Sanctum::actingAs($client);
@@ -160,7 +171,7 @@ class TrainingPlanFlowTest extends TestCase
     {
         $trainer = $this->user(User::TYPE_BUSINESS, 'Gym');
         $client = $this->user(User::TYPE_CLIENT, 'Trainee');
-        $id = $this->createPlan($trainer, $client);
+        $id = $this->createActivePlan($trainer, $client);
 
         // Trainer completes the plan.
         Sanctum::actingAs($trainer);

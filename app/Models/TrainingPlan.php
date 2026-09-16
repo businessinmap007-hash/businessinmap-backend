@@ -17,6 +17,11 @@ class TrainingPlan extends Model
     public const STATUS_PAUSED = 'paused';
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_CANCELLED = 'cancelled';
+    // Not in STATUSES below on purpose: a client reaches these only through
+    // accept()/decline() (TrainingPlanController::accept/decline), never by
+    // PATCHing status directly - see TrainingPlanService::setStatus()'s guard.
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_DECLINED = 'declined';
 
     public const STATUSES = [
         self::STATUS_ACTIVE,

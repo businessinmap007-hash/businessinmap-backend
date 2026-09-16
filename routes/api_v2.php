@@ -468,6 +468,8 @@ Route::prefix('v2')->group(function () {
         Route::get('training-plans', [ClientTrainingController::class, 'index']);
         Route::get('training-plans/{plan}', [ClientTrainingController::class, 'show'])->whereNumber('plan');
         Route::post('training-plans/{plan}/progress', [ClientTrainingController::class, 'logProgress'])->whereNumber('plan');
+        Route::post('training-plans/{plan}/accept', [ClientTrainingController::class, 'accept'])->whereNumber('plan');
+        Route::post('training-plans/{plan}/decline', [ClientTrainingController::class, 'decline'])->whereNumber('plan');
         // The only per-exercise action: confirm one finished round (set).
         Route::post('training-plans/{plan}/exercises/{exercise}/complete-round', [ClientTrainingController::class, 'completeRound'])->whereNumber('plan')->whereNumber('exercise');
         // Direct (text-only) chat with my trainer, scoped to the plan.

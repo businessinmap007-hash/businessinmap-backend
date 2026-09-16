@@ -37,7 +37,8 @@ class TrainingPlanService
                 'client_id' => (int) $client->id,
                 'title' => $header['title'],
                 'goal' => $header['goal'] ?? null,
-                'status' => TrainingPlan::STATUS_ACTIVE,
+                // The client confirms before it activates - see accept().
+                'status' => TrainingPlan::STATUS_PENDING,
                 'starts_on' => $header['starts_on'] ?? null,
                 'ends_on' => $header['ends_on'] ?? null,
                 'notes' => $header['notes'] ?? null,
@@ -71,7 +72,11 @@ class TrainingPlanService
         });
     }
 
-    /** Change a plan's status (guarding against reviving a finished one). */
+    /**
+     * Change a plan's status (guarding against reviving a finished one). Never
+     * the way out of `pending` - accept()/decline() are the client's own,
+     * or a trainer could hand themselves the client's confirmation.
+     */
     public function setStatus(TrainingPlan $plan, string $status): TrainingPlan
     {
         if (in_array($plan->status, [TrainingPlan::STATUS_COMPLETED, TrainingPlan::STATUS_CANCELLED], true)) {
@@ -80,7 +85,39 @@ class TrainingPlanService
             ]);
         }
 
+        if ($plan->status === TrainingPlan::STATUS_PENDING) {
+            throw ValidationException::withMessages([
+                'status' => __('بانتظار قبول العميل للخطة.'),
+            ]);
+        }
+
         $plan->update(['status' => $status]);
+
+        return $plan;
+    }
+
+    /** The client accepts the assigned plan - the only way it becomes active. */
+    public function accept(TrainingPlan $plan): TrainingPlan
+    {
+        if ($plan->status !== TrainingPlan::STATUS_PENDING) {
+            return $plan;
+        }
+
+        $plan->update(['status' => TrainingPlan::STATUS_ACTIVE]);
+        $this->notifyResponse($plan, accepted: true);
+
+        return $plan;
+    }
+
+    /** The client declines - the plan stays on record but never activates. */
+    public function decline(TrainingPlan $plan): TrainingPlan
+    {
+        if ($plan->status !== TrainingPlan::STATUS_PENDING) {
+            return $plan;
+        }
+
+        $plan->update(['status' => TrainingPlan::STATUS_DECLINED]);
+        $this->notifyResponse($plan, accepted: false);
 
         return $plan;
     }
@@ -283,19 +320,46 @@ class TrainingPlanService
         ];
     }
 
-    /** Tell the client a plan was assigned to them. Best-effort. */
+    /** Tell the client a plan was assigned to them, pending their acceptance. */
     private function notifyAssigned(TrainingPlan $plan): void
     {
         try {
+            $trainerName = trim((string) (User::query()->find($plan->trainer_id)?->name ?? ''));
+
             $this->notifications->dispatch('training_plan_assigned', (int) $plan->client_id, [
+                'actor_id' => (int) $plan->trainer_id,
                 // Stored bilingual content — deliberately not wrapped in __().
-                'title_ar' => 'خطة تدريب جديدة',
-                'title_en' => 'New training plan',
-                'body_ar' => 'أنشأ لك مدرّبك خطة تدريب وتغذية جديدة: ' . $plan->title . '.',
-                'body_en' => 'Your trainer created a new training & nutrition plan: ' . $plan->title . '.',
+                'title_ar' => 'خطة تدريب جديدة بانتظار قبولك',
+                'title_en' => 'New training plan awaiting your acceptance',
+                'body_ar' => trim(($trainerName !== '' ? $trainerName . ' ' : '') . 'أنشأ لك خطة تدريب وتغذية جديدة: ' . $plan->title . '.'),
+                'body_en' => trim(($trainerName !== '' ? $trainerName . ': ' : '') . 'created a new training & nutrition plan for you: ' . $plan->title . '.'),
+                'action_type' => 'open_training_plan',
                 'notifiable_type' => TrainingPlan::class,
                 'notifiable_id' => (int) $plan->id,
-                'source_type' => TrainingPlan::class,
+                'source_type' => 'training_plan_assigned',
+                'source_id' => (int) $plan->id,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** Tell the trainer whether the client accepted or declined. */
+    private function notifyResponse(TrainingPlan $plan, bool $accepted): void
+    {
+        try {
+            $clientName = trim((string) (User::query()->find($plan->client_id)?->name ?? ''));
+
+            $this->notifications->dispatch($accepted ? 'training_plan_accepted' : 'training_plan_declined', (int) $plan->trainer_id, [
+                'actor_id' => (int) $plan->client_id,
+                'title_ar' => $accepted ? 'تم قبول خطة التدريب' : 'تم رفض خطة التدريب',
+                'title_en' => $accepted ? 'Training plan accepted' : 'Training plan declined',
+                'body_ar' => trim(($clientName !== '' ? $clientName . ' ' : '') . ($accepted ? 'قبل خطة ' : 'رفض خطة ') . $plan->title . '.'),
+                'body_en' => trim(($clientName !== '' ? $clientName . ' ' : '') . ($accepted ? 'accepted' : 'declined') . ' the plan ' . $plan->title . '.'),
+                'action_type' => 'open_training_plan',
+                'notifiable_type' => TrainingPlan::class,
+                'notifiable_id' => (int) $plan->id,
+                'source_type' => $accepted ? 'training_plan_accepted' : 'training_plan_declined',
                 'source_id' => (int) $plan->id,
             ]);
         } catch (\Throwable $e) {

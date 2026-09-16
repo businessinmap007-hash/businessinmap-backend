@@ -2803,5 +2803,6 @@
     "هذا الطلب ليس طلب توصيل.": "This order is not a delivery order.",
     "هذا الطلب غير متاح للإسناد.": "This order is not available for assignment.",
     "هذا الموصّل غير مفعّل حاليًا.": "This driver is not currently active.",
-    "لديك نزاع أُغلق بالتراضي مؤخرًا. انتظر :hours ساعة من إغلاقه (أو حتى يصدر قرار غرامة التسوية) قبل فكّ الضمان.": "You have a dispute that was recently closed by mutual agreement. Wait :hours hours from its closing (or until the settlement-fine decision is issued) before releasing the guarantee."
+    "لديك نزاع أُغلق بالتراضي مؤخرًا. انتظر :hours ساعة من إغلاقه (أو حتى يصدر قرار غرامة التسوية) قبل فكّ الضمان.": "You have a dispute that was recently closed by mutual agreement. Wait :hours hours from its closing (or until the settlement-fine decision is issued) before releasing the guarantee.",
+    "بانتظار قبول العميل للخطة.": "Awaiting the client's acceptance of the plan."
 }

@@ -24,7 +24,7 @@ class ClientTrainingController extends Controller
         $rows = TrainingPlan::query()
             ->where('client_id', (int) $request->user()->id)
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->get('status')))
-            ->with('trainer:id,name,logo')
+            ->with('trainer:id,name,logo,phone')
             ->withCount(['exercises', 'meals'])
             ->latest('id')
             ->paginate((int) $request->get('per_page', 20));
@@ -43,7 +43,7 @@ class ClientTrainingController extends Controller
             'success' => true,
             'data' => ['plan' => $this->serialize($row->load([
                 'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
-                'exercises.images', 'meals', 'meals.images', 'progressLogs', 'trainer:id,name,logo',
+                'exercises.images', 'meals', 'meals.images', 'progressLogs', 'trainer:id,name,logo,phone',
             ]))],
         ]);
     }
@@ -115,6 +115,30 @@ class ClientTrainingController extends Controller
         ]);
     }
 
+    /** POST /api/v2/training-plans/{plan}/accept — I accept the assigned plan. */
+    public function accept(Request $request, int $plan)
+    {
+        $row = $this->service->accept($this->mineOrFail($request, $plan));
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم قبول خطة التدريب.'),
+            'data' => ['plan' => $this->serialize($row->fresh('trainer'))],
+        ]);
+    }
+
+    /** POST /api/v2/training-plans/{plan}/decline — I decline it. */
+    public function decline(Request $request, int $plan)
+    {
+        $row = $this->service->decline($this->mineOrFail($request, $plan));
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم رفض خطة التدريب.'),
+            'data' => ['plan' => $this->serialize($row->fresh('trainer'))],
+        ]);
+    }
+
     private function mineOrFail(Request $request, int $planId): TrainingPlan
     {
         return TrainingPlan::query()
@@ -134,7 +158,7 @@ class ClientTrainingController extends Controller
             'ends_on' => optional($p->ends_on)->toDateString(),
             'notes' => $p->notes,
             'trainer' => $p->relationLoaded('trainer') && $p->trainer
-                ? ['id' => (int) $p->trainer->id, 'name' => $p->trainer->name, 'logo' => $p->trainer->logo]
+                ? ['id' => (int) $p->trainer->id, 'name' => $p->trainer->name, 'logo' => $p->trainer->logo, 'phone' => $p->trainer->phone]
                 : ['id' => (int) $p->trainer_id],
             'exercises_count' => $p->exercises_count !== null ? (int) $p->exercises_count : null,
             'meals_count' => $p->meals_count !== null ? (int) $p->meals_count : null,

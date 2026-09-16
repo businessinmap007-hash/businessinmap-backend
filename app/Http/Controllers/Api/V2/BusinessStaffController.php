@@ -194,7 +194,7 @@ class BusinessStaffController extends Controller
                 'title_en' => 'Staff invitation',
                 'body_ar' => trim(($businessName !== '' ? $businessName . ' ' : '') . 'يدعوك للانضمام كموظف لديه.'),
                 'body_en' => trim(($businessName !== '' ? $businessName . ': ' : '') . 'invited you to join as staff.'),
-                'action_type' => 'open_business',
+                'action_type' => 'open_staff_invitation',
                 'notifiable_type' => User::class,
                 'notifiable_id' => (int) $business->id,
                 'source_type' => 'staff_invited',

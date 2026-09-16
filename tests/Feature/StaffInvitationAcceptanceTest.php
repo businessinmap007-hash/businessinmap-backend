@@ -49,7 +49,7 @@ class StaffInvitationAcceptanceTest extends TestCase
 
         $this->assertDatabaseHas('app_notifications', [
             'user_id' => $staffUser->id,
-            'action_type' => 'open_business',
+            'action_type' => 'open_staff_invitation',
             'notifiable_type' => User::class,
             'notifiable_id' => $owner->id,
         ]);

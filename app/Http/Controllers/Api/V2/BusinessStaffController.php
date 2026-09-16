@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppNotification;
 use App\Models\BusinessStaff;
 use App\Models\Order;
 use App\Models\StaffActivityLog;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Services\Business\BusinessAccessService;
 use App\Services\Business\StaffAttendanceService;
 use App\Services\DeliveryDispatchService;
+use App\Services\Notifications\NotificationDispatcherService;
 use App\Support\BusinessCapability;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -27,6 +29,7 @@ class BusinessStaffController extends Controller
         private readonly BusinessAccessService $access,
         private readonly StaffAttendanceService $attendance,
         private readonly DeliveryDispatchService $delivery,
+        private readonly NotificationDispatcherService $notifications,
     ) {
     }
 
@@ -73,6 +76,13 @@ class BusinessStaffController extends Controller
             (bool) ($data['is_active'] ?? true),
         );
 
+        // A person needs to confirm their own invitation before it activates
+        // (see resolveContext()'s status gate) - notify only while it's
+        // still pending, never on a re-save of an already-accepted grant.
+        if ($staff->status === BusinessStaff::STATUS_PENDING) {
+            $this->notifyInvited($request->user(), $staff);
+        }
+
         return response()->json([
             'success' => true,
             'message' => __('تم منح الموظف صلاحيات إدارة النشاط.'),
@@ -118,6 +128,107 @@ class BusinessStaffController extends Controller
         $this->access->remove((int) $request->user()->id, $user);
 
         return response()->json(['success' => true, 'message' => __('تمت إزالة الموظف.')]);
+    }
+
+    /** GET /api/v2/staff/invitations — invitations I haven't answered yet. */
+    public function invitations(Request $request)
+    {
+        $rows = $this->access->pendingInvitationsFor((int) $request->user()->id)
+            ->map(fn (BusinessStaff $s) => [
+                'business_id' => (int) $s->business_id,
+                'business' => $s->business ? [
+                    'id' => (int) $s->business->id,
+                    'name' => $s->business->name,
+                    'phone' => $s->business->phone,
+                    'logo' => $s->business->logo,
+                ] : null,
+                'title' => $s->title,
+                'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
+            ]);
+
+        return response()->json(['success' => true, 'data' => ['invitations' => $rows]]);
+    }
+
+    /** POST /api/v2/staff/invitations/{business}/accept — I accept the grant. */
+    public function accept(Request $request, int $business)
+    {
+        $staff = $this->access->accept($business, (int) $request->user()->id);
+
+        abort_if(! $staff, 404);
+
+        $this->notifyResponse($request->user(), $staff, accepted: true);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم قبول الدعوة.'),
+            'data' => ['staff' => $this->serialize($staff->fresh('user'))],
+        ]);
+    }
+
+    /** POST /api/v2/staff/invitations/{business}/decline — I decline it. */
+    public function decline(Request $request, int $business)
+    {
+        $staff = $this->access->decline($business, (int) $request->user()->id);
+
+        abort_if(! $staff, 404);
+
+        $this->notifyResponse($request->user(), $staff, accepted: false);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم رفض الدعوة.'),
+            'data' => ['staff' => $this->serialize($staff->fresh('user'))],
+        ]);
+    }
+
+    /** Tells the invited person a grant is waiting — tapping opens the business's page. */
+    private function notifyInvited(User $business, BusinessStaff $staff): void
+    {
+        try {
+            $businessName = trim((string) ($business->name ?? ''));
+
+            $this->notifications->dispatch('staff_invited', (int) $staff->user_id, [
+                'type' => AppNotification::TYPE_SYSTEM,
+                'actor_id' => (int) $business->id,
+                'title_ar' => 'دعوة للانضمام كموظف',
+                'title_en' => 'Staff invitation',
+                'body_ar' => trim(($businessName !== '' ? $businessName . ' ' : '') . 'يدعوك للانضمام كموظف لديه.'),
+                'body_en' => trim(($businessName !== '' ? $businessName . ': ' : '') . 'invited you to join as staff.'),
+                'action_type' => 'open_business',
+                'notifiable_type' => User::class,
+                'notifiable_id' => (int) $business->id,
+                'source_type' => 'staff_invited',
+                'source_id' => (int) $staff->id,
+                'meta' => ['business_id' => (int) $business->id],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** Tells the business owner whether the invitation was accepted or declined. */
+    private function notifyResponse(User $staffUser, BusinessStaff $staff, bool $accepted): void
+    {
+        try {
+            $name = trim((string) ($staffUser->name ?? ''));
+
+            $this->notifications->dispatch($accepted ? 'staff_accepted' : 'staff_declined', (int) $staff->business_id, [
+                'type' => AppNotification::TYPE_SYSTEM,
+                'actor_id' => (int) $staffUser->id,
+                'title_ar' => $accepted ? 'تم قبول دعوة الموظف' : 'تم رفض دعوة الموظف',
+                'title_en' => $accepted ? 'Staff invitation accepted' : 'Staff invitation declined',
+                'body_ar' => trim(($name !== '' ? $name . ' ' : '') . ($accepted ? 'قبل الانضمام كموظف.' : 'رفض الانضمام كموظف.')),
+                'body_en' => trim(($name !== '' ? $name . ' ' : '') . ($accepted ? 'accepted the staff invitation.' : 'declined the staff invitation.')),
+                'action_type' => 'open_staff_member',
+                'notifiable_type' => User::class,
+                'notifiable_id' => (int) $staffUser->id,
+                'source_type' => $accepted ? 'staff_accepted' : 'staff_declined',
+                'source_id' => (int) $staff->id,
+                'meta' => ['user_id' => (int) $staffUser->id],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -306,6 +417,7 @@ class BusinessStaffController extends Controller
             'title' => $s->title,
             'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
             'is_active' => (bool) $s->is_active,
+            'status' => (string) $s->status,
         ];
     }
 }

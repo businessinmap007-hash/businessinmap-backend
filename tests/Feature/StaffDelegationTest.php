@@ -57,6 +57,10 @@ class StaffDelegationTest extends TestCase
             'capabilities' => [BusinessCapability::WORKING_HOURS],
         ])->assertCreated()->assertJsonPath('data.staff.capabilities', [BusinessCapability::WORKING_HOURS]);
 
+        // A grant needs the invited person's own acceptance before it activates.
+        Sanctum::actingAs($secretary);
+        $this->postJson("/api/v2/staff/invitations/{$owner->id}/accept")->assertOk();
+
         // The secretary sees the membership and sets the CLINIC's hours (single
         // membership ⇒ the acting business is inferred, no header needed).
         Sanctum::actingAs($secretary);

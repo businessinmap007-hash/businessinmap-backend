@@ -38,6 +38,7 @@ class BusinessAccessService
         $memberships = BusinessStaff::query()
             ->where('user_id', (int) $caller->id)
             ->where('is_active', true)
+            ->where('status', BusinessStaff::STATUS_ACCEPTED)
             ->when($requestedBusinessId !== null, fn ($q) => $q->where('business_id', $requestedBusinessId))
             ->get();
 
@@ -94,10 +95,56 @@ class BusinessAccessService
             'user_id' => $userId,
         ]);
 
+        $isNew = ! $staff->exists;
+
         $staff->title = $title;
         $staff->capabilities = $sanitized;
         $staff->is_active = $isActive;
+
+        // A fresh grant, or re-inviting someone who declined, both need the
+        // person's own confirmation before they actually gain access -
+        // resolveContext()'s status filter is the enforcement. Editing an
+        // already-accepted or still-pending member's title/capabilities
+        // never resets it: that would ask them to re-confirm on every edit.
+        if ($isNew || $staff->status === BusinessStaff::STATUS_DECLINED) {
+            $staff->status = BusinessStaff::STATUS_PENDING;
+        }
+
         $staff->save();
+
+        return $staff;
+    }
+
+    /** The invited person accepts — the only thing that actually grants access. */
+    public function accept(int $businessId, int $userId): ?BusinessStaff
+    {
+        $staff = BusinessStaff::query()
+            ->where('business_id', $businessId)->where('user_id', $userId)->first();
+
+        if (! $staff || $staff->status === BusinessStaff::STATUS_ACCEPTED) {
+            return $staff;
+        }
+
+        $staff->status = BusinessStaff::STATUS_ACCEPTED;
+        $staff->save();
+
+        return $staff;
+    }
+
+    /** The invited person declines — the grant stays on record but never activates. */
+    public function decline(int $businessId, int $userId): ?BusinessStaff
+    {
+        $staff = BusinessStaff::query()
+            ->where('business_id', $businessId)->where('user_id', $userId)->first();
+
+        if (! $staff || $staff->status === BusinessStaff::STATUS_DECLINED) {
+            return $staff;
+        }
+
+        $staff->status = BusinessStaff::STATUS_DECLINED;
+        $staff->save();
+
+        $this->setDriverActive($businessId, $userId, false);
 
         return $staff;
     }
@@ -152,7 +199,19 @@ class BusinessAccessService
         return BusinessStaff::query()
             ->where('user_id', $userId)
             ->where('is_active', true)
+            ->where('status', BusinessStaff::STATUS_ACCEPTED)
             ->with('business:id,name,logo')
+            ->get();
+    }
+
+    /** Invitations this user hasn't answered yet — the card they need to accept/decline. */
+    public function pendingInvitationsFor(int $userId)
+    {
+        return BusinessStaff::query()
+            ->where('user_id', $userId)
+            ->where('status', BusinessStaff::STATUS_PENDING)
+            ->with('business:id,name,logo,phone')
+            ->latest('id')
             ->get();
     }
 }

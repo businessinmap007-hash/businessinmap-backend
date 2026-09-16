@@ -11,6 +11,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class BusinessStaff extends Model
 {
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_ACCEPTED = 'accepted';
+    public const STATUS_DECLINED = 'declined';
+
     protected $table = 'business_staff';
 
     protected $fillable = [
@@ -19,6 +23,7 @@ class BusinessStaff extends Model
         'title',
         'capabilities',
         'is_active',
+        'status',
     ];
 
     protected $casts = [

@@ -118,6 +118,10 @@ class StaffGroupsAndAttendanceTest extends TestCase
             'phone' => $rider->phone, 'capabilities' => [BusinessCapability::DRIVERS],
         ])->assertCreated();
 
+        // A grant needs the invited person's own acceptance before it activates.
+        $this->actingAs($waiter, 'sanctum')->postJson("/api/v2/staff/invitations/{$owner->id}/accept")->assertOk();
+        $this->actingAs($rider, 'sanctum')->postJson("/api/v2/staff/invitations/{$owner->id}/accept")->assertOk();
+
         // The waiter runs one order operation and checks in.
         $order = $this->makeOrder($owner, $customer);
         $this->actingAs($waiter, 'sanctum')->postJson("/api/v2/business/orders/{$order->id}/accept")->assertOk();

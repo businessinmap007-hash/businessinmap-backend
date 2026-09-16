@@ -732,6 +732,13 @@ Route::prefix('v2')->group(function () {
         // A delegate (who may be a plain client) lists what they may manage.
         Route::get('business/memberships', [BusinessStaffController::class, 'memberships']);
 
+        // Staff invitations: the invited person hasn't been accepted yet, so
+        // these sit on plain auth — business.member would refuse them before
+        // they can ever accept.
+        Route::get('staff/invitations', [BusinessStaffController::class, 'invitations']);
+        Route::post('staff/invitations/{business}/accept', [BusinessStaffController::class, 'accept'])->whereNumber('business');
+        Route::post('staff/invitations/{business}/decline', [BusinessStaffController::class, 'decline'])->whereNumber('business');
+
         // Business menu management: sections + items (+ variants/extras).
         Route::prefix('business/menu')->middleware('business.member:' . BusinessCapability::MENU)->group(function () {
             Route::get('sections', [BusinessMenuSectionController::class, 'index']);

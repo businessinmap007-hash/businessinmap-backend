@@ -1742,6 +1742,12 @@ paths:
         '200': { description: OK }
         '403': { $ref: '#/components/responses/Forbidden' }
   /business/staff/attendance-settings:
+    get:
+      tags: [Business Staff]
+      summary: Whether GPS + QR attendance verification is currently on (owner-only)
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
     patch:
       tags: [Business Staff]
       summary: Turn GPS + QR attendance verification on or off (owner-only)

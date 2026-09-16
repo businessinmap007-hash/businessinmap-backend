@@ -734,6 +734,7 @@ Route::prefix('v2')->group(function () {
             // since there's no dedicated capability for this): the physical
             // display's rotating code, and the on/off switch for requiring it.
             Route::get('business/staff/attendance-qr', [StaffAttendanceController::class, 'currentQr']);
+            Route::get('business/staff/attendance-settings', [StaffAttendanceController::class, 'settings']);
             Route::patch('business/staff/attendance-settings', [StaffAttendanceController::class, 'updateSettings']);
         });
         // A delegate (who may be a plain client) lists what they may manage.

@@ -229,6 +229,22 @@ class AttendanceQrVerificationTest extends TestCase
         $this->assertTrue((bool) $owner->fresh()->attendance_verification_enabled);
     }
 
+    public function test_the_owner_can_read_back_the_current_setting(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'ShopRead');
+        $waiter = $this->makeUser(User::TYPE_CLIENT, 'WaiterRead');
+        $this->hireWaiter($owner, $waiter);
+
+        $this->actingAs($owner, 'sanctum')
+            ->getJson('/api/v2/business/staff/attendance-settings')
+            ->assertOk()
+            ->assertJsonPath('data.enabled', false);
+
+        $this->actingAs($waiter, 'sanctum')
+            ->getJson('/api/v2/business/staff/attendance-settings')
+            ->assertForbidden();
+    }
+
     public function test_memberships_reports_whether_verification_is_required(): void
     {
         $owner = $this->makeUser(User::TYPE_BUSINESS, 'ShopReports');

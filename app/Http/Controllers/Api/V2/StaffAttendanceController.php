@@ -92,6 +92,17 @@ class StaffAttendanceController extends Controller
         ]);
     }
 
+    /** GET /api/v2/business/staff/attendance-settings — owner-only read. */
+    public function settings(Request $request)
+    {
+        abort_unless(BusinessContext::isOwner($request), 403, __('هذه الإعدادات مخصصة لصاحب النشاط فقط.'));
+
+        return response()->json([
+            'success' => true,
+            'data' => ['enabled' => (bool) $request->user()->attendance_verification_enabled],
+        ]);
+    }
+
     /** PATCH /api/v2/business/staff/attendance-settings — owner-only toggle. */
     public function updateSettings(Request $request)
     {

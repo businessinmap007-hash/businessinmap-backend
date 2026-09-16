@@ -1729,6 +1729,30 @@ paths:
         surface as staff of several businesses, name the one via the
         `X-Business-Id` header (or a business_id field); with one it is inferred.
       responses: { '200': { description: OK } }
+  /business/staff/attendance-qr:
+    get:
+      tags: [Business Staff]
+      summary: The rotating code to show on the business's own attendance-display device
+      description: >-
+        Owner-only. Returns the same active code on every call until it is
+        scanned or expires (StaffAttendanceQrService::TTL_MINUTES), so a
+        display polling this every ~30s costs one request per business, not
+        per employee.
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /business/staff/attendance-settings:
+    patch:
+      tags: [Business Staff]
+      summary: Turn GPS + QR attendance verification on or off (owner-only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /business/projects:
     get:
       tags: [Projects]

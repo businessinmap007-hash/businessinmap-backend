@@ -447,6 +447,9 @@ class BusinessStaffController extends Controller
                 ] : ['id' => (int) $s->business_id],
                 'title' => $s->title,
                 'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
+                // Tells the app whether checking in for THIS membership needs
+                // a QR scan + GPS first (StaffAttendanceController::checkIn).
+                'attendance_verification_enabled' => (bool) ($s->business?->attendance_verification_enabled ?? false),
             ]);
 
         return response()->json(['success' => true, 'data' => ['memberships' => $rows]]);

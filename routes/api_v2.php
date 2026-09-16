@@ -730,6 +730,11 @@ Route::prefix('v2')->group(function () {
             Route::post('staff/attendance/check-in', [StaffAttendanceController::class, 'checkIn']);
             Route::post('staff/attendance/check-out', [StaffAttendanceController::class, 'checkOut']);
             Route::get('staff/attendance/today', [StaffAttendanceController::class, 'today']);
+            // Owner-only (enforced inside the controller, not the middleware,
+            // since there's no dedicated capability for this): the physical
+            // display's rotating code, and the on/off switch for requiring it.
+            Route::get('business/staff/attendance-qr', [StaffAttendanceController::class, 'currentQr']);
+            Route::patch('business/staff/attendance-settings', [StaffAttendanceController::class, 'updateSettings']);
         });
         // A delegate (who may be a plain client) lists what they may manage.
         Route::get('business/memberships', [BusinessStaffController::class, 'memberships']);

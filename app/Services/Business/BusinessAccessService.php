@@ -200,7 +200,7 @@ class BusinessAccessService
             ->where('user_id', $userId)
             ->where('is_active', true)
             ->where('status', BusinessStaff::STATUS_ACCEPTED)
-            ->with('business:id,name,logo')
+            ->with('business:id,name,logo,attendance_verification_enabled')
             ->get();
     }
 

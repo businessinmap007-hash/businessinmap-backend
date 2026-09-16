@@ -81,6 +81,9 @@ class User extends Authenticatable
         //                                     → trust & fee-consent flags; written
         //                                        only via forceFill() by the
         //                                        guarantee services + ServiceFeeConsentEnforcer.
+        //   - attendance_verification_enabled → written only by
+        //                                        StaffAttendanceController::updateSettings
+        //                                        (direct property assignment).
     ];
 
     protected $hidden = [
@@ -101,6 +104,7 @@ class User extends Authenticatable
         'guarantee_enabled' => 'boolean',
         'rating_enabled' => 'boolean',
         'commercial_operations_enabled' => 'boolean',
+        'attendance_verification_enabled' => 'boolean',
 
         'deleted_at'        => 'datetime',
 

@@ -97,7 +97,11 @@ class BusinessStaffController extends Controller
 
         $data = $request->validate([
             'title' => ['nullable', 'string', 'max:120'],
-            'capabilities' => ['nullable', 'array'],
+            // A staff row with zero capabilities is invisible on the Staff
+            // Groups screen (it groups people BY capability) while staying
+            // fully active everywhere else - min:1 matches store()'s own
+            // rule so an edit can never leave a member in that state.
+            'capabilities' => ['nullable', 'array', 'min:1'],
             'capabilities.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
         ]);
@@ -367,42 +371,64 @@ class BusinessStaffController extends Controller
             }
         }
 
+        $cardFor = function (BusinessStaff $s) use ($opsToday, $attendanceToday, $driverStatus) {
+            $user = $s->user;
+            $att = $attendanceToday->get((int) $user->id);
+
+            $card = [
+                'user_id' => (int) $user->id,
+                'name' => $user->name,
+                'phone' => $user->phone,
+                'logo' => $user->logo,
+                'title' => $s->title,
+                'is_active' => (bool) $s->is_active,
+                'operations_today' => (int) ($opsToday[$user->id] ?? 0),
+                'attendance' => [
+                    'checked_in_at' => optional($att?->checked_in_at)->toIso8601String(),
+                    'checked_out_at' => optional($att?->checked_out_at)->toIso8601String(),
+                    'is_present' => $att?->isPresent() ?? false,
+                ],
+            ];
+
+            if (in_array(BusinessCapability::DRIVERS, (array) $s->capabilities, true) && isset($driverStatus[(int) $user->id])) {
+                $card['delivery_status'] = $driverStatus[(int) $user->id];
+            }
+
+            return $card;
+        };
+
         $groups = [];
+        $seenUserIds = [];
         foreach (BusinessCapability::registry() as $key => [$nameAr, $nameEn]) {
             $members = $roster->filter(fn (BusinessStaff $s) => in_array($key, (array) $s->capabilities, true));
             if ($members->isEmpty()) {
                 continue;
             }
 
+            foreach ($members as $member) {
+                $seenUserIds[(int) $member->user_id] = true;
+            }
+
             $groups[] = [
                 'capability' => $key,
                 'name_ar' => $nameAr,
                 'name_en' => $nameEn,
-                'staff' => $members->map(function (BusinessStaff $s) use ($opsToday, $attendanceToday, $driverStatus, $key) {
-                    $user = $s->user;
-                    $att = $attendanceToday->get((int) $user->id);
+                'staff' => $members->map($cardFor)->values(),
+            ];
+        }
 
-                    $card = [
-                        'user_id' => (int) $user->id,
-                        'name' => $user->name,
-                        'phone' => $user->phone,
-                        'logo' => $user->logo,
-                        'title' => $s->title,
-                        'is_active' => (bool) $s->is_active,
-                        'operations_today' => (int) ($opsToday[$user->id] ?? 0),
-                        'attendance' => [
-                            'checked_in_at' => optional($att?->checked_in_at)->toIso8601String(),
-                            'checked_out_at' => optional($att?->checked_out_at)->toIso8601String(),
-                            'is_present' => $att?->isPresent() ?? false,
-                        ],
-                    ];
-
-                    if ($key === BusinessCapability::DRIVERS && isset($driverStatus[(int) $user->id])) {
-                        $card['delivery_status'] = $driverStatus[(int) $user->id];
-                    }
-
-                    return $card;
-                })->values(),
+        // A staff row whose capabilities are empty, or name a capability key
+        // that no longer exists in the registry (e.g. after a taxonomy
+        // rename), matches no group above and used to vanish from this
+        // screen entirely - fully active and checkable-in, but invisible
+        // here. Surface them instead of losing them silently.
+        $uncategorized = $roster->reject(fn (BusinessStaff $s) => isset($seenUserIds[(int) $s->user_id]));
+        if ($uncategorized->isNotEmpty()) {
+            $groups[] = [
+                'capability' => null,
+                'name_ar' => 'غير مصنف',
+                'name_en' => 'Uncategorized',
+                'staff' => $uncategorized->map($cardFor)->values(),
             ];
         }
 

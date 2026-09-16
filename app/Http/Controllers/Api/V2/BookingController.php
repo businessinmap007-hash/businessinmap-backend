@@ -16,6 +16,7 @@ use App\Services\Integrations\BookingGuaranteeIntegration;
 use App\Services\ServiceEventDispatcher;
 use App\Services\ServiceExecutionEngine;
 use App\Services\WalletService;
+use App\Support\BusinessContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -341,6 +342,38 @@ final class BookingController extends Controller
         } else {
             $query->where('user_id', (int) $user->id);
         }
+
+        if ($status !== '') {
+            $query->where('status', $status);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'bookings' => $query->paginate($perPage),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/v2/business/bookings — the business's own incoming-booking
+     * queue, reachable by the owner or a delegated staff member with the
+     * bookings capability (business.member:bookings resolves BusinessContext
+     * the same way it already does for accept/reject/etc.). The plain
+     * `bookings?scope=business` above stays owner-only by design — it never
+     * grew a BusinessContext-aware branch, which is exactly why a staff
+     * member with the bookings capability had no working list endpoint to
+     * call even though they could already act on an individual booking.
+     */
+    public function businessIndex(Request $request)
+    {
+        $status = trim((string) $request->get('status', ''));
+        $perPage = min(max((int) $request->get('per_page', 20), 1), 100);
+
+        $query = Booking::query()
+            ->with($this->relations())
+            ->where('business_id', BusinessContext::id($request))
+            ->latest('id');
 
         if ($status !== '') {
             $query->where('status', $status);

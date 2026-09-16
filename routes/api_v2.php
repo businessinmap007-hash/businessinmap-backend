@@ -828,6 +828,12 @@ Route::prefix('v2')->group(function () {
             Route::delete('{price}', [BusinessServicePriceController::class, 'destroy'])->whereNumber('price');
         });
 
+        // The business's own incoming-booking queue - owner or a delegated
+        // staff member with the bookings capability (mirrors business/orders).
+        Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
+            Route::get('business/bookings', [BookingController::class, 'businessIndex']);
+        });
+
         // Business bookable items: the units customers book (booking service).
         Route::prefix('business/bookable-items')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('/', [BusinessBookableItemController::class, 'index']);

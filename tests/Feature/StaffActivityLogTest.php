@@ -171,6 +171,39 @@ class StaffActivityLogTest extends TestCase
         $this->assertSame(Booking::class, $log->subject_type);
     }
 
+    public function test_a_bookings_delegate_can_list_the_business_booking_queue(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Clinic2b');
+        $secretary = $this->makeUser(User::TYPE_CLIENT, 'Sec2b');
+        $stranger = $this->makeUser(User::TYPE_CLIENT, 'Stranger2b');
+        $client = $this->makeUser(User::TYPE_CLIENT, 'Patient2b');
+
+        BusinessStaff::create([
+            'business_id' => $owner->id,
+            'user_id' => $secretary->id,
+            'capabilities' => [BusinessCapability::BOOKINGS],
+            'is_active' => true,
+        ]);
+
+        $ownBooking = $this->makeBooking($owner, $client);
+        $otherBooking = $this->makeBooking($this->makeUser(User::TYPE_BUSINESS, 'OtherClinic'), $client);
+
+        $ids = collect(
+            $this->actingAs($secretary, 'sanctum')
+                ->getJson('/api/v2/business/bookings')
+                ->assertOk()
+                ->json('data.bookings.data')
+        )->pluck('id')->all();
+
+        $this->assertContains($ownBooking->id, $ids);
+        $this->assertNotContains($otherBooking->id, $ids);
+
+        // A stranger with no membership at all gets no acting business to list.
+        $this->actingAs($stranger, 'sanctum')
+            ->getJson('/api/v2/business/bookings')
+            ->assertForbidden();
+    }
+
     public function test_a_delegate_without_the_bookings_capability_is_still_refused(): void
     {
         $owner = $this->makeUser(User::TYPE_BUSINESS, 'Clinic3');

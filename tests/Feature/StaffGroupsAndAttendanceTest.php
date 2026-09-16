@@ -170,6 +170,44 @@ class StaffGroupsAndAttendanceTest extends TestCase
         $this->assertNotNull(collect($byCapability['drivers']['staff'])->firstWhere('user_id', $both->id));
     }
 
+    public function test_a_staff_member_with_a_stale_or_empty_capability_still_appears_uncategorized(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Shop7');
+        $ghost = $this->makeUser(User::TYPE_CLIENT, 'Ghost7');
+
+        // A capability key that no longer exists in the registry (e.g. after
+        // a rename) - BusinessCapability::sanitizeFor() would normally strip
+        // this, so write the row directly to reproduce the data state.
+        BusinessStaff::create([
+            'business_id' => $owner->id, 'user_id' => $ghost->id,
+            'capabilities' => ['retired_capability_key'], 'is_active' => true,
+        ]);
+
+        $groups = $this->actingAs($owner, 'sanctum')
+            ->getJson('/api/v2/business/staff/groups')
+            ->assertOk()
+            ->json('data.groups');
+
+        $byCapability = collect($groups)->keyBy('capability');
+        $this->assertTrue($byCapability->has(null), 'a staff member matching no known capability must still surface somewhere');
+        $ghostCard = collect($byCapability[null]['staff'])->firstWhere('user_id', $ghost->id);
+        $this->assertNotNull($ghostCard, 'the staff member with no matching group must not vanish from the screen entirely');
+    }
+
+    public function test_editing_a_staff_member_down_to_zero_capabilities_is_refused(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Shop8');
+        $waiter = $this->makeUser(User::TYPE_CLIENT, 'Waiter8');
+        BusinessStaff::create([
+            'business_id' => $owner->id, 'user_id' => $waiter->id,
+            'capabilities' => [BusinessCapability::ORDERS], 'is_active' => true,
+        ]);
+
+        $this->actingAs($owner, 'sanctum')
+            ->patchJson("/api/v2/business/staff/{$waiter->id}", ['capabilities' => []])
+            ->assertStatus(422);
+    }
+
     public function test_a_non_owner_cannot_see_the_grouped_staff_view(): void
     {
         $owner = $this->makeUser(User::TYPE_BUSINESS, 'Shop6');

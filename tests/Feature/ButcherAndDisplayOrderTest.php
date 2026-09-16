@@ -268,6 +268,8 @@ class ButcherAndDisplayOrderTest extends TestCase
         ]);
 
         $this->assertSame(40, (int) $row->fresh()->available_quantity);
+
+        app()->setLocale('ar');
         $this->assertSame('كجم', $row->priceUnitLabel());
     }
 

@@ -15,11 +15,25 @@ use Illuminate\Support\Facades\DB;
  * is the group's own is_active flag (see RetireDuplicateOptionsSeeder's own
  * doc comment), so this is the one safe, reversible way to hide it.
  *
- * CategoryChild::activeOptions() is what actually enforces this (both the
- * business's own attributes screen and the customer discovery filter read
- * that relation) - it did not check option_groups.is_active at all before
- * 2026-09-15, so deactivating a group alone never used to have any visible
- * effect anywhere.
+ * Tried clearing category_child_option_decisions and category_child_option
+ * for the group's options too on 2026-09-16, mirroring how
+ * OptionGroupSplitSeeder retires a TRULY dissolved row - reverted the same
+ * day: two of these five ids (#108 توصيل طلبات, #322 شحن) are ALSO what an
+ * unrelated, earlier dissolution ("شحن وتوصيل") folded into, so
+ * `child_option_groups.php`'s "fulfilment" bundle must keep granting all
+ * five or OptionGroupCohesionTest's protections for THAT merge break
+ * instead. And because the bundle keeps granting them, a withdrawal decision
+ * on one of these options is NOT dead weight the way it is for a truly
+ * unreachable row: deleting the coffee-cart's تيك أواى withdrawal (recovered
+ * by hand during the 2026-09-15 incident) let ChildOptionGroupsSeeder hand
+ * the row straight back on its next run - the exact loss the recovery had
+ * just undone. See git history for both reverted attempts.
+ *
+ * CategoryChild::activeOptions() is what actually enforces the retirement
+ * (both the business's own attributes screen and the customer discovery
+ * filter read that relation) - it did not check option_groups.is_active at
+ * all before 2026-09-15, so deactivating a group alone never used to have
+ * any visible effect anywhere.
  *
  * Replaced by BusinessMenuSetting::labelsFor() + supports_delivery/
  * supports_pickup/supports_international_shipping/supports_domestic_shipping,

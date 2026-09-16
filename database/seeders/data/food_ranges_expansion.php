@@ -605,7 +605,8 @@ return [
             'عجوة' => 'Date Paste',
             // يوسفي · ليمون
             'يوسفي بلدي' => 'Baladi Mandarin',
-            'يوسفي أفندي' => 'Efendi Mandarin',
+            // 'يوسفي أفندي' (Efendi Mandarin) deleted 2026-09-16 by owner instruction —
+            // do not re-add here, the seeder will resurrect it.
             'ليمون بلدي' => 'Baladi Lime',
             'ليمون أضاليا' => 'Adalia Lemon',
             'ليمون أصفر' => 'Yellow Lemon',

@@ -3516,13 +3516,31 @@ class ChildTradeVocabulariesTest extends TestCase
          * this taxonomy keeps rather than debris to sweep. Nothing can reach
          * it — `idsFor()` is only ever called with a root the child is under.
          */
+        // A link is only reachable under a root when its own category_id says
+        // so (0 = every root, a real id = that root alone — see
+        // CategoryChildOptionScope); joining on child_id alone over-counts a
+        // properly root-scoped link once per OTHER root that child also sits
+        // under. And a 'pinned' decision is the owner's own hand curation
+        // (أجهزة كهربائية was pinned to كسر زيرو as a real third
+        // condition tier on 2026-09-08, admin, kind=pinned) — hand curation
+        // always outranks a seeder-shaped assumption like this one.
         $strays = DB::table('category_child_option as l')
             ->join('category_parent_child as pc', 'pc.child_id', '=', 'l.child_id')
             ->where('l.option_id', $row->id)
             ->whereNotIn('l.child_id', [188, 189, $this->childId('سيارة من المالك')])
+            ->where(function ($q) {
+                $q->where('l.category_id', 0)->orWhereColumn('l.category_id', 'pc.parent_id');
+            })
+            ->whereNotExists(function ($q) use ($row) {
+                $q->select(DB::raw(1))
+                    ->from('category_child_option_decisions as d')
+                    ->whereColumn('d.child_id', 'l.child_id')
+                    ->where('d.option_id', $row->id)
+                    ->where('d.kind', 'pinned');
+            })
             ->count();
 
-        $this->assertSame(0, $strays, 'كسر زيرو leaked outside the vehicle showrooms');
+        $this->assertSame(0, $strays, 'كسر زيرو leaked outside the vehicle showrooms and no admin pin explains it');
 
         // …and the retired child keeps its copy, unreachable.
         $this->assertSame(0, DB::table('category_parent_child')->where('child_id', 53)->count());

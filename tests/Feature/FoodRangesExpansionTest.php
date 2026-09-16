@@ -334,9 +334,19 @@ class FoodRangesExpansionTest extends TestCase
 
     public function test_the_missing_vegetables_arrived(): void
     {
+        // بقدونس، كزبرة خضراء، شبت، نعناع، كرفس، ورق عنب moved into their own
+        // أعشاب وورقيات line group on 2026-09-09 (migration
+        // 2026_09_09_000002_split_herbs_and_greens_into_their_own_group) —
+        // مشروم and فجل stayed in الخضروات, judged plain vegetables not
+        // herbs/leafy greens at the time, a call this test doesn't re-litigate.
         $veg = $this->optionsOf('الخضروات');
+        $herbs = $this->optionsOf('أعشاب وورقيات');
 
-        foreach (['بقدونس', 'كزبرة خضراء', 'شبت', 'نعناع', 'مشروم', 'كرفس', 'فجل', 'ورق عنب'] as $word) {
+        foreach (['بقدونس', 'كزبرة خضراء', 'شبت', 'نعناع', 'كرفس', 'ورق عنب'] as $word) {
+            $this->assertContains($word, $herbs->all(), "«أعشاب وورقيات» cannot say «{$word}»");
+        }
+
+        foreach (['مشروم', 'فجل'] as $word) {
             $this->assertContains($word, $veg->all(), "«الخضروات» cannot say «{$word}»");
         }
     }

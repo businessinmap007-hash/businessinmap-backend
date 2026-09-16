@@ -43,6 +43,11 @@ class MenuSaleUnitTest extends TestCase
      */
     public function test_the_unit_list_comes_from_the_catalog_and_says_each_word_once(): void
     {
+        // A test process carries no real client, so nothing sets locale for a
+        // bare model/service call the way SetApiLocale does for a request —
+        // named the same way the two dedicated locale tests already do.
+        app()->setLocale('ar');
+
         $options = SaleUnits::options();
 
         $this->assertNotEmpty($options);
@@ -80,6 +85,8 @@ class MenuSaleUnitTest extends TestCase
     /** …and a greengrocer says كجم, which is what gets printed beside the price. */
     public function test_a_row_sold_by_weight_says_so(): void
     {
+        app()->setLocale('ar');
+
         $row = MenuItem::create([
             'business_id' => $this->business()->id,
             'item_type' => 'menu_market',
@@ -139,7 +146,8 @@ class MenuSaleUnitTest extends TestCase
             'is_active' => 1,
         ]);
 
-        $res = $this->getJson('/api/v2/discovery/menu/' . $business->id);
+        $res = $this->withHeaders(['X-Locale' => 'ar'])
+            ->getJson('/api/v2/discovery/menu/' . $business->id);
 
         if ($res->status() !== 200) {
             $this->markTestSkipped('Menu discovery gated for this business: ' . $res->status());

@@ -277,7 +277,8 @@ class MenuMarketCatalogTest extends TestCase
             'rows' => [$option->id => ['base_price' => 45, 'brand_name' => 'المراعي']],
         ]);
 
-        $this->get('/api/v2/discovery/menu/' . $business->id)
+        $this->withHeaders(['X-Locale' => 'ar'])
+            ->get('/api/v2/discovery/menu/' . $business->id)
             ->assertOk()
             ->assertJsonFragment(['name' => $groupName])
             ->assertJsonFragment(['brand_name' => 'المراعي']);

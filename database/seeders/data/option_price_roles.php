@@ -310,6 +310,8 @@ return [
         // a filter.
         'الفواكه',                 // كيلو مانجو ≠ كيلو موز
         'الخضروات',                // كيلو طماطم ≠ كيلو بصل
+        // Split off 'الخضروات' into its own group 2026-09-09 (the herbs-and-greens migration) but never added here — every run of this seeder was silently downgrading it back to 'descriptive', which would have stopped a merchant pricing 'ملوخية' as a line item.
+        'أعشاب وورقيات',            // كيلو ملوخية ≠ ربطة بقدونس
         // Same trade, same reading, 2026-08-16: the bird and the grain ARE what
         // is bought. «حالة الدواجن» and «وحدة البيع» are the modifiers on top —
         // «بط حي» and «بط مذبوح ومنظف» being two prices of one row is what
@@ -528,6 +530,8 @@ return [
         'المراحل التعليمية',      // رياضيات ثانوي ≠ ابتدائي
         'نمط تقديم الخدمة',       // بسائق ≠ بدون · أونلاين ≠ حضوري
         'ماركات السيارات',        // ليموزين مرسيدس ≠ هيونداي
+        // Created 2026-09-08 (VehicleOptionGroupsSeeder) but never added here — every run of this seeder was silently downgrading it to 'descriptive', dropping it out of an appliance shop's modifiers.
+        'ماركات الأجهزة الكهربائية',  // كريازي ≠ تورنادو
         'نظام الوجبات',           // إقامة كاملة ≠ شامل الإفطار
         'إطلالة الوحدة',          // إطلالة بحرية أغلى
         /*

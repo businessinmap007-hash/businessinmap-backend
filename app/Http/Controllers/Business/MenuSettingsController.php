@@ -26,7 +26,6 @@ class MenuSettingsController extends Controller
 
         return view('business.menu-settings.edit', [
             'row' => $row,
-            'labels' => BusinessMenuSetting::labelsFor(Auth::user()),
         ]);
     }
 
@@ -74,10 +73,6 @@ class MenuSettingsController extends Controller
                 'default_margin_percent' => $margin,
                 'deposit_required_above' => $depositAbove,
                 'low_stock_threshold' => $lowStockThreshold,
-                'supports_delivery' => (int) $request->boolean('supports_delivery'),
-                'supports_pickup' => (int) $request->boolean('supports_pickup'),
-                'supports_international_shipping' => (int) $request->boolean('supports_international_shipping'),
-                'supports_domestic_shipping' => (int) $request->boolean('supports_domestic_shipping'),
             ]
         );
 

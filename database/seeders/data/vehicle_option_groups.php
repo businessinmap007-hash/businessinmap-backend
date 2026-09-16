@@ -36,7 +36,9 @@ return [
             'name_ar' => 'مركبات النقل والركاب',
             'name_en' => 'Transport & Passenger Vehicles',
             'reorder' => 22,
-            'options' => [51, 214, 220, 248, 250, 251, 280, 281, 365, 184],
+            'options' => [51, 214, 248, 250, 251, 280, 281, 365, 184],
+            // 220 (كوتش) deleted permanently 2026-09-16 by owner instruction — do not
+            // re-add here, the seeder will resurrect it.
         ],
     ],
 

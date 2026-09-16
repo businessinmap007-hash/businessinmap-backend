@@ -378,7 +378,12 @@ return [
                 'فاصوليا خضراء' => 'Green Beans',
                 'بازلاء' => 'Peas',
                 'لوبيا' => 'Cowpeas',
-                'ملوخية' => 'Molokhia',
+                // 'ملوخية' removed 2026-09-16: it moved into أعشاب وورقيات
+                // (option #2430) on 2026-09-09 and this list's own مجموعة-
+                // scoped lookup in ChildTradeVocabulariesSeeder::option() cannot
+                // find it there, so every run created a second, duplicate row
+                // (#10231) here instead - merged back the same day. Child 114
+                // already carries #2430 via the herbs group, so nothing is lost.
                 'سبانخ' => 'Spinach',
                 'خس' => 'Lettuce',
                 'كرنب' => 'Cabbage',

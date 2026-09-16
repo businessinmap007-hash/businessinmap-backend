@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use App\Support\BusinessPanelNav;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 /**
  * A restaurant's menu billing settings — whether menu prices already include
@@ -25,10 +25,6 @@ class BusinessMenuSetting extends Model
         'default_margin_percent',
         'deposit_required_above',
         'low_stock_threshold',
-        'supports_delivery',
-        'supports_pickup',
-        'supports_international_shipping',
-        'supports_domestic_shipping',
         'display_mode',
     ];
 
@@ -41,10 +37,6 @@ class BusinessMenuSetting extends Model
         'default_margin_percent' => 'float',
         'deposit_required_above' => 'float',
         'low_stock_threshold' => 'integer',
-        'supports_delivery' => 'boolean',
-        'supports_pickup' => 'boolean',
-        'supports_international_shipping' => 'boolean',
-        'supports_domestic_shipping' => 'boolean',
     ];
 
     public function business(): BelongsTo
@@ -53,32 +45,60 @@ class BusinessMenuSetting extends Model
     }
 
     /**
-     * Whether THIS business's fulfilment pair means "توصيل/استلام" (delivery
-     * to the customer) or "شحن/استلام أرض المصنع" (freight the customer
-     * arranges) — decided by what the business actually sells (`retail`),
-     * never by which root/category it happens to be filed under. Replaces
-     * the old "التسليم والاستلام" option group's descriptive tags — those
-     * asked a child which of five words applied to it by hand; this reads
-     * one thing the platform already knows about the business.
+     * The specific "توصيل/استلام" answers THIS business ticked on its own
+     * options screen, from the reactivated "التسليم والاستلام" group —
+     * checkout shows exactly these, never a guess. A prior version derived
+     * "shipping" vs "delivery" from whether the business carried `retail`;
+     * retail and menu coexist on ~56 goods children ON PURPOSE (a produce
+     * shop selling both at the counter and in bulk), so that guess
+     * mislabelled an ordinary greengrocer as a factory. Reverted 2026-09-16.
      *
-     * @return array{delivery_key: string, delivery_ar: string, delivery_en: string, pickup_ar: string, pickup_en: string, is_freight: bool}
+     * Each option maps to the underlying fulfilment type CustomerCartService
+     * actually processes (delivery/pickup) so old order-placement logic
+     * needs no change; only the label and the number of choices vary.
+     *
+     * @return array<int,array{id:int,name_ar:string,name_en:string,type:string}>
      */
-    public static function labelsFor(User $business): array
+    public static function fulfillmentMethodsFor(User $business): array
     {
-        $isFreight = in_array('retail', BusinessPanelNav::servicesOf($business), true);
+        $groupId = (int) DB::table('option_groups')->where('name_ar', 'التسليم والاستلام')->value('id');
 
-        if ($isFreight) {
-            return [
-                'is_freight' => true,
-                'delivery_ar' => 'شحن', 'delivery_en' => 'Shipping',
-                'pickup_ar' => 'استلام أرض المصنع', 'pickup_en' => 'Factory-gate pickup',
-            ];
+        if ($groupId <= 0) {
+            return [];
         }
 
-        return [
-            'is_freight' => false,
-            'delivery_ar' => 'توصيل', 'delivery_en' => 'Delivery',
-            'pickup_ar' => 'استلام', 'pickup_en' => 'Pickup',
+        $ticked = DB::table('option_user as ou')
+            ->join('options as o', 'o.id', '=', 'ou.option_id')
+            ->where('ou.user_id', $business->id)
+            ->where('o.group_id', $groupId)
+            ->select('o.id', 'o.name_ar', 'o.name_en')
+            ->get();
+
+        if ($ticked->isEmpty()) {
+            // Nothing configured yet: the two generic answers, so checkout is
+            // never left with no fulfilment options at all.
+            $ticked = DB::table('options')->where('group_id', $groupId)
+                ->whereIn('name_ar', ['توصيل طلبات', 'استلام من المكان'])
+                ->get(['id', 'name_ar', 'name_en']);
+        }
+
+        return $ticked->map(fn ($o) => [
+            'id' => (int) $o->id,
+            'name_ar' => $o->name_ar,
+            'name_en' => $o->name_en,
+            'type' => self::typeOf($o->name_ar),
+        ])->values()->all();
+    }
+
+    /** delivery = the customer receives it somewhere; pickup = they go get it. */
+    private static function typeOf(string $nameAr): string
+    {
+        $pickupNames = [
+            'تسليم أرض المصنع',
+            'تيك أواى',
+            'استلام من المكان',
         ];
+
+        return in_array($nameAr, $pickupNames, true) ? 'pickup' : 'delivery';
     }
 }

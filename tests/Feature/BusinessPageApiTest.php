@@ -206,27 +206,39 @@ class BusinessPageApiTest extends TestCase
      * unconditional acceptance of delivery/pickup. Dine-in stays false with
      * no active table.
      */
-    public function test_the_business_page_fulfillment_defaults_to_delivery_and_pickup_with_no_settings_row(): void
+    /**
+     * The fulfilment answer comes from the "التسليم والاستلام" option group
+     * the business ticks on its own profile screen, not a settings row —
+     * see BusinessMenuSetting::fulfillmentMethodsFor() (reverted 2026-09-16
+     * from a `retail`-service guess that mislabelled ordinary shops).
+     */
+    public function test_the_business_page_fulfillment_defaults_to_the_two_generic_methods_with_nothing_ticked(): void
     {
         $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
 
-        $res->assertJsonPath('data.fulfillment.delivery', true)
-            ->assertJsonPath('data.fulfillment.pickup', true)
-            ->assertJsonPath('data.fulfillment.dine_in', false);
+        $names = collect($res->json('data.fulfillment.methods'))->pluck('name_ar');
+
+        $res->assertJsonPath('data.fulfillment.dine_in', false);
+        $this->assertContains('توصيل طلبات', $names->all());
+        $this->assertContains('استلام من المكان', $names->all());
     }
 
-    public function test_the_business_page_fulfillment_reflects_an_opt_out(): void
+    public function test_the_business_page_fulfillment_reflects_exactly_what_was_ticked(): void
     {
-        \App\Models\BusinessMenuSetting::create([
-            'business_id' => $this->biz->id,
-            'supports_delivery' => false,
-            'supports_pickup' => true,
-        ]);
+        $optionId = (int) DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'التسليم والاستلام')
+            ->where('o.name_ar', 'شحن')
+            ->value('o.id');
+
+        DB::table('option_user')->insert(['user_id' => $this->biz->id, 'option_id' => $optionId]);
 
         $res = $this->getJson("/api/v2/businesses/{$this->biz->id}")->assertOk();
 
-        $res->assertJsonPath('data.fulfillment.delivery', false)
-            ->assertJsonPath('data.fulfillment.pickup', true);
+        $methods = collect($res->json('data.fulfillment.methods'));
+        $this->assertCount(1, $methods);
+        $this->assertSame('شحن', $methods->first()['name_ar']);
+        $this->assertSame('delivery', $methods->first()['type']);
     }
 
     public function test_the_business_page_fulfillment_dine_in_is_true_only_with_an_active_table(): void

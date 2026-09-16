@@ -269,7 +269,17 @@ final class ProfileController extends Controller
     {
         $childId = (int) ($user->category_child_id ?? 0);
         $rootId = (int) ($user->category_id ?? 0);
-        $selected = $user->options()->pluck('options.id')->all();
+
+        // `line` ticks belong to the catalog item form (BusinessMenuItemController
+        // ::updateAvailableTypes()), not this screen — a goods business's own
+        // `option_user` rows mix both. Leaking a line id into `selected_ids`
+        // meant the client echoed it straight back on save, which
+        // updateOptions() above then rejected outright.
+        $selected = $user->options()
+            ->join('option_groups as og', 'og.id', '=', 'options.group_id')
+            ->where('og.price_role', '!=', OptionGroup::ROLE_LINE)
+            ->pluck('options.id')
+            ->all();
 
         $options = $childId
             ? (CategoryChild::query()->find($childId)?->activeOptionsForParent($rootId)->with('group')->get() ?? collect())

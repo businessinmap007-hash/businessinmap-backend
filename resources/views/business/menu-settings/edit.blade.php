@@ -49,56 +49,6 @@
     <div class="a2-card a2-card--section">
         <div class="a2-card-head">
             <div>
-                <div class="a2-card-title">{{ __('طرق الاستلام') }}</div>
-                <div class="a2-card-sub">{{ __('يختار العميل من بينها في شاشة النشاط قبل تصفح المنيو مباشرة. "استلام من الطاولة" يظهر تلقائيًا لو عندك طاولات مفعّلة (شاشة رموز QR)، وليس هنا.') }}</div>
-            </div>
-        </div>
-
-        <div class="a2-form-grid">
-            <div class="a2-form-group a2-field-full">
-                <label class="a2-check">
-                    <input
-                        type="checkbox" name="supports_delivery" value="1" id="a2SupportsDelivery"
-                        @checked((bool) old('supports_delivery', $row->supports_delivery ?? true))
-                        @if($labels['is_freight']) onchange="document.getElementById('a2ShippingScope').hidden = !this.checked" @endif
-                    >
-                    <span>{{ __($labels['delivery_ar']) }}</span>
-                </label>
-            </div>
-
-            <div class="a2-form-group a2-field-full">
-                <label class="a2-check">
-                    <input type="checkbox" name="supports_pickup" value="1" @checked((bool) old('supports_pickup', $row->supports_pickup ?? true))>
-                    <span>{{ __($labels['pickup_ar']) }}</span>
-                </label>
-            </div>
-
-            @if($labels['is_freight'])
-                <div
-                    class="a2-form-group a2-field-full"
-                    id="a2ShippingScope"
-                    @if(! (bool) old('supports_delivery', $row->supports_delivery ?? true)) hidden @endif
-                    style="padding-inline-start: 24px;"
-                >
-                    <div class="a2-card-sub" style="margin-bottom: 8px;">{{ __('نطاق الشحن') }}</div>
-                    <label class="a2-check">
-                        <input type="checkbox" name="supports_international_shipping" value="1"
-                            @checked((bool) old('supports_international_shipping', $row->supports_international_shipping ?? true))>
-                        <span>{{ __('شحن دولي') }}</span>
-                    </label>
-                    <label class="a2-check">
-                        <input type="checkbox" name="supports_domestic_shipping" value="1"
-                            @checked((bool) old('supports_domestic_shipping', $row->supports_domestic_shipping ?? true))>
-                        <span>{{ __('شحن محلي') }}</span>
-                    </label>
-                </div>
-            @endif
-        </div>
-    </div>
-
-    <div class="a2-card a2-card--section">
-        <div class="a2-card-head">
-            <div>
                 <div class="a2-card-title">{{ __('نسبة الضريبة') }}</div>
                 <div class="a2-card-sub">{{ __('لا تُفرض أي ضريبة إطلاقاً ما لم تحدد نسبة هنا بنفسك. اترك الحقل فارغاً لعدم فرض ضريبة على طلبات المنيو.') }}</div>
             </div>

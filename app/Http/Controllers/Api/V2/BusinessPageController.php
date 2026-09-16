@@ -68,7 +68,6 @@ final class BusinessPageController extends Controller
         // checkout's own fulfillment_type validation always allowed. Dine-in
         // has no settings flag of its own: it's whether the business has any
         // active table (BIM-13.3), the existing signal for that capability.
-        $menuSettings = DB::table('business_menu_settings')->where('business_id', $business)->first();
         $hasActiveTables = DB::table('business_tables')
             ->where('business_id', $business)
             ->where('is_active', 1)
@@ -143,16 +142,12 @@ final class BusinessPageController extends Controller
                 // Which fulfillment methods the unified entry point should
                 // offer above the menu — see Order::FULFILLMENT_* and
                 // CustomerCartService::placeOrder for how the choice is spent.
-                // Labels vary by what the business actually sells (retail)
-                // rather than its category — see BusinessMenuSetting::labelsFor()
-                // (replaces the old "التسليم والاستلام" option group's tags).
+                // `methods` is exactly what the business ticked on its own
+                // options screen (the reactivated "التسليم والاستلام" group) —
+                // see BusinessMenuSetting::fulfillmentMethodsFor().
                 'fulfillment' => [
-                    'delivery' => $menuSettings ? (bool) $menuSettings->supports_delivery : true,
-                    'pickup' => $menuSettings ? (bool) $menuSettings->supports_pickup : true,
+                    'methods' => \App\Models\BusinessMenuSetting::fulfillmentMethodsFor($model),
                     'dine_in' => $hasActiveTables,
-                    'labels' => \App\Models\BusinessMenuSetting::labelsFor($model),
-                    'international_shipping' => $menuSettings ? (bool) $menuSettings->supports_international_shipping : true,
-                    'domestic_shipping' => $menuSettings ? (bool) $menuSettings->supports_domestic_shipping : true,
                 ],
             ],
         ]);

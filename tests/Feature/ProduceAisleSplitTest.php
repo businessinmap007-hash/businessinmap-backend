@@ -78,9 +78,13 @@ class ProduceAisleSplitTest extends TestCase
         $data = require base_path('database/seeders/data/produce_aisle_split.php');
 
         $declared = collect($data['groups'])->pluck('options')->flatten();
-        $live = $this->optionsOf('الفواكه')->merge($this->optionsOf('الخضروات'));
+        // ملوخية moved into its own أعشاب وورقيات line group on 2026-09-09
+        // (the herbs-and-greens split) — still a stall, just a third one.
+        $live = $this->optionsOf('الفواكه')
+            ->merge($this->optionsOf('الخضروات'))
+            ->merge($this->optionsOf('أعشاب وورقيات'));
 
-        // Every crop that went in is still in one of the two stalls. Rows added
+        // Every crop that went in is still in one of the three stalls. Rows added
         // since are the owner's, not the split's — see the test above.
         $this->assertEmpty(
             $declared->diff($live)->all(),

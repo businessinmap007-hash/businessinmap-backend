@@ -237,6 +237,79 @@ class BusinessDeliveryFleetTest extends TestCase
         $this->assertTrue((bool) DeliveryDriver::query()->find($driverId)->is_active);
     }
 
+    public function test_the_mobile_api_can_take_a_driver_off_duty_and_back_on(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'RestApi');
+        $rider = $this->makeUser(User::TYPE_CLIENT, 'RiderApi');
+        $this->actingAs($owner)->post('/business/delivery-drivers', ['phone' => $rider->phone])->assertRedirect();
+
+        $driverId = (int) DeliveryDriver::query()->where('user_id', $rider->id)->value('id');
+        $ownerToken = $this->tokenFor($owner);
+
+        $this->actingWithToken($ownerToken)
+            ->patchJson("/api/v2/business/delivery-drivers/{$driverId}", ['is_active' => false])
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false);
+
+        $this->assertFalse((bool) DeliveryDriver::query()->find($driverId)->is_active);
+
+        $this->actingWithToken($ownerToken)
+            ->patchJson("/api/v2/business/delivery-drivers/{$driverId}", ['is_active' => true])
+            ->assertOk()
+            ->assertJsonPath('data.is_active', true);
+    }
+
+    public function test_another_businesss_owner_cannot_toggle_a_driver_via_the_mobile_api_either(): void
+    {
+        $ownerA = $this->makeUser(User::TYPE_BUSINESS, 'RestApiA');
+        $ownerB = $this->makeUser(User::TYPE_BUSINESS, 'RestApiB');
+        $rider = $this->makeUser(User::TYPE_CLIENT, 'RiderApiB');
+        $this->actingAs($ownerA)->post('/business/delivery-drivers', ['phone' => $rider->phone])->assertRedirect();
+
+        $driverId = (int) DeliveryDriver::query()->where('user_id', $rider->id)->value('id');
+
+        $this->actingWithToken($this->tokenFor($ownerB))
+            ->patchJson("/api/v2/business/delivery-drivers/{$driverId}", ['is_active' => false])
+            ->assertStatus(404);
+
+        $this->assertTrue((bool) DeliveryDriver::query()->find($driverId)->is_active);
+    }
+
+    public function test_the_roster_endpoint_includes_nearby_freelancers_when_the_business_is_located(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'RestGeo');
+        $owner->latitude = 30.0500;
+        $owner->longitude = 31.2400;
+        $owner->save();
+
+        $freelancer = $this->makeUser(User::TYPE_CLIENT, 'FreeRiderGeo');
+        $freelancerToken = $this->tokenFor($freelancer);
+        $this->actingWithToken($freelancerToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->actingWithToken($freelancerToken)->postJson('/api/v2/delivery/location', [
+            'lat' => 30.0600, 'lng' => 31.2450,
+        ])->assertOk();
+
+        $data = $this->actingWithToken($this->tokenFor($owner))
+            ->getJson('/api/v2/business/delivery-drivers')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertArrayHasKey('nearby_freelancers', $data);
+        $this->assertContains($freelancer->id, array_column($data['nearby_freelancers'], 'user_id'));
+    }
+
+    public function test_the_roster_endpoint_reports_no_nearby_freelancers_without_a_business_location(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'RestNoGeo');
+
+        $data = $this->actingWithToken($this->tokenFor($owner))
+            ->getJson('/api/v2/business/delivery-drivers')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame([], $data['nearby_freelancers']);
+    }
+
     public function test_the_freelance_pool_is_unaffected_by_business_scoped_drivers(): void
     {
         $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest');

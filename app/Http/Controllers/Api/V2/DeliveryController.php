@@ -109,14 +109,42 @@ final class DeliveryController extends Controller
     public function roster(Request $request)
     {
         $business = $request->user();
+        $lat = $business->latitude !== null ? (float) $business->latitude : null;
+        $lng = $business->longitude !== null ? (float) $business->longitude : null;
+        $radiusKm = max(1, min(50, (float) $request->get('radius_km', 5)));
 
-        $roster = $this->delivery->businessRoster(
-            (int) $business->id,
-            $business->latitude !== null ? (float) $business->latitude : null,
-            $business->longitude !== null ? (float) $business->longitude : null,
-        );
+        $roster = $this->delivery->businessRoster((int) $business->id, $lat, $lng);
 
-        return response()->json(['success' => true, 'data' => ['drivers' => $roster]]);
+        // Visibility only, same as the web panel's own "موصّليّ" screen: if
+        // this business's own roster is all busy or off duty, seeing that
+        // freelancers exist nearby is the answer to "can I still get this
+        // delivered" - the business can never assign one directly
+        // (nearbyFreelanceDrivers()'s own doc explains why), only leave the
+        // order unassigned for one of them to self-accept from the open pool.
+        $nearbyFreelancers = ($lat !== null && $lng !== null)
+            ? $this->delivery->nearbyFreelanceDrivers($lat, $lng, $radiusKm)
+            : collect();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['drivers' => $roster, 'nearby_freelancers' => $nearbyFreelancers],
+        ]);
+    }
+
+    /**
+     * PATCH /api/v2/business/delivery-drivers/{driver} — off duty / on duty
+     * for one of this business's own linked drivers. Never a hard delete:
+     * their assigned/picked_up/delivered counters and the
+     * delivery_completions ledger stay attributable, matching the web
+     * panel's own "موصّليّ" screen (Business\DeliveryDriverController::update).
+     */
+    public function updateDriver(Request $request, int $driver)
+    {
+        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+
+        $row = $this->delivery->setBusinessDriverActive((int) $request->user()->id, $driver, (bool) $data['is_active']);
+
+        return response()->json(['success' => true, 'data' => ['id' => (int) $row->id, 'is_active' => (bool) $row->is_active]]);
     }
 
     /** POST /api/v2/business/orders/{order}/assign-driver */

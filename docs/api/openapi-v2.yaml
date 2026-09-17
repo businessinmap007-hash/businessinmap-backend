@@ -1967,6 +1967,24 @@ paths:
         - { name: project, in: path, required: true, schema: { type: integer } }
         - { name: user, in: path, required: true, schema: { type: integer } }
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/delivery-drivers:
+    get:
+      tags: [Delivery]
+      summary: The business's own private driver roster, plus nearby freelance drivers when located
+      parameters:
+        - { name: radius_km, in: query, schema: { type: number, default: 5 } }
+      responses: { '200': { description: OK } }
+  /business/delivery-drivers/{driver}:
+    patch:
+      tags: [Delivery]
+      summary: Take one of the business's own drivers off duty / back on (never a hard delete)
+      parameters: [{ name: driver, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [is_active], properties: { is_active: { type: boolean } } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /business/orders:
     get:
       tags: [Orders (Business)]

@@ -683,6 +683,7 @@ Route::prefix('v2')->group(function () {
             // (DeliveryDispatchService::confirmDelivery) instead.
             Route::post('business/orders/{order}/complete', [OrderController::class, 'businessComplete'])->whereNumber('order');
             Route::get('business/delivery-drivers', [DeliveryController::class, 'roster']);
+            Route::patch('business/delivery-drivers/{driver}', [DeliveryController::class, 'updateDriver'])->whereNumber('driver');
             Route::post('business/orders/{order}/assign-driver', [DeliveryController::class, 'assignDriver'])->whereNumber('order');
             // A specific line turns out unavailable while preparing — applies
             // whatever the customer chose at checkout (out_of_stock_policy).

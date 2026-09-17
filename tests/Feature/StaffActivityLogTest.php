@@ -248,6 +248,38 @@ class StaffActivityLogTest extends TestCase
         $this->assertSame(Booking::STATUS_ACCEPTED, $booking->fresh()->status);
     }
 
+    public function test_multiple_stages_on_the_same_order_fold_into_one_operation(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest2b');
+        $waiter = $this->makeUser(User::TYPE_CLIENT, 'Waiter2b');
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'Cust4b');
+
+        BusinessStaff::create([
+            'business_id' => $owner->id,
+            'user_id' => $waiter->id,
+            'capabilities' => [BusinessCapability::ORDERS],
+            'is_active' => true,
+        ]);
+
+        $order = $this->makeOrder($owner, $customer);
+        $this->actingAs($waiter, 'sanctum')->postJson("/api/v2/business/orders/{$order->id}/accept")->assertOk();
+        $this->actingAs($waiter, 'sanctum')->postJson("/api/v2/business/orders/{$order->id}/preparing")->assertOk();
+        $this->actingAs($waiter, 'sanctum')->postJson("/api/v2/business/orders/{$order->id}/ready")->assertOk();
+
+        $this->assertSame(3, StaffActivityLog::where('subject_id', $order->id)->count(), 'the raw log itself still writes one row per stage');
+
+        $response = $this->actingAs($owner, 'sanctum')
+            ->getJson('/api/v2/business/staff-activity')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertCount(1, $response['rows']['data'], 'three stages on the same order must fold into a single card');
+        $this->assertSame(['accepted', 'preparing', 'ready'], $response['rows']['data'][0]['actions']);
+
+        $summary = collect($response['summary'])->keyBy('user_id');
+        $this->assertSame(1, $summary[$waiter->id]['count'], 'one order worked through 3 stages is one operation, not three');
+    }
+
     public function test_the_owner_reviews_a_staff_members_activity_on_the_web_panel(): void
     {
         $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest2');

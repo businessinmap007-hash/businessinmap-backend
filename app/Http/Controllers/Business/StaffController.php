@@ -144,7 +144,13 @@ class StaffController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        $counts = (clone $base)->selectRaw('user_id, count(*) as total')->groupBy('user_id')->pluck('total', 'user_id');
+        // Distinct orders/bookings touched, not raw log rows - one order
+        // that went accepted -> preparing -> ready wrote 3 rows but is one
+        // operation, not three (the list above still shows every row).
+        $counts = (clone $base)
+            ->selectRaw("user_id, COUNT(DISTINCT CONCAT(subject_type, '|', subject_id)) as total")
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
 
         // The roster (+ the owner themselves, who can also act directly) for
         // the filter dropdown and the per-staff operation-count summary.

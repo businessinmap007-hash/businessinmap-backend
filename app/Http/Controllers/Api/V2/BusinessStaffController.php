@@ -290,25 +290,55 @@ class BusinessStaffController extends Controller
             ->where('business_id', $businessId)
             ->whereBetween('created_at', [$from, $to]);
 
-        $rows = (clone $base)
+        // One order/booking going accepted -> preparing -> ready wrote 3 rows
+        // for the same staff member's one shift on it - the review reads as
+        // "did 3 things" when it's really one order, worked through 3
+        // stages. Fold same (user, subject) rows from this whole window into
+        // ONE card carrying every action taken, in order; the raw table
+        // stays untouched, only how this endpoint reads it back changes.
+        $rawLogs = (clone $base)
             ->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->with('user:id,name,phone')
-            ->latest('id')
-            ->paginate(30)
-            ->withQueryString()
-            ->through(fn (StaffActivityLog $log) => [
-                'id' => (int) $log->id,
-                'created_at' => $log->created_at?->toIso8601String(),
-                'user_id' => (int) $log->user_id,
-                'user_name' => optional($log->user)->name,
-                'is_owner' => (int) $log->user_id === $businessId,
-                'capability' => $log->capability,
-                'action' => $log->action,
-                'subject_type' => $log->subject_type === Order::class ? 'order' : 'booking',
-                'subject_id' => (int) $log->subject_id,
-            ]);
+            ->orderBy('id')
+            ->get();
 
-        $counts = (clone $base)->selectRaw('user_id, count(*) as total')->groupBy('user_id')->pluck('total', 'user_id');
+        $grouped = $rawLogs
+            ->groupBy(fn (StaffActivityLog $log) => $log->user_id . ':' . $log->subject_type . ':' . $log->subject_id)
+            ->map(function ($logs) use ($businessId) {
+                $first = $logs->first();
+                $last = $logs->last();
+
+                return [
+                    'id' => (int) $last->id,
+                    'created_at' => $last->created_at?->toIso8601String(),
+                    'user_id' => (int) $first->user_id,
+                    'user_name' => optional($first->user)->name,
+                    'is_owner' => (int) $first->user_id === $businessId,
+                    'capability' => $last->capability,
+                    'actions' => $logs->pluck('action')->values(),
+                    'subject_type' => $first->subject_type === Order::class ? 'order' : 'booking',
+                    'subject_id' => (int) $first->subject_id,
+                ];
+            })
+            ->values()
+            ->sortByDesc('id')
+            ->values();
+
+        $perPage = 30;
+        $page = max((int) $request->input('page', 1), 1);
+        $total = $grouped->count();
+
+        $rows = [
+            'data' => $grouped->slice(($page - 1) * $perPage, $perPage)->values(),
+            'current_page' => $page,
+            'last_page' => max((int) ceil($total / $perPage), 1),
+            'total' => $total,
+        ];
+
+        $counts = (clone $base)
+            ->selectRaw("user_id, COUNT(DISTINCT CONCAT(subject_type, '|', subject_id)) as total")
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
 
         $summary = $this->access->roster($businessId)->pluck('user')->filter()
             ->push($request->user())->unique('id')->values()
@@ -348,11 +378,14 @@ class BusinessStaffController extends Controller
 
         $userIds = $roster->pluck('user_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
 
+        // Distinct orders/bookings touched, not raw log rows - one order
+        // that went accepted -> preparing -> ready wrote 3 rows but is one
+        // operation, not three.
         $opsToday = StaffActivityLog::query()
             ->where('business_id', $businessId)
             ->whereDate('created_at', Carbon::today())
             ->whereIn('user_id', $userIds)
-            ->selectRaw('user_id, count(*) as total')
+            ->selectRaw("user_id, COUNT(DISTINCT CONCAT(subject_type, '|', subject_id)) as total")
             ->groupBy('user_id')
             ->pluck('total', 'user_id');
 

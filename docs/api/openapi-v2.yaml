@@ -2413,6 +2413,8 @@ paths:
     post: { tags: [Delivery], summary: Driver issues the delivery QR token (stage 2), parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /delivery/deliver/{token}/confirm:
     post: { tags: [Delivery], summary: Customer scans delivery token → completed, parameters: [{ name: token, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK } } }
+  /delivery/orders/{order}/eta:
+    post: { tags: [Delivery], summary: 'Assigned driver tells the customer an ETA - exactly one of eta_minutes or eta_at.', parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
 
   # Same driver pool, same loop, mirrored for prescription delivery.
   /delivery/available-prescriptions:

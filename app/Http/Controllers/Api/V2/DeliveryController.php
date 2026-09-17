@@ -144,6 +144,29 @@ final class DeliveryController extends Controller
         return OrderResource::collection($orders)->additional(['success' => true]);
     }
 
+    /**
+     * POST /api/v2/delivery/orders/{order}/eta — the assigned driver tells
+     * the customer roughly when to expect the order. Exactly one of
+     * eta_minutes (from right now) or eta_at (a specific clock time) — never
+     * both, and the validation below enforces that.
+     */
+    public function notifyEta(Request $request, int $order)
+    {
+        $data = $request->validate([
+            'eta_minutes' => ['required_without:eta_at', 'prohibits:eta_at', 'nullable', 'integer', 'min:1', 'max:240'],
+            'eta_at' => ['required_without:eta_minutes', 'prohibits:eta_minutes', 'nullable', 'date'],
+        ]);
+
+        $model = $this->delivery->notifyEta(
+            $order,
+            (int) $request->user()->id,
+            isset($data['eta_minutes']) ? (int) $data['eta_minutes'] : null,
+            $data['eta_at'] ?? null,
+        );
+
+        return response()->json(['success' => true, 'data' => ['order_id' => (int) $model->id]]);
+    }
+
     /** POST /api/v2/delivery/orders/{order}/pickup-token — restaurant issues stage-1 token. */
     public function issuePickupToken(Request $request, int $order)
     {

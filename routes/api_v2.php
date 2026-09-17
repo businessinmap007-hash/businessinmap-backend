@@ -885,6 +885,7 @@ Route::prefix('v2')->group(function () {
             Route::post('orders/{order}/accept', [DeliveryController::class, 'accept'])->whereNumber('order');
             Route::post('orders/{order}/pickup-token', [DeliveryController::class, 'issuePickupToken'])->whereNumber('order');
             Route::post('orders/{order}/delivery-token', [DeliveryController::class, 'issueDeliveryToken'])->whereNumber('order');
+            Route::post('orders/{order}/eta', [DeliveryController::class, 'notifyEta'])->whereNumber('order');
             Route::post('pickup/{token}/confirm', [DeliveryController::class, 'confirmPickup']);
             Route::post('deliver/{token}/confirm', [DeliveryController::class, 'confirmDelivery']);
             Route::get('my-orders', [DeliveryController::class, 'myOrders']);

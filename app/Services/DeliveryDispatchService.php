@@ -10,6 +10,7 @@ use App\Models\RatingOutcomeEvent;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\Ratings\RatingService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -483,6 +484,39 @@ class DeliveryDispatchService
             $order->delivery_token = Str::random(48);
             $order->save();
         }
+
+        return $order;
+    }
+
+    /**
+     * The assigned driver tells the customer roughly when to expect the
+     * order — either a plain "in N minutes" or a specific clock time, the
+     * driver's own call. One or the other, never both; whichever arrives is
+     * normalised to a single timestamp before it reaches the customer.
+     */
+    public function notifyEta(int $orderId, int $driverUserId, ?int $etaMinutes, ?string $etaAt): Order
+    {
+        $order = Order::query()->find($orderId);
+        if (! $order || (string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
+            abort(404, __('طلب التوصيل غير موجود.'));
+        }
+
+        $driver = $order->deliveryDriver;
+        if (! $driver || (int) $driver->user_id !== $driverUserId) {
+            abort(403, __('هذا الطلب غير مُسنَد إليك.'));
+        }
+        if (! in_array((string) $order->delivery_stage, [self::STAGE_ASSIGNED, self::STAGE_PICKED_UP], true)) {
+            throw ValidationException::withMessages(['order' => __('لا يمكن تحديث موعد التوصيل في هذه المرحلة.')]);
+        }
+
+        $eta = $etaAt ? Carbon::parse($etaAt) : now()->addMinutes((int) $etaMinutes);
+        $time = $eta->translatedFormat('h:i A');
+
+        $this->notifyOrderCustomer($order, 'delivery_eta_updated', $driverUserId, [
+            'body_ar' => 'موصّلك فى الطريق، من المتوقع وصول طلبك رقم #' . $order->id . ' الساعة ' . $time . '.',
+            'body_en' => 'Your driver is on the way — order #' . $order->id . ' is expected around ' . $time . '.',
+            'meta' => ['order_id' => (int) $order->id, 'eta_at' => $eta->toIso8601String()],
+        ]);
 
         return $order;
     }

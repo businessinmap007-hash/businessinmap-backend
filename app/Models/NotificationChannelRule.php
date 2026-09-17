@@ -88,6 +88,7 @@ class NotificationChannelRule extends Model
             'booking.deposit_refunded' => ['تم استرداد الضمان', 'Booking deposit refunded', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'booking.dispute_opened' => ['نزاع على حجز', 'Dispute opened on a booking', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_URGENT, true, true, true, true, false, true, 2, 'warning'],
             'delivery_task_assigned' => ['مهمة دليفري جديدة', 'Delivery task assigned', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_URGENT, true, true, true, true, true, true, 1, 'delivery_new'],
+            'delivery_eta_updated' => ['موعد وصول التوصيل', 'Delivery ETA updated', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
             'wallet_deposit' => ['إيداع في المحفظة', 'Wallet deposit', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'wallet'],
             'wallet_withdraw' => ['خصم من المحفظة', 'Wallet withdraw', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'wallet'],
             'guarantee_expiring' => ['قرب انتهاء الضمان', 'Guarantee expiring', AppNotification::TYPE_GUARANTEE, AppNotification::PRIORITY_HIGH, true, false, true, false, false, true, 0, 'warning'],

@@ -2811,5 +2811,6 @@
     "كود الحضور غير صالح أو انتهت صلاحيته، امسح الكود المعروض حاليًا.": "This attendance code is invalid or expired — scan the code currently on display.",
     "موقعك بعيد عن مقر النشاط، لازم تكون في المكان لتسجيل الحضور.": "You're too far from the business location — you must be on site to check in.",
     "هذه الشاشة مخصصة لصاحب النشاط فقط.": "This screen is for the business owner only.",
-    "هذه الإعدادات مخصصة لصاحب النشاط فقط.": "These settings are for the business owner only."
+    "هذه الإعدادات مخصصة لصاحب النشاط فقط.": "These settings are for the business owner only.",
+    "لا يمكن تحديث موعد التوصيل في هذه المرحلة.": "The delivery ETA can't be updated at this stage."
 }

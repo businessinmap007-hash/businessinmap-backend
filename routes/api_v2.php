@@ -684,6 +684,8 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/complete', [OrderController::class, 'businessComplete'])->whereNumber('order');
             Route::get('business/delivery-drivers', [DeliveryController::class, 'roster']);
             Route::patch('business/delivery-drivers/{driver}', [DeliveryController::class, 'updateDriver'])->whereNumber('driver');
+            Route::get('business/delivery-settings', [DeliveryController::class, 'deliverySettings']);
+            Route::patch('business/delivery-settings', [DeliveryController::class, 'updateDeliverySettings']);
             Route::post('business/orders/{order}/assign-driver', [DeliveryController::class, 'assignDriver'])->whereNumber('order');
             // A specific line turns out unavailable while preparing — applies
             // whatever the customer chose at checkout (out_of_stock_policy).
@@ -881,6 +883,7 @@ Route::prefix('v2')->group(function () {
             Route::get('me', [DeliveryController::class, 'me']);
             Route::post('register', [DeliveryController::class, 'register']);
             Route::post('availability', [DeliveryController::class, 'availability']);
+            Route::patch('delivery-fee', [DeliveryController::class, 'updateOwnDeliveryFee']);
             Route::post('location', [DeliveryController::class, 'pingLocation']);
             Route::get('available-orders', [DeliveryController::class, 'available']);
             Route::post('orders/{order}/accept', [DeliveryController::class, 'accept'])->whereNumber('order');

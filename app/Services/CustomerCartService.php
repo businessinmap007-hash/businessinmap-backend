@@ -718,6 +718,19 @@ class CustomerCartService
     {
         $cart->fulfillment_type = $data['fulfillment_type'] ?? $cart->fulfillment_type ?: Order::FULFILLMENT_DELIVERY;
 
+        // The business's own flat delivery charge (Api\V2\DeliveryController::
+        // updateDeliverySettings) - known and shown to the customer right here
+        // at checkout, before any driver is even chosen. A freelance driver
+        // who later accepts an unassigned order from the open pool may still
+        // apply their OWN rate, but only as a fallback when this stayed at 0
+        // (DeliveryDispatchService::acceptOrder).
+        if ($cart->fulfillment_type === Order::FULFILLMENT_DELIVERY) {
+            $business = User::query()->find($cart->business_id);
+            $cart->delivery_fee = $business && $business->delivery_fee_amount !== null
+                ? (float) $business->delivery_fee_amount
+                : 0;
+        }
+
         // Delivery target, most specific first. Each is scoped to the cart owner
         // and snapshotted so a later edit never rewrites an order already out for
         // delivery:

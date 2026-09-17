@@ -62,6 +62,21 @@ class DeliveryDispatchService
     }
 
     /**
+     * A freelance driver's own flat delivery rate - only ever used as a
+     * fallback for an order whose business never set its own
+     * delivery_fee_amount (see acceptOrder()). A business-linked driver may
+     * set this too, but it's simply unused while they carry that business's
+     * own orders.
+     */
+    public function setOwnDeliveryFee(int $userId, ?float $amount): DeliveryDriver
+    {
+        $driver = $this->driverOrFail($userId);
+        $driver->update(['delivery_fee_amount' => $amount]);
+
+        return $driver;
+    }
+
+    /**
      * The driver row for a user, or null -- never creates or mutates one.
      * The dashboard's own "am I already a driver, and on/off duty?" check
      * must stay read-only: register() reactivates on purpose (updateOrCreate
@@ -336,6 +351,21 @@ class DeliveryDispatchService
 
             $order->delivery_driver_id = $driver->id;
             $order->delivery_stage = self::STAGE_ASSIGNED;
+
+            // Fallback only: the business's own delivery_fee_amount (applied
+            // at checkout, CustomerCartService::placeOrder) always wins when
+            // set. A freelance driver's own rate only ever fills in a
+            // delivery_fee the business never configured - never overrides
+            // one the customer already saw and agreed to at checkout.
+            if (
+                $driver->business_id === null
+                && $driver->delivery_fee_amount !== null
+                && (float) $order->delivery_fee <= 0
+            ) {
+                $order->delivery_fee = (float) $driver->delivery_fee_amount;
+                $order->final_total = round((float) $order->final_total + (float) $driver->delivery_fee_amount, 2);
+            }
+
             $order->save();
 
             $driver->increment('assigned_count');

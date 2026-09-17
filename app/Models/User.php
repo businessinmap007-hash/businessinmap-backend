@@ -84,6 +84,9 @@ class User extends Authenticatable
         //   - attendance_verification_enabled → written only by
         //                                        StaffAttendanceController::updateSettings
         //                                        (direct property assignment).
+        //   - delivery_fee_amount             → written only by
+        //                                        DeliveryController::updateDeliverySettings
+        //                                        (direct property assignment).
     ];
 
     protected $hidden = [
@@ -105,6 +108,7 @@ class User extends Authenticatable
         'rating_enabled' => 'boolean',
         'commercial_operations_enabled' => 'boolean',
         'attendance_verification_enabled' => 'boolean',
+        'delivery_fee_amount' => 'float',
 
         'deleted_at'        => 'datetime',
 

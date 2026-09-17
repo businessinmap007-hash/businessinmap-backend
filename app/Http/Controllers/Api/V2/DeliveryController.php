@@ -101,6 +101,21 @@ final class DeliveryController extends Controller
     }
 
     /**
+     * PATCH /api/v2/delivery/delivery-fee — a freelance driver's own flat
+     * rate (fallback only, see DeliveryDispatchService::setOwnDeliveryFee).
+     * Any registered driver may call this, business-linked or not - it's
+     * simply unused while they carry their own business's orders.
+     */
+    public function updateOwnDeliveryFee(Request $request)
+    {
+        $data = $request->validate(['delivery_fee_amount' => ['nullable', 'numeric', 'min:0', 'max:99999.99']]);
+
+        $driver = $this->delivery->setOwnDeliveryFee((int) $request->user()->id, $data['delivery_fee_amount'] ?? null);
+
+        return response()->json(['success' => true, 'data' => ['delivery_fee_amount' => $driver->delivery_fee_amount]]);
+    }
+
+    /**
      * GET /api/v2/business/delivery-drivers — the merchant's own roster,
      * with live workload and (when the business has a saved location) each
      * driver's current distance, for the "choose who delivers this" screen
@@ -145,6 +160,34 @@ final class DeliveryController extends Controller
         $row = $this->delivery->setBusinessDriverActive((int) $request->user()->id, $driver, (bool) $data['is_active']);
 
         return response()->json(['success' => true, 'data' => ['id' => (int) $row->id, 'is_active' => (bool) $row->is_active]]);
+    }
+
+    /**
+     * GET /api/v2/business/delivery-settings — the business's own flat
+     * delivery charge (applied automatically at checkout when the customer
+     * chooses delivery, see CustomerCartService::placeOrder). Owner-only.
+     */
+    public function deliverySettings(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => ['delivery_fee_amount' => $request->user()->delivery_fee_amount],
+        ]);
+    }
+
+    /** PATCH /api/v2/business/delivery-settings — owner-only. */
+    public function updateDeliverySettings(Request $request)
+    {
+        $data = $request->validate(['delivery_fee_amount' => ['nullable', 'numeric', 'min:0', 'max:99999.99']]);
+
+        $business = $request->user();
+        $business->delivery_fee_amount = $data['delivery_fee_amount'] ?? null;
+        $business->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['delivery_fee_amount' => $business->delivery_fee_amount],
+        ]);
     }
 
     /** POST /api/v2/business/orders/{order}/assign-driver */
@@ -252,6 +295,7 @@ final class DeliveryController extends Controller
             'picked_up_count' => (int) $driver->picked_up_count,
             'delivered_count' => (int) $driver->delivered_count,
             'fast_delivery_count' => (int) $driver->fast_delivery_count,
+            'delivery_fee_amount' => $driver->delivery_fee_amount,
         ];
     }
 }

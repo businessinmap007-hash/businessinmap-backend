@@ -1985,6 +1985,19 @@ paths:
           application/json:
             schema: { type: object, required: [is_active], properties: { is_active: { type: boolean } } }
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/delivery-settings:
+    get:
+      tags: [Delivery]
+      summary: The business's own flat delivery fee, applied automatically at checkout
+      responses: { '200': { description: OK } }
+    patch:
+      tags: [Delivery]
+      summary: Set the business's own flat delivery fee (null clears it)
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { delivery_fee_amount: { type: number, nullable: true } } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
   /business/orders:
     get:
       tags: [Orders (Business)]
@@ -2407,6 +2420,16 @@ paths:
   # ─────────────────────────── Delivery ───────────────────────────
   /delivery/register:
     post: { tags: [Delivery], summary: Register as a delivery driver, responses: { '200': { description: OK } } }
+  /delivery/delivery-fee:
+    patch:
+      tags: [Delivery]
+      summary: A freelance driver sets their own flat delivery fee (null clears it)
+      description: Used only as a fallback on acceptOrder() when the business itself never set a fee - the business's own configured rate always wins.
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { delivery_fee_amount: { type: number, nullable: true } } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
   /delivery/availability:
     post:
       tags: [Delivery]

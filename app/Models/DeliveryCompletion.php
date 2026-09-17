@@ -18,6 +18,7 @@ class DeliveryCompletion extends Model
         'delivery_driver_id',
         'driver_user_id',
         'completed_at',
+        'on_time',
     ];
 
     protected $casts = [
@@ -26,6 +27,7 @@ class DeliveryCompletion extends Model
         'delivery_driver_id' => 'integer',
         'driver_user_id' => 'integer',
         'completed_at' => 'datetime',
+        'on_time' => 'boolean',
     ];
 
     public function order(): BelongsTo

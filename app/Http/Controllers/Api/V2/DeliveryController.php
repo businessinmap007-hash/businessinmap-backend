@@ -251,6 +251,7 @@ final class DeliveryController extends Controller
             'assigned_count' => (int) $driver->assigned_count,
             'picked_up_count' => (int) $driver->picked_up_count,
             'delivered_count' => (int) $driver->delivered_count,
+            'fast_delivery_count' => (int) $driver->fast_delivery_count,
         ];
     }
 }

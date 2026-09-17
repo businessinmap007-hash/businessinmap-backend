@@ -102,6 +102,7 @@ class Order extends Model
         'handover_confirmed_at' => 'datetime',
         'paid_at' => 'datetime',
         'pickup_at' => 'datetime',
+        'delivery_eta_at' => 'datetime',
         'requires_deposit' => 'boolean',
         'deposit_amount' => 'float',
         'deposit_covered' => 'boolean',

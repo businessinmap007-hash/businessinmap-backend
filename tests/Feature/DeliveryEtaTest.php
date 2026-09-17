@@ -170,4 +170,67 @@ class DeliveryEtaTest extends TestCase
             ->postJson('/api/v2/delivery/orders/' . $orderId . '/eta', ['eta_minutes' => 15])
             ->assertForbidden();
     }
+
+    /** Pickup + delivery confirmation, so the on-time tests can drive a real order to STAGE_DELIVERED. */
+    private function deliverOrder(int $orderId, string $businessToken, string $driverToken, string $customerToken): void
+    {
+        $pickupToken = $this->actingWithToken($businessToken)
+            ->postJson('/api/v2/delivery/orders/' . $orderId . '/pickup-token')->assertOk()->json('data.pickup_token');
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/pickup/' . $pickupToken . '/confirm')->assertOk();
+
+        $deliveryToken = $this->actingWithToken($driverToken)
+            ->postJson('/api/v2/delivery/orders/' . $orderId . '/delivery-token')->assertOk()->json('data.delivery_token');
+        $this->actingWithToken($customerToken)->postJson('/api/v2/delivery/deliver/' . $deliveryToken . '/confirm')->assertOk();
+    }
+
+    public function test_an_on_time_delivery_is_recorded_and_counted(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest6');
+        ['order_id' => $orderId, 'customer' => $customer, 'driver_token' => $driverToken] = $this->assignedOrder($business);
+        $customerToken = $this->tokenFor($customer);
+        $businessToken = $this->tokenFor($business);
+
+        $this->actingWithToken($driverToken)
+            ->postJson('/api/v2/delivery/orders/' . $orderId . '/eta', ['eta_minutes' => 60])
+            ->assertOk();
+
+        $this->deliverOrder($orderId, $businessToken, $driverToken, $customerToken);
+
+        $this->assertDatabaseHas('delivery_completions', ['order_id' => $orderId, 'on_time' => 1]);
+        $order = \App\Models\Order::find($orderId);
+        $driver = \App\Models\DeliveryDriver::where('id', $order->delivery_driver_id)->first();
+        $this->assertSame(1, $driver->fast_delivery_count);
+    }
+
+    public function test_a_late_delivery_is_recorded_as_not_on_time(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest7');
+        ['order_id' => $orderId, 'customer' => $customer, 'driver_token' => $driverToken] = $this->assignedOrder($business);
+        $customerToken = $this->tokenFor($customer);
+        $businessToken = $this->tokenFor($business);
+
+        // An ETA that has already passed by the time delivery is confirmed.
+        \App\Models\Order::where('id', $orderId)->update(['delivery_eta_at' => now()->subMinute()]);
+
+        $this->deliverOrder($orderId, $businessToken, $driverToken, $customerToken);
+
+        $this->assertDatabaseHas('delivery_completions', ['order_id' => $orderId, 'on_time' => 0]);
+        $order = \App\Models\Order::find($orderId);
+        $driver = \App\Models\DeliveryDriver::where('id', $order->delivery_driver_id)->first();
+        $this->assertSame(0, $driver->fast_delivery_count);
+    }
+
+    public function test_a_delivery_with_no_eta_has_no_on_time_verdict(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest8');
+        ['order_id' => $orderId, 'customer' => $customer, 'driver_token' => $driverToken] = $this->assignedOrder($business);
+        $customerToken = $this->tokenFor($customer);
+        $businessToken = $this->tokenFor($business);
+
+        // No notifyEta() call at all for this order.
+        $this->deliverOrder($orderId, $businessToken, $driverToken, $customerToken);
+
+        $completion = \App\Models\DeliveryCompletion::where('order_id', $orderId)->firstOrFail();
+        $this->assertNull($completion->on_time);
+    }
 }

@@ -224,6 +224,7 @@ class DeliveryDispatchService
                 'active_order_count' => $orders->count(),
                 'delivered_today' => (int) ($deliveredToday[$driver->id] ?? 0),
                 'delivered_count' => (int) $driver->delivered_count,
+                'fast_delivery_count' => (int) $driver->fast_delivery_count,
                 'location_available' => $driver->hasFreshLocation(),
                 // Where this driver actually is RIGHT NOW, regardless of
                 // whether they're already carrying something — the "nearest
@@ -512,6 +513,13 @@ class DeliveryDispatchService
         $eta = $etaAt ? Carbon::parse($etaAt) : now()->addMinutes((int) $etaMinutes);
         $time = $eta->translatedFormat('h:i A');
 
+        // Persisted on the order itself, not just in the notification's own
+        // JSON meta - confirmDelivery() reads this back to decide the
+        // on-time badge. A later call simply overwrites it with whatever
+        // the driver says now (the customer only ever sees the latest one).
+        $order->delivery_eta_at = $eta;
+        $order->save();
+
         $this->notifyOrderCustomer($order, 'delivery_eta_updated', $driverUserId, [
             'body_ar' => 'موصّلك فى الطريق، من المتوقع وصول طلبك رقم #' . $order->id . ' الساعة ' . $time . '.',
             'body_en' => 'Your driver is on the way — order #' . $order->id . ' is expected around ' . $time . '.',
@@ -540,25 +548,37 @@ class DeliveryDispatchService
             }
 
             $driver = $order->deliveryDriver;
+            $completedAt = now();
+
+            // Only ever claimed against a real promise: no delivery_eta_at
+            // means the driver never sent one, so this stays null rather
+            // than defaulting to true or false.
+            $onTime = $order->delivery_eta_at ? $completedAt->lessThanOrEqualTo($order->delivery_eta_at) : null;
 
             $order->status = self::STATUS_COMPLETED;
             $order->delivery_stage = self::STAGE_DELIVERED;
-            $order->handover_confirmed_at = now();
+            $order->handover_confirmed_at = $completedAt;
             $order->delivery_token = null; // consume
             $order->save();
 
             if ($driver) {
                 $driver->increment('delivered_count');
+                if ($onTime === true) {
+                    $driver->increment('fast_delivery_count');
+                }
 
                 // The success ledger — one row per delivered order, counted for
-                // both the restaurant (business_id) and the driver.
+                // both the restaurant (business_id) and the driver. Business-
+                // owned or freelance makes no difference here - same row shape,
+                // same counters, same "توصيل سريع" eligibility either way.
                 DeliveryCompletion::firstOrCreate(
                     ['order_id' => $order->id],
                     [
                         'business_id' => (int) $order->business_id,
                         'delivery_driver_id' => (int) $driver->id,
                         'driver_user_id' => (int) $driver->user_id,
-                        'completed_at' => now(),
+                        'completed_at' => $completedAt,
+                        'on_time' => $onTime,
                     ]
                 );
             }

@@ -663,6 +663,9 @@ Route::prefix('v2')->group(function () {
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
         // "Order it again": re-adds the past order's lines to the cart.
         Route::post('orders/{order}/reorder', [OrderController::class, 'reorder'])->whereNumber('order');
+        // Cash-payment attestation (customer's own leg) - see the business
+        // and delivery confirm-payment routes below for the other two legs.
+        Route::post('orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment'])->whereNumber('order');
 
         // Placed orders: the business's incoming-order queue + detail + lifecycle.
         // Owner OR a delegated staff member granted the `orders` capability.
@@ -682,6 +685,8 @@ Route::prefix('v2')->group(function () {
             // Pickup/dine-in only -- delivery completes via the QR handover
             // (DeliveryDispatchService::confirmDelivery) instead.
             Route::post('business/orders/{order}/complete', [OrderController::class, 'businessComplete'])->whereNumber('order');
+            // Cash-payment attestation (merchant's own leg, order amount only).
+            Route::post('business/orders/{order}/confirm-payment', [OrderController::class, 'businessConfirmPayment'])->whereNumber('order');
             Route::get('business/delivery-drivers', [DeliveryController::class, 'roster']);
             Route::patch('business/delivery-drivers/{driver}', [DeliveryController::class, 'updateDriver'])->whereNumber('driver');
             Route::get('business/delivery-settings', [DeliveryController::class, 'deliverySettings']);
@@ -890,6 +895,8 @@ Route::prefix('v2')->group(function () {
             Route::post('orders/{order}/pickup-token', [DeliveryController::class, 'issuePickupToken'])->whereNumber('order');
             Route::post('orders/{order}/delivery-token', [DeliveryController::class, 'issueDeliveryToken'])->whereNumber('order');
             Route::post('orders/{order}/eta', [DeliveryController::class, 'notifyEta'])->whereNumber('order');
+            // Cash-payment attestation (driver's own leg, delivery_fee only).
+            Route::post('orders/{order}/confirm-payment', [DeliveryController::class, 'confirmPayment'])->whereNumber('order');
             Route::post('pickup/{token}/confirm', [DeliveryController::class, 'confirmPickup']);
             Route::post('deliver/{token}/confirm', [DeliveryController::class, 'confirmDelivery']);
             Route::get('my-orders', [DeliveryController::class, 'myOrders']);

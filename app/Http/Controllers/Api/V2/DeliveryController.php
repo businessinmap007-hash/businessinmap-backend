@@ -238,6 +238,22 @@ final class DeliveryController extends Controller
         return response()->json(['success' => true, 'data' => ['order_id' => (int) $model->id]]);
     }
 
+    /**
+     * POST /api/v2/delivery/orders/{order}/confirm-payment — the assigned
+     * driver confirms they collected the delivery_fee in cash from the
+     * customer (their own leg only - see OrderController::businessConfirmPayment
+     * for the order-amount leg the merchant confirms separately).
+     */
+    public function confirmPayment(Request $request, int $order)
+    {
+        $model = $this->delivery->confirmPaymentReceived($order, (int) $request->user()->id);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'driver_payment_confirmed_at' => optional($model->driver_payment_confirmed_at)->toIso8601String(),
+        ]]);
+    }
+
     /** POST /api/v2/delivery/orders/{order}/pickup-token — restaurant issues stage-1 token. */
     public function issuePickupToken(Request $request, int $order)
     {

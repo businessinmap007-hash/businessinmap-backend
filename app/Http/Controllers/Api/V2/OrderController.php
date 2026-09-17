@@ -114,6 +114,38 @@ final class OrderController extends Controller
         ], 201);
     }
 
+    /**
+     * POST /api/v2/orders/{order}/confirm-payment — the customer attests
+     * they paid the order amount in cash. Independent of the merchant's
+     * and driver's own confirmations below (each party confirms the leg
+     * of the cash they're party to) — this one exists mainly so a
+     * merchant or driver can't later deny the customer paid. Once set it
+     * cannot be unset.
+     */
+    public function confirmPayment(Request $request, int $order)
+    {
+        $userId = (int) $request->user()->id;
+
+        $model = DB::transaction(function () use ($userId, $order) {
+            /** @var Order|null $m */
+            $m = Order::query()->where('user_id', $userId)->where('status', '!=', 'cart')->lockForUpdate()->find($order);
+
+            if (! $m) {
+                abort(404, __('الطلب غير موجود.'));
+            }
+            if ($m->customer_payment_confirmed_at) {
+                abort(409, __('سبق تأكيد الدفع.'));
+            }
+
+            $m->customer_payment_confirmed_at = now();
+            $m->save();
+
+            return $m;
+        });
+
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
+    }
+
     /** POST /api/v2/orders/{order}/cancel — customer cancels their pending order. */
     public function cancel(Request $request, int $order)
     {
@@ -447,6 +479,43 @@ final class OrderController extends Controller
 
             $this->notifyCustomer($model, 'menu_order_item_unavailable', $businessId, ['body_ar' => $bodyAr, 'body_en' => $bodyEn]);
         }
+
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
+    }
+
+    /**
+     * POST /api/v2/business/orders/{order}/confirm-payment — the merchant
+     * confirms they received the order's own amount in cash. Deliberately
+     * scoped to the order amount only: the delivery_fee leg (when this is
+     * a delivery order) is confirmed separately by whoever actually
+     * collects it — see DeliveryController::confirmPayment, since that
+     * could be this same business's own driver or an unrelated freelancer.
+     */
+    public function businessConfirmPayment(Request $request, int $order)
+    {
+        $businessId = BusinessContext::id($request);
+
+        $model = DB::transaction(function () use ($businessId, $order) {
+            /** @var Order|null $m */
+            $m = Order::query()
+                ->where('business_id', $businessId)
+                ->whereNull('booking_id')
+                ->where('status', '!=', 'cart')
+                ->lockForUpdate()
+                ->find($order);
+
+            if (! $m) {
+                abort(404, __('الطلب غير موجود.'));
+            }
+            if ($m->merchant_payment_confirmed_at) {
+                abort(409, __('سبق تأكيد استلام المبلغ.'));
+            }
+
+            $m->merchant_payment_confirmed_at = now();
+            $m->save();
+
+            return $m;
+        });
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }

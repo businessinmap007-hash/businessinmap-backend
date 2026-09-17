@@ -1615,6 +1615,19 @@ paths:
       responses:
         '201': { description: 'Lines added to the cart; see data.added / data.skipped / data.cart_order_id.' }
         '404': { description: 'Not found, or not your order' }
+  /orders/{order}/confirm-payment:
+    post:
+      tags: [Orders (Customer)]
+      summary: Customer attests they paid the order in cash
+      description: >-
+        Protective evidence for a later dispute, not a gate on anything else:
+        independent of the merchant's and driver's own confirm-payment calls
+        (each party confirms only the cash leg they're party to). Once set it
+        cannot be unset; a repeat call is a 409.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
   /orders/{order}/handover/issue:
     post:
       tags: [Order Handover]
@@ -2042,6 +2055,19 @@ paths:
       parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
       requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } } }
       responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } }
+  /business/orders/{order}/confirm-payment:
+    post:
+      tags: [Orders (Business)]
+      summary: Merchant confirms they received the order amount in cash
+      description: >-
+        The order amount only — excludes delivery_fee, which whoever
+        actually collects it confirms separately (see
+        /delivery/orders/{order}/confirm-payment, since that could be this
+        same business's own driver or an unrelated freelancer).
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
   /business/orders/{order}/items/{item}/unavailable:
     post:
       tags: [Orders (Business)]
@@ -2442,6 +2468,19 @@ paths:
       summary: Driver pings their live position (every 30-60s while carrying an active order)
       requestBody: { content: { application/json: { schema: { type: object, required: [lat, lng], properties: { lat: { type: number }, lng: { type: number } } } } } }
       responses: { '200': { description: OK } }
+  /delivery/orders/{order}/confirm-payment:
+    post:
+      tags: [Delivery]
+      summary: Assigned driver confirms they collected the delivery fee in cash
+      description: >-
+        Their own leg only — see /business/orders/{order}/confirm-payment for
+        the order-amount leg the merchant confirms. Refused (409) before the
+        order actually reaches the delivered stage.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /delivery/available-orders:
     get: { tags: [Delivery], summary: Delivery orders open to take (preparing/ready, unassigned), responses: { '200': { description: OK } } }
   /delivery/orders/{order}/accept:

@@ -35,6 +35,15 @@ class OrderResource extends JsonResource
             'payment_status' => (string) ($this->payment_status ?? 'unpaid'),
             'paid_at' => optional($this->paid_at)->toIso8601String(),
 
+            // Three independent cash-payment attestations for the no-wallet
+            // COD flow - each party confirms only the leg of cash they're
+            // party to. Never a chain: any subset can be set at once.
+            'payment_confirmations' => [
+                'customer_confirmed_at' => optional($this->customer_payment_confirmed_at)->toIso8601String(),
+                'merchant_confirmed_at' => optional($this->merchant_payment_confirmed_at)->toIso8601String(),
+                'driver_confirmed_at' => optional($this->driver_payment_confirmed_at)->toIso8601String(),
+            ],
+
             // Set at checkout from the merchant's own deposit_required_above
             // setting — advisory, nothing is held. See Order::needsExplicitDepositDecision().
             'deposit' => [

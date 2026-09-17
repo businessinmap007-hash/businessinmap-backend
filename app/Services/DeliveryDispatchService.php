@@ -641,6 +641,39 @@ class DeliveryDispatchService
         return $order;
     }
 
+    /**
+     * The driver confirms they collected the delivery_fee in cash from the
+     * customer — the driver's own leg only, separate from the order amount
+     * the merchant confirms (OrderController::businessConfirmPayment).
+     * Whoever this money belongs to (this business's own driver, or a
+     * freelancer keeping it themselves) is exactly who is attesting to it.
+     * Gated on the order actually being delivered - before that there is no
+     * cash in hand yet to confirm.
+     */
+    public function confirmPaymentReceived(int $orderId, int $driverUserId): Order
+    {
+        $order = Order::query()->find($orderId);
+        if (! $order || (string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
+            abort(404, __('طلب التوصيل غير موجود.'));
+        }
+
+        $driver = $order->deliveryDriver;
+        if (! $driver || (int) $driver->user_id !== $driverUserId) {
+            abort(403, __('هذا الطلب غير مُسنَد إليك.'));
+        }
+        if ((string) $order->delivery_stage !== self::STAGE_DELIVERED) {
+            abort(409, __('لا يمكن تأكيد استلام رسوم التوصيل قبل تسليم الطلب.'));
+        }
+        if ($order->driver_payment_confirmed_at) {
+            abort(409, __('سبق تأكيد استلام رسوم التوصيل.'));
+        }
+
+        $order->driver_payment_confirmed_at = now();
+        $order->save();
+
+        return $order;
+    }
+
     /** Notify the order's assigned driver through the full pipeline. Best-effort. */
     private function notifyDriver(Order $order, string $eventKey, int $actorId, array $data): void
     {

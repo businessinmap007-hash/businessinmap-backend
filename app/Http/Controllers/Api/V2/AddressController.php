@@ -9,6 +9,7 @@ use App\Models\City;
 use App\Models\Governorate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -142,7 +143,8 @@ final class AddressController extends Controller
         // `governorates` and `cities`, which is what the fee-rule admin, the
         // scheduling service and the v1 pickers have always read.
         $data = $request->validate([
-            'country_id' => ['nullable', 'integer', 'exists:countries,id'],
+            // Pinned to Egypt while the app only operates there.
+            'country_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->where('iso2', 'EG')],
             'governorate_id' => [$required, 'integer', 'exists:governorates,id'],
             'city_id' => [$required, 'integer', 'exists:cities,id'],
             'address_line' => [$required, 'string', 'min:5', 'max:191'],

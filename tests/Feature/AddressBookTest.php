@@ -144,6 +144,10 @@ class AddressBookTest extends TestCase
 
         Sanctum::actingAs($this->makeUser());
 
+        // country_id is now pinned to Egypt server-side (the app only
+        // operates there), so a non-Egypt country_id is refused right there
+        // - which structurally subsumes this test's original concern, since
+        // only Egypt ever has any governorates at all in this data set.
         $this->postJson('/api/v2/addresses', [
             'country_id' => $otherCountry->id,
             'governorate_id' => $governorate->id,
@@ -151,7 +155,7 @@ class AddressBookTest extends TestCase
             'address_line' => 'محافظة مصرية في دولة أخرى',
         ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('governorate_id');
+            ->assertJsonValidationErrors('country_id');
     }
 
     public function test_ids_from_the_dead_locations_tree_are_now_refused(): void

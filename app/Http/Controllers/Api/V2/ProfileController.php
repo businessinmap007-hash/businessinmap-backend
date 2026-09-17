@@ -47,7 +47,10 @@ final class ProfileController extends Controller
             // /locations/nearest's result (GPS), either way as plain ids;
             // no cross-hierarchy check here, same as the address book this
             // reuses (countries/governorates/cities) doesn't enforce one.
-            'country_id' => ['sometimes', 'nullable', 'integer', 'exists:countries,id'],
+            // country_id is pinned to Egypt while the app only operates
+            // there - the picker itself never offers another country, this
+            // is the same rule enforced server-side.
+            'country_id' => ['sometimes', 'nullable', 'integer', Rule::exists('countries', 'id')->where('iso2', 'EG')],
             'governorate_id' => ['sometimes', 'nullable', 'integer', 'exists:governorates,id'],
             'city_id' => ['sometimes', 'nullable', 'integer', 'exists:cities,id'],
             'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],

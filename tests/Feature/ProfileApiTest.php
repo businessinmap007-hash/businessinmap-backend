@@ -118,6 +118,17 @@ class ProfileApiTest extends TestCase
         $this->assertSame(1, (int) $fresh->city_id);
     }
 
+    public function test_a_non_egypt_country_id_is_refused(): void
+    {
+        $foreignCountryId = (int) \App\Models\Country::query()->where('iso2', '!=', 'EG')->value('id');
+        $this->assertGreaterThan(0, $foreignCountryId, 'the seed data must carry at least one non-Egypt country for this test to mean anything');
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['country_id' => $foreignCountryId])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('country_id');
+    }
+
     public function test_locations_nearest_resolves_gps_to_city_governorate_country(): void
     {
         $this->getJson('/api/v2/locations/nearest?lat=30.0443879&lng=31.2357257')

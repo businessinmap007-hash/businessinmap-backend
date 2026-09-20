@@ -53,6 +53,9 @@ class Booking extends Model
     protected $casts = [
         'date' => 'date',
         'starts_at' => 'datetime',
+        'client_payment_confirmed_at' => 'datetime',
+        'business_payment_confirmed_at' => 'datetime',
+        'payment_settled_at' => 'datetime',
         'ends_at' => 'datetime',
         'all_day' => 'boolean',
         'price' => 'decimal:2',

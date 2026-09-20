@@ -133,6 +133,42 @@ class BookingDepositAgreementTest extends TestCase
             ->firstOrFail();
     }
 
+    public function test_confirming_the_cash_from_both_sides_releases_the_deposit(): void
+    {
+        $this->actingAs($this->client, 'sanctum')
+            ->postJson("/api/v2/bookings/{$this->booking->id}/confirm-payment")
+            ->assertOk();
+        $this->assertTrue($this->deposit()->isFrozen(), 'One side alone must not release it.');
+
+        $this->actingAs($this->business, 'sanctum')
+            ->postJson("/api/v2/business/bookings/{$this->booking->id}/confirm-payment")
+            ->assertOk();
+
+        $this->assertTrue($this->deposit()->isReleased());
+        $fresh = $this->booking->fresh();
+        $this->assertNotNull($fresh->client_payment_confirmed_at);
+        $this->assertNotNull($fresh->business_payment_confirmed_at);
+        $this->assertNotNull($fresh->payment_settled_at);
+    }
+
+    public function test_a_cash_confirmation_cannot_be_repeated_or_made_by_a_stranger(): void
+    {
+        $this->actingAs($this->client, 'sanctum')->postJson("/api/v2/bookings/{$this->booking->id}/confirm-payment")->assertOk();
+        $this->actingAs($this->client, 'sanctum')->postJson("/api/v2/bookings/{$this->booking->id}/confirm-payment")->assertStatus(409);
+
+        $this->actingAs($this->business, 'sanctum')
+            ->postJson("/api/v2/bookings/{$this->booking->id}/confirm-payment")->assertStatus(403);
+    }
+
+    public function test_the_cash_confirmation_waits_for_the_booking_to_start(): void
+    {
+        $this->booking->status = Booking::STATUS_ACCEPTED;
+        $this->booking->save();
+
+        $this->actingAs($this->client, 'sanctum')
+            ->postJson("/api/v2/bookings/{$this->booking->id}/confirm-payment")->assertStatus(422);
+    }
+
     public function test_only_one_side_agreeing_to_release_does_not_release_it(): void
     {
         $this->actingAs($this->client, 'sanctum')

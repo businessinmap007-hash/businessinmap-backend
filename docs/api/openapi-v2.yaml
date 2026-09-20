@@ -1654,6 +1654,30 @@ paths:
         '200': { description: OK }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Validation' }
+  /bookings/{booking}/confirm-payment:
+    post:
+      tags: [Bookings]
+      summary: Client confirms they paid the booking in cash
+      description: >-
+        Allowed once the booking is in progress or completed. Also counts as
+        the client's agreement to release the frozen deposit (when one is
+        frozen and no dispute is open), so the deposit releases once the
+        business confirms too. Once set it cannot be unset (409).
+      parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/bookings/{booking}/confirm-payment:
+    post:
+      tags: [Bookings]
+      summary: Business confirms it received the booking's cash (owner or delegated staff)
+      description: Same rules as the client's confirmation, for the business side.
+      parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
   /orders/{order}/handover/issue:
     post:
       tags: [Order Handover]

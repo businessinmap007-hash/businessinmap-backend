@@ -852,6 +852,7 @@ Route::prefix('v2')->group(function () {
         // staff member with the bookings capability (mirrors business/orders).
         Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('business/bookings', [BookingController::class, 'businessIndex']);
+            Route::post('business/bookings/{booking}/confirm-payment', [BookingController::class, 'businessConfirmPayment'])->whereNumber('booking');
         });
 
         // Business bookable items: the units customers book (booking service).
@@ -986,6 +987,7 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/start', [BookingController::class, 'start'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/complete', [BookingController::class, 'complete'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            Route::post('{booking}/confirm-payment', [BookingController::class, 'confirmPayment'])->whereNumber('booking');
             Route::post('{booking}/deposit/agree-release', [BookingController::class, 'agreeReleaseDeposit'])->whereNumber('booking');
             Route::post('{booking}/deposit/agree-refund', [BookingController::class, 'agreeRefundDeposit'])->whereNumber('booking');
         });

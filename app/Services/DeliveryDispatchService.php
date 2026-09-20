@@ -441,9 +441,19 @@ class DeliveryDispatchService
     {
         $driver = $this->driverOrFail($userId);
 
+        // A delivered order stays listed until the driver has confirmed they
+        // collected its delivery fee - otherwise there is no screen left to
+        // do that from (confirmPaymentReceived).
         return Order::query()
             ->where('delivery_driver_id', $driver->id)
-            ->whereIn('delivery_stage', [self::STAGE_ASSIGNED, self::STAGE_PICKED_UP])
+            ->where(function ($q) {
+                $q->whereIn('delivery_stage', [self::STAGE_ASSIGNED, self::STAGE_PICKED_UP])
+                    ->orWhere(function ($q) {
+                        $q->where('delivery_stage', self::STAGE_DELIVERED)
+                            ->where('delivery_fee', '>', 0)
+                            ->whereNull('driver_payment_confirmed_at');
+                    });
+            })
             ->with(['business:id,name,logo', 'user:id,name,phone', 'items.menuItem:id,name_ar,name_en'])
             ->orderBy('id')
             ->get();

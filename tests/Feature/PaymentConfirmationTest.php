@@ -223,6 +223,23 @@ class PaymentConfirmationTest extends TestCase
             ->assertStatus(409);
     }
 
+    public function test_a_delivered_order_stays_in_the_drivers_list_until_the_fee_is_confirmed(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'RestL');
+        $this->seedMenu($business);
+        $this->actingWithToken($this->tokenFor($business))
+            ->patchJson('/api/v2/business/delivery-settings', ['delivery_fee_amount' => 30])->assertOk();
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'CustL');
+        ['order_id' => $orderId, 'driver_token' => $driverToken] = $this->deliveredOrder($business, $customer);
+
+        $ids = fn () => collect($this->actingWithToken($driverToken)->getJson('/api/v2/delivery/my-orders')->assertOk()->json('data'))->pluck('id')->all();
+
+        $this->assertContains($orderId, $ids());
+
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/confirm-payment')->assertOk();
+        $this->assertNotContains($orderId, $ids());
+    }
+
     public function test_a_different_driver_cannot_confirm_payment_on_someone_elses_delivery(): void
     {
         $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest7');

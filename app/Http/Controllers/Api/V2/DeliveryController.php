@@ -271,6 +271,19 @@ final class DeliveryController extends Controller
         ]]);
     }
 
+    /** POST /api/v2/business/orders/{order}/pickup-token/reset - a fresh pickup code; the old one dies. */
+    public function resetPickupToken(Request $request, int $order)
+    {
+        $model = Order::query()->findOrFail($order);
+        $token = $this->delivery->resetPickupToken($model, BusinessContext::id($request));
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'pickup_token' => $token,
+            'scan_path' => '/dp/' . $token,
+        ]]);
+    }
+
     /** POST /api/v2/delivery/orders/{order}/pickup-token — restaurant issues stage-1 token. */
     public function issuePickupToken(Request $request, int $order)
     {

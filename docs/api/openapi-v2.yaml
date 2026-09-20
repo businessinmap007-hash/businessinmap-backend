@@ -2126,6 +2126,12 @@ paths:
       summary: Issue the stage-1 pickup QR token (owner or delegated staff)
       parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /business/orders/{order}/pickup-token/reset:
+    post:
+      tags: [Orders (Business)]
+      summary: Reset the pickup code (owner or delegated staff) - the previous code stops working
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/orders/{order}/items/{item}/unavailable:
     post:
       tags: [Orders (Business)]

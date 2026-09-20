@@ -267,6 +267,40 @@ class PaymentConfirmationTest extends TestCase
         $this->assertSame(0, $count($off));
     }
 
+    public function test_the_merchant_can_reset_the_pickup_code_and_the_old_one_stops_working(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'RestR');
+        $this->seedMenu($business);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'CustR');
+        $orderId = $this->checkout($business, $customer, 'delivery');
+        $businessToken = $this->tokenFor($business);
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/accept')->assertSuccessful();
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/preparing')->assertSuccessful();
+        $driver = $this->makeUser(User::TYPE_CLIENT, 'RiderR');
+        $driverToken = $this->tokenFor($driver);
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
+
+        $old = $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/pickup-token')->assertOk()->json('data.pickup_token');
+        $new = $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/pickup-token/reset')->assertOk()->json('data.pickup_token');
+        $this->assertNotSame($old, $new);
+
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/pickup/' . $old . '/confirm')->assertStatus(404);
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/pickup/' . $new . '/confirm')->assertOk();
+    }
+
+    public function test_another_business_cannot_reset_a_pickup_code_it_does_not_own(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'RestR2');
+        $this->seedMenu($business);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'CustR2');
+        $orderId = $this->checkout($business, $customer, 'delivery');
+        $other = $this->makeUser(User::TYPE_BUSINESS, 'RestR2b');
+
+        $this->actingWithToken($this->tokenFor($other))
+            ->postJson('/api/v2/business/orders/' . $orderId . '/pickup-token/reset')->assertStatus(403);
+    }
+
     public function test_a_different_driver_cannot_confirm_payment_on_someone_elses_delivery(): void
     {
         $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest7');

@@ -479,6 +479,26 @@ class DeliveryDispatchService
         return (string) $order->pickup_token;
     }
 
+    /**
+     * Replaces the pickup token with a fresh one - the merchant's "reset
+     * code" when the old one may have been seen by the wrong person. Same
+     * gates as issuePickupToken(); the previous token stops working at once.
+     */
+    public function resetPickupToken(Order $order, int $businessUserId): string
+    {
+        if ((int) $order->business_id !== $businessUserId) {
+            abort(403, __('لست صاحب هذا الطلب.'));
+        }
+        if ((string) $order->delivery_stage !== self::STAGE_ASSIGNED) {
+            throw ValidationException::withMessages(['order' => __('الطلب غير جاهز لتسليمه للموصّل.')]);
+        }
+
+        $order->pickup_token = Str::random(48);
+        $order->save();
+
+        return (string) $order->pickup_token;
+    }
+
     /** The assigned driver scans the restaurant's pickup QR → picked_up. */
     public function confirmPickup(string $token, int $byUserId): Order
     {

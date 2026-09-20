@@ -317,7 +317,7 @@ class DeliveryDispatchService
             ->whereIn('prep_status', [Order::PREP_PREPARING, Order::PREP_READY])
             ->whereNull('delivery_driver_id')
             ->when($businessId, fn ($q) => $q->where('business_id', $businessId))
-            ->with('business:id,name,logo')
+            ->with('business:id,name,logo,latitude,longitude')
             ->orderBy('id')
             ->limit($limit)
             ->get();
@@ -425,6 +425,7 @@ class DeliveryDispatchService
         });
 
         $this->notifyDriver($order, 'delivery_task_assigned', $businessId, [
+            'action_type' => 'open_driver_order',
             'body_ar' => 'تم إسناد طلب جديد رقم #' . $order->id . ' إليك.',
             'body_en' => 'A new delivery order #' . $order->id . ' was assigned to you.',
         ]);
@@ -502,7 +503,7 @@ class DeliveryDispatchService
     /** The assigned driver scans the restaurant's pickup QR → picked_up. */
     public function confirmPickup(string $token, int $byUserId): Order
     {
-        return DB::transaction(function () use ($token, $byUserId) {
+        $order = DB::transaction(function () use ($token, $byUserId) {
             $order = Order::query()->where('pickup_token', $token)->lockForUpdate()->first();
             if (! $order) {
                 abort(404, __('رمز الاستلام غير صالح أو تم استخدامه.'));
@@ -524,6 +525,15 @@ class DeliveryDispatchService
 
             return $order;
         });
+
+        // One of only two order pings a customer gets before the driver's own
+        // updates: the order is accepted, and the driver has it.
+        $this->notifyOrderCustomer($order, 'delivery_picked_up', $byUserId, [
+            'body_ar' => 'استلم الموصّل طلبك رقم #' . $order->id . ' وهو في الطريق إليك.',
+            'body_en' => 'The driver picked up your order #' . $order->id . ' and is on the way.',
+        ]);
+
+        return $order;
     }
 
     // ─────────────────────────── Stage 2: delivery ───────────────────────────
@@ -663,7 +673,7 @@ class DeliveryDispatchService
             'body_en' => 'Order #' . $order->id . ' was delivered to the customer successfully.',
         ]);
 
-        $this->notifyOrderCustomer($order, 'menu_order_completed', (int) $order->business_id, [
+        $this->notifyOrderCustomer($order, 'menu_order_completed', (int) optional($order->deliveryDriver)->user_id ?: (int) $order->business_id, [
             'body_ar' => 'تم توصيل طلبك رقم #' . $order->id . ($businessName ? ' من ' . $businessName : '') . ' بنجاح.',
             'body_en' => 'Your order #' . $order->id . ($businessName ? ' from ' . $businessName : '') . ' was delivered successfully.',
         ]);

@@ -301,6 +301,65 @@ class PaymentConfirmationTest extends TestCase
             ->postJson('/api/v2/business/orders/' . $orderId . '/pickup-token/reset')->assertStatus(403);
     }
 
+    public function test_a_delivery_customer_hears_accepted_then_the_driver_only(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'RestQ');
+        $this->seedMenu($business);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'CustQ');
+        $orderId = $this->checkout($business, $customer, 'delivery');
+        $businessToken = $this->tokenFor($business);
+
+        $forCustomer = fn () => \App\Models\AppNotification::query()
+            ->where('user_id', $customer->id)->where('meta->order_id', $orderId)->orderBy('id')->get();
+
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/accept')->assertSuccessful();
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/preparing')->assertSuccessful();
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/ready')->assertSuccessful();
+        $this->assertCount(1, $forCustomer(), 'Only "accepted" - no preparing/ready pings.');
+
+        $driver = $this->makeUser(User::TYPE_CLIENT, 'RiderQ');
+        $driverToken = $this->tokenFor($driver);
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
+        $pickup = $this->actingWithToken($businessToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/pickup-token')->json('data.pickup_token');
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/pickup/' . $pickup . '/confirm')->assertOk();
+
+        $notes = $forCustomer();
+        $this->assertCount(2, $notes);
+        $this->assertSame((int) $driver->id, (int) $notes[1]->actor_id, 'The pickup ping comes from the driver.');
+        $this->assertSame('open_customer_order', $notes[1]->action_type);
+    }
+
+    public function test_available_orders_show_the_distance_and_sort_nearest_first(): void
+    {
+        $near = $this->makeUser(User::TYPE_BUSINESS, 'RestNear');
+        $far = $this->makeUser(User::TYPE_BUSINESS, 'RestFar');
+        $near->latitude = 30.05; $near->longitude = 31.24; $near->save();
+        $far->latitude = 31.20; $far->longitude = 29.92; $far->save();
+        $ids = [];
+        foreach ([$far, $near] as $biz) {
+            $this->seedMenu($biz);
+            $cust = $this->makeUser(User::TYPE_CLIENT, 'CustD');
+            $id = $this->checkout($biz, $cust, 'delivery');
+            $t = $this->tokenFor($biz);
+            $this->actingWithToken($t)->postJson('/api/v2/business/orders/' . $id . '/accept')->assertSuccessful();
+            $this->actingWithToken($t)->postJson('/api/v2/business/orders/' . $id . '/preparing')->assertSuccessful();
+            $ids[$biz->id] = $id;
+        }
+
+        $driver = $this->makeUser(User::TYPE_CLIENT, 'RiderD');
+        $dt = $this->tokenFor($driver);
+        $this->actingWithToken($dt)->postJson('/api/v2/delivery/register')->assertCreated();
+
+        $rows = collect($this->actingWithToken($dt)->getJson('/api/v2/delivery/available-orders?lat=30.04&lng=31.23')
+            ->assertOk()->json('data.orders'))->keyBy('order_id');
+
+        $this->assertLessThan(5, $rows[$ids[$near->id]]['distance_km']);
+        $this->assertGreaterThan(100, $rows[$ids[$far->id]]['distance_km']);
+        $order = $rows->keys()->all();
+        $this->assertLessThan(array_search($ids[$far->id], $order), array_search($ids[$near->id], $order), 'Nearest first.');
+    }
+
     public function test_a_different_driver_cannot_confirm_payment_on_someone_elses_delivery(): void
     {
         $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest7');

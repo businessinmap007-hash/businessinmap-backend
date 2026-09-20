@@ -312,11 +312,15 @@ final class OrderController extends Controller
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_PREPARING, Order::PREP_READY);
 
-        $businessName = optional($model->business)->name;
-        $this->notifyCustomer($model, 'menu_order_ready', BusinessContext::id($request), [
-            'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز' . ($businessName ? ' في ' . $businessName : '') . '.',
-            'body_en' => 'Your order #' . $model->id . ' is ready' . ($businessName ? ' at ' . $businessName : '') . '.',
-        ]);
+        // A delivery customer hears next from the driver; only a pickup /
+        // dine-in customer, who has no driver, is told it is ready.
+        if ((string) $model->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
+            $businessName = optional($model->business)->name;
+            $this->notifyCustomer($model, 'menu_order_ready', BusinessContext::id($request), [
+                'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز' . ($businessName ? ' في ' . $businessName : '') . '.',
+                'body_en' => 'Your order #' . $model->id . ' is ready' . ($businessName ? ' at ' . $businessName : '') . '.',
+            ]);
+        }
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
@@ -370,12 +374,6 @@ final class OrderController extends Controller
             operationType: \App\Models\RatingOutcomeEvent::OP_ORDER,
             operationId: (int) $model->id,
         );
-
-        $businessName = optional($model->business)->name;
-        $this->notifyCustomer($model, 'menu_order_completed', $businessId, [
-            'body_ar' => 'تم استلام طلبك رقم #' . $model->id . ($businessName ? ' من ' . $businessName : '') . ' بنجاح.',
-            'body_en' => 'Your order #' . $model->id . ($businessName ? ' from ' . $businessName : '') . ' was completed successfully.',
-        ]);
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }

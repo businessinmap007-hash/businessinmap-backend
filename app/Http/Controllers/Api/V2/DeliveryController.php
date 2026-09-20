@@ -77,15 +77,31 @@ final class DeliveryController extends Controller
 
         // A business's own private driver only ever sees that business's own
         // orders; a freelance driver (business_id null) keeps the full pool.
+        // The driver's own position (sent by the app) turns the list into an
+        // "available near you" one: distance to the pickup point, nearest
+        // first. Without it the list is just oldest-first.
+        $lat = $request->filled('lat') ? (float) $request->query('lat') : null;
+        $lng = $request->filled('lng') ? (float) $request->query('lng') : null;
+
         $orders = $this->delivery
             ->availableOrders(50, $driver->business_id ? (int) $driver->business_id : null)
-            ->map(fn ($o) => [
-                'order_id' => (int) $o->id,
-                'business' => $o->business ? ['id' => (int) $o->business->id, 'name' => (string) $o->business->name] : null,
-                'address' => (string) $o->address,
-                'final_total' => (float) $o->final_total,
-                'delivery_fee' => (float) $o->delivery_fee,
-            ]);
+            ->map(function ($o) use ($lat, $lng) {
+                $b = $o->business;
+                $distance = ($lat !== null && $lng !== null && $b && $b->latitude !== null && $b->longitude !== null)
+                    ? round(\App\Models\DeliveryDriver::haversineKm($lat, $lng, (float) $b->latitude, (float) $b->longitude), 1)
+                    : null;
+
+                return [
+                    'order_id' => (int) $o->id,
+                    'business' => $b ? ['id' => (int) $b->id, 'name' => (string) $b->name] : null,
+                    'address' => (string) $o->address,
+                    'final_total' => (float) $o->final_total,
+                    'delivery_fee' => (float) $o->delivery_fee,
+                    'distance_km' => $distance,
+                ];
+            })
+            ->sortBy(fn ($row) => $row['distance_km'] ?? PHP_INT_MAX)
+            ->values();
 
         return response()->json(['success' => true, 'data' => ['orders' => $orders]]);
     }
@@ -342,6 +358,10 @@ final class DeliveryController extends Controller
             'delivered_count' => (int) $driver->delivered_count,
             'fast_delivery_count' => (int) $driver->fast_delivery_count,
             'delivery_fee_amount' => $driver->delivery_fee_amount,
+            // Set when a business linked this driver to its own team (they
+            // work for it, and see the job under "أعمالي"); null = independent.
+            'business_id' => $driver->business_id ? (int) $driver->business_id : null,
+            'business_name' => $driver->business_id ? optional(\App\Models\User::query()->find($driver->business_id))->name : null,
         ];
     }
 }

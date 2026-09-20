@@ -240,6 +240,33 @@ class PaymentConfirmationTest extends TestCase
         $this->assertNotContains($orderId, $ids());
     }
 
+    public function test_drivers_are_notified_when_a_delivery_order_becomes_available(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'RestN');
+        $this->seedMenu($business);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'CustN');
+        $rider = $this->makeUser(User::TYPE_CLIENT, 'RiderN');
+        $riderToken = $this->tokenFor($rider);
+        $this->actingWithToken($riderToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $off = $this->makeUser(User::TYPE_CLIENT, 'RiderOff');
+        $offToken = $this->tokenFor($off);
+        $this->actingWithToken($offToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->actingWithToken($offToken)->postJson('/api/v2/delivery/availability', ['is_active' => false])->assertOk();
+
+        $orderId = $this->checkout($business, $customer, 'delivery');
+        $businessToken = $this->tokenFor($business);
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/accept')->assertSuccessful();
+
+        $count = fn ($user) => \App\Models\AppNotification::query()
+            ->where('user_id', $user->id)->where('notifiable_id', $orderId)->where('action_type', 'open_available_orders')->count();
+        $this->assertSame(0, $count($rider));
+
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/preparing')->assertSuccessful();
+
+        $this->assertSame(1, $count($rider));
+        $this->assertSame(0, $count($off));
+    }
+
     public function test_a_different_driver_cannot_confirm_payment_on_someone_elses_delivery(): void
     {
         $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest7');

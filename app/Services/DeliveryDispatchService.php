@@ -685,6 +685,63 @@ class DeliveryDispatchService
         return $order;
     }
 
+    /** How many drivers one newly-available order pings, at most. */
+    private const AVAILABLE_NOTIFY_LIMIT = 50;
+
+    /**
+     * A delivery order just became takeable (the business started preparing
+     * it): ping the drivers who could take it - the business's own active
+     * drivers plus the active freelance pool - nearest first when their
+     * position is fresh, capped so one order never fans out to everyone.
+     * Best-effort; a failed push must never break the business's action.
+     */
+    public function notifyDriversOrderAvailable(Order $order): void
+    {
+        if ((string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY || $order->delivery_driver_id) {
+            return;
+        }
+
+        try {
+            $business = User::query()->find($order->business_id);
+            $lat = $business && $business->latitude !== null ? (float) $business->latitude : null;
+            $lng = $business && $business->longitude !== null ? (float) $business->longitude : null;
+
+            $drivers = DeliveryDriver::query()
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->whereNull('business_id')->orWhere('business_id', (int) $order->business_id))
+                ->get()
+                ->sortBy(function (DeliveryDriver $d) use ($lat, $lng) {
+                    $fresh = $lat !== null && $lng !== null && $d->last_lat !== null && $d->last_lng !== null
+                        && $d->location_updated_at && $d->location_updated_at->gt(now()->subMinutes(DeliveryDriver::LOCATION_STALE_AFTER_MINUTES));
+
+                    return $fresh
+                        ? DeliveryDriver::haversineKm($lat, $lng, (float) $d->last_lat, (float) $d->last_lng)
+                        : PHP_INT_MAX;
+                })
+                ->take(self::AVAILABLE_NOTIFY_LIMIT);
+
+            $businessName = optional($business)->name;
+            foreach ($drivers as $driver) {
+                if ((int) $driver->user_id === (int) $order->business_id) {
+                    continue;
+                }
+                $this->notifications->dispatch('delivery_order_available', (int) $driver->user_id, [
+                    'type' => AppNotification::TYPE_SYSTEM,
+                    'actor_id' => (int) $order->business_id,
+                    'body_ar' => 'طلب توصيل جديد متاح' . ($businessName ? ' من ' . $businessName : '') . ' — رسوم التوصيل ' . (float) $order->delivery_fee . '.',
+                    'body_en' => 'A new delivery order is available' . ($businessName ? ' from ' . $businessName : '') . ' - delivery fee ' . (float) $order->delivery_fee . '.',
+                    'action_type' => 'open_available_orders',
+                    'notifiable_type' => Order::class,
+                    'notifiable_id' => (int) $order->id,
+                    'source_id' => (int) $order->id,
+                    'meta' => ['order_id' => (int) $order->id, 'business_id' => (int) $order->business_id],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /** Notify the order's assigned driver through the full pipeline. Best-effort. */
     private function notifyDriver(Order $order, string $eventKey, int $actorId, array $data): void
     {

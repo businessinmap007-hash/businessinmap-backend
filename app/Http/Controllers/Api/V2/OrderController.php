@@ -39,6 +39,7 @@ final class OrderController extends Controller
         private readonly \App\Services\CustomerCartService $cart,
         private readonly MenuOrderService $menuOrders,
         private readonly StaffActivityLogger $activity,
+        private readonly \App\Services\DeliveryDispatchService $delivery,
     ) {
     }
 
@@ -299,6 +300,9 @@ final class OrderController extends Controller
     public function businessPreparing(Request $request, int $order)
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_ACCEPTED, Order::PREP_PREPARING);
+
+        // Preparing is the point a driver may take the order - tell them.
+        $this->delivery->notifyDriversOrderAvailable($model);
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }

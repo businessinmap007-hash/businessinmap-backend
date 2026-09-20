@@ -1025,7 +1025,7 @@ class CustomerCartService
                 ? 'New order from table ' . $tableLabel . '.'
                 : 'You have a new order.';
 
-            $this->notifications->dispatch('menu_order_created', $businessId, [
+            $payload = [
                 'type' => AppNotification::TYPE_OFFER,
                 'actor_id' => (int) $cart->user_id,
                 'body_ar' => $bodyAr,
@@ -1042,7 +1042,24 @@ class CustomerCartService
                     'table_label' => $tableLabel,
                     'fulfillment_type' => $cart->fulfillment_type,
                 ],
-            ]);
+            ];
+
+            $this->notifications->dispatch('menu_order_created', $businessId, $payload);
+
+            // Delegated staff who handle orders get the same ping - the
+            // owner's account is not who is standing at the counter.
+            $staffIds = \App\Models\BusinessStaff::query()
+                ->where('business_id', $businessId)
+                ->where('is_active', true)
+                ->where('status', \App\Models\BusinessStaff::STATUS_ACCEPTED)
+                ->get()
+                ->filter(fn ($s) => in_array(\App\Support\BusinessCapability::ORDERS, (array) $s->capabilities, true))
+                ->pluck('user_id')
+                ->unique();
+
+            foreach ($staffIds as $staffUserId) {
+                $this->notifications->dispatch('menu_order_created', (int) $staffUserId, $payload);
+            }
         } catch (\Throwable $e) {
             report($e);
         }

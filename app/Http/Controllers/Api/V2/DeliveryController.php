@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\OrderResource;
 use App\Models\Order;
 use App\Services\DeliveryDispatchService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 
 /**
@@ -123,7 +124,7 @@ final class DeliveryController extends Controller
      */
     public function roster(Request $request)
     {
-        $business = $request->user();
+        $business = BusinessContext::business($request);
         $lat = $business->latitude !== null ? (float) $business->latitude : null;
         $lng = $business->longitude !== null ? (float) $business->longitude : null;
         $radiusKm = max(1, min(50, (float) $request->get('radius_km', 5)));
@@ -157,7 +158,7 @@ final class DeliveryController extends Controller
     {
         $data = $request->validate(['is_active' => ['required', 'boolean']]);
 
-        $row = $this->delivery->setBusinessDriverActive((int) $request->user()->id, $driver, (bool) $data['is_active']);
+        $row = $this->delivery->setBusinessDriverActive(BusinessContext::id($request), $driver, (bool) $data['is_active']);
 
         return response()->json(['success' => true, 'data' => ['id' => (int) $row->id, 'is_active' => (bool) $row->is_active]]);
     }
@@ -195,7 +196,7 @@ final class DeliveryController extends Controller
     {
         $data = $request->validate(['driver_id' => ['required', 'integer']]);
 
-        $model = $this->delivery->assignDriver((int) $request->user()->id, $order, (int) $data['driver_id']);
+        $model = $this->delivery->assignDriver(BusinessContext::id($request), $order, (int) $data['driver_id']);
 
         return response()->json(['success' => true, 'data' => [
             'order_id' => (int) $model->id,
@@ -251,6 +252,22 @@ final class DeliveryController extends Controller
         return response()->json(['success' => true, 'data' => [
             'order_id' => (int) $model->id,
             'driver_payment_confirmed_at' => optional($model->driver_payment_confirmed_at)->toIso8601String(),
+        ]]);
+    }
+
+    /**
+     * POST /api/v2/business/orders/{order}/pickup-token - same stage-1 token,
+     * for the owner or a delegated staff member acting for the business.
+     */
+    public function businessPickupToken(Request $request, int $order)
+    {
+        $model = Order::query()->findOrFail($order);
+        $token = $this->delivery->issuePickupToken($model, BusinessContext::id($request));
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'pickup_token' => $token,
+            'scan_path' => '/dp/' . $token,
         ]]);
     }
 

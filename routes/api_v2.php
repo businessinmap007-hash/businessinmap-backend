@@ -696,6 +696,7 @@ Route::prefix('v2')->group(function () {
             Route::get('business/delivery-settings', [DeliveryController::class, 'deliverySettings']);
             Route::patch('business/delivery-settings', [DeliveryController::class, 'updateDeliverySettings']);
             Route::post('business/orders/{order}/assign-driver', [DeliveryController::class, 'assignDriver'])->whereNumber('order');
+            Route::post('business/orders/{order}/pickup-token', [DeliveryController::class, 'businessPickupToken'])->whereNumber('order');
             // A specific line turns out unavailable while preparing — applies
             // whatever the customer chose at checkout (out_of_stock_policy).
             Route::post('business/orders/{order}/items/{item}/unavailable', [OrderController::class, 'businessMarkItemUnavailable'])

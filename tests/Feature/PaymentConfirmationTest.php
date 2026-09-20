@@ -272,6 +272,29 @@ class PaymentConfirmationTest extends TestCase
         $this->assertNotNull(Order::find($orderId)->payment_settled_at);
     }
 
+    public function test_a_staff_member_with_orders_capability_is_notified_and_can_work_the_order(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'RestS');
+        $this->seedMenu($business);
+        $staff = $this->makeUser(User::TYPE_CLIENT, 'StaffS');
+        \App\Models\BusinessStaff::query()->create([
+            'business_id' => $business->id, 'user_id' => $staff->id, 'title' => 'cashier',
+            'capabilities' => ['orders'], 'is_active' => true, 'status' => \App\Models\BusinessStaff::STATUS_ACCEPTED,
+        ]);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'CustS');
+        $orderId = $this->checkout($business, $customer, 'pickup');
+
+        $this->assertTrue(
+            \App\Models\AppNotification::query()->where('user_id', $staff->id)->where('notifiable_id', $orderId)->exists()
+        );
+
+        $staffToken = $this->tokenFor($staff);
+        $this->actingWithToken($staffToken)->withHeader('X-Business-Id', (string) $business->id)
+            ->getJson('/api/v2/business/orders')->assertOk()->assertJsonPath('data.0.id', $orderId);
+        $this->actingWithToken($staffToken)->withHeader('X-Business-Id', (string) $business->id)
+            ->postJson('/api/v2/business/orders/' . $orderId . '/accept')->assertSuccessful();
+    }
+
     public function test_the_three_confirmations_are_independent_of_each_other(): void
     {
         $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest8');

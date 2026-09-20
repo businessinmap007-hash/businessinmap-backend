@@ -9,6 +9,7 @@ use App\Services\DeliveryDispatchService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\PromotesCarriers;
 use Tests\TestCase;
 
 /**
@@ -21,6 +22,7 @@ use Tests\TestCase;
  */
 class PrescriptionDeliveryTest extends TestCase
 {
+    use PromotesCarriers;
     use DatabaseTransactions;
 
     private function user(string $type, string $tag, ?int $childId = null): User
@@ -47,7 +49,7 @@ class PrescriptionDeliveryTest extends TestCase
 
     private function aDriver(string $name = 'Driver'): User
     {
-        $driver = $this->user(User::TYPE_CLIENT, $name);
+        $driver = $this->promoteToCarrier($this->user(User::TYPE_CLIENT, $name));
 
         Sanctum::actingAs($driver);
         $this->postJson('/api/v2/delivery/register', ['vehicle_label' => 'دراجة'])->assertCreated();

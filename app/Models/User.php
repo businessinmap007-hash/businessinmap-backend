@@ -301,6 +301,16 @@ class User extends Authenticatable
         return $this->type === self::TYPE_BUSINESS;
     }
 
+    /**
+     * A "Shipping & Delivery" business account - the only kind that registers
+     * as a freelance driver / courier on its own account. (A driver a business
+     * links to its own team is added by that business, never self-registers.)
+     */
+    public function isShippingCarrier(): bool
+    {
+        return $this->isBusiness() && optional($this->category)->slug === 'shipping-delivery';
+    }
+
     public function isClient(): bool
     {
         return $this->type === self::TYPE_CLIENT;

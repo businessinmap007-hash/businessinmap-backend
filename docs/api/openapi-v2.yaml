@@ -2533,7 +2533,7 @@ paths:
 
   # ─────────────────────────── Delivery ───────────────────────────
   /delivery/register:
-    post: { tags: [Delivery], summary: Register as a delivery driver, responses: { '200': { description: OK } } }
+    post: { tags: [Delivery], summary: 'Register as a delivery driver (Shipping & Delivery business accounts only)', responses: { '201': { description: Registered }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /delivery/delivery-fee:
     patch:
       tags: [Delivery]

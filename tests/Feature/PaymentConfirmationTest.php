@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
+use Tests\Concerns\PromotesCarriers;
 use Tests\TestCase;
 
 /**
@@ -21,6 +22,7 @@ use Tests\TestCase;
  */
 class PaymentConfirmationTest extends TestCase
 {
+    use PromotesCarriers;
     use DatabaseTransactions;
 
     private const RESTAURANT_CHILD = 245;
@@ -106,7 +108,7 @@ class PaymentConfirmationTest extends TestCase
 
         $driver = $this->makeUser(User::TYPE_CLIENT, 'Rider');
         $driverToken = $this->tokenFor($driver);
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
 
         $pickupToken = $this->actingWithToken($businessToken)
@@ -215,7 +217,7 @@ class PaymentConfirmationTest extends TestCase
 
         $driver = $this->makeUser(User::TYPE_CLIENT, 'Rider6');
         $driverToken = $this->tokenFor($driver);
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
 
         $this->actingWithToken($driverToken)
@@ -247,10 +249,10 @@ class PaymentConfirmationTest extends TestCase
         $customer = $this->makeUser(User::TYPE_CLIENT, 'CustN');
         $rider = $this->makeUser(User::TYPE_CLIENT, 'RiderN');
         $riderToken = $this->tokenFor($rider);
-        $this->actingWithToken($riderToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($riderToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $off = $this->makeUser(User::TYPE_CLIENT, 'RiderOff');
         $offToken = $this->tokenFor($off);
-        $this->actingWithToken($offToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($offToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($offToken)->postJson('/api/v2/delivery/availability', ['is_active' => false])->assertOk();
 
         $orderId = $this->checkout($business, $customer, 'delivery');
@@ -278,7 +280,7 @@ class PaymentConfirmationTest extends TestCase
         $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/preparing')->assertSuccessful();
         $driver = $this->makeUser(User::TYPE_CLIENT, 'RiderR');
         $driverToken = $this->tokenFor($driver);
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
 
         $old = $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/pickup-token')->assertOk()->json('data.pickup_token');
@@ -319,7 +321,7 @@ class PaymentConfirmationTest extends TestCase
 
         $driver = $this->makeUser(User::TYPE_CLIENT, 'RiderQ');
         $driverToken = $this->tokenFor($driver);
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
         $pickup = $this->actingWithToken($businessToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/pickup-token')->json('data.pickup_token');
         $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/pickup/' . $pickup . '/confirm')->assertOk();
@@ -349,7 +351,7 @@ class PaymentConfirmationTest extends TestCase
 
         $driver = $this->makeUser(User::TYPE_CLIENT, 'RiderD');
         $dt = $this->tokenFor($driver);
-        $this->actingWithToken($dt)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($dt)->postJson('/api/v2/delivery/register')->assertCreated();
 
         $rows = collect($this->actingWithToken($dt)->getJson('/api/v2/delivery/available-orders?lat=30.04&lng=31.23')
             ->assertOk()->json('data.orders'))->keyBy('order_id');
@@ -358,6 +360,20 @@ class PaymentConfirmationTest extends TestCase
         $this->assertGreaterThan(100, $rows[$ids[$far->id]]['distance_km']);
         $order = $rows->keys()->all();
         $this->assertLessThan(array_search($ids[$far->id], $order), array_search($ids[$near->id], $order), 'Nearest first.');
+    }
+
+    public function test_only_a_shipping_and_delivery_account_can_register_as_a_driver(): void
+    {
+        $client = $this->makeUser(User::TYPE_CLIENT, 'PlainClient');
+        $this->actingWithToken($this->tokenFor($client))->postJson('/api/v2/delivery/register')->assertStatus(403);
+
+        $restaurant = $this->makeUser(User::TYPE_BUSINESS, 'PlainRestaurant');
+        $this->actingWithToken($this->tokenFor($restaurant))->postJson('/api/v2/delivery/register')->assertStatus(403);
+
+        $carrier = $this->makeUser(User::TYPE_CLIENT, 'RealCarrier');
+        $token = $this->tokenFor($carrier);
+        $this->carrierActing($token)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->assertTrue($carrier->fresh()->isShippingCarrier());
     }
 
     public function test_a_different_driver_cannot_confirm_payment_on_someone_elses_delivery(): void
@@ -369,7 +385,7 @@ class PaymentConfirmationTest extends TestCase
 
         $otherDriver = $this->makeUser(User::TYPE_CLIENT, 'Rider7b');
         $otherDriverToken = $this->tokenFor($otherDriver);
-        $this->actingWithToken($otherDriverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($otherDriverToken)->postJson('/api/v2/delivery/register')->assertCreated();
 
         $this->actingWithToken($otherDriverToken)
             ->postJson('/api/v2/delivery/orders/' . $orderId . '/confirm-payment')

@@ -39,6 +39,10 @@ final class DeliveryController extends Controller
             'vehicle_label' => ['nullable', 'string', 'max:120'],
         ]);
 
+        if (! $request->user()->isShippingCarrier()) {
+            abort(403, __('التسجيل كموصّل متاح لحسابات «شحن وتوصيل» فقط.'));
+        }
+
         $driver = $this->delivery->registerDriver((int) $request->user()->id, $data);
 
         return response()->json(['success' => true, 'data' => $this->driverPayload($driver)], 201);

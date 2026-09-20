@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
+use Tests\Concerns\PromotesCarriers;
 use Tests\TestCase;
 
 /**
@@ -19,6 +20,7 @@ use Tests\TestCase;
  */
 class DeliveryEtaTest extends TestCase
 {
+    use PromotesCarriers;
     use DatabaseTransactions;
 
     private const RESTAURANT_CHILD = 245;
@@ -93,7 +95,7 @@ class DeliveryEtaTest extends TestCase
 
         $driver = $this->makeUser(User::TYPE_CLIENT, 'Rider');
         $driverToken = $this->tokenFor($driver);
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
 
         return ['order_id' => $orderId, 'customer' => $customer, 'driver_token' => $driverToken];
@@ -164,7 +166,7 @@ class DeliveryEtaTest extends TestCase
 
         $stranger = $this->makeUser(User::TYPE_CLIENT, 'Stranger');
         $strangerToken = $this->tokenFor($stranger);
-        $this->actingWithToken($strangerToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($strangerToken)->postJson('/api/v2/delivery/register')->assertCreated();
 
         $this->actingWithToken($strangerToken)
             ->postJson('/api/v2/delivery/orders/' . $orderId . '/eta', ['eta_minutes' => 15])

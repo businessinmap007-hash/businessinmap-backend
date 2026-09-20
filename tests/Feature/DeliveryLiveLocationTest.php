@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\DeliveryDispatchService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
+use Tests\Concerns\PromotesCarriers;
 use Tests\TestCase;
 
 /**
@@ -22,6 +23,7 @@ use Tests\TestCase;
  */
 class DeliveryLiveLocationTest extends TestCase
 {
+    use PromotesCarriers;
     use DatabaseTransactions;
 
     private const RESTAURANT_CHILD = 245;
@@ -117,7 +119,7 @@ class DeliveryLiveLocationTest extends TestCase
     {
         $rider = $this->makeUser(User::TYPE_CLIENT, 'Rider');
         $token = $this->tokenFor($rider);
-        $this->actingWithToken($token)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($token)->postJson('/api/v2/delivery/register')->assertCreated();
 
         $this->actingWithToken($token)->postJson('/api/v2/delivery/location', [
             'lat' => self::NEAR_LAT, 'lng' => self::NEAR_LNG,
@@ -191,9 +193,9 @@ class DeliveryLiveLocationTest extends TestCase
         $farToken = $this->tokenFor($far);
         $staleToken = $this->tokenFor($stale);
 
-        $this->actingWithToken($nearToken)->postJson('/api/v2/delivery/register')->assertCreated();
-        $this->actingWithToken($farToken)->postJson('/api/v2/delivery/register')->assertCreated();
-        $this->actingWithToken($staleToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($nearToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($farToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($staleToken)->postJson('/api/v2/delivery/register')->assertCreated();
 
         $this->actingWithToken($nearToken)->postJson('/api/v2/delivery/location', ['lat' => self::NEAR_LAT, 'lng' => self::NEAR_LNG])->assertOk();
         $this->actingWithToken($farToken)->postJson('/api/v2/delivery/location', ['lat' => self::FAR_LAT, 'lng' => self::FAR_LNG])->assertOk();
@@ -238,7 +240,7 @@ class DeliveryLiveLocationTest extends TestCase
             'latitude' => self::RESTAURANT_LAT, 'longitude' => self::RESTAURANT_LNG,
         ]);
         $rider = $this->makeUser(User::TYPE_CLIENT, 'Rider');
-        $this->actingWithToken($this->tokenFor($rider))->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($this->tokenFor($rider))->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($this->tokenFor($rider))->postJson('/api/v2/delivery/location', [
             'lat' => self::NEAR_LAT, 'lng' => self::NEAR_LNG,
         ])->assertOk();

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
+use Tests\Concerns\PromotesCarriers;
 use Tests\TestCase;
 
 /**
@@ -19,6 +20,7 @@ use Tests\TestCase;
  */
 class DeliveryFeeTest extends TestCase
 {
+    use PromotesCarriers;
     use DatabaseTransactions;
 
     private const RESTAURANT_CHILD = 245;
@@ -168,7 +170,7 @@ class DeliveryFeeTest extends TestCase
         $driver = $this->makeUser(User::TYPE_CLIENT, 'Rider');
         $token = $this->tokenFor($driver);
 
-        $this->actingWithToken($token)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($token)->postJson('/api/v2/delivery/register')->assertCreated();
 
         $this->actingWithToken($token)
             ->patchJson('/api/v2/delivery/delivery-fee', ['delivery_fee_amount' => 20])
@@ -191,7 +193,7 @@ class DeliveryFeeTest extends TestCase
 
         $driver = $this->makeUser(User::TYPE_CLIENT, 'Rider5');
         $driverToken = $this->tokenFor($driver);
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($driverToken)->patchJson('/api/v2/delivery/delivery-fee', ['delivery_fee_amount' => 20])->assertOk();
 
         $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $result['order_id'] . '/accept')->assertCreated();
@@ -217,7 +219,7 @@ class DeliveryFeeTest extends TestCase
 
         $driver = $this->makeUser(User::TYPE_CLIENT, 'Rider6');
         $driverToken = $this->tokenFor($driver);
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($driverToken)->patchJson('/api/v2/delivery/delivery-fee', ['delivery_fee_amount' => 20])->assertOk();
 
         $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $result['order_id'] . '/accept')->assertCreated();

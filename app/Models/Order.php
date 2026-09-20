@@ -139,6 +139,22 @@ class Order extends Model
         return ! $driverOwed || (bool) $this->driver_payment_confirmed_at;
     }
 
+    /** Orders placed before cash confirmation existed are never held to it. */
+    public const PAYMENT_CONFIRMATION_SINCE = '2026-09-20 00:00:00';
+
+    /**
+     * Whether this order is held to the cash-confirmation rules: a cash /
+     * cash-on-delivery order placed after the feature shipped. Older orders
+     * and anything paid another way are unaffected.
+     */
+    public function requiresPaymentConfirmation(): bool
+    {
+        return $this->booking_id === null
+            && in_array((string) $this->payment_method, ['cash', 'cash_on_delivery'], true)
+            && $this->created_at !== null
+            && $this->created_at->gte(\Illuminate\Support\Carbon::parse(self::PAYMENT_CONFIRMATION_SINCE));
+    }
+
     /** Stamps payment_settled_at once, the first time every required party has confirmed. */
     public function settlePaymentsIfComplete(): void
     {

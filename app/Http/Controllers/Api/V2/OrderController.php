@@ -351,6 +351,10 @@ final class OrderController extends Controller
                 abort(409, __('لا يمكن إكمال هذا الطلب في حالته الحالية.'));
             }
 
+            if ($m->requiresPaymentConfirmation() && ! $m->merchant_payment_confirmed_at) {
+                abort(409, __('أكّد استلام مبلغ الطلب أولًا قبل إكمال الطلب.'));
+            }
+
             $m->status = 'completed';
             $m->save();
 

@@ -43,6 +43,8 @@ class BusinessOrderCompletionTest extends TestCase
     private function advanceToReady(Order $order): void
     {
         $order->prep_status = Order::PREP_READY;
+        // A cash order is only completable once the merchant confirmed the cash.
+        $order->merchant_payment_confirmed_at = now();
         $order->save();
     }
 

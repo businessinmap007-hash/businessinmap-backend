@@ -373,6 +373,56 @@ class PaymentConfirmationTest extends TestCase
             ->postJson('/api/v2/business/orders/' . $orderId . '/accept')->assertSuccessful();
     }
 
+    public function test_a_cash_pickup_order_needs_the_merchant_confirmation_to_complete_and_settlement_to_be_reviewed(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'RestG');
+        $this->seedMenu($business);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'CustG');
+        $customerToken = $this->tokenFor($customer);
+        $menu = $this->getJson('/api/v2/discovery/menu/' . $business->id)->assertOk()->json('data');
+        $this->actingWithToken($customerToken)->postJson('/api/v2/cart/items', [
+            'kind' => 'menu', 'offering_id' => $menu['sections'][0]['items'][0]['id'], 'qty' => 1,
+        ])->assertSuccessful();
+        $orderId = (int) $this->actingWithToken($customerToken)->postJson('/api/v2/cart/' . $business->id . '/checkout', [
+            'fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String(), 'payment_method' => 'cash',
+        ])->assertCreated()->json('data.order.id');
+
+        $businessToken = $this->tokenFor($business);
+        foreach (['accept', 'preparing', 'ready'] as $step) {
+            $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/' . $step)->assertSuccessful();
+        }
+
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/complete')->assertStatus(409);
+
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/confirm-payment')->assertOk();
+        $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/complete')->assertSuccessful();
+
+        $review = ['operation_type' => 'order', 'operation_id' => $orderId, 'stars' => 5];
+        $this->actingWithToken($customerToken)->postJson('/api/v2/ratings/review', $review)->assertStatus(409);
+
+        $this->actingWithToken($customerToken)->postJson('/api/v2/orders/' . $orderId . '/confirm-payment')->assertOk();
+        $this->actingWithToken($customerToken)->postJson('/api/v2/ratings/review', $review)->assertStatus(201);
+    }
+
+    public function test_an_order_with_no_payment_method_is_not_held_to_the_confirmation(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'RestG2');
+        $this->seedMenu($business);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'CustG2');
+        $customerToken = $this->tokenFor($customer);
+        $menu = $this->getJson('/api/v2/discovery/menu/' . $business->id)->assertOk()->json('data');
+        $this->actingWithToken($customerToken)->postJson('/api/v2/cart/items', [
+            'kind' => 'menu', 'offering_id' => $menu['sections'][0]['items'][0]['id'], 'qty' => 1,
+        ])->assertSuccessful();
+        $orderId = (int) $this->actingWithToken($customerToken)->postJson('/api/v2/cart/' . $business->id . '/checkout', [
+            'fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String(), 'payment_method' => 'card',
+        ])->assertCreated()->json('data.order.id');
+        $businessToken = $this->tokenFor($business);
+        foreach (['accept', 'preparing', 'ready', 'complete'] as $step) {
+            $this->actingWithToken($businessToken)->postJson('/api/v2/business/orders/' . $orderId . '/' . $step)->assertSuccessful();
+        }
+    }
+
     public function test_the_three_confirmations_are_independent_of_each_other(): void
     {
         $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest8');

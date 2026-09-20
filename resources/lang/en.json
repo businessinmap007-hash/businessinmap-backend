@@ -690,6 +690,8 @@
     "هذا الطلب غير مُسنَد إليك.": "This order is not assigned to you.",
     "هذا الطلب لا يخص نشاطك.": "This order does not belong to your business.",
     "سبق تأكيد الدفع.": "Payment has already been confirmed.",
+    "أكّد استلام مبلغ الطلب أولًا قبل إكمال الطلب.": "Confirm you received the order amount before completing the order.",
+    "يفتح التقييم بعد تأكيد الدفع من جميع الأطراف.": "Reviews open once every party has confirmed the payment.",
     "هذا الطرف غير موجود في الطلب.": "This party is not part of the order.",
     "سبق تأكيد استلام المبلغ.": "Receipt of the amount has already been confirmed.",
     "لا يمكن تأكيد استلام رسوم التوصيل قبل تسليم الطلب.": "The delivery fee cannot be confirmed as received before the order is delivered.",

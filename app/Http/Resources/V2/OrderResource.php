@@ -60,6 +60,9 @@ class OrderResource extends JsonResource
             // The viewer's own "I trust" ticks toward the other parties of the
             // order, plus whether each of them trusts the viewer. Detail views
             // only (items loaded) - a list row never needs it.
+            // Cash orders are held to the three-party confirmation (completion
+            // of pickup/dine-in, and reviews, wait on it).
+            'payment_confirmation_required' => $this->requiresPaymentConfirmation(),
             'trust' => $this->relationLoaded('items') ? $this->trustFor($request) : null,
             'payment_confirmations' => [
                 'customer_confirmed_at' => optional($this->customer_payment_confirmed_at)->toIso8601String(),

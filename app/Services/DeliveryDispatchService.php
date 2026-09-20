@@ -670,6 +670,7 @@ class DeliveryDispatchService
 
         $order->driver_payment_confirmed_at = now();
         $order->save();
+        $order->settlePaymentsIfComplete();
 
         return $order;
     }

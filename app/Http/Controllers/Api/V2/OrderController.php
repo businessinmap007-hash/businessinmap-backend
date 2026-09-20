@@ -139,6 +139,7 @@ final class OrderController extends Controller
 
             $m->customer_payment_confirmed_at = now();
             $m->save();
+            $m->settlePaymentsIfComplete();
 
             return $m;
         });
@@ -513,6 +514,7 @@ final class OrderController extends Controller
 
             $m->merchant_payment_confirmed_at = now();
             $m->save();
+            $m->settlePaymentsIfComplete();
 
             return $m;
         });

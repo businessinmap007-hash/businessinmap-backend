@@ -42,6 +42,7 @@ class OrderResource extends JsonResource
                 'customer_confirmed_at' => optional($this->customer_payment_confirmed_at)->toIso8601String(),
                 'merchant_confirmed_at' => optional($this->merchant_payment_confirmed_at)->toIso8601String(),
                 'driver_confirmed_at' => optional($this->driver_payment_confirmed_at)->toIso8601String(),
+                'settled_at' => optional($this->payment_settled_at)->toIso8601String(),
             ],
 
             // Set at checkout from the merchant's own deposit_required_above
@@ -52,6 +53,8 @@ class OrderResource extends JsonResource
                 'covered' => (bool) $this->deposit_covered,
                 'covered_by' => $this->deposit_covered_by,
                 'accepted_without_cover' => (bool) $this->deposit_accepted_without_cover,
+                // Advisory deposit is released only once every party confirmed the cash.
+                'released' => (bool) $this->requires_deposit && $this->payment_settled_at !== null,
             ],
             'address' => $this->address,
             'delivery_coordinates' => $this->customerLatLng()

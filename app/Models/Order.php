@@ -106,6 +106,7 @@ class Order extends Model
         'customer_payment_confirmed_at' => 'datetime',
         'merchant_payment_confirmed_at' => 'datetime',
         'driver_payment_confirmed_at' => 'datetime',
+        'payment_settled_at' => 'datetime',
         'requires_deposit' => 'boolean',
         'deposit_amount' => 'float',
         'deposit_covered' => 'boolean',
@@ -116,6 +117,35 @@ class Order extends Model
     public function needsExplicitDepositDecision(): bool
     {
         return (bool) $this->requires_deposit && ! $this->deposit_covered;
+    }
+
+    /**
+     * True once every party to the cash has attested: customer + merchant
+     * always, plus the driver when a delivery fee was actually collected by
+     * an assigned driver. Nothing is held for an order (the deposit flag is
+     * advisory - see CustomerCartService::assessDeposit), so "settled" is the
+     * point where that advisory deposit is considered released.
+     */
+    public function paymentsFullyConfirmed(): bool
+    {
+        if (! $this->customer_payment_confirmed_at || ! $this->merchant_payment_confirmed_at) {
+            return false;
+        }
+
+        $driverOwed = (string) $this->fulfillment_type === self::FULFILLMENT_DELIVERY
+            && $this->delivery_driver_id
+            && (float) $this->delivery_fee > 0;
+
+        return ! $driverOwed || (bool) $this->driver_payment_confirmed_at;
+    }
+
+    /** Stamps payment_settled_at once, the first time every required party has confirmed. */
+    public function settlePaymentsIfComplete(): void
+    {
+        if ($this->payment_settled_at === null && $this->paymentsFullyConfirmed()) {
+            $this->payment_settled_at = now();
+            $this->save();
+        }
     }
 
     public const PAYMENT_UNPAID = 'unpaid';

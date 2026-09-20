@@ -239,6 +239,39 @@ class PaymentConfirmationTest extends TestCase
             ->assertStatus(403);
     }
 
+    public function test_a_pickup_order_settles_once_customer_and_merchant_both_confirm(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest9');
+        $this->seedMenu($business);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'Cust9');
+        $orderId = $this->checkout($business, $customer, 'pickup');
+
+        $this->actingWithToken($this->tokenFor($customer))->postJson('/api/v2/orders/' . $orderId . '/confirm-payment')->assertOk();
+        $this->assertNull(Order::find($orderId)->payment_settled_at);
+
+        $response = $this->actingWithToken($this->tokenFor($business))
+            ->postJson('/api/v2/business/orders/' . $orderId . '/confirm-payment')->assertOk();
+        $this->assertNotNull(Order::find($orderId)->payment_settled_at);
+        $this->assertNotNull($response->json('data.payment_confirmations.settled_at'));
+    }
+
+    public function test_a_delivery_order_with_a_fee_needs_the_driver_too_before_it_settles(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest10');
+        $this->seedMenu($business);
+        $this->actingWithToken($this->tokenFor($business))
+            ->patchJson('/api/v2/business/delivery-settings', ['delivery_fee_amount' => 30])->assertOk();
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'Cust10');
+        ['order_id' => $orderId, 'driver_token' => $driverToken] = $this->deliveredOrder($business, $customer);
+
+        $this->actingWithToken($this->tokenFor($customer))->postJson('/api/v2/orders/' . $orderId . '/confirm-payment')->assertOk();
+        $this->actingWithToken($this->tokenFor($business))->postJson('/api/v2/business/orders/' . $orderId . '/confirm-payment')->assertOk();
+        $this->assertNull(Order::find($orderId)->payment_settled_at);
+
+        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/confirm-payment')->assertOk();
+        $this->assertNotNull(Order::find($orderId)->payment_settled_at);
+    }
+
     public function test_the_three_confirmations_are_independent_of_each_other(): void
     {
         $business = $this->makeUser(User::TYPE_BUSINESS, 'Rest8');

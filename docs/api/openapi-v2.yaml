@@ -1628,6 +1628,32 @@ paths:
       responses:
         '200': { description: OK }
         '409': { $ref: '#/components/responses/Conflict' }
+  /orders/{order}/trust:
+    post:
+      tags: [Orders (Customer)]
+      summary: Tick or untick "I trust" toward another party of the order
+      description: >-
+        The caller (must be a party of the order) trusts the customer, the
+        business or the assigned driver. Merchant-to-customer also vouches
+        through the trusted-partners waiver, which needs the customer to hold
+        an active guarantee (422 otherwise); the other directions are recorded
+        only. List/detail order responses carry `trust.<party>.trusted_by_me`
+        and `trusts_me` on detail views.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [party, trusted]
+              properties:
+                party: { type: string, enum: [customer, business, driver] }
+                trusted: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
   /orders/{order}/handover/issue:
     post:
       tags: [Order Handover]
@@ -2068,6 +2094,32 @@ paths:
       responses:
         '200': { description: OK }
         '409': { $ref: '#/components/responses/Conflict' }
+  /business/orders/{order}/trust:
+    post:
+      tags: [Orders (Business)]
+      summary: Tick or untick "I trust" toward another party of the order
+      description: >-
+        The caller (must be a party of the order) trusts the customer, the
+        business or the assigned driver. Merchant-to-customer also vouches
+        through the trusted-partners waiver, which needs the customer to hold
+        an active guarantee (422 otherwise); the other directions are recorded
+        only. List/detail order responses carry `trust.<party>.trusted_by_me`
+        and `trusts_me` on detail views.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [party, trusted]
+              properties:
+                party: { type: string, enum: [customer, business, driver] }
+                trusted: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
   /business/orders/{order}/items/{item}/unavailable:
     post:
       tags: [Orders (Business)]

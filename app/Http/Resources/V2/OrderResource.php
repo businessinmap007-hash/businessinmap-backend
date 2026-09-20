@@ -11,6 +11,25 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class OrderResource extends JsonResource
 {
+    private function trustFor($request): array
+    {
+        $parties = \App\Http\Controllers\Api\V2\OrderTrustController::partyIds($this->resource);
+        $viewer = \App\Support\BusinessContext::id($request);
+        $out = [];
+
+        foreach ($parties as $role => $id) {
+            if (! $id || $id === $viewer) {
+                continue;
+            }
+            $out[$role] = [
+                'trusted_by_me' => \App\Models\PartyTrust::exists($viewer, $id),
+                'trusts_me' => \App\Models\PartyTrust::exists($id, $viewer),
+            ];
+        }
+
+        return $out;
+    }
+
     public function toArray($request): array
     {
         return [
@@ -38,6 +57,10 @@ class OrderResource extends JsonResource
             // Three independent cash-payment attestations for the no-wallet
             // COD flow - each party confirms only the leg of cash they're
             // party to. Never a chain: any subset can be set at once.
+            // The viewer's own "I trust" ticks toward the other parties of the
+            // order, plus whether each of them trusts the viewer. Detail views
+            // only (items loaded) - a list row never needs it.
+            'trust' => $this->relationLoaded('items') ? $this->trustFor($request) : null,
             'payment_confirmations' => [
                 'customer_confirmed_at' => optional($this->customer_payment_confirmed_at)->toIso8601String(),
                 'merchant_confirmed_at' => optional($this->merchant_payment_confirmed_at)->toIso8601String(),

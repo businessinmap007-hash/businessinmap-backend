@@ -65,6 +65,7 @@ use App\Http\Controllers\Api\V2\OfferFollowController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderController;
+use App\Http\Controllers\Api\V2\OrderTrustController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
 use App\Http\Controllers\Api\V2\PasswordResetController;
 use App\Http\Controllers\Api\V2\CommentController;
@@ -666,6 +667,8 @@ Route::prefix('v2')->group(function () {
         // Cash-payment attestation (customer's own leg) - see the business
         // and delivery confirm-payment routes below for the other two legs.
         Route::post('orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment'])->whereNumber('order');
+        // "I trust" checkbox toward another party of the order (customer / driver).
+        Route::post('orders/{order}/trust', [OrderTrustController::class, 'update'])->whereNumber('order');
 
         // Placed orders: the business's incoming-order queue + detail + lifecycle.
         // Owner OR a delegated staff member granted the `orders` capability.
@@ -687,6 +690,7 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/complete', [OrderController::class, 'businessComplete'])->whereNumber('order');
             // Cash-payment attestation (merchant's own leg, order amount only).
             Route::post('business/orders/{order}/confirm-payment', [OrderController::class, 'businessConfirmPayment'])->whereNumber('order');
+            Route::post('business/orders/{order}/trust', [OrderTrustController::class, 'update'])->whereNumber('order');
             Route::get('business/delivery-drivers', [DeliveryController::class, 'roster']);
             Route::patch('business/delivery-drivers/{driver}', [DeliveryController::class, 'updateDriver'])->whereNumber('driver');
             Route::get('business/delivery-settings', [DeliveryController::class, 'deliverySettings']);

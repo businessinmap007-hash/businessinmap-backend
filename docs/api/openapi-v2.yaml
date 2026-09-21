@@ -2232,6 +2232,12 @@ paths:
       summary: Mark the order delivered (completes it)
       parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK } }
+  /orders/{order}/shipping/appointment-ok:
+    post:
+      tags: [Shipping]
+      summary: The customer confirms the scheduled shipping appointment suits them
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
   /business/orders/{order}/items/{item}/unavailable:
     post:
       tags: [Orders (Business)]

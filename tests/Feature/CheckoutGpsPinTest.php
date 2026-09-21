@@ -71,6 +71,7 @@ class CheckoutGpsPinTest extends TestCase
         $this->fillCart();
 
         $res = $this->postJson("/api/v2/cart/{$this->businessId}/checkout", [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'lat' => (float) $this->city->latitude,
             'lng' => (float) $this->city->longitude,
@@ -95,6 +96,7 @@ class CheckoutGpsPinTest extends TestCase
         $this->fillCart();
 
         $this->postJson("/api/v2/cart/{$this->businessId}/checkout", [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'lat' => (float) $this->city->latitude,
             'lng' => (float) $this->city->longitude,
@@ -134,6 +136,7 @@ class CheckoutGpsPinTest extends TestCase
         $this->fillCart();
 
         $this->postJson("/api/v2/cart/{$this->businessId}/checkout", [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'lat' => (float) $this->city->latitude,
         ])->assertStatus(422);

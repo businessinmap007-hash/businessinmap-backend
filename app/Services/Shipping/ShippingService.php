@@ -187,6 +187,7 @@ class ShippingService
             }
 
             $order->shipping_appointment_at = $at;
+            $order->shipping_appointment_confirmed_at = null; // a new time needs a fresh yes
             $order->shipping_appointment_note = $note !== null && trim($note) !== '' ? trim($note) : null;
             $order->shipping_status = Order::SHIP_SCHEDULED;
             $order->save();
@@ -201,6 +202,30 @@ class ShippingService
         ];
         $this->pingCustomer($order, $companyId, 'shipping_update', $bodies);
         $this->ping($order, (int) $order->business_id, 'shipping_update', $companyId, 'open_business_order', $bodies);
+
+        return $order;
+    }
+
+    /** The customer says the scheduled appointment suits them; the company and the merchant are told. */
+    public function confirmAppointment(int $customerId, int $orderId): Order
+    {
+        $order = Order::query()->where('user_id', $customerId)->findOrFail($orderId);
+
+        if ((string) $order->shipping_status !== Order::SHIP_SCHEDULED) {
+            abort(409, __('لا يوجد موعد شحن للتأكيد.'));
+        }
+
+        if ($order->shipping_appointment_confirmed_at === null) {
+            $order->shipping_appointment_confirmed_at = now();
+            $order->save();
+
+            $bodies = [
+                'body_ar' => 'العميل وافق على موعد شحن الطلب رقم #' . $order->id . '.',
+                'body_en' => 'The customer accepted the shipping appointment for order #' . $order->id . '.',
+            ];
+            $this->ping($order, (int) $order->shipping_company_id, 'shipping_update', $customerId, 'open_shipping_order', $bodies);
+            $this->ping($order, (int) $order->business_id, 'shipping_update', $customerId, 'open_business_order', $bodies);
+        }
 
         return $order;
     }

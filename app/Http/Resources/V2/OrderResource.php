@@ -65,6 +65,7 @@ class OrderResource extends JsonResource
                 'fee' => $this->shipping_fee !== null ? (float) $this->shipping_fee : null,
                 'appointment_at' => optional($this->shipping_appointment_at)->toIso8601String(),
                 'appointment_note' => $this->shipping_appointment_note,
+                'appointment_confirmed_at' => optional($this->shipping_appointment_confirmed_at)->toIso8601String(),
                 'to_governorate_id' => $this->shipping_to_governorate_id ? (int) $this->shipping_to_governorate_id : null,
                 'company' => $this->shipping_company_id ? [
                     'id' => (int) $this->shipping_company_id,

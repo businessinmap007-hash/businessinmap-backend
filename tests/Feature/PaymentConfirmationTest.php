@@ -87,7 +87,7 @@ class PaymentConfirmationTest extends TestCase
 
         $payload = ['fulfillment_type' => $fulfillmentType];
         $payload = $fulfillmentType === 'delivery'
-            ? $payload + ['address' => 'شارع الاختبار']
+            ? $payload + ['address' => 'شارع الاختبار', 'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id')]
             : $payload + ['pickup_at' => now()->addHour()->toIso8601String()];
 
         $order = $this->actingWithToken($customerToken)->postJson('/api/v2/cart/' . $business->id . '/checkout', $payload)

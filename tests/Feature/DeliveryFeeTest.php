@@ -85,6 +85,7 @@ class DeliveryFeeTest extends TestCase
         ])->assertSuccessful();
 
         $order = $this->actingWithToken($customerToken)->postJson('/api/v2/cart/' . $business->id . '/checkout', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'address' => 'شارع الاختبار',
         ])->assertCreated()->json('data.order');

@@ -730,7 +730,11 @@ class CustomerCartService
         if ($cart->fulfillment_type === Order::FULFILLMENT_DELIVERY) {
             $business = User::query()->find($cart->business_id);
 
-            $zone = $this->deliveryZone($cart, $business, (int) ($data['address_id'] ?? 0));
+            if (empty($data['address_id']) && empty($data['governorate_id'])) {
+                throw ValidationException::withMessages(['address_id' => __('اختر عنوان التوصيل (المحافظة والمدينة) أولًا.')]);
+            }
+
+            $zone = $this->deliveryZone($cart, $business, (int) ($data['address_id'] ?? 0), (int) ($data['governorate_id'] ?? 0));
 
             if ($zone['zone'] === 'shipping') {
                 // Another governorate: shipped by a company the merchant picks
@@ -831,15 +835,21 @@ class CustomerCartService
      *
      * @return array{zone: string, governorate_id: ?int}
      */
-    private function deliveryZone(Order $cart, ?User $business, int $addressId): array
+    private function deliveryZone(Order $cart, ?User $business, int $addressId, int $governorateId = 0): array
     {
         $none = ['zone' => 'city', 'governorate_id' => null];
 
-        if (! $business || $addressId <= 0) {
+        if (! $business) {
             return $none;
         }
 
-        $address = Address::query()->whereKey($addressId)->where('user_id', (int) $cart->user_id)->first(['city_id', 'governorate_id']);
+        if ($addressId > 0) {
+            $address = Address::query()->whereKey($addressId)->where('user_id', (int) $cart->user_id)->first(['city_id', 'governorate_id']);
+        } elseif ($governorateId > 0) {
+            $address = new Address(['governorate_id' => $governorateId]);
+        } else {
+            $address = null;
+        }
         if (! $address) {
             return $none;
         }

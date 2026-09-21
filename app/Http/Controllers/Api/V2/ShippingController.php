@@ -107,6 +107,12 @@ final class ShippingController extends Controller
         return $this->orderResponse($model);
     }
 
+    /** POST /api/v2/orders/{order}/shipping/appointment-ok - the customer's "this time suits me". */
+    public function confirmAppointment(Request $request, int $order)
+    {
+        return $this->orderResponse($this->shipping->confirmAppointment((int) $request->user()->id, $order));
+    }
+
     /** POST /api/v2/business/shipping/orders/{order}/shipped */
     public function shipped(Request $request, int $order)
     {

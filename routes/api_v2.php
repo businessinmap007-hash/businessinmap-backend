@@ -670,6 +670,7 @@ Route::prefix('v2')->group(function () {
         Route::post('orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment'])->whereNumber('order');
         // "I trust" checkbox toward another party of the order (customer / driver).
         Route::post('orders/{order}/trust', [OrderTrustController::class, 'update'])->whereNumber('order');
+        Route::post('orders/{order}/shipping/appointment-ok', [ShippingController::class, 'confirmAppointment'])->whereNumber('order');
         // Out-of-city delivery fee: the customer accepts or declines the courier's price.
         Route::post('orders/{order}/delivery-fee/accept', [DeliveryController::class, 'acceptFee'])->whereNumber('order');
         Route::post('orders/{order}/delivery-fee/decline', [DeliveryController::class, 'declineFee'])->whereNumber('order');

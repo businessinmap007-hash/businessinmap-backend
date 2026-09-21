@@ -2836,5 +2836,7 @@
     "موقعك بعيد عن مقر النشاط، لازم تكون في المكان لتسجيل الحضور.": "You're too far from the business location — you must be on site to check in.",
     "هذه الشاشة مخصصة لصاحب النشاط فقط.": "This screen is for the business owner only.",
     "هذه الإعدادات مخصصة لصاحب النشاط فقط.": "These settings are for the business owner only.",
-    "لا يمكن تحديث موعد التوصيل في هذه المرحلة.": "The delivery ETA can't be updated at this stage."
+    "لا يمكن تحديث موعد التوصيل في هذه المرحلة.": "The delivery ETA can't be updated at this stage.",
+    "اختر عنوان التوصيل (المحافظة والمدينة) أولًا.": "Choose a delivery address (governorate and city) first.",
+    "لا يوجد موعد شحن للتأكيد.": "There is no shipping appointment to confirm."
 }

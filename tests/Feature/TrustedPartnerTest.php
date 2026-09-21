@@ -87,6 +87,7 @@ class TrustedPartnerTest extends TestCase
         $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->expensiveItemId, 'qty' => 1])->assertSuccessful();
 
         $res = $this->postJson('/api/v2/cart/' . $this->business->id . '/checkout', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery', 'address' => 'شارع الاختبار',
         ])->assertCreated();
 

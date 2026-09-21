@@ -111,6 +111,7 @@ class Order extends Model
         'delivery_fee_decided_at' => 'datetime',
         'shipping_fee' => 'float',
         'shipping_appointment_at' => 'datetime',
+        'shipping_appointment_confirmed_at' => 'datetime',
         'requires_deposit' => 'boolean',
         'deposit_amount' => 'float',
         'deposit_covered' => 'boolean',

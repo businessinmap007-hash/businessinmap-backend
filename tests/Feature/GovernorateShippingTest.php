@@ -286,4 +286,49 @@ class GovernorateShippingTest extends TestCase
 
         $this->assertNull(Order::find($id)->shipping_status);
     }
+
+    public function test_the_customer_can_confirm_the_appointment_and_a_new_time_needs_a_fresh_yes(): void
+    {
+        $o = $this->shippingOrder();
+        [$company, $companyToken] = $this->carrier('OkCo', $this->govA, [$this->govB => 60]);
+        $this->actingWithToken($o['business_token'])
+            ->postJson('/api/v2/business/orders/' . $o['order_id'] . '/shipping-company', ['company_id' => $company->id])->assertOk();
+
+        $ok = '/api/v2/orders/' . $o['order_id'] . '/shipping/appointment-ok';
+        $this->actingWithToken($o['customer_token'])->postJson($ok)->assertStatus(409); // nothing scheduled yet
+
+        $base = '/api/v2/business/shipping/orders/' . $o['order_id'];
+        $this->actingWithToken($companyToken)->postJson($base . '/appointment', ['appointment_at' => now()->addDays(2)->toIso8601String()])->assertOk();
+
+        $this->actingWithToken($o['business_token'])->postJson($ok)->assertStatus(404); // only the customer
+        $this->actingWithToken($o['customer_token'])->postJson($ok)->assertOk()
+            ->assertJsonPath('data.shipping.appointment_confirmed_at', fn ($v) => $v !== null);
+
+        $this->actingWithToken($companyToken)->postJson($base . '/appointment', ['appointment_at' => now()->addDays(3)->toIso8601String()])->assertOk();
+        $this->assertNull(Order::find($o['order_id'])->shipping_appointment_confirmed_at);
+    }
+
+    public function test_a_delivery_order_must_say_where_and_registration_needs_a_location(): void
+    {
+        $business = $this->makeUser(User::TYPE_BUSINESS, 'NoAddrShop', $this->govA);
+        $section = MenuSection::query()->create(['business_id' => $business->id, 'name_ar' => 'م', 'is_active' => true, 'sort_order' => 1]);
+        MenuItem::query()->create(['business_id' => $business->id, 'menu_section_id' => $section->id, 'name_ar' => 'ص', 'base_price' => 50, 'is_active' => true, 'sort_order' => 1]);
+        $customer = $this->makeUser(User::TYPE_CLIENT, 'NoAddrCust');
+        $token = $this->tokenFor($customer);
+        $menu = $this->getJson('/api/v2/discovery/menu/' . $business->id)->json('data');
+        $this->actingWithToken($token)->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $menu['sections'][0]['items'][0]['id'], 'qty' => 1])->assertSuccessful();
+
+        $this->actingWithToken($token)->postJson('/api/v2/cart/' . $business->id . '/checkout', ['fulfillment_type' => 'delivery', 'address' => 'شارع بلا محافظة'])
+            ->assertStatus(422)->assertJsonValidationErrors('address_id');
+
+        // A bare governorate is enough to route it (here: another governorate = shipping).
+        $id = (int) $this->actingWithToken($token)->postJson('/api/v2/cart/' . $business->id . '/checkout', ['fulfillment_type' => 'delivery', 'governorate_id' => $this->govB])
+            ->assertCreated()->json('data.order.id');
+        $this->assertSame(Order::SHIP_AWAITING_COMPANY, Order::find($id)->shipping_status);
+
+        $this->postJson('/api/v2/auth/register', [
+            'name' => 'بلا موقع', 'email' => 'noloc@example.test', 'phone' => '01099911111',
+            'password' => 'Test12345!', 'password_confirmation' => 'Test12345!', 'type' => 'client', 'terms_accepted' => true,
+        ])->assertStatus(422)->assertJsonValidationErrors(['governorate_id', 'city_id', 'address_line']);
+    }
 }

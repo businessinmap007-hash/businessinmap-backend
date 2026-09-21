@@ -31,6 +31,9 @@ class PasswordPolicyTest extends TestCase
     public function test_api_register_rejects_a_weak_password(string $password): void
     {
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'Weak Pass',
             'email' => 'weak-' . uniqid() . '@example.test',
             'phone' => '0100' . random_int(1000000, 9999999),
@@ -42,6 +45,9 @@ class PasswordPolicyTest extends TestCase
     public function test_api_register_accepts_a_compliant_password(): void
     {
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'Strong Pass',
             'email' => 'strong-' . uniqid() . '@example.test',
             'phone' => '0100' . random_int(1000000, 9999999),

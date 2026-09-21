@@ -52,12 +52,22 @@ final class AuthController extends Controller
                 'required_if:type,' . User::TYPE_BUSINESS,
                 'nullable', 'integer', 'exists:category_children_master,id',
             ],
+            // Where the account is. Everything location-aware hangs on this - which
+            // shops a customer sees, delivery vs governorate shipping, which
+            // shipping companies a merchant can pick - so it is not optional.
+            'governorate_id' => ['required', 'integer', 'exists:governorates,id'],
+            'city_id' => ['required', 'integer', 'exists:cities,id'],
+            'address_line' => ['required', 'string', 'min:5', 'max:191'],
             // No consent, no account: registration is cancelled if the terms are
             // not accepted. `accepted` also fails when the field is absent.
             'terms_accepted' => ['accepted'],
         ], [
             'terms_accepted.accepted' => __('يجب الموافقة على الشروط والأحكام لإنشاء الحساب.'),
         ]);
+
+        if (! \App\Models\City::query()->whereKey((int) $data['city_id'])->where('governorate_id', (int) $data['governorate_id'])->exists()) {
+            throw ValidationException::withMessages(['city_id' => [__('المدينة المختارة لا تتبع المحافظة المختارة.')]]);
+        }
 
         // A ban is on the identity, not on the row: without this, a banned user
         // registers again with the same email and phone and the ban means
@@ -69,7 +79,7 @@ final class AuthController extends Controller
         }
 
         $user = DB::transaction(function () use ($data) {
-            return User::create([
+            $user = User::create([
                 'name' => $data['name'],
                 'name_en' => $data['name_en'] ?? null,
                 'email' => $data['email'],
@@ -78,8 +88,20 @@ final class AuthController extends Controller
                 'type' => $data['type'] ?? User::TYPE_CLIENT,
                 'category_id' => $data['category_id'] ?? null,
                 'category_child_id' => $data['category_child_id'] ?? null,
+                'governorate_id' => (int) $data['governorate_id'],
+                'city_id' => (int) $data['city_id'],
                 'api_token' => $this->freshApiToken(),
             ]);
+
+            // The first address of the address book (customer AND business).
+            $user->addresses()->create([
+                'governorate_id' => (int) $data['governorate_id'],
+                'city_id' => (int) $data['city_id'],
+                'address_line' => $data['address_line'],
+                'is_primary' => true,
+            ]);
+
+            return $user;
         });
 
         // Consent was just validated as accepted → record it against the current

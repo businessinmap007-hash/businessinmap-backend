@@ -35,6 +35,9 @@ class LegalConsentTest extends TestCase
         $email = 'consent-' . uniqid() . '@example.test';
 
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'Consent User',
             'email' => $email,
             'phone' => '0100' . random_int(1000000, 9999999),
@@ -69,6 +72,9 @@ class LegalConsentTest extends TestCase
 
         // No terms_accepted → registration is cancelled, and no user is created.
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'No Consent',
             'email' => $email,
             'phone' => '0100' . random_int(1000000, 9999999),

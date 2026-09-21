@@ -132,6 +132,7 @@ class DeliveryJourneyTest extends TestCase
         // the address book (BIM-11.1) is not wired to it yet. Recorded in
         // docs/06_ENGINEERING_REFERENCE.md §9.
         $order = $this->actingWithToken($token)->postJson('/api/v2/cart/' . $this->business->id . '/checkout', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'address' => '12 شارع الجمهورية، وسط البلد',
         ])->assertCreated()->json('data.order');

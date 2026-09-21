@@ -109,6 +109,9 @@ final class CartController extends Controller
         $data = $request->validate([
             'fulfillment_type' => ['nullable', 'in:delivery,pickup,dine_in'],
             'address_id' => ['nullable', 'integer'],
+            // A delivery order must say WHERE: a saved address, or at least a governorate
+            // (that is what decides delivery vs governorate shipping).
+            'governorate_id' => ['nullable', 'integer', 'exists:governorates,id'],
             'address' => ['nullable', 'string', 'max:500'],
             // A one-off GPS delivery pin (both required together). Ignored when
             // address_id is given. Resolved to a city line server-side.

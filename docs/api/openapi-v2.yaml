@@ -3855,7 +3855,144 @@ paths:
               type: object
               properties:
                 for_date: { type: string, format: date }
-      responses: { '201': { description: Confirmed }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+                reps: { type: integer, minimum: 0, maximum: 1000, description: 'Reps actually done in this set (optional).' }
+                weight: { type: number, minimum: 0, maximum: 1000, description: 'Weight used in this set, kg (optional).' }
+      responses:
+        '201': { description: 'Confirmed. data.round carries the recorded reps/weight; data.session_completed is true only for the call that finished every exercise owed that day (the trainer is told once).' }
+        '404': { description: 'Not yours' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /training-plans/{plan}/exercises/{exercise}/rounds/{round}:
+    put:
+      tags: [Training]
+      summary: Correct the reps/weight of a set I already confirmed (trainee)
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+        - { name: exercise, in: path, required: true, schema: { type: integer } }
+        - { name: round, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reps: { type: integer, minimum: 0, maximum: 1000 }
+                weight: { type: number, minimum: 0, maximum: 1000 }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not yours' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /training-plans/{plan}/monthly-summary:
+    get:
+      tags: [Training]
+      summary: My month on this plan (trainee)
+      description: 'Rolled up from the confirmed sets: finished days, totals, volume (reps x weight where both were recorded), each exercise best/total, the month weight check-ins and the trainer body report. month=YYYY-MM, default this month.'
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+        - { in: query, name: month, schema: { type: string, example: '2026-09' } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not yours' }
+  /business/training-plans/{plan}/monthly-summary:
+    get:
+      tags: [Training]
+      summary: A client's month on a plan I own (trainer)
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+        - { in: query, name: month, schema: { type: string, example: '2026-09' } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not your plan' }
+  /business/training-plans/{plan}/log:
+    get:
+      tags: [Training]
+      summary: One day's sets per exercise next to the prescription (trainer)
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+        - { in: query, name: date, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not your plan' }
+  /business/training/photos:
+    get:
+      tags: [Training]
+      summary: My private photo library, reusable across clients (trainer)
+      responses:
+        '200': { description: OK }
+        '403': { description: Not a training-capable business }
+    post:
+      tags: [Training]
+      summary: Add photos to my library (trainer)
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images: { type: array, items: { type: string, format: binary } }
+                caption: { type: string, maxLength: 120 }
+      responses:
+        '201': { description: Created }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/training/photos/{photo}:
+    delete:
+      tags: [Training]
+      summary: Delete a library photo (copies already attached to plans are unaffected)
+      parameters:
+        - { name: photo, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not in my library' }
+  /trainer-photos/{photo}:
+    get:
+      tags: [Training]
+      summary: A library photo from private storage
+      description: 'No login: the signed, time-limited link returned by the library endpoint is the credential. 403 when the signature is missing, tampered or expired.'
+      security: []
+      parameters:
+        - { name: photo, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: The image }
+        '403': { description: 'Missing, tampered or expired signature' }
+        '404': { description: Not found }
+  /business/training-plans/{plan}/exercises/{exercise}/images/from-library:
+    post:
+      tags: [Training]
+      summary: Attach photos from my library to a client's exercise (trainer)
+      description: 'Each photo is COPIED into the plan, so a plan never depends on the library or on another client. A photo id that is not in my library is a 404. Same 6-per-item cap as an upload.'
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+        - { name: exercise, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photo_ids]
+              properties:
+                photo_ids: { type: array, items: { type: integer } }
+      responses:
+        '201': { description: Attached }
+        '404': { description: 'Not your plan or photo' }
+        '422': { description: 'Over the per-item photo limit' }
+  /business/training-plans/{plan}/meals/{meal}/images/from-library:
+    post:
+      tags: [Training]
+      summary: Attach photos from my library to a client's meal (trainer)
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+        - { name: meal, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photo_ids]
+              properties:
+                photo_ids: { type: array, items: { type: integer } }
+      responses:
+        '201': { description: Attached }
+        '404': { description: 'Not your plan or photo' }
+        '422': { description: 'Over the per-item photo limit' }
   /business/training-templates:
     get:
       tags: [Training]

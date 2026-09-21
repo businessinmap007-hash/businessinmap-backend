@@ -17,11 +17,14 @@ class PlanExerciseRound extends Model
         'client_id',
         'for_date',
         'round_number',
+        'reps',
+        'weight',
         'completed_at',
     ];
 
     protected $casts = [
         'for_date' => 'date',
+        'weight' => 'float',
         'completed_at' => 'datetime',
     ];
 

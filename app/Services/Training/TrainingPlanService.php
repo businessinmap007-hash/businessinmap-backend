@@ -19,8 +19,10 @@ use Illuminate\Validation\ValidationException;
  */
 class TrainingPlanService
 {
-    public function __construct(private readonly NotificationDispatcherService $notifications)
-    {
+    public function __construct(
+        private readonly NotificationDispatcherService $notifications,
+        private readonly TrainingPerformanceService $performance,
+    ) {
     }
 
     /**
@@ -50,6 +52,7 @@ class TrainingPlanService
                     'name' => $e['name'],
                     'sets' => $e['sets'] ?? null,
                     'reps' => $e['reps'] ?? null,
+                    'target_weight' => $e['target_weight'] ?? null,
                     'rest_seconds' => $e['rest_seconds'] ?? null,
                     'notes' => $e['notes'] ?? null,
                     'sort_order' => $e['sort_order'] ?? 0,
@@ -145,9 +148,12 @@ class TrainingPlanService
      * so the trainee just taps "done" after each round. Refused once every
      * prescribed set is already confirmed, or on a non-active plan.
      *
-     * @return array{round:PlanExerciseRound,completed_rounds:int,total_sets:?int}
+     * Optionally records what was actually done in the set (reps, weight). Both
+     * are numbers only; a set confirmed without them still counts as done.
+     *
+     * @return array{round:PlanExerciseRound,completed_rounds:int,total_sets:?int,session_completed:bool}
      */
-    public function confirmRound(TrainingPlan $plan, PlanExercise $exercise, User $client, ?string $date): array
+    public function confirmRound(TrainingPlan $plan, PlanExercise $exercise, User $client, ?string $date, ?int $reps = null, ?float $weight = null): array
     {
         if ($plan->status !== TrainingPlan::STATUS_ACTIVE) {
             throw ValidationException::withMessages([
@@ -175,6 +181,8 @@ class TrainingPlanService
             'client_id' => (int) $client->id,
             'for_date' => $forDate,
             'round_number' => $done + 1,
+            'reps' => $reps,
+            'weight' => $weight,
             'completed_at' => now(),
         ]);
 
@@ -182,7 +190,24 @@ class TrainingPlanService
             'round' => $round,
             'completed_rounds' => $done + 1,
             'total_sets' => $totalSets,
+            // True only for the call that finished the whole day (and told the trainer).
+            'session_completed' => $this->performance->recordCompletionIfDone($plan, $forDate),
         ];
+    }
+
+    /** The trainee corrects the reps/weight of a set they already confirmed. */
+    public function updateRound(TrainingPlan $plan, PlanExerciseRound $round, ?int $reps, ?float $weight): PlanExerciseRound
+    {
+        if ($plan->status !== TrainingPlan::STATUS_ACTIVE) {
+            throw ValidationException::withMessages([
+                'status' => __('لا يمكن تسجيل تقدّم على خطة غير نشطة.'),
+            ]);
+        }
+
+        $round->update(['reps' => $reps, 'weight' => $weight]);
+        $this->performance->refreshCompletion($plan, $round->for_date->toDateString());
+
+        return $round;
     }
 
     /**

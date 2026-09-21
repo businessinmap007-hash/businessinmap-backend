@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\ExerciseLibraryController;
 use App\Http\Controllers\Api\V2\PlanPhotoController;
+use App\Http\Controllers\Api\V2\TrainerPhotoController;
 use App\Http\Controllers\Api\V2\TrainingTemplateController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
 use App\Http\Controllers\Api\V2\PrescriptionController;
@@ -268,6 +269,8 @@ Route::prefix('v2')->group(function () {
     // ever handed one (see App\Support\PlanPhotoUrl).
     Route::get('plan-photos/{image}', [PlanPhotoController::class, 'show'])
         ->whereNumber('image')->middleware('signed')->name('plan-photos.show');
+    Route::get('trainer-photos/{photo}', [TrainerPhotoController::class, 'show'])
+        ->whereNumber('photo')->middleware('signed')->name('trainer-photos.show');
 
     Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         // Account: current user + token lifecycle.
@@ -477,6 +480,8 @@ Route::prefix('v2')->group(function () {
         Route::get('training-plans', [ClientTrainingController::class, 'index']);
         Route::get('training-plans/{plan}', [ClientTrainingController::class, 'show'])->whereNumber('plan');
         Route::post('training-plans/{plan}/progress', [ClientTrainingController::class, 'logProgress'])->whereNumber('plan');
+        Route::get('training-plans/{plan}/monthly-summary', [ClientTrainingController::class, 'monthlySummary'])->whereNumber('plan');
+        Route::put('training-plans/{plan}/exercises/{exercise}/rounds/{round}', [ClientTrainingController::class, 'updateRound'])->whereNumber(['plan', 'exercise', 'round']);
         Route::post('training-plans/{plan}/accept', [ClientTrainingController::class, 'accept'])->whereNumber('plan');
         Route::post('training-plans/{plan}/decline', [ClientTrainingController::class, 'decline'])->whereNumber('plan');
         // The only per-exercise action: confirm one finished round (set).
@@ -1080,6 +1085,8 @@ Route::prefix('v2')->group(function () {
             // and that absence is the rule, not a flag someone could flip.
             Route::post('{plan}/exercises/{exercise}/images', [TrainingPlanController::class, 'addExerciseImages'])->whereNumber(['plan', 'exercise']);
             Route::delete('{plan}/exercises/{exercise}/images/{image}', [TrainingPlanController::class, 'removeExerciseImage'])->whereNumber(['plan', 'exercise', 'image']);
+            Route::post('{plan}/exercises/{exercise}/images/from-library', [TrainingPlanController::class, 'attachLibraryToExercise'])->whereNumber(['plan', 'exercise']);
+            Route::post('{plan}/meals/{meal}/images/from-library', [TrainingPlanController::class, 'attachLibraryToMeal'])->whereNumber(['plan', 'meal']);
             Route::post('{plan}/meals/{meal}/images', [TrainingPlanController::class, 'addMealImages'])->whereNumber(['plan', 'meal']);
             Route::delete('{plan}/meals/{meal}/images/{image}', [TrainingPlanController::class, 'removeMealImage'])->whereNumber(['plan', 'meal', 'image']);
             Route::delete('{plan}/meals/{meal}', [TrainingPlanController::class, 'removeMeal'])->whereNumber('plan')->whereNumber('meal');
@@ -1088,6 +1095,9 @@ Route::prefix('v2')->group(function () {
             Route::post('{plan}/chat/messages', [TrainingChatController::class, 'trainerPost'])->whereNumber('plan');
             // A client's weekly adherence to the plan.
             Route::get('{plan}/weekly-summary', [TrainingPlanController::class, 'weeklySummary'])->whereNumber('plan');
+            // The month's roll-up of what the trainee actually did, and one day's sets.
+            Route::get('{plan}/monthly-summary', [TrainingPlanController::class, 'monthlySummary'])->whereNumber('plan');
+            Route::get('{plan}/log', [TrainingPlanController::class, 'dayLog'])->whereNumber('plan');
             // The monthly body report — muscle, fat, water. The TRAINER records
             // it (he owns the scale); the client reads it on his own route.
             Route::get('{plan}/body-reports', [BodyCompositionController::class, 'trainerIndex'])->whereNumber('plan');
@@ -1118,6 +1128,13 @@ Route::prefix('v2')->group(function () {
         // The exercise catalogue a trainer picks from (read-only; curated in admin).
         Route::get('business/training/exercise-library', [ExerciseLibraryController::class, 'index'])
             ->middleware('business.member:' . BusinessCapability::TRAINING);
+
+        // The trainer's private photo library, reusable across clients.
+        Route::prefix('business/training/photos')->middleware('business.member:' . BusinessCapability::TRAINING)->group(function () {
+            Route::get('/', [TrainerPhotoController::class, 'index']);
+            Route::post('/', [TrainerPhotoController::class, 'store']);
+            Route::delete('{photo}', [TrainerPhotoController::class, 'destroy'])->whereNumber('photo');
+        });
 
         Route::prefix('business/training-templates')->middleware('business.member:' . BusinessCapability::TRAINING)->group(function () {
             Route::get('/', [TrainingTemplateController::class, 'index']);

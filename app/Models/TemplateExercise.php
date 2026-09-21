@@ -14,6 +14,7 @@ class TemplateExercise extends Model
         'name',
         'sets',
         'reps',
+        'target_weight',
         'rest_seconds',
         'notes',
         'sort_order',

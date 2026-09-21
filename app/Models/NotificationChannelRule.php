@@ -143,6 +143,7 @@ class NotificationChannelRule extends Model
             // Training: a coach assigns/updates a client's plan (→ the client).
             'training_plan_assigned' => ['خطة تدريب جديدة', 'New training plan', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             'training_plan_accepted' => ['قبول خطة التدريب', 'Training plan accepted', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'training_session_completed' => ['إنهاء المتدرب لتمارين اليوم', 'Client finished a workout', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'training_plan_declined' => ['رفض خطة التدريب', 'Training plan declined', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
 
             // Clinic appointments: a patient requests one (→ clinic); the clinic

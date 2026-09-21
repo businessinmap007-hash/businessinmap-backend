@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\Image;
+use App\Models\TrainerPhoto;
 use App\Models\LibraryExercise;
 use App\Models\PlanExercise;
 use App\Models\PlanMeal;
 use App\Models\TrainingPlan;
 use App\Models\User;
 use App\Services\Media\ImageUploadService;
+use App\Services\Training\TrainingPerformanceService;
 use App\Services\Training\TrainingPlanService;
 use App\Support\BusinessContext;
 use App\Support\PlanPhotoUrl;
@@ -65,6 +67,7 @@ class TrainingPlanController extends Controller
             'exercises.*.day_of_week' => ['nullable', 'integer', 'between:0,6'],
             'exercises.*.sets' => ['nullable', 'integer', 'min:0'],
             'exercises.*.reps' => ['nullable', 'string', 'max:40'],
+            'exercises.*.target_weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'exercises.*.rest_seconds' => ['nullable', 'integer', 'min:0'],
             'exercises.*.notes' => ['nullable', 'string', 'max:255'],
             'exercises.*.sort_order' => ['nullable', 'integer'],
@@ -156,6 +159,30 @@ class TrainingPlanController extends Controller
         ]);
     }
 
+    /** GET /api/v2/business/training-plans/{plan}/monthly-summary?month=YYYY-MM */
+    public function monthlySummary(Request $request, int $plan)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+        $data = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['summary' => app(TrainingPerformanceService::class)->monthlySummary($row, $data['month'] ?? null)],
+        ]);
+    }
+
+    /** GET /api/v2/business/training-plans/{plan}/log?date=YYYY-MM-DD — that day's sets, per exercise. */
+    public function dayLog(Request $request, int $plan)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+        $data = $request->validate(['date' => ['required', 'date']]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['log' => app(TrainingPerformanceService::class)->dayLog($row, $data['date'])],
+        ]);
+    }
+
     /** GET /api/v2/business/training-plans/{plan}/weekly-summary?from=YYYY-MM-DD */
     public function weeklySummary(Request $request, int $plan)
     {
@@ -178,6 +205,7 @@ class TrainingPlanController extends Controller
             'day_of_week' => ['nullable', 'integer', 'between:0,6'],
             'sets' => ['nullable', 'integer', 'min:0'],
             'reps' => ['nullable', 'string', 'max:40'],
+            'target_weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'rest_seconds' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer'],
@@ -282,6 +310,8 @@ class TrainingPlanController extends Controller
         $request->validate([
             'images' => ['required', 'array', 'min:1', 'max:' . self::MAX_IMAGES],
             'images.*' => ImageUploadService::validationRules(),
+            // Also keep the photo in the trainer's library, to reuse for other clients.
+            'save_to_library' => ['nullable', 'boolean'],
         ]);
 
         if ($target->images()->count() + count($request->file('images', [])) > self::MAX_IMAGES) {
@@ -295,8 +325,14 @@ class TrainingPlanController extends Controller
         $saved = [];
 
         foreach ($request->file('images') as $file) {
+            $path = $uploads->storePrivate($file);
+
+            if ($request->boolean('save_to_library')) {
+                $this->keepInLibrary($request, $path);
+            }
+
             $saved[] = $target->images()->create([
-                'image' => $uploads->storePrivate($file),
+                'image' => $path,
                 // Not evidence. A captain illustrates with the picture that
                 // shows the movement best, wherever he got it.
                 'source' => Image::SOURCE_UPLOAD,
@@ -310,6 +346,91 @@ class TrainingPlanController extends Controller
                 $saved
             )],
         ], 201);
+    }
+
+    /** POST .../exercises/{exercise}/images/from-library — reuse photos from my library. */
+    public function attachLibraryToExercise(Request $request, int $plan, int $exercise)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+
+        return $this->attachFromLibrary($request, $row->exercises()->where('id', $exercise)->firstOrFail());
+    }
+
+    /** POST .../meals/{meal}/images/from-library. */
+    public function attachLibraryToMeal(Request $request, int $plan, int $meal)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+
+        return $this->attachFromLibrary($request, $row->meals()->where('id', $meal)->firstOrFail());
+    }
+
+    /**
+     * Attach photos from the trainer's library to one item. Each is COPIED into
+     * the plan, so the plan stays self-contained: removing the photo from the
+     * library, or from another client's plan, never touches this one.
+     *
+     * @param  PlanExercise|PlanMeal  $target
+     */
+    private function attachFromLibrary(Request $request, $target)
+    {
+        $data = $request->validate([
+            'photo_ids' => ['required', 'array', 'min:1', 'max:' . self::MAX_IMAGES],
+            'photo_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', $data['photo_ids'])));
+
+        $photos = TrainerPhoto::query()
+            ->where('trainer_id', BusinessContext::id($request))
+            ->whereIn('id', $ids)
+            ->get();
+
+        // A photo that is not in MY library is a 404, not a hint that it exists.
+        abort_if($photos->count() !== count($ids), 404);
+
+        if ($target->images()->count() + $photos->count() > self::MAX_IMAGES) {
+            return response()->json([
+                'success' => false,
+                'message' => __('الحد الأقصى :max صور.', ['max' => self::MAX_IMAGES]),
+            ], 422);
+        }
+
+        $uploads = app(ImageUploadService::class);
+        $saved = [];
+
+        foreach ($photos as $photo) {
+            $copy = $uploads->copyPrivate($photo->image);
+
+            if ($copy === null) {
+                continue;
+            }
+
+            $saved[] = $target->images()->create(['image' => $copy, 'source' => Image::SOURCE_UPLOAD]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => ['images' => array_map(
+                fn (Image $image) => ['id' => (int) $image->id, 'image' => PlanPhotoUrl::for($image)],
+                $saved
+            )],
+        ], 201);
+    }
+
+    /** Keep a copy of an uploaded plan photo in the trainer's library. */
+    private function keepInLibrary(Request $request, string $path): void
+    {
+        $trainerId = BusinessContext::id($request);
+
+        if (TrainerPhoto::query()->where('trainer_id', $trainerId)->count() >= TrainerPhoto::MAX_PER_TRAINER) {
+            return;
+        }
+
+        $copy = app(ImageUploadService::class)->copyPrivate($path);
+
+        if ($copy !== null) {
+            TrainerPhoto::create(['trainer_id' => $trainerId, 'image' => $copy]);
+        }
     }
 
     /** @param  PlanExercise|PlanMeal  $target */
@@ -365,6 +486,7 @@ class TrainingPlanController extends Controller
             'name' => (string) $e->name,
             'sets' => $e->sets !== null ? (int) $e->sets : null,
             'reps' => $e->reps,
+            'target_weight' => $e->target_weight !== null ? (float) $e->target_weight : null,
             'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
             'notes' => $e->notes,
             'sort_order' => (int) $e->sort_order,

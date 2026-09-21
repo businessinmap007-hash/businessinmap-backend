@@ -689,6 +689,8 @@ posts and 143 applications) and `AdminV2JobsScreensTest`.
 
 ---
 
+**Job titles (2026-09-21).** A closed `job_titles` list (طباخ، ويتر، كاشير…) a business picks from instead of typing. Scope per row: one child, a whole root (`category_child_id` null), or general (both null — محاسب، سائق); a job in field X is offered its child's + its root's + the general titles (`JobTitle::availableFor`). `posts.job_title_id` is the searchable/reportable handle; `posts.title` stays the display text (defaults to the title's name when the author types none, or keeps a custom one like «ويتر صالة»). `GET /jobs/titles` (public, with open-jobs count per title), `GET /jobs?job_title_id=`, and `POST /jobs`/`/jobs/{post}` validate the pick against the job's field. Managed from admin `job-titles` (المحتوى → المسميات الوظيفية); `JobTitlesSeeder` is add-only so admin edits survive a re-run. Guarded by `JobTitlesApiTest`.
+
 ## 17. Posts (2026-07-18): the feed ported to v2, and the asset-URL bug
 
 ### The asset bug that made the panel look empty

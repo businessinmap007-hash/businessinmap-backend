@@ -154,12 +154,7 @@ class OperationReviewTest extends TestCase
         $this->assertSame(1, $summary['review_count'], 'One operation yields at most one review.');
         $this->assertSame(2.0, $summary['stars_average'], 'The average reflects the updated stars.');
 
-        $this->assertDatabaseCount('operation_reviews', OperationReviewTest::reviewRows($order->id));
-    }
-
-    private static function reviewRows(int $orderId): int
-    {
-        return \App\Models\OperationReview::query()->where('operation_id', $orderId)->count();
+        $this->assertSame(1, \App\Models\OperationReview::query()->where('operation_id', $order->id)->count());
     }
 
     public function test_business_can_review_the_client_after_a_completed_booking(): void

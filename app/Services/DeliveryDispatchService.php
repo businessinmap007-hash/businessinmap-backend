@@ -316,6 +316,7 @@ class DeliveryDispatchService
             ->where('status', self::STATUS_PENDING)
             ->whereIn('prep_status', [Order::PREP_PREPARING, Order::PREP_READY])
             ->whereNull('delivery_driver_id')
+            ->whereNull('shipping_status')
             ->when($businessId, fn ($q) => $q->where('business_id', $businessId))
             ->with('business:id,name,logo,latitude,longitude')
             ->orderBy('id')
@@ -339,7 +340,7 @@ class DeliveryDispatchService
             if (! $order || (string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
                 abort(404, __('طلب التوصيل غير موجود.'));
             }
-            if ((string) $order->status !== self::STATUS_PENDING || $order->delivery_driver_id) {
+            if ((string) $order->status !== self::STATUS_PENDING || $order->delivery_driver_id || $order->isShipping()) {
                 abort(409, __('هذا الطلب غير متاح للاستلام.'));
             }
             // A business's own private driver may only ever carry that
@@ -410,7 +411,7 @@ class DeliveryDispatchService
             if (! $order || (int) $order->business_id !== $businessId) {
                 abort(404, __('طلب التوصيل غير موجود.'));
             }
-            if ((string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
+            if ((string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY || $order->isShipping()) {
                 throw ValidationException::withMessages(['order' => __('هذا الطلب ليس طلب توصيل.')]);
             }
             if ((string) $order->status !== self::STATUS_PENDING || $order->delivery_driver_id) {
@@ -923,7 +924,7 @@ class DeliveryDispatchService
      */
     public function notifyDriversOrderAvailable(Order $order): void
     {
-        if ((string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY || $order->delivery_driver_id) {
+        if ((string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY || $order->delivery_driver_id || $order->isShipping()) {
             return;
         }
 

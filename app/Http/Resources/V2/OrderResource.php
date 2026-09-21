@@ -59,6 +59,19 @@ class OrderResource extends JsonResource
                 'recommendation_note' => $this->delivery_fee_recommendation_note,
             ] : null,
 
+            // Governorate shipping (null on an ordinary order).
+            'shipping' => $this->shipping_status ? [
+                'status' => (string) $this->shipping_status,
+                'fee' => $this->shipping_fee !== null ? (float) $this->shipping_fee : null,
+                'appointment_at' => optional($this->shipping_appointment_at)->toIso8601String(),
+                'appointment_note' => $this->shipping_appointment_note,
+                'to_governorate_id' => $this->shipping_to_governorate_id ? (int) $this->shipping_to_governorate_id : null,
+                'company' => $this->shipping_company_id ? [
+                    'id' => (int) $this->shipping_company_id,
+                    'name' => optional($this->shippingCompany)->name,
+                ] : null,
+            ] : null,
+
             'payment_method' => $this->payment_method,
             'payment_status' => (string) ($this->payment_status ?? 'unpaid'),
             'paid_at' => optional($this->paid_at)->toIso8601String(),

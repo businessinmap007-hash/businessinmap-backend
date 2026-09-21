@@ -725,10 +725,20 @@ class CustomerCartService
         // apply their OWN rate, but only as a fallback when this stayed at 0
         // (DeliveryDispatchService::acceptOrder).
         $cart->delivery_fee_status = null;
+        $cart->shipping_status = null;
+        $cart->shipping_to_governorate_id = null;
         if ($cart->fulfillment_type === Order::FULFILLMENT_DELIVERY) {
             $business = User::query()->find($cart->business_id);
 
-            if ($this->isOutOfCity($cart, $business, (int) ($data['address_id'] ?? 0))) {
+            $zone = $this->deliveryZone($cart, $business, (int) ($data['address_id'] ?? 0));
+
+            if ($zone['zone'] === 'shipping') {
+                // Another governorate: shipped by a company the merchant picks
+                // (ShippingService), never offered to couriers.
+                $cart->delivery_fee = 0;
+                $cart->shipping_status = Order::SHIP_AWAITING_COMPANY;
+                $cart->shipping_to_governorate_id = $zone['governorate_id'];
+            } elseif ($zone['zone'] === 'quote') {
                 // Priced per order by the courier, by distance - see
                 // DeliveryDispatchService::acceptOrder / respondToFeeProposal.
                 $cart->delivery_fee = 0;
@@ -813,15 +823,36 @@ class CustomerCartService
      * address carries a city; a free-text address is treated as in-city (the
      * business's fixed fee), never guessed at.
      */
-    private function isOutOfCity(Order $cart, ?User $business, int $addressId): bool
+    /**
+     * Where a delivery goes relative to the business: 'city' (same city, or
+     * unknown - the fixed fee), 'quote' (another city, same governorate - the
+     * courier prices it) or 'shipping' (another governorate - a shipping
+     * company). Only a saved address carries a location.
+     *
+     * @return array{zone: string, governorate_id: ?int}
+     */
+    private function deliveryZone(Order $cart, ?User $business, int $addressId): array
     {
-        if (! $business || ! $business->city_id || $addressId <= 0) {
-            return false;
+        $none = ['zone' => 'city', 'governorate_id' => null];
+
+        if (! $business || $addressId <= 0) {
+            return $none;
         }
 
-        $addressCity = Address::query()->whereKey($addressId)->where('user_id', (int) $cart->user_id)->value('city_id');
+        $address = Address::query()->whereKey($addressId)->where('user_id', (int) $cart->user_id)->first(['city_id', 'governorate_id']);
+        if (! $address) {
+            return $none;
+        }
 
-        return $addressCity !== null && (int) $addressCity !== (int) $business->city_id;
+        if ($business->governorate_id && $address->governorate_id && (int) $address->governorate_id !== (int) $business->governorate_id) {
+            return ['zone' => 'shipping', 'governorate_id' => (int) $address->governorate_id];
+        }
+
+        if ($business->city_id && $address->city_id && (int) $address->city_id !== (int) $business->city_id) {
+            return ['zone' => 'quote', 'governorate_id' => null];
+        }
+
+        return $none;
     }
 
     /**

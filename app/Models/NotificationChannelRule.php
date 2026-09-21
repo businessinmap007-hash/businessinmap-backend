@@ -92,6 +92,8 @@ class NotificationChannelRule extends Model
             'delivery_picked_up' => ['استلم الموصّل طلبك', 'Driver picked up your order', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
             'delivery_fee_proposed' => ['اقتراح رسوم توصيل', 'Delivery fee proposed', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'delivery_new'],
             'delivery_fee_decided' => ['قرار رسوم التوصيل', 'Delivery fee decision', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
+            'shipping_company_assigned' => ['طلب شحن جديد', 'New shipping request', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'delivery_new'],
+            'shipping_update' => ['تحديث الشحن', 'Shipping update', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
             'delivery_eta_updated' => ['موعد وصول التوصيل', 'Delivery ETA updated', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
             'wallet_deposit' => ['إيداع في المحفظة', 'Wallet deposit', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'wallet'],
             'wallet_withdraw' => ['خصم من المحفظة', 'Wallet withdraw', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'wallet'],

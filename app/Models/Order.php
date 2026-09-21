@@ -109,6 +109,8 @@ class Order extends Model
         'payment_settled_at' => 'datetime',
         'delivery_fee_proposed' => 'float',
         'delivery_fee_decided_at' => 'datetime',
+        'shipping_fee' => 'float',
+        'shipping_appointment_at' => 'datetime',
         'requires_deposit' => 'boolean',
         'deposit_amount' => 'float',
         'deposit_covered' => 'boolean',
@@ -177,6 +179,28 @@ class Order extends Model
     public const FEE_ACCEPTED = 'accepted';
 
     public const FEE_RECOMMENDATIONS = ['suitable', 'not_suitable'];
+
+    /**
+     * Governorate shipping (a different governorate than the business's): the
+     * merchant picks a shipping company (awaiting_company), the company sets the
+     * appointment (awaiting_appointment -> scheduled), then ships and delivers.
+     * A shipping order is never offered to couriers.
+     */
+    public const SHIP_AWAITING_COMPANY = 'awaiting_company';
+    public const SHIP_AWAITING_APPOINTMENT = 'awaiting_appointment';
+    public const SHIP_SCHEDULED = 'scheduled';
+    public const SHIP_SHIPPED = 'shipped';
+    public const SHIP_DELIVERED = 'delivered';
+
+    public function isShipping(): bool
+    {
+        return $this->shipping_status !== null;
+    }
+
+    public function shippingCompany()
+    {
+        return $this->belongsTo(User::class, 'shipping_company_id');
+    }
 
     /** The delivery loop must not start while the fee is still being agreed. */
     public function deliveryFeeUnsettled(): bool

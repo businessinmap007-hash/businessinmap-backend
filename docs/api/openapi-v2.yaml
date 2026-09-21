@@ -102,6 +102,8 @@ tags:
   - name: Business Bookables
   - name: Business Retail
   - name: Delivery
+  - name: Shipping
+    description: Governorate shipping - a Shipping & Delivery company's price list, appointments and shipped / delivered.
   - name: Order Handover
   - name: Business Page
   - name: Operator Presence
@@ -2186,6 +2188,50 @@ paths:
                 recommendation: { type: string, enum: [suitable, not_suitable] }
                 note: { type: string, maxLength: 500 }
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
+  /business/orders/{order}/shipping-companies:
+    get:
+      tags: [Orders (Business)]
+      summary: Shipping companies that ship this order's governorate, with their price
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/orders/{order}/shipping-company:
+    post:
+      tags: [Orders (Business)]
+      summary: Pick the shipping company; its price is added to the invoice
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/shipping/rates:
+    get:
+      tags: [Shipping]
+      summary: A shipping company's price to every other governorate
+      responses: { '200': { description: OK } }
+    put:
+      tags: [Shipping]
+      summary: Replace the company's price list (Shipping & Delivery accounts only)
+      responses: { '200': { description: OK } }
+  /business/shipping/orders:
+    get:
+      tags: [Shipping]
+      summary: The shipping company's orders
+      responses: { '200': { description: OK } }
+  /business/shipping/orders/{order}/appointment:
+    post:
+      tags: [Shipping]
+      summary: Set or change the shipping appointment (appointment_at, note)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/shipping/orders/{order}/shipped:
+    post:
+      tags: [Shipping]
+      summary: Mark the order shipped
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/shipping/orders/{order}/delivered:
+    post:
+      tags: [Shipping]
+      summary: Mark the order delivered (completes it)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
   /business/orders/{order}/items/{item}/unavailable:
     post:
       tags: [Orders (Business)]

@@ -66,6 +66,7 @@ use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderController;
 use App\Http\Controllers\Api\V2\OrderTrustController;
+use App\Http\Controllers\Api\V2\ShippingController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
 use App\Http\Controllers\Api\V2\PasswordResetController;
 use App\Http\Controllers\Api\V2\CommentController;
@@ -701,6 +702,16 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/assign-driver', [DeliveryController::class, 'assignDriver'])->whereNumber('order');
             Route::post('business/orders/{order}/pickup-token', [DeliveryController::class, 'businessPickupToken'])->whereNumber('order');
             Route::post('business/orders/{order}/pickup-token/reset', [DeliveryController::class, 'resetPickupToken'])->whereNumber('order');
+            // Governorate shipping: the merchant picks a company; the company keeps
+            // its price list, sets the appointment and moves the order along.
+            Route::get('business/orders/{order}/shipping-companies', [ShippingController::class, 'companies'])->whereNumber('order');
+            Route::post('business/orders/{order}/shipping-company', [ShippingController::class, 'assign'])->whereNumber('order');
+            Route::get('business/shipping/rates', [ShippingController::class, 'rates']);
+            Route::put('business/shipping/rates', [ShippingController::class, 'updateRates']);
+            Route::get('business/shipping/orders', [ShippingController::class, 'orders']);
+            Route::post('business/shipping/orders/{order}/appointment', [ShippingController::class, 'appointment'])->whereNumber('order');
+            Route::post('business/shipping/orders/{order}/shipped', [ShippingController::class, 'shipped'])->whereNumber('order');
+            Route::post('business/shipping/orders/{order}/delivered', [ShippingController::class, 'delivered'])->whereNumber('order');
             Route::post('business/orders/{order}/delivery-fee/recommendation', [DeliveryController::class, 'recommendFee'])->whereNumber('order');
             // A specific line turns out unavailable while preparing — applies
             // whatever the customer chose at checkout (out_of_stock_policy).

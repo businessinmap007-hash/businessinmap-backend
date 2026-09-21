@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Media\ImageUploadService;
 use App\Services\Training\TrainingPlanService;
 use App\Support\BusinessContext;
+use App\Support\PlanPhotoUrl;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -295,7 +296,7 @@ class TrainingPlanController extends Controller
 
         foreach ($request->file('images') as $file) {
             $saved[] = $target->images()->create([
-                'image' => $uploads->store($file),
+                'image' => $uploads->storePrivate($file),
                 // Not evidence. A captain illustrates with the picture that
                 // shows the movement best, wherever he got it.
                 'source' => Image::SOURCE_UPLOAD,
@@ -305,7 +306,7 @@ class TrainingPlanController extends Controller
         return response()->json([
             'success' => true,
             'data' => ['images' => array_map(
-                fn (Image $image) => ['id' => (int) $image->id, 'image' => $image->image],
+                fn (Image $image) => ['id' => (int) $image->id, 'image' => PlanPhotoUrl::for($image)],
                 $saved
             )],
         ], 201);

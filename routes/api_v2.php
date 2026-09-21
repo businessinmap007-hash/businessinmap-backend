@@ -46,6 +46,7 @@ use App\Http\Controllers\Api\V2\ThreadAccessController;
 use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\ExerciseLibraryController;
+use App\Http\Controllers\Api\V2\PlanPhotoController;
 use App\Http\Controllers\Api\V2\TrainingTemplateController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
 use App\Http\Controllers\Api\V2\PrescriptionController;
@@ -261,6 +262,12 @@ Route::prefix('v2')->group(function () {
     // token in the path is the credential. Rotatable from the authed endpoint.
     Route::get('agenda/feed/{token}.ics', [AgendaController::class, 'feed'])
         ->where('token', '[A-Za-z0-9]+')->name('agenda.feed');
+
+    // A training-plan photo, from private storage. No login: the signed,
+    // time-limited link is the credential, and only the plan's two parties are
+    // ever handed one (see App\Support\PlanPhotoUrl).
+    Route::get('plan-photos/{image}', [PlanPhotoController::class, 'show'])
+        ->whereNumber('image')->middleware('signed')->name('plan-photos.show');
 
     Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         // Account: current user + token lifecycle.

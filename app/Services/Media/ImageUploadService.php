@@ -23,6 +23,13 @@ final class ImageUploadService
 {
     public const PUBLIC_DIR = 'files/uploads';
 
+    /**
+     * Private photos live OUTSIDE public/, under storage/app, and are served
+     * only by a signed route (see PlanPhotoUrl). A stored path that starts
+     * with this prefix is private; anything else is a public upload.
+     */
+    public const PRIVATE_DIR = 'plan-photos';
+
     /** Extensions we are willing to write, whatever the client claims. */
     public const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 
@@ -86,6 +93,42 @@ final class ImageUploadService
         return self::PUBLIC_DIR.'/'.$name;
     }
 
+    public static function isPrivate(?string $path): bool
+    {
+        return str_starts_with(ltrim((string) $path, '/'), self::PRIVATE_DIR.'/');
+    }
+
+    public static function privatePath(string $relative): string
+    {
+        return storage_path('app/'.ltrim($relative, '/'));
+    }
+
+    /**
+     * Store one upload privately and return its relative path
+     * (`plan-photos/<random>.<ext>`). The name is random and never derived
+     * from the client's, so the path reveals nothing and cannot collide.
+     */
+    public function storePrivate(UploadedFile $file): string
+    {
+        $dir = self::privatePath(self::PRIVATE_DIR);
+
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $extension = strtolower((string) $file->guessExtension() ?: $file->getClientOriginalExtension());
+
+        if (! in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
+            $extension = 'jpg';
+        }
+
+        $name = Str::random(40).'.'.$extension;
+
+        $file->move($dir, $name);
+
+        return self::PRIVATE_DIR.'/'.$name;
+    }
+
     /**
      * Delete a stored file. Refuses anything that escapes the upload
      * directory, so a tampered database path cannot unlink arbitrary files.
@@ -93,6 +136,17 @@ final class ImageUploadService
     public function delete(?string $path): void
     {
         $path = ltrim((string) $path, '/');
+
+        if (self::isPrivate($path)) {
+            $full = realpath(self::privatePath($path));
+            $root = realpath(self::privatePath(self::PRIVATE_DIR));
+
+            if ($full !== false && $root !== false && str_starts_with($full, $root) && is_file($full)) {
+                @unlink($full);
+            }
+
+            return;
+        }
 
         if ($path === '' || ! str_starts_with($path, self::PUBLIC_DIR.'/')) {
             return;

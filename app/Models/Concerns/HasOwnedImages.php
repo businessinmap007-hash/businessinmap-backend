@@ -35,8 +35,17 @@ trait HasOwnedImages
     {
         return $this->images->map(fn (Image $image) => [
             'id' => (int) $image->id,
-            'image' => $image->image,
+            'image' => $this->imageAddress($image),
         ])->values()->all();
+    }
+
+    /**
+     * What a payload calls this photo. The stored path by default; a model
+     * whose photos are private overrides it to hand out a signed link.
+     */
+    protected function imageAddress(Image $image): string
+    {
+        return (string) $image->image;
     }
 
     public static function bootHasOwnedImages(): void

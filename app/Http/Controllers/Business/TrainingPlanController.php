@@ -8,6 +8,8 @@ use App\Models\PlanMeal;
 use App\Models\TrainingPlan;
 use App\Models\User;
 use App\Services\Training\TrainingPlanService;
+use App\Support\ExerciseProgression;
+use App\Support\TrainingProgramRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,6 +92,9 @@ class TrainingPlanController extends Controller
     {
         $trainerId = $this->trainerId();
 
+        // The builder posts a row per exercise; a row left blank is not an exercise.
+        $request->merge(['exercises' => $this->exerciseRows($request->input('exercises', []))]);
+
         $data = $request->validate([
             'client_id' => ['required', 'integer', 'exists:users,id', 'different:' . $trainerId],
             'title' => ['required', 'string', 'max:200'],
@@ -97,6 +102,17 @@ class TrainingPlanController extends Controller
             'starts_on' => ['nullable', 'date'],
             'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            ...TrainingProgramRules::header(),
+
+            'exercises' => ['nullable', 'array', 'max:200'],
+            'exercises.*.name' => ['required', 'string', 'max:200'],
+            'exercises.*.day_of_week' => ['nullable', 'integer', 'between:0,6'],
+            'exercises.*.sets' => ['nullable', 'integer', 'min:0'],
+            'exercises.*.reps' => ['nullable', 'string', 'max:40'],
+            'exercises.*.target_weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'exercises.*.rest_seconds' => ['nullable', 'integer', 'min:0'],
+            'exercises.*.notes' => ['nullable', 'string', 'max:255'],
+            ...TrainingProgramRules::exercise('exercises.*.'),
         ]);
 
         $plan = $this->service->create(
@@ -107,15 +123,17 @@ class TrainingPlanController extends Controller
                 'goal' => $data['goal'] ?? null,
                 'starts_on' => $data['starts_on'] ?? null,
                 'ends_on' => $data['ends_on'] ?? null,
+                'duration_weeks' => $data['duration_weeks'] ?? null,
+                'progression' => $data['progression'] ?? null,
                 'notes' => $data['notes'] ?? null,
             ],
-            [],
+            $data['exercises'] ?? [],
             []
         );
 
         return redirect()
             ->route('business.training-plans.show', $plan->id)
-            ->with('success', __('تم إنشاء الخطة. أضف التمارين والوجبات الآن.'));
+            ->with('success', __('تم إنشاء الخطة وتمارينها. أضف الوجبات إن أردت.'));
     }
 
     public function show(int $id): View
@@ -163,20 +181,43 @@ class TrainingPlanController extends Controller
     {
         $plan = $this->scoped($id);
 
+        $request->merge($this->withParsedWeights($request->all()));
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:200'],
             'day_of_week' => ['nullable', 'integer', 'between:0,6'],
             'sets' => ['nullable', 'integer', 'min:0'],
             'reps' => ['nullable', 'string', 'max:40'],
+            'target_weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'rest_seconds' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
+            ...TrainingProgramRules::exercise(),
         ]);
 
-        $plan->exercises()->create($data + [
+        $plan->exercises()->create(TrainingProgramRules::attributes($data) + [
             'sort_order' => (int) $plan->exercises()->max('sort_order') + 1,
         ]);
 
         return back()->with('success', __('تمت إضافة التمرين.'));
+    }
+
+    /** Set the programme's length and how the weights climb, for every exercise at once. */
+    public function program(Request $request, int $id): RedirectResponse
+    {
+        $plan = $this->scoped($id);
+
+        $data = $request->validate([
+            'starts_on' => ['nullable', 'date'],
+            ...TrainingProgramRules::header(),
+        ]);
+
+        // Both boxes empty means «leave the climb alone», not «remove it».
+        $rule = array_filter($data['progression'] ?? [], fn ($v) => $v !== null && $v !== '');
+        $data['progression'] = $rule === [] ? null : $rule;
+
+        $this->service->applyProgram($plan, array_filter($data, fn ($v) => $v !== null && $v !== ''));
+
+        return back()->with('success', __('تم تحديث البرنامج.'));
     }
 
     public function removeExercise(int $id, int $exercise): RedirectResponse
@@ -296,5 +337,44 @@ class TrainingPlanController extends Controller
     private function trainerId(): int
     {
         return (int) Auth::id();
+    }
+
+    /**
+     * Drop blank builder rows and read each row's «20-25-30» weights text into
+     * the set_weights list the service stores.
+     *
+     * @param  mixed  $rows
+     * @return list<array<string,mixed>>
+     */
+    private function exerciseRows($rows): array
+    {
+        return collect(is_array($rows) ? $rows : [])
+            ->filter(fn ($row) => is_array($row) && trim((string) ($row['name'] ?? '')) !== '')
+            ->map(fn (array $row) => $this->withParsedWeights($row))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string,mixed>  $row
+     * @return array<string,mixed>
+     */
+    private function withParsedWeights(array $row): array
+    {
+        $weights = ExerciseProgression::parseWeights($row['weights_text'] ?? null);
+        unset($row['weights_text']);
+
+        if ($weights !== []) {
+            $row['set_weights'] = $weights;
+        }
+
+        // The form posts empty strings for untouched boxes; an empty box is «not set».
+        foreach (['sets', 'reps', 'day_of_week', 'day_label', 'target_weight', 'rest_seconds', 'notes', 'progress_every_weeks', 'progress_increment_kg'] as $key) {
+            if (array_key_exists($key, $row) && $row[$key] === '') {
+                $row[$key] = null;
+            }
+        }
+
+        return $row;
     }
 }

@@ -7,6 +7,7 @@ use App\Models\PlanExercise;
 use App\Models\PlanExerciseRound;
 use App\Models\TrainingPlan;
 use App\Services\Training\TrainingPerformanceService;
+use App\Support\ExerciseProgression;
 use App\Services\Training\TrainingPlanService;
 use Illuminate\Http\Request;
 
@@ -202,6 +203,22 @@ class ClientTrainingController extends Controller
             ->firstOrFail();
     }
 
+    /** Next week's per-set weights, only when they differ from this week's. */
+    private function nextTargets($exercise, TrainingPlan $plan): array
+    {
+        $week = ExerciseProgression::weekNumber($plan, now());
+        $total = ExerciseProgression::totalWeeks($plan);
+
+        if ($total !== null && $week >= $total) {
+            return [];
+        }
+
+        $now = ExerciseProgression::targetsFor($exercise, $week);
+        $next = ExerciseProgression::targetsFor($exercise, $week + 1);
+
+        return $next !== $now ? $next : [];
+    }
+
     private function serialize(TrainingPlan $p): array
     {
         return [
@@ -211,6 +228,9 @@ class ClientTrainingController extends Controller
             'status' => (string) $p->status,
             'starts_on' => optional($p->starts_on)->toDateString(),
             'ends_on' => optional($p->ends_on)->toDateString(),
+            // Programme position: week 3 of 8.
+            'week_number' => ExerciseProgression::weekNumber($p, now()),
+            'total_weeks' => ExerciseProgression::totalWeeks($p),
             'notes' => $p->notes,
             'trainer' => $p->relationLoaded('trainer') && $p->trainer
                 ? ['id' => (int) $p->trainer->id, 'name' => $p->trainer->name, 'logo' => $p->trainer->logo, 'phone' => $p->trainer->phone]
@@ -224,6 +244,11 @@ class ClientTrainingController extends Controller
                 'sets' => $e->sets !== null ? (int) $e->sets : null,
                 'reps' => $e->reps,
                 'target_weight' => $e->target_weight !== null ? (float) $e->target_weight : null,
+                'day_label' => $e->day_label,
+                // Per-set weights for THIS week, and next week's when they change —
+                // so the trainee sees the climb coming.
+                'current_targets' => ExerciseProgression::targetsFor($e, ExerciseProgression::weekNumber($p, now())),
+                'next_targets' => $this->nextTargets($e, $p),
                 'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
                 'notes' => $e->notes,
                 // The captain's illustration: the machine, the grip, the

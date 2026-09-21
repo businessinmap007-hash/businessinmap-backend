@@ -160,6 +160,130 @@ class BusinessTrainingPanelTest extends TestCase
         $this->assertSame(0, $plan->exercises()->count());
     }
 
+    // ----------------------------------------------------- the programme builder
+
+    /** «تحديد التمارين وعدد الأسابيع دفعة واحدة»: one submit builds the whole programme. */
+    public function test_the_whole_programme_is_built_from_one_form(): void
+    {
+        $this->actingAs($this->trainer)
+            ->get(route('business.training-plans.create'))
+            ->assertOk()
+            ->assertSee('exerciseRows', false)
+            ->assertSee('duration_weeks', false)
+            ->assertSee('weights_text', false);
+
+        $this->actingAs($this->trainer)
+            ->post(route('business.training-plans.store'), [
+                'client_id' => $this->client->id,
+                'title' => 'Push Pull Legs',
+                'starts_on' => '2026-06-01',
+                'duration_weeks' => 8,
+                'progression' => ['every_weeks' => 2, 'increment_kg' => 5],
+                'exercises' => [
+                    ['day_of_week' => 1, 'day_label' => 'Push', 'name' => 'Bench press', 'sets' => 3, 'reps' => '8', 'weights_text' => '20-25-30'],
+                    // A row the trainer left blank is not an exercise.
+                    ['day_of_week' => '', 'day_label' => '', 'name' => '', 'sets' => '', 'reps' => '', 'weights_text' => ''],
+                    ['day_of_week' => 3, 'day_label' => 'Pull', 'name' => 'Row', 'sets' => 3, 'reps' => '10', 'weights_text' => '40,45,50'],
+                    ['day_of_week' => 5, 'day_label' => 'Legs', 'name' => 'Plank', 'sets' => 3, 'reps' => '', 'weights_text' => ''],
+                ],
+            ])
+            ->assertRedirect();
+
+        $plan = TrainingPlan::query()->where('trainer_id', $this->trainer->id)->latest('id')->firstOrFail();
+
+        $this->assertSame(8, (int) $plan->duration_weeks);
+        $this->assertSame('2026-07-26', $plan->ends_on->toDateString());
+
+        $exercises = $plan->exercises()->orderBy('id')->get()->keyBy('name');
+        $this->assertCount(3, $exercises, 'the blank row must not become an exercise');
+
+        $this->assertSame([20, 25, 30], array_map('intval', $exercises['Bench press']->set_weights));
+        $this->assertSame([40, 45, 50], array_map('intval', $exercises['Row']->set_weights), '«40,45,50» is three weights, not 40.45 and 50');
+        $this->assertSame('Push', $exercises['Bench press']->day_label);
+        $this->assertSame(2, (int) $exercises['Bench press']->progress_every_weeks);
+        $this->assertEquals(5, $exercises['Bench press']->progress_increment_kg);
+        $this->assertNull($exercises['Plank']->progress_every_weeks, 'bodyweight work gets no weight climb');
+        $this->assertNull($exercises['Plank']->set_weights);
+    }
+
+    public function test_the_plan_screen_shows_the_week_the_weights_and_the_climb(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-06-16 09:00')); // week 3
+
+        $plan = $this->plan();
+        $plan->update(['starts_on' => '2026-06-01', 'duration_weeks' => 8, 'ends_on' => '2026-07-26']);
+        $plan->exercises()->create([
+            'name' => 'Bench press', 'sets' => 3, 'day_label' => 'Push',
+            'set_weights' => [20, 25, 30], 'progress_every_weeks' => 2, 'progress_increment_kg' => 5,
+        ]);
+
+        $this->actingAs($this->trainer)
+            ->get(route('business.training-plans.show', $plan->id))
+            ->assertOk()
+            ->assertSee('الأسبوع 3 من 8')
+            ->assertSee('25 - 30 - 35')          // week 3: the first step-up
+            ->assertSee('+5 كجم / 2 أسبوع')
+            ->assertSee('Push');
+    }
+
+    public function test_the_programme_can_be_re_planned_from_the_plan_screen(): void
+    {
+        $plan = $this->plan();
+        $plan->update(['starts_on' => '2026-06-01']);
+        $bench = $plan->exercises()->create(['name' => 'Bench press', 'sets' => 3, 'target_weight' => 40]);
+        $plank = $plan->exercises()->create(['name' => 'Plank', 'sets' => 3]);
+
+        $this->actingAs($this->trainer)
+            ->put(route('business.training-plans.program', $plan->id), [
+                'duration_weeks' => 12,
+                'progression' => ['every_weeks' => 1, 'increment_kg' => 2.5],
+            ])->assertRedirect();
+
+        $plan->refresh();
+        $this->assertSame(12, (int) $plan->duration_weeks);
+        $this->assertSame('2026-08-23', $plan->ends_on->toDateString());
+        $this->assertSame(1, (int) $bench->fresh()->progress_every_weeks);
+        $this->assertEquals(2.5, $bench->fresh()->progress_increment_kg);
+        $this->assertNull($plank->fresh()->progress_every_weeks);
+
+        // Submitting the climb boxes empty leaves the rule alone.
+        $this->actingAs($this->trainer)
+            ->put(route('business.training-plans.program', $plan->id), [
+                'duration_weeks' => 10, 'progression' => ['every_weeks' => '', 'increment_kg' => ''],
+            ])->assertRedirect();
+
+        $this->assertSame(10, (int) $plan->fresh()->duration_weeks);
+        $this->assertSame(1, (int) $bench->fresh()->progress_every_weeks, 'empty boxes mean «leave it», not «remove it»');
+    }
+
+    public function test_one_exercise_is_added_with_its_weights_and_climb(): void
+    {
+        $plan = $this->plan();
+
+        $this->actingAs($this->trainer)
+            ->post(route('business.training-plans.exercises.store', $plan->id), [
+                'name' => 'Deadlift', 'sets' => 3, 'reps' => '5', 'day_label' => 'Pull',
+                'weights_text' => '80-90-100', 'progress_every_weeks' => 2, 'progress_increment_kg' => 5,
+            ])->assertRedirect();
+
+        $row = $plan->exercises()->firstOrFail();
+        $this->assertSame([80, 90, 100], array_map('intval', $row->set_weights));
+        $this->assertSame('Pull', $row->day_label);
+        $this->assertSame(2, (int) $row->progress_every_weeks);
+    }
+
+    public function test_another_trainer_cannot_change_the_programme(): void
+    {
+        $plan = $this->plan();
+        $otherGym = $this->user(User::TYPE_BUSINESS, 'جيم آخر');
+
+        $this->actingAs($otherGym)
+            ->put(route('business.training-plans.program', $plan->id), ['duration_weeks' => 3])
+            ->assertNotFound();
+
+        $this->assertNull($plan->fresh()->duration_weeks);
+    }
+
     private function plan(): TrainingPlan
     {
         return TrainingPlan::create([

@@ -11,6 +11,7 @@ use App\Models\TrainingPlanTemplate;
 use App\Models\User;
 use App\Services\Training\TrainingTemplateService;
 use App\Support\BusinessContext;
+use App\Support\TrainingProgramRules;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -45,6 +46,7 @@ class TrainingTemplateController extends Controller
             'title' => ['required', 'string', 'max:200'],
             'goal' => ['nullable', 'string', 'max:200'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            ...TrainingProgramRules::header(),
 
             'exercises' => ['nullable', 'array', 'max:200'],
             'exercises.*.name' => ['required', 'string', 'max:200'],
@@ -52,6 +54,7 @@ class TrainingTemplateController extends Controller
             'exercises.*.sets' => ['nullable', 'integer', 'min:0'],
             'exercises.*.reps' => ['nullable', 'string', 'max:40'],
             'exercises.*.target_weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            ...TrainingProgramRules::exercise('exercises.*.'),
             'exercises.*.rest_seconds' => ['nullable', 'integer', 'min:0'],
             'exercises.*.notes' => ['nullable', 'string', 'max:255'],
             'exercises.*.sort_order' => ['nullable', 'integer'],
@@ -70,6 +73,8 @@ class TrainingTemplateController extends Controller
             'title' => $data['title'],
             'goal' => $data['goal'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'duration_weeks' => $data['duration_weeks'] ?? null,
+            'progression' => $data['progression'] ?? null,
         ], $data['exercises'] ?? [], $data['meals'] ?? []);
 
         return response()->json([
@@ -97,9 +102,10 @@ class TrainingTemplateController extends Controller
             'title' => ['sometimes', 'required', 'string', 'max:200'],
             'goal' => ['nullable', 'string', 'max:200'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'duration_weeks' => ['nullable', 'integer', 'min:1', 'max:52'],
         ]);
 
-        $row->update(array_intersect_key($data, array_flip(['title', 'goal', 'notes'])));
+        $row->update(array_intersect_key($data, array_flip(['title', 'goal', 'notes', 'duration_weeks'])));
 
         return response()->json([
             'success' => true,
@@ -129,6 +135,7 @@ class TrainingTemplateController extends Controller
             'sets' => ['nullable', 'integer', 'min:0'],
             'reps' => ['nullable', 'string', 'max:40'],
             'target_weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            ...TrainingProgramRules::exercise(),
             'rest_seconds' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer'],
@@ -184,6 +191,8 @@ class TrainingTemplateController extends Controller
             'goal' => ['nullable', 'string', 'max:200'],
             'starts_on' => ['nullable', 'date'],
             'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
+            // How many weeks this client's programme runs (else the template's own).
+            'duration_weeks' => ['nullable', 'integer', 'min:1', 'max:52'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -214,6 +223,7 @@ class TrainingTemplateController extends Controller
             'title' => (string) $t->title,
             'goal' => $t->goal,
             'notes' => $t->notes,
+            'duration_weeks' => $t->duration_weeks !== null ? (int) $t->duration_weeks : null,
             'exercises_count' => $t->exercises_count !== null
                 ? (int) $t->exercises_count
                 : ($t->relationLoaded('exercises') ? $t->exercises->count() : null),
@@ -235,6 +245,10 @@ class TrainingTemplateController extends Controller
             'sets' => $e->sets !== null ? (int) $e->sets : null,
             'reps' => $e->reps,
             'target_weight' => $e->target_weight !== null ? (float) $e->target_weight : null,
+            'day_label' => $e->day_label,
+            'set_weights' => $e->set_weights,
+            'progress_every_weeks' => $e->progress_every_weeks !== null ? (int) $e->progress_every_weeks : null,
+            'progress_increment_kg' => $e->progress_increment_kg !== null ? (float) $e->progress_increment_kg : null,
             'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
             'notes' => $e->notes,
             'sort_order' => (int) $e->sort_order,

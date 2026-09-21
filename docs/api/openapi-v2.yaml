@@ -4236,6 +4236,32 @@ paths:
         '201': { description: Attached }
         '404': { description: 'Not your plan or photo' }
         '422': { description: 'Over the per-item photo limit' }
+  /business/training-plans/{plan}/program:
+    put:
+      tags: [Training]
+      summary: Set the programme's length and weight progression for the whole plan at once (trainer)
+      description: 'duration_weeks (1-52) and starts_on fix the end date; progression {every_weeks, increment_kg, exercise_ids?} sets how the weights climb for the given exercises, or for every weighted exercise when none are given. Nothing is stored per week — every week target is computed from the rule, so later weeks follow.'
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                duration_weeks: { type: integer, minimum: 1, maximum: 52 }
+                starts_on: { type: string, format: date }
+                progression:
+                  type: object
+                  properties:
+                    every_weeks: { type: integer, minimum: 1, maximum: 26 }
+                    increment_kg: { type: number, minimum: 0, maximum: 100 }
+                    exercise_ids: { type: array, items: { type: integer } }
+      responses:
+        '200': { description: 'OK - the plan, each exercise with current_targets (this week per set) and schedule (every week)' }
+        '403': { description: Not a training-capable business }
+        '404': { description: 'Not your plan' }
+        '422': { $ref: '#/components/responses/Validation' }
   /business/training-templates:
     get:
       tags: [Training]
@@ -4409,6 +4435,32 @@ paths:
       parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
       responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/training-plans/{plan}/exercises/{exercise}:
+    patch:
+      tags: [Training]
+      summary: Change one exercise - prescription, per-set weights, how they climb (trainer)
+      description: 'Only the fields sent change; an explicit null clears one. set_weights is the base weight per set (max 12); progress_every_weeks and progress_increment_kg add that many kg at each block of weeks. day_label names the training day (Push, Pull, Legs).'
+      parameters:
+        - { name: plan, in: path, required: true, schema: { type: integer } }
+        - { name: exercise, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                day_of_week: { type: integer, minimum: 0, maximum: 6 }
+                day_label: { type: string, maxLength: 40 }
+                sets: { type: integer }
+                reps: { type: string }
+                target_weight: { type: number }
+                set_weights: { type: array, maxItems: 12, items: { type: number } }
+                progress_every_weeks: { type: integer, minimum: 1, maximum: 26 }
+                progress_increment_kg: { type: number, minimum: 0, maximum: 100 }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not your plan or exercise' }
+        '422': { $ref: '#/components/responses/Validation' }
     delete:
       tags: [Training]
       summary: Remove an exercise (trainer)

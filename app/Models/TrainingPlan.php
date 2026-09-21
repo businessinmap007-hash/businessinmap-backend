@@ -38,6 +38,7 @@ class TrainingPlan extends Model
         'status',
         'starts_on',
         'ends_on',
+        'duration_weeks',
         'notes',
     ];
 

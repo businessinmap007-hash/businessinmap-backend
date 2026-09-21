@@ -14,7 +14,9 @@ use App\Services\Media\ImageUploadService;
 use App\Services\Training\TrainingPerformanceService;
 use App\Services\Training\TrainingPlanService;
 use App\Support\BusinessContext;
+use App\Support\ExerciseProgression;
 use App\Support\PlanPhotoUrl;
+use App\Support\TrainingProgramRules;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -61,6 +63,7 @@ class TrainingPlanController extends Controller
             'starts_on' => ['nullable', 'date'],
             'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            ...TrainingProgramRules::header(),
 
             'exercises' => ['nullable', 'array', 'max:200'],
             'exercises.*.name' => ['required', 'string', 'max:200'],
@@ -68,6 +71,7 @@ class TrainingPlanController extends Controller
             'exercises.*.sets' => ['nullable', 'integer', 'min:0'],
             'exercises.*.reps' => ['nullable', 'string', 'max:40'],
             'exercises.*.target_weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            ...TrainingProgramRules::exercise('exercises.*.'),
             'exercises.*.rest_seconds' => ['nullable', 'integer', 'min:0'],
             'exercises.*.notes' => ['nullable', 'string', 'max:255'],
             'exercises.*.sort_order' => ['nullable', 'integer'],
@@ -88,6 +92,8 @@ class TrainingPlanController extends Controller
             'goal' => $data['goal'] ?? null,
             'starts_on' => $data['starts_on'] ?? null,
             'ends_on' => $data['ends_on'] ?? null,
+            'duration_weeks' => $data['duration_weeks'] ?? null,
+            'progression' => $data['progression'] ?? null,
             'notes' => $data['notes'] ?? null,
         ], $data['exercises'] ?? [], $data['meals'] ?? []);
 
@@ -159,6 +165,60 @@ class TrainingPlanController extends Controller
         ]);
     }
 
+    /**
+     * PATCH /api/v2/business/training-plans/{plan}/exercises/{exercise} — change
+     * one exercise: its prescription, per-set weights and how they climb.
+     */
+    public function updateExercise(Request $request, int $plan, int $exercise)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+        $target = $row->exercises()->where('id', $exercise)->firstOrFail();
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:200'],
+            'day_of_week' => ['sometimes', 'nullable', 'integer', 'between:0,6'],
+            'sets' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'reps' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'target_weight' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:1000'],
+            'rest_seconds' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'notes' => ['sometimes', 'nullable', 'string', 'max:255'],
+            ...TrainingProgramRules::exercise(),
+        ]);
+
+        // Only what was sent changes; an explicit null clears a field.
+        $target->update(array_intersect_key($data, array_flip([
+            'name', 'day_of_week', 'day_label', 'sets', 'reps', 'target_weight', 'set_weights',
+            'progress_every_weeks', 'progress_increment_kg', 'rest_seconds', 'notes',
+        ])));
+
+        return response()->json(['success' => true, 'data' => ['exercise' => $this->exercise($target->fresh(), $row)]]);
+    }
+
+    /**
+     * PUT /api/v2/business/training-plans/{plan}/program — set how long the
+     * programme runs (weeks, start date) and how the weights climb, for every
+     * exercise at once. Later weeks follow: targets are computed from the rule.
+     */
+    public function program(Request $request, int $plan)
+    {
+        $row = $this->ownedOrFail($request, $plan);
+
+        $data = $request->validate([
+            'starts_on' => ['nullable', 'date'],
+            ...TrainingProgramRules::header(),
+            'progression.exercise_ids' => ['nullable', 'array'],
+            'progression.exercise_ids.*' => ['integer'],
+        ]);
+
+        $row = $this->service->applyProgram($row, $data);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تحديث برنامج الخطة.'),
+            'data' => ['plan' => $this->serialize($row->fresh(['exercises', 'meals']))],
+        ]);
+    }
+
     /** GET /api/v2/business/training-plans/{plan}/monthly-summary?month=YYYY-MM */
     public function monthlySummary(Request $request, int $plan)
     {
@@ -206,6 +266,7 @@ class TrainingPlanController extends Controller
             'sets' => ['nullable', 'integer', 'min:0'],
             'reps' => ['nullable', 'string', 'max:40'],
             'target_weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            ...TrainingProgramRules::exercise(),
             'rest_seconds' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer'],
@@ -213,7 +274,7 @@ class TrainingPlanController extends Controller
 
         $exercise = $row->exercises()->create(LibraryExercise::withDefaults($data));
 
-        return response()->json(['success' => true, 'data' => ['exercise' => $this->exercise($exercise)]], 201);
+        return response()->json(['success' => true, 'data' => ['exercise' => $this->exercise($exercise, $row)]], 201);
     }
 
     public function addMeal(Request $request, int $plan)
@@ -461,13 +522,17 @@ class TrainingPlanController extends Controller
             'status' => (string) $p->status,
             'starts_on' => optional($p->starts_on)->toDateString(),
             'ends_on' => optional($p->ends_on)->toDateString(),
+            // The programme: how many weeks, and which one it is today.
+            'duration_weeks' => ExerciseProgression::totalWeeks($p),
+            'week_number' => ExerciseProgression::weekNumber($p, now()),
+            'total_weeks' => ExerciseProgression::totalWeeks($p),
             'notes' => $p->notes,
             'client' => $p->relationLoaded('client') && $p->client
                 ? ['id' => (int) $p->client->id, 'name' => $p->client->name]
                 : ['id' => (int) $p->client_id],
             'exercises_count' => $p->exercises_count !== null ? (int) $p->exercises_count : null,
             'meals_count' => $p->meals_count !== null ? (int) $p->meals_count : null,
-            'exercises' => $p->relationLoaded('exercises') ? $p->exercises->map(fn ($e) => $this->exercise($e))->all() : null,
+            'exercises' => $p->relationLoaded('exercises') ? $p->exercises->map(fn ($e) => $this->exercise($e, $p))->all() : null,
             'meals' => $p->relationLoaded('meals') ? $p->meals->map(fn ($m) => $this->meal($m))->all() : null,
             'progress' => $p->relationLoaded('progressLogs') ? $p->progressLogs->map(fn ($l) => [
                 'logged_on' => optional($l->logged_on)->toDateString(),
@@ -477,8 +542,11 @@ class TrainingPlanController extends Controller
         ];
     }
 
-    private function exercise(PlanExercise $e): array
+    private function exercise(PlanExercise $e, ?TrainingPlan $plan = null): array
     {
+        $week = $plan ? ExerciseProgression::weekNumber($plan, now()) : 1;
+        $weeks = $plan ? ExerciseProgression::totalWeeks($plan) : null;
+
         return [
             'id' => (int) $e->id,
             'library_exercise_id' => $e->library_exercise_id ? (int) $e->library_exercise_id : null,
@@ -487,6 +555,14 @@ class TrainingPlanController extends Controller
             'sets' => $e->sets !== null ? (int) $e->sets : null,
             'reps' => $e->reps,
             'target_weight' => $e->target_weight !== null ? (float) $e->target_weight : null,
+            // The rule the trainer set, and what it works out to: this week per set,
+            // and the whole programme so the trainer can check the climb.
+            'day_label' => $e->day_label,
+            'set_weights' => $e->set_weights,
+            'progress_every_weeks' => $e->progress_every_weeks !== null ? (int) $e->progress_every_weeks : null,
+            'progress_increment_kg' => $e->progress_increment_kg !== null ? (float) $e->progress_increment_kg : null,
+            'current_targets' => ExerciseProgression::targetsFor($e, $week),
+            'schedule' => $weeks ? ExerciseProgression::schedule($e, $weeks) : [],
             'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
             'notes' => $e->notes,
             'sort_order' => (int) $e->sort_order,

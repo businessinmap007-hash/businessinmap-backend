@@ -1113,6 +1113,10 @@ Route::prefix('v2')->group(function () {
             Route::get('{plan}', [TrainingPlanController::class, 'show'])->whereNumber('plan');
             Route::match(['put', 'patch'], '{plan}', [TrainingPlanController::class, 'update'])->whereNumber('plan');
             Route::post('{plan}/exercises', [TrainingPlanController::class, 'addExercise'])->whereNumber('plan');
+            // Change one exercise (prescription, per-set weights, progression), or set the
+            // programme's weeks + progression for the whole plan at once.
+            Route::patch('{plan}/exercises/{exercise}', [TrainingPlanController::class, 'updateExercise'])->whereNumber(['plan', 'exercise']);
+            Route::put('{plan}/program', [TrainingPlanController::class, 'program'])->whereNumber('plan');
             Route::post('{plan}/meals', [TrainingPlanController::class, 'addMeal'])->whereNumber('plan');
             Route::delete('{plan}/exercises/{exercise}', [TrainingPlanController::class, 'removeExercise'])->whereNumber('plan')->whereNumber('exercise');
             // Illustrative photos — the machine, the grip, the plated meal.

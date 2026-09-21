@@ -9,6 +9,7 @@ use App\Models\PlanSessionCompletion;
 use App\Models\TrainingPlan;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
+use App\Support\ExerciseProgression;
 use Illuminate\Support\Carbon;
 
 /**
@@ -136,11 +137,14 @@ class TrainingPerformanceService
 
         $exercises = $plan->exercises()->whereIn('id', $rounds->keys())->get()->keyBy('id');
 
+        $week = ExerciseProgression::weekNumber($plan, Carbon::parse($day));
+
         return [
             'date' => $day,
+            'week_number' => $week,
             'completed' => PlanSessionCompletion::query()
                 ->where('training_plan_id', (int) $plan->id)->whereDate('for_date', $day)->exists(),
-            'exercises' => $rounds->map(function ($sets, $exerciseId) use ($exercises) {
+            'exercises' => $rounds->map(function ($sets, $exerciseId) use ($exercises, $week) {
                 $ex = $exercises->get($exerciseId);
 
                 return [
@@ -149,6 +153,8 @@ class TrainingPerformanceService
                     'target_sets' => $ex?->sets !== null ? (int) $ex->sets : null,
                     'target_reps' => $ex?->reps,
                     'target_weight' => $ex?->target_weight !== null ? (float) $ex->target_weight : null,
+                    // What that week prescribed per set (the climb applied).
+                    'target_weights' => $ex ? ExerciseProgression::targetsFor($ex, $week) : [],
                     'sets' => $sets->map(fn (PlanExerciseRound $r) => $this->serializeRound($r))->values()->all(),
                 ];
             })->values()->all(),

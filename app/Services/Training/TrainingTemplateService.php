@@ -4,6 +4,7 @@ namespace App\Services\Training;
 
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanTemplate;
+use App\Support\TrainingProgramRules;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -30,19 +31,11 @@ class TrainingTemplateService
                 'title' => $header['title'],
                 'goal' => $header['goal'] ?? null,
                 'notes' => $header['notes'] ?? null,
+                'duration_weeks' => $header['duration_weeks'] ?? null,
             ]);
 
             foreach ($exercises as $e) {
-                $template->exercises()->create([
-                    'day_of_week' => $e['day_of_week'] ?? null,
-                    'name' => $e['name'],
-                    'sets' => $e['sets'] ?? null,
-                    'reps' => $e['reps'] ?? null,
-                    'target_weight' => $e['target_weight'] ?? null,
-                    'rest_seconds' => $e['rest_seconds'] ?? null,
-                    'notes' => $e['notes'] ?? null,
-                    'sort_order' => $e['sort_order'] ?? 0,
-                ]);
+                $template->exercises()->create(TrainingProgramRules::attributes($e, $header['progression'] ?? null));
             }
 
             foreach ($meals as $m) {
@@ -74,6 +67,10 @@ class TrainingTemplateService
             'sets' => $e->sets,
             'reps' => $e->reps,
             'target_weight' => $e->target_weight,
+            'set_weights' => $e->set_weights,
+            'progress_every_weeks' => $e->progress_every_weeks,
+            'progress_increment_kg' => $e->progress_increment_kg,
+            'day_label' => $e->day_label,
             'rest_seconds' => $e->rest_seconds,
             'notes' => $e->notes,
             'sort_order' => $e->sort_order,
@@ -92,6 +89,8 @@ class TrainingTemplateService
             'goal' => $overrides['goal'] ?? $template->goal,
             'starts_on' => $overrides['starts_on'] ?? null,
             'ends_on' => $overrides['ends_on'] ?? null,
+            // How many weeks the programme runs: this application's choice, else the template's.
+            'duration_weeks' => $overrides['duration_weeks'] ?? $template->duration_weeks,
             'notes' => $overrides['notes'] ?? $template->notes,
         ], $exercises, $meals);
     }

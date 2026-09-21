@@ -8,6 +8,8 @@ use App\Models\PlanProgressLog;
 use App\Models\TrainingPlan;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
+use App\Support\ExerciseProgression;
+use App\Support\TrainingProgramRules;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -34,6 +36,12 @@ class TrainingPlanService
     public function create(User $trainer, User $client, array $header, array $exercises, array $meals): TrainingPlan
     {
         return DB::transaction(function () use ($trainer, $client, $header, $exercises, $meals) {
+            $weeks = isset($header['duration_weeks']) ? (int) $header['duration_weeks'] : null;
+            $startsOn = $header['starts_on'] ?? ($weeks ? now()->toDateString() : null);
+            $endsOn = $header['ends_on'] ?? ($weeks && $startsOn
+                ? Carbon::parse($startsOn)->addDays($weeks * 7 - 1)->toDateString()
+                : null);
+
             $plan = TrainingPlan::create([
                 'trainer_id' => (int) $trainer->id,
                 'client_id' => (int) $client->id,
@@ -41,22 +49,14 @@ class TrainingPlanService
                 'goal' => $header['goal'] ?? null,
                 // The client confirms before it activates - see accept().
                 'status' => TrainingPlan::STATUS_PENDING,
-                'starts_on' => $header['starts_on'] ?? null,
-                'ends_on' => $header['ends_on'] ?? null,
+                'starts_on' => $startsOn,
+                'ends_on' => $endsOn,
+                'duration_weeks' => $weeks,
                 'notes' => $header['notes'] ?? null,
             ]);
 
             foreach ($exercises as $e) {
-                $plan->exercises()->create([
-                    'day_of_week' => $e['day_of_week'] ?? null,
-                    'name' => $e['name'],
-                    'sets' => $e['sets'] ?? null,
-                    'reps' => $e['reps'] ?? null,
-                    'target_weight' => $e['target_weight'] ?? null,
-                    'rest_seconds' => $e['rest_seconds'] ?? null,
-                    'notes' => $e['notes'] ?? null,
-                    'sort_order' => $e['sort_order'] ?? 0,
-                ]);
+                $plan->exercises()->create(TrainingProgramRules::attributes($e, $header['progression'] ?? null));
             }
 
             foreach ($meals as $m) {
@@ -123,6 +123,65 @@ class TrainingPlanService
         $this->notifyResponse($plan, accepted: false);
 
         return $plan;
+    }
+
+    /**
+     * Set how long the programme runs and/or how the weights climb, for the
+     * whole plan at once. Progression goes to the given exercises, or to every
+     * exercise that has a weight; later weeks follow automatically because
+     * targets are computed from the rule (see ExerciseProgression).
+     *
+     * @param  array<string,mixed>  $data  duration_weeks?, starts_on?, progression?{every_weeks,increment_kg,exercise_ids?}
+     */
+    public function applyProgram(TrainingPlan $plan, array $data): TrainingPlan
+    {
+        return DB::transaction(function () use ($plan, $data) {
+            $updates = [];
+
+            if (isset($data['starts_on'])) {
+                $updates['starts_on'] = $data['starts_on'];
+            }
+
+            if (isset($data['duration_weeks'])) {
+                $updates['duration_weeks'] = (int) $data['duration_weeks'];
+            }
+
+            $weeks = $updates['duration_weeks'] ?? $plan->duration_weeks;
+            $start = $updates['starts_on'] ?? optional($plan->starts_on)->toDateString();
+
+            if ($weeks && $start) {
+                $updates['ends_on'] = Carbon::parse($start)->addDays($weeks * 7 - 1)->toDateString();
+            }
+
+            if ($updates !== []) {
+                $plan->update($updates);
+            }
+
+            $rule = $data['progression'] ?? null;
+
+            if (is_array($rule) && (array_key_exists('every_weeks', $rule) || array_key_exists('increment_kg', $rule))) {
+                $query = $plan->exercises();
+
+                if (! empty($rule['exercise_ids'])) {
+                    $query->whereIn('id', array_map('intval', $rule['exercise_ids']));
+                }
+
+                foreach ($query->get() as $exercise) {
+                    $weighted = ! empty($exercise->set_weights) || $exercise->target_weight !== null;
+
+                    if (! $weighted && empty($rule['exercise_ids'])) {
+                        continue;
+                    }
+
+                    $exercise->update([
+                        'progress_every_weeks' => $rule['every_weeks'] ?? null,
+                        'progress_increment_kg' => $rule['increment_kg'] ?? null,
+                    ]);
+                }
+            }
+
+            return $plan->fresh();
+        });
     }
 
     /** The client records a check-in against the plan. */

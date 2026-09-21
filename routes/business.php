@@ -237,6 +237,7 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::post('training-plans', [TrainingPlanController::class, 'store'])->name('training-plans.store');
         Route::get('training-plans/{id}', [TrainingPlanController::class, 'show'])->whereNumber('id')->name('training-plans.show');
         Route::put('training-plans/{id}', [TrainingPlanController::class, 'update'])->whereNumber('id')->name('training-plans.update');
+        Route::put('training-plans/{id}/program', [TrainingPlanController::class, 'program'])->whereNumber('id')->name('training-plans.program');
         Route::post('training-plans/{id}/exercises', [TrainingPlanController::class, 'addExercise'])->whereNumber('id')->name('training-plans.exercises.store');
         Route::delete('training-plans/{id}/exercises/{exercise}', [TrainingPlanController::class, 'removeExercise'])->whereNumber(['id', 'exercise'])->name('training-plans.exercises.destroy');
         Route::post('training-plans/{id}/meals', [TrainingPlanController::class, 'addMeal'])->whereNumber('id')->name('training-plans.meals.store');

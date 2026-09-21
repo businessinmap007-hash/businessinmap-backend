@@ -52,7 +52,15 @@ final class BusinessPageController extends Controller
             ->count();
 
         $hasMenu = DB::table('menu_items')->where('business_id', $business)->where('is_active', 1)->exists();
-        $hasServices = DB::table('business_service_prices')->where('business_id', $business)->where('is_active', 1)->exists();
+        // The old per-business "delivery" price row is not a service a customer
+        // browses - delivery is a fee (users.delivery_fee_amount) or a Shipping &
+        // Delivery account's own business - so it never earns a Services tab.
+        $hasServices = DB::table('business_service_prices as p')
+            ->join('platform_services as s', 's.id', '=', 'p.service_id')
+            ->where('p.business_id', $business)
+            ->where('p.is_active', 1)
+            ->where('s.key', '!=', 'delivery')
+            ->exists();
 
         // A stay's own clock (hotels, vacation apartments, chalets — any
         // booking business) -- set once from the business's own booking
@@ -148,6 +156,9 @@ final class BusinessPageController extends Controller
                 'fulfillment' => [
                     'methods' => \App\Models\BusinessMenuSetting::fulfillmentMethodsFor($model),
                     'dine_in' => $hasActiveTables,
+                    // The flat delivery charge added to a delivery order, so the
+                    // app can show it before the total at checkout.
+                    'delivery_fee' => $model->delivery_fee_amount !== null ? (float) $model->delivery_fee_amount : null,
                 ],
             ],
         ]);

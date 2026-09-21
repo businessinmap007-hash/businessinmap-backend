@@ -165,6 +165,23 @@ class DeliveryFeeTest extends TestCase
         $this->assertSame(0.0, (float) Order::find($order['id'])->delivery_fee);
     }
 
+    public function test_the_business_page_exposes_the_delivery_fee_and_a_delivery_only_price_row_earns_no_services_tab(): void
+    {
+        $owner = $this->makeUser(User::TYPE_BUSINESS, 'RestPage');
+        $this->seedMenu($owner);
+        $this->actingWithToken($this->tokenFor($owner))
+            ->patchJson('/api/v2/business/delivery-settings', ['delivery_fee_amount' => 30])->assertOk();
+        \App\Models\BusinessServicePrice::create([
+            'business_id' => $owner->id, 'service_id' => (int) \DB::table('platform_services')->where('key', 'delivery')->value('id'),
+            'child_id' => (int) $owner->category_child_id, 'bookable_item_type' => 'delivery',
+            'price' => 30, 'currency' => 'EGP', 'is_active' => 1,
+        ]);
+
+        $page = $this->getJson('/api/v2/businesses/' . $owner->id)->assertOk();
+        $this->assertSame(30.0, (float) $page->json('data.fulfillment.delivery_fee'));
+        $this->assertFalse((bool) $page->json('data.sections.services'));
+    }
+
     public function test_a_freelance_driver_can_set_their_own_delivery_fee(): void
     {
         $driver = $this->makeUser(User::TYPE_CLIENT, 'Rider');

@@ -21,7 +21,7 @@ class PlatformServiceSeeder extends Seeder
             ],
             [
                 'key' => 'menu',
-                'name_ar' => 'القائمة',
+                'name_ar' => 'منيو',
                 'name_en' => 'Menu',
                 'is_active' => true,
                 'sort_order' => 2,
@@ -39,8 +39,8 @@ class PlatformServiceSeeder extends Seeder
             ],
             [
                 'key' => 'retail',
-                'name_ar' => 'التجزئة',
-                'name_en' => 'Retail',
+                'name_ar' => 'كاتلوج',
+                'name_en' => 'Catalog',
                 'is_active' => true,
                 'sort_order' => 4,
                 'supports_deposit' => false,

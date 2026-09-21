@@ -652,8 +652,12 @@ final class DiscoveryController extends Controller
      */
     public function serviceTypes(Request $request)
     {
+        // Delivery is not a service a customer browses by: any menu / catalog
+        // business offers it as a fee, and couriers are Shipping & Delivery
+        // accounts - so it is not one of the chips.
         $services = PlatformService::query()
             ->where('is_active', 1)
+            ->where('key', '!=', PlatformService::KEY_DELIVERY)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get(['id', 'key', 'name_ar', 'name_en']);

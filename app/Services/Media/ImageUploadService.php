@@ -93,6 +93,34 @@ final class ImageUploadService
         return self::PUBLIC_DIR.'/'.$name;
     }
 
+    /**
+     * Copy a private file to a new random private name and return the new
+     * relative path, or null when the source is missing. Used when one photo is
+     * attached to several plans: each gets its own file, so deleting one never
+     * breaks another.
+     */
+    public function copyPrivate(string $relative): ?string
+    {
+        if (! self::isPrivate($relative)) {
+            return null;
+        }
+
+        $source = realpath(self::privatePath($relative));
+        $root = realpath(self::privatePath(self::PRIVATE_DIR));
+
+        if ($source === false || $root === false || ! str_starts_with($source, $root) || ! is_file($source)) {
+            return null;
+        }
+
+        $name = Str::random(40).'.'.strtolower(pathinfo($source, PATHINFO_EXTENSION) ?: 'jpg');
+
+        if (! @copy($source, $root.DIRECTORY_SEPARATOR.$name)) {
+            return null;
+        }
+
+        return self::PRIVATE_DIR.'/'.$name;
+    }
+
     public static function isPrivate(?string $path): bool
     {
         return str_starts_with(ltrim((string) $path, '/'), self::PRIVATE_DIR.'/');

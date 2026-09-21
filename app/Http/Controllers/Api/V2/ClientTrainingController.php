@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlanExercise;
+use App\Models\PlanExerciseRound;
 use App\Models\TrainingPlan;
+use App\Services\Training\TrainingPerformanceService;
 use App\Services\Training\TrainingPlanService;
 use Illuminate\Http\Request;
 
@@ -43,6 +45,7 @@ class ClientTrainingController extends Controller
             'success' => true,
             'data' => ['plan' => $this->serialize($row->load([
                 'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
+                'exercises.rounds' => fn ($q) => $q->whereDate('for_date', now()->toDateString())->orderBy('round_number'),
                 'exercises.images', 'exercises.libraryExercise.images', 'meals', 'meals.images', 'progressLogs', 'trainer:id,name,logo,phone',
             ]))],
         ]);
@@ -88,9 +91,16 @@ class ClientTrainingController extends Controller
 
         $data = $request->validate([
             'for_date' => ['nullable', 'date'],
+            // What was actually done in this set. Numbers only, both optional.
+            'reps' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
         ]);
 
-        $result = $this->service->confirmRound($row, $ex, $request->user(), $data['for_date'] ?? null);
+        $result = $this->service->confirmRound(
+            $row, $ex, $request->user(), $data['for_date'] ?? null,
+            isset($data['reps']) ? (int) $data['reps'] : null,
+            isset($data['weight']) ? (float) $data['weight'] : null,
+        );
 
         return response()->json([
             'success' => true,
@@ -99,8 +109,53 @@ class ClientTrainingController extends Controller
                 'round_number' => (int) $result['round']->round_number,
                 'completed_rounds' => (int) $result['completed_rounds'],
                 'total_sets' => $result['total_sets'],
+                'round' => app(TrainingPerformanceService::class)->serializeRound($result['round']),
+                'session_completed' => $result['session_completed'],
             ],
         ], 201);
+    }
+
+    /**
+     * PUT /api/v2/training-plans/{plan}/exercises/{exercise}/rounds/{round} —
+     * correct the reps/weight of a set I already confirmed.
+     */
+    public function updateRound(Request $request, int $plan, int $exercise, int $round)
+    {
+        $row = $this->mineOrFail($request, $plan);
+
+        $set = PlanExerciseRound::query()
+            ->where('id', $round)
+            ->where('plan_exercise_id', $exercise)
+            ->where('training_plan_id', (int) $row->id)
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'reps' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'weight' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+        ]);
+
+        $set = $this->service->updateRound(
+            $row, $set,
+            isset($data['reps']) ? (int) $data['reps'] : null,
+            isset($data['weight']) ? (float) $data['weight'] : null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => ['round' => app(TrainingPerformanceService::class)->serializeRound($set)],
+        ]);
+    }
+
+    /** GET /api/v2/training-plans/{plan}/monthly-summary?month=YYYY-MM — my month. */
+    public function monthlySummary(Request $request, int $plan)
+    {
+        $row = $this->mineOrFail($request, $plan);
+        $data = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['summary' => app(TrainingPerformanceService::class)->monthlySummary($row, $data['month'] ?? null)],
+        ]);
     }
 
     /** GET /api/v2/training-plans/{plan}/weekly-summary?from=YYYY-MM-DD — my adherence. */
@@ -168,6 +223,7 @@ class ClientTrainingController extends Controller
                 'name' => (string) $e->name,
                 'sets' => $e->sets !== null ? (int) $e->sets : null,
                 'reps' => $e->reps,
+                'target_weight' => $e->target_weight !== null ? (float) $e->target_weight : null,
                 'rest_seconds' => $e->rest_seconds !== null ? (int) $e->rest_seconds : null,
                 'notes' => $e->notes,
                 // The captain's illustration: the machine, the grip, the
@@ -179,6 +235,10 @@ class ClientTrainingController extends Controller
                     ? $e->libraryExercise->images->pluck('image')->values()->all()
                     : [],
                 'completed_rounds_today' => (int) ($e->completed_rounds_today ?? 0),
+                // Today's confirmed sets with what was done in each.
+                'today_rounds' => $e->relationLoaded('rounds')
+                    ? $e->rounds->map(fn ($r) => app(TrainingPerformanceService::class)->serializeRound($r))->values()->all()
+                    : [],
             ])->all() : null,
             'meals' => $p->relationLoaded('meals') ? $p->meals->map(fn ($m) => [
                 'meal_type' => (string) $m->meal_type,

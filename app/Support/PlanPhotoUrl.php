@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Image;
+use App\Models\TrainerPhoto;
 use App\Services\Media\ImageUploadService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\URL;
@@ -32,8 +33,17 @@ final class PlanPhotoUrl
             return (string) $image->image;
         }
 
-        $expires = Carbon::createFromTimestamp((intdiv(time(), self::WINDOW_SECONDS) + 2) * self::WINDOW_SECONDS);
+        return URL::temporarySignedRoute('plan-photos.show', self::expiry(), ['image' => $image->id]);
+    }
 
-        return URL::temporarySignedRoute('plan-photos.show', $expires, ['image' => $image->id]);
+    /** A trainer's library photo — same signed, snapped-expiry link. */
+    public static function forTrainerPhoto(TrainerPhoto $photo): string
+    {
+        return URL::temporarySignedRoute('trainer-photos.show', self::expiry(), ['photo' => $photo->id]);
+    }
+
+    private static function expiry(): Carbon
+    {
+        return Carbon::createFromTimestamp((intdiv(time(), self::WINDOW_SECONDS) + 2) * self::WINDOW_SECONDS);
     }
 }

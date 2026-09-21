@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasOwnedImages;
+use App\Support\PlanPhotoUrl;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -43,5 +44,11 @@ class PlanExercise extends Model
     public function rounds(): HasMany
     {
         return $this->hasMany(PlanExerciseRound::class);
+    }
+
+    /** Plan photos are private to the trainer and the trainee: signed links only. */
+    protected function imageAddress(Image $image): string
+    {
+        return PlanPhotoUrl::for($image);
     }
 }

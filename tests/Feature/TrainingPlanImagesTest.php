@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\Image;
 use App\Models\PlanExercise;
 use App\Models\PlanMeal;
 use App\Models\TrainingPlan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Services\Media\ImageUploadService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -93,7 +96,8 @@ class TrainingPlanImagesTest extends TestCase
             ->json('data.plan.exercises');
 
         $this->assertCount(1, $exercises[0]['images']);
-        $this->assertSame($image['image'], $exercises[0]['images'][0]['image']);
+        $this->assertSame($image['id'], $exercises[0]['images'][0]['id']);
+        $this->assertStringContainsString('/plan-photos/' . $image['id'], $exercises[0]['images'][0]['image']);
     }
 
     /** The nutrition half too — «الخطة التدريبية والنظام الغذائي». */
@@ -201,6 +205,77 @@ class TrainingPlanImagesTest extends TestCase
         $this->assertSame(0, PlanExercise::query()->where('id', $this->exercise->id)->count());
     }
 
+    /**
+     * «ليست عامة»: the file must not be reachable by a public path at all — it
+     * lives under storage/, outside the web root, not under public/.
+     */
+    public function test_a_photo_is_stored_outside_the_public_directory(): void
+    {
+        $image = $this->attachToExercise();
+        $stored = Image::query()->findOrFail($image['id'])->image;
+        $this->track($image['image']);
+
+        $this->assertTrue(ImageUploadService::isPrivate($stored));
+        $this->assertFileExists(ImageUploadService::privatePath($stored));
+        $this->assertFileDoesNotExist(public_path($stored));
+        $this->assertFileDoesNotExist(public_path('files/uploads/' . basename($stored)));
+    }
+
+    /** The signed link the two parties are handed opens the picture with no login. */
+    public function test_the_signed_link_serves_the_photo_and_only_a_valid_one_does(): void
+    {
+        $image = $this->attachToExercise();
+        $this->track($image['image']);
+
+        $this->get($image['image'])->assertOk()->assertHeader('Content-Type', 'image/png');
+
+        // The same route without a signature, or with a tampered one, is refused.
+        $this->get("/api/v2/plan-photos/{$image['id']}")->assertStatus(403);
+        $this->get($image['image'] . 'x')->assertStatus(403);
+
+        // A signature for one photo does not open another.
+        $other = $this->attachToExercise();
+        $this->track($other['image']);
+        $this->get(str_replace("/plan-photos/{$image['id']}", "/plan-photos/{$other['id']}", $image['image']))
+            ->assertStatus(403);
+    }
+
+    public function test_a_photo_link_expires(): void
+    {
+        $image = $this->attachToExercise();
+        $this->track($image['image']);
+
+        $this->travel(13)->hours();
+
+        $this->get($image['image'])->assertStatus(403);
+    }
+
+    /** A signed link only ever opens a PLAN photo, never some other image row. */
+    public function test_the_route_does_not_serve_other_images(): void
+    {
+        $other = Image::create([
+            'image' => 'files/uploads/whatever.jpg', 'imageable_id' => $this->plan->id,
+            'imageable_type' => TrainingPlan::class, 'source' => Image::SOURCE_UPLOAD,
+        ]);
+
+        $url = URL::temporarySignedRoute('plan-photos.show', now()->addHour(), ['image' => $other->id]);
+
+        $this->get($url)->assertStatus(404);
+    }
+
+    /** A stranger is handed no link: the payload that carries it is not theirs. */
+    public function test_a_stranger_is_never_handed_a_photo_link(): void
+    {
+        $image = $this->attachToExercise();
+        $this->track($image['image']);
+        $stranger = $this->user(User::TYPE_CLIENT, 'مشترك آخر');
+
+        $response = $this->actingAs($stranger, 'sanctum')->getJson("/api/v2/training-plans/{$this->plan->id}");
+
+        $response->assertStatus(404);
+        $this->assertStringNotContainsString('plan-photos', $response->getContent());
+    }
+
     /** @return array{id:int,image:string} */
     private function attachToExercise(): array
     {
@@ -220,9 +295,16 @@ class TrainingPlanImagesTest extends TestCase
         ));
     }
 
-    private function track(string $relative): string
+    /** Remember the on-disk file behind a photo (a signed URL or a stored path) for tearDown. */
+    private function track(string $urlOrPath): string
     {
-        $full = public_path($relative);
+        if (preg_match('#/plan-photos/(\d+)#', $urlOrPath, $m)) {
+            $urlOrPath = Image::query()->findOrFail((int) $m[1])->image;
+        }
+
+        $full = ImageUploadService::isPrivate($urlOrPath)
+            ? ImageUploadService::privatePath($urlOrPath)
+            : public_path($urlOrPath);
         $this->written[] = $full;
 
         return $full;

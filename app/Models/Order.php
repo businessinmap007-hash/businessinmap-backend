@@ -107,6 +107,8 @@ class Order extends Model
         'merchant_payment_confirmed_at' => 'datetime',
         'driver_payment_confirmed_at' => 'datetime',
         'payment_settled_at' => 'datetime',
+        'delivery_fee_proposed' => 'float',
+        'delivery_fee_decided_at' => 'datetime',
         'requires_deposit' => 'boolean',
         'deposit_amount' => 'float',
         'deposit_covered' => 'boolean',
@@ -162,6 +164,24 @@ class Order extends Model
             $this->payment_settled_at = now();
             $this->save();
         }
+    }
+
+    /**
+     * Per-order delivery pricing for out-of-city orders: awaiting_quote (no
+     * courier price yet) -> proposed (a courier wrote an amount) -> accepted
+     * (the customer agreed; it is on the invoice). A declined proposal goes
+     * back to awaiting_quote and the courier is released.
+     */
+    public const FEE_AWAITING_QUOTE = 'awaiting_quote';
+    public const FEE_PROPOSED = 'proposed';
+    public const FEE_ACCEPTED = 'accepted';
+
+    public const FEE_RECOMMENDATIONS = ['suitable', 'not_suitable'];
+
+    /** The delivery loop must not start while the fee is still being agreed. */
+    public function deliveryFeeUnsettled(): bool
+    {
+        return in_array((string) $this->delivery_fee_status, [self::FEE_AWAITING_QUOTE, self::FEE_PROPOSED], true);
     }
 
     public const PAYMENT_UNPAID = 'unpaid';

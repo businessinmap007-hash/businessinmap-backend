@@ -1678,6 +1678,20 @@ paths:
         '200': { description: OK }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Validation' }
+  /orders/{order}/delivery-fee/accept:
+    post:
+      tags: [Orders (Customer)]
+      summary: Accept the courier's proposed delivery fee (out-of-city order)
+      description: Adds the proposed fee to the invoice and lets the delivery loop start. 409 when there is no proposal waiting.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
+  /orders/{order}/delivery-fee/decline:
+    post:
+      tags: [Orders (Customer)]
+      summary: Decline the courier's proposed delivery fee
+      description: Releases the courier; the order goes back to the pool for another courier to price and the available drivers are pinged again.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
   /orders/{order}/handover/issue:
     post:
       tags: [Order Handover]
@@ -2156,6 +2170,22 @@ paths:
       summary: Reset the pickup code (owner or delegated staff) - the previous code stops working
       parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/orders/{order}/delivery-fee/recommendation:
+    post:
+      tags: [Orders (Business)]
+      summary: Recommend the courier's proposed delivery fee to the customer (suitable / not suitable)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recommendation]
+              properties:
+                recommendation: { type: string, enum: [suitable, not_suitable] }
+                note: { type: string, maxLength: 500 }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
   /business/orders/{order}/items/{item}/unavailable:
     post:
       tags: [Orders (Business)]
@@ -2569,6 +2599,17 @@ paths:
         '200': { description: OK }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /delivery/orders/{order}/fee-proposal:
+    post:
+      tags: [Delivery]
+      summary: The assigned courier prices an out-of-city order (or revises the price)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [amount], properties: { amount: { type: number } } }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '409': { $ref: '#/components/responses/Conflict' } }
   /delivery/available-orders:
     get: { tags: [Delivery], summary: Delivery orders open to take (preparing/ready, unassigned), responses: { '200': { description: OK } } }
   /delivery/orders/{order}/accept:

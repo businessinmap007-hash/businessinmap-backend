@@ -669,6 +669,9 @@ Route::prefix('v2')->group(function () {
         Route::post('orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment'])->whereNumber('order');
         // "I trust" checkbox toward another party of the order (customer / driver).
         Route::post('orders/{order}/trust', [OrderTrustController::class, 'update'])->whereNumber('order');
+        // Out-of-city delivery fee: the customer accepts or declines the courier's price.
+        Route::post('orders/{order}/delivery-fee/accept', [DeliveryController::class, 'acceptFee'])->whereNumber('order');
+        Route::post('orders/{order}/delivery-fee/decline', [DeliveryController::class, 'declineFee'])->whereNumber('order');
 
         // Placed orders: the business's incoming-order queue + detail + lifecycle.
         // Owner OR a delegated staff member granted the `orders` capability.
@@ -698,6 +701,7 @@ Route::prefix('v2')->group(function () {
             Route::post('business/orders/{order}/assign-driver', [DeliveryController::class, 'assignDriver'])->whereNumber('order');
             Route::post('business/orders/{order}/pickup-token', [DeliveryController::class, 'businessPickupToken'])->whereNumber('order');
             Route::post('business/orders/{order}/pickup-token/reset', [DeliveryController::class, 'resetPickupToken'])->whereNumber('order');
+            Route::post('business/orders/{order}/delivery-fee/recommendation', [DeliveryController::class, 'recommendFee'])->whereNumber('order');
             // A specific line turns out unavailable while preparing — applies
             // whatever the customer chose at checkout (out_of_stock_policy).
             Route::post('business/orders/{order}/items/{item}/unavailable', [OrderController::class, 'businessMarkItemUnavailable'])
@@ -904,6 +908,7 @@ Route::prefix('v2')->group(function () {
             Route::post('orders/{order}/eta', [DeliveryController::class, 'notifyEta'])->whereNumber('order');
             // Cash-payment attestation (driver's own leg, delivery_fee only).
             Route::post('orders/{order}/confirm-payment', [DeliveryController::class, 'confirmPayment'])->whereNumber('order');
+            Route::post('orders/{order}/fee-proposal', [DeliveryController::class, 'proposeFee'])->whereNumber('order');
             Route::post('pickup/{token}/confirm', [DeliveryController::class, 'confirmPickup']);
             Route::post('deliver/{token}/confirm', [DeliveryController::class, 'confirmDelivery']);
             Route::get('my-orders', [DeliveryController::class, 'myOrders']);

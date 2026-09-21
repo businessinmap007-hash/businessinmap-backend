@@ -326,14 +326,14 @@ class DeliveryDispatchService
     // ─────────────────────────── Assignment ───────────────────────────
 
     /** A driver takes a ready, unassigned delivery order. */
-    public function acceptOrder(int $userId, int $orderId): Order
+    public function acceptOrder(int $userId, int $orderId, ?float $proposedFee = null): Order
     {
         $driver = $this->driverOrFail($userId);
         if (! $driver->is_active) {
             abort(403, __('حسابك كموصّل غير مفعّل.'));
         }
 
-        $order = DB::transaction(function () use ($driver, $orderId) {
+        $order = DB::transaction(function () use ($driver, $orderId, $proposedFee) {
             $order = Order::query()->lockForUpdate()->find($orderId);
 
             if (! $order || (string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
@@ -349,8 +349,17 @@ class DeliveryDispatchService
                 abort(403, __('هذا الطلب لا يخص نشاطك.'));
             }
 
+            $needsQuote = (string) $order->delivery_fee_status === Order::FEE_AWAITING_QUOTE;
+            if ($needsQuote && $proposedFee === null) {
+                throw ValidationException::withMessages(['fee_amount' => __('اكتب رسوم التوصيل لهذا الطلب.')]);
+            }
+
             $order->delivery_driver_id = $driver->id;
             $order->delivery_stage = self::STAGE_ASSIGNED;
+
+            if ($needsQuote) {
+                $this->writeProposal($order, (float) $proposedFee);
+            }
 
             // Fallback only: the business's own delivery_fee_amount (applied
             // at checkout, CustomerCartService::placeOrder) always wins when
@@ -358,7 +367,8 @@ class DeliveryDispatchService
             // delivery_fee the business never configured - never overrides
             // one the customer already saw and agreed to at checkout.
             if (
-                $driver->business_id === null
+                ! $needsQuote
+                && $driver->business_id === null
                 && $driver->delivery_fee_amount !== null
                 && (float) $order->delivery_fee <= 0
             ) {
@@ -372,6 +382,10 @@ class DeliveryDispatchService
 
             return $order;
         });
+
+        if ((string) $order->delivery_fee_status === Order::FEE_PROPOSED) {
+            $this->announceProposal($order);
+        }
 
         $this->notifyBusiness($order, 'delivery_assigned', $userId, [
             'body_ar' => 'قبِل موصّل توصيل طلبك رقم #' . $order->id . '.',
@@ -471,6 +485,7 @@ class DeliveryDispatchService
         if ((string) $order->delivery_stage !== self::STAGE_ASSIGNED) {
             throw ValidationException::withMessages(['order' => __('الطلب غير جاهز لتسليمه للموصّل.')]);
         }
+        $this->assertFeeSettled($order);
 
         if (! $order->pickup_token) {
             $order->pickup_token = Str::random(48);
@@ -493,6 +508,7 @@ class DeliveryDispatchService
         if ((string) $order->delivery_stage !== self::STAGE_ASSIGNED) {
             throw ValidationException::withMessages(['order' => __('الطلب غير جاهز لتسليمه للموصّل.')]);
         }
+        $this->assertFeeSettled($order);
 
         $order->pickup_token = Str::random(48);
         $order->save();
@@ -516,6 +532,7 @@ class DeliveryDispatchService
             if ((string) $order->delivery_stage !== self::STAGE_ASSIGNED) {
                 abort(409, __('لا يمكن تأكيد الاستلام في هذه المرحلة.'));
             }
+            $this->assertFeeSettled($order);
 
             $order->delivery_stage = self::STAGE_PICKED_UP;
             $order->pickup_token = null; // consume
@@ -713,6 +730,185 @@ class DeliveryDispatchService
         $order->settlePaymentsIfComplete();
 
         return $order;
+    }
+
+    // ─────────────────────── Per-order delivery fee (out of city) ───────────────────────
+
+    private function assertFeeSettled(Order $order): void
+    {
+        if ($order->deliveryFeeUnsettled()) {
+            throw ValidationException::withMessages(['order' => __('رسوم التوصيل لم يتم الاتفاق عليها بعد.')]);
+        }
+    }
+
+    private function writeProposal(Order $order, float $amount): void
+    {
+        $order->delivery_fee_status = Order::FEE_PROPOSED;
+        $order->delivery_fee_proposed = round($amount, 2);
+        $order->delivery_fee_recommendation = null;
+        $order->delivery_fee_recommendation_note = null;
+    }
+
+    /**
+     * The assigned courier writes (or revises) the fee for an out-of-city order
+     * - the path for an order the business assigned to its own driver, who did
+     * not go through acceptOrder(). Only while the loop has not started.
+     */
+    public function proposeFee(int $driverUserId, int $orderId, float $amount): Order
+    {
+        $order = DB::transaction(function () use ($driverUserId, $orderId, $amount) {
+            $order = Order::query()->lockForUpdate()->find($orderId);
+
+            if (! $order || (string) $order->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
+                abort(404, __('طلب التوصيل غير موجود.'));
+            }
+            $driver = $order->deliveryDriver;
+            if (! $driver || (int) $driver->user_id !== $driverUserId) {
+                abort(403, __('هذا الطلب غير مُسنَد إليك.'));
+            }
+            if (! $order->deliveryFeeUnsettled()) {
+                abort(409, __('رسوم هذا الطلب ليست قيد الاتفاق.'));
+            }
+            if ((string) $order->delivery_stage !== self::STAGE_ASSIGNED) {
+                abort(409, __('لا يمكن تعديل الرسوم في هذه المرحلة.'));
+            }
+
+            $this->writeProposal($order, $amount);
+            $order->save();
+
+            return $order;
+        });
+
+        $this->announceProposal($order);
+
+        return $order;
+    }
+
+    /** The customer accepts or declines the courier's proposed fee. */
+    public function respondToFeeProposal(int $customerId, int $orderId, bool $accept): Order
+    {
+        $releasedDriverUserId = null;
+
+        $order = DB::transaction(function () use ($customerId, $orderId, $accept, &$releasedDriverUserId) {
+            $order = Order::query()->lockForUpdate()->find($orderId);
+
+            if (! $order || (int) $order->user_id !== $customerId) {
+                abort(404, __('الطلب غير موجود.'));
+            }
+            if ((string) $order->delivery_fee_status !== Order::FEE_PROPOSED) {
+                abort(409, __('لا يوجد اقتراح رسوم بانتظار ردّك.'));
+            }
+
+            if ($accept) {
+                $fee = round((float) $order->delivery_fee_proposed, 2);
+                $order->delivery_fee = $fee;
+                $order->final_total = round((float) $order->final_total + $fee, 2);
+                $order->delivery_fee_status = Order::FEE_ACCEPTED;
+                $order->delivery_fee_decided_at = now();
+            } else {
+                $driver = $order->deliveryDriver;
+                if ($driver) {
+                    $releasedDriverUserId = (int) $driver->user_id;
+                    if ((int) $driver->assigned_count > 0) {
+                        $driver->decrement('assigned_count');
+                    }
+                }
+                // Back into the pool for another courier to price.
+                $order->delivery_driver_id = null;
+                $order->delivery_stage = null;
+                $order->delivery_fee_status = Order::FEE_AWAITING_QUOTE;
+                $order->delivery_fee_proposed = null;
+                $order->delivery_fee_recommendation = null;
+                $order->delivery_fee_recommendation_note = null;
+            }
+
+            $order->save();
+
+            return $order;
+        });
+
+        $verb = $accept ? 'وافق' : 'رفض';
+        $verbEn = $accept ? 'accepted' : 'declined';
+        $body = [
+            'body_ar' => $verb . ' العميل على رسوم التوصيل للطلب رقم #' . $order->id . '.',
+            'body_en' => 'The customer ' . $verbEn . ' the delivery fee for order #' . $order->id . '.',
+        ];
+
+        $this->notifyBusiness($order, 'delivery_fee_decided', $customerId, $body);
+
+        $courierUserId = $accept ? (int) optional($order->deliveryDriver)->user_id : (int) $releasedDriverUserId;
+        if ($courierUserId > 0) {
+            $this->dispatchToUser($order, $courierUserId, 'delivery_fee_decided', $customerId, $body + ['action_type' => 'open_driver_order']);
+        }
+
+        if (! $accept) {
+            $this->notifyDriversOrderAvailable($order);
+        }
+
+        return $order;
+    }
+
+    /** The merchant, who knows the going rate, tells the customer if the courier's fee is fair. */
+    public function recommendFee(int $businessId, int $orderId, string $recommendation, ?string $note): Order
+    {
+        $order = DB::transaction(function () use ($businessId, $orderId, $recommendation, $note) {
+            $order = Order::query()->lockForUpdate()->find($orderId);
+
+            if (! $order || (int) $order->business_id !== $businessId) {
+                abort(404, __('الطلب غير موجود.'));
+            }
+            if ((string) $order->delivery_fee_status !== Order::FEE_PROPOSED) {
+                abort(409, __('لا يوجد اقتراح رسوم لتوصيته.'));
+            }
+
+            $order->delivery_fee_recommendation = $recommendation;
+            $order->delivery_fee_recommendation_note = $note !== null && trim($note) !== '' ? trim($note) : null;
+            $order->save();
+
+            return $order;
+        });
+
+        $suitable = $recommendation === 'suitable';
+        $this->notifyOrderCustomer($order, 'delivery_fee_proposed', $businessId, [
+            'body_ar' => 'التاجر يرى أن رسوم التوصيل ' . ($suitable ? 'مناسبة' : 'غير مناسبة') . ' للطلب رقم #' . $order->id . '.',
+            'body_en' => 'The merchant considers the delivery fee ' . ($suitable ? 'suitable' : 'not suitable') . ' for order #' . $order->id . '.',
+        ]);
+
+        return $order;
+    }
+
+    /** Tell the customer (to decide) and the merchant (to recommend) about a proposed fee. */
+    private function announceProposal(Order $order): void
+    {
+        $amount = (float) $order->delivery_fee_proposed;
+        $driverUserId = (int) optional($order->deliveryDriver)->user_id;
+
+        $this->notifyOrderCustomer($order, 'delivery_fee_proposed', $driverUserId, [
+            'body_ar' => 'اقترح الموصّل رسوم توصيل ' . $amount . ' للطلب رقم #' . $order->id . ' — اقبلها أو ارفضها.',
+            'body_en' => 'The driver proposed a delivery fee of ' . $amount . ' for order #' . $order->id . ' - accept or decline.',
+        ]);
+        $this->notifyBusiness($order, 'delivery_fee_proposed', $driverUserId, [
+            'body_ar' => 'اقترح الموصّل رسوم توصيل ' . $amount . ' للطلب رقم #' . $order->id . ' — أعطِ العميل توصيتك.',
+            'body_en' => 'The driver proposed a delivery fee of ' . $amount . ' for order #' . $order->id . ' - give the customer your recommendation.',
+        ]);
+    }
+
+    /** One best-effort notification to a specific user about an order. */
+    private function dispatchToUser(Order $order, int $userId, string $eventKey, int $actorId, array $data): void
+    {
+        try {
+            $this->notifications->dispatch($eventKey, $userId, array_merge([
+                'type' => AppNotification::TYPE_SYSTEM,
+                'actor_id' => $actorId,
+                'notifiable_type' => Order::class,
+                'notifiable_id' => (int) $order->id,
+                'source_id' => (int) $order->id,
+                'skip_realtime' => true,
+                'meta' => ['order_id' => (int) $order->id],
+            ], $data));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** How many drivers one newly-available order pings, at most. */

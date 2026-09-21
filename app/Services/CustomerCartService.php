@@ -724,11 +724,20 @@ class CustomerCartService
         // who later accepts an unassigned order from the open pool may still
         // apply their OWN rate, but only as a fallback when this stayed at 0
         // (DeliveryDispatchService::acceptOrder).
+        $cart->delivery_fee_status = null;
         if ($cart->fulfillment_type === Order::FULFILLMENT_DELIVERY) {
             $business = User::query()->find($cart->business_id);
-            $cart->delivery_fee = $business && $business->delivery_fee_amount !== null
-                ? (float) $business->delivery_fee_amount
-                : 0;
+
+            if ($this->isOutOfCity($cart, $business, (int) ($data['address_id'] ?? 0))) {
+                // Priced per order by the courier, by distance - see
+                // DeliveryDispatchService::acceptOrder / respondToFeeProposal.
+                $cart->delivery_fee = 0;
+                $cart->delivery_fee_status = Order::FEE_AWAITING_QUOTE;
+            } else {
+                $cart->delivery_fee = $business && $business->delivery_fee_amount !== null
+                    ? (float) $business->delivery_fee_amount
+                    : 0;
+            }
         }
 
         // Delivery target, most specific first. Each is scoped to the cart owner
@@ -797,6 +806,22 @@ class CustomerCartService
         // that funnels through here — personal delivery/pickup, a shared cart, and
         // a dine-in table scan — so a scanned table order reaches the restaurant.
         $this->notifyBusinessOfNewOrder($cart);
+    }
+
+    /**
+     * Delivery to a different city than the business's own. Only a saved
+     * address carries a city; a free-text address is treated as in-city (the
+     * business's fixed fee), never guessed at.
+     */
+    private function isOutOfCity(Order $cart, ?User $business, int $addressId): bool
+    {
+        if (! $business || ! $business->city_id || $addressId <= 0) {
+            return false;
+        }
+
+        $addressCity = Address::query()->whereKey($addressId)->where('user_id', (int) $cart->user_id)->value('city_id');
+
+        return $addressCity !== null && (int) $addressCity !== (int) $business->city_id;
     }
 
     /**

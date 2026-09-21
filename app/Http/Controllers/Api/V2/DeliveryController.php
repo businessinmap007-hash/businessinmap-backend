@@ -102,6 +102,7 @@ final class DeliveryController extends Controller
                     'final_total' => (float) $o->final_total,
                     'delivery_fee' => (float) $o->delivery_fee,
                     'distance_km' => $distance,
+                    'needs_quote' => (string) $o->delivery_fee_status === \App\Models\Order::FEE_AWAITING_QUOTE,
                 ];
             })
             ->sortBy(fn ($row) => $row['distance_km'] ?? PHP_INT_MAX)
@@ -113,7 +114,13 @@ final class DeliveryController extends Controller
     /** POST /api/v2/delivery/orders/{order}/accept */
     public function accept(Request $request, int $order)
     {
-        $model = $this->delivery->acceptOrder((int) $request->user()->id, $order);
+        $data = $request->validate(['fee_amount' => ['nullable', 'numeric', 'min:0', 'max:99999.99']]);
+
+        $model = $this->delivery->acceptOrder(
+            (int) $request->user()->id,
+            $order,
+            isset($data['fee_amount']) ? (float) $data['fee_amount'] : null,
+        );
 
         return response()->json(['success' => true, 'data' => [
             'order_id' => (int) $model->id,
@@ -288,6 +295,60 @@ final class DeliveryController extends Controller
             'order_id' => (int) $model->id,
             'pickup_token' => $token,
             'scan_path' => '/dp/' . $token,
+        ]]);
+    }
+
+    /** POST /api/v2/delivery/orders/{order}/fee-proposal - the assigned courier prices an out-of-city order. */
+    public function proposeFee(Request $request, int $order)
+    {
+        $data = $request->validate(['amount' => ['required', 'numeric', 'min:0', 'max:99999.99']]);
+
+        $model = $this->delivery->proposeFee((int) $request->user()->id, $order, (float) $data['amount']);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'delivery_fee_status' => (string) $model->delivery_fee_status,
+            'delivery_fee_proposed' => $model->delivery_fee_proposed,
+        ]]);
+    }
+
+    /** POST /api/v2/orders/{order}/delivery-fee/accept - the customer agrees to the courier's price. */
+    public function acceptFee(Request $request, int $order)
+    {
+        return $this->answerFee($request, $order, true);
+    }
+
+    /** POST /api/v2/orders/{order}/delivery-fee/decline - the courier is released, the order is re-offered. */
+    public function declineFee(Request $request, int $order)
+    {
+        return $this->answerFee($request, $order, false);
+    }
+
+    private function answerFee(Request $request, int $order, bool $accept)
+    {
+        $model = $this->delivery->respondToFeeProposal((int) $request->user()->id, $order, $accept);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'delivery_fee_status' => (string) $model->delivery_fee_status,
+            'delivery_fee' => (float) $model->delivery_fee,
+            'final_total' => (float) $model->final_total,
+        ]]);
+    }
+
+    /** POST /api/v2/business/orders/{order}/delivery-fee/recommendation */
+    public function recommendFee(Request $request, int $order)
+    {
+        $data = $request->validate([
+            'recommendation' => ['required', 'in:suitable,not_suitable'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $model = $this->delivery->recommendFee(BusinessContext::id($request), $order, $data['recommendation'], $data['note'] ?? null);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'recommendation' => $model->delivery_fee_recommendation,
         ]]);
     }
 

@@ -50,6 +50,15 @@ class OrderResource extends JsonResource
                 'final_total' => (float) $this->final_total,
             ],
 
+            // Out-of-city delivery pricing (null on an ordinary order): the
+            // courier's proposal, and the merchant's recommendation on it.
+            'delivery_fee_quote' => $this->delivery_fee_status ? [
+                'status' => (string) $this->delivery_fee_status,
+                'proposed_amount' => $this->delivery_fee_proposed !== null ? (float) $this->delivery_fee_proposed : null,
+                'recommendation' => $this->delivery_fee_recommendation,
+                'recommendation_note' => $this->delivery_fee_recommendation_note,
+            ] : null,
+
             'payment_method' => $this->payment_method,
             'payment_status' => (string) ($this->payment_status ?? 'unpaid'),
             'paid_at' => optional($this->paid_at)->toIso8601String(),

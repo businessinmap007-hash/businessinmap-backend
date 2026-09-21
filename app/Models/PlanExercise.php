@@ -35,6 +35,11 @@ class PlanExercise extends Model
         return $this->belongsTo(TrainingPlan::class, 'training_plan_id');
     }
 
+    public function libraryExercise(): BelongsTo
+    {
+        return $this->belongsTo(LibraryExercise::class, 'library_exercise_id');
+    }
+
     public function rounds(): HasMany
     {
         return $this->hasMany(PlanExerciseRound::class);

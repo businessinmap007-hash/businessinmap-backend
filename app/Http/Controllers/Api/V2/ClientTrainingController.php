@@ -43,7 +43,7 @@ class ClientTrainingController extends Controller
             'success' => true,
             'data' => ['plan' => $this->serialize($row->load([
                 'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
-                'exercises.images', 'meals', 'meals.images', 'progressLogs', 'trainer:id,name,logo,phone',
+                'exercises.images', 'exercises.libraryExercise.images', 'meals', 'meals.images', 'progressLogs', 'trainer:id,name,logo,phone',
             ]))],
         ]);
     }
@@ -173,6 +173,11 @@ class ClientTrainingController extends Controller
                 // The captain's illustration: the machine, the grip, the
                 // position. Read here, never written from this side.
                 'images' => $e->relationLoaded('images') ? $e->imagePayload() : [],
+                // The catalogue's demonstration photos, for an exercise picked from
+                // the library — shown when the captain attached none of their own.
+                'library_images' => $e->relationLoaded('libraryExercise') && $e->libraryExercise?->relationLoaded('images')
+                    ? $e->libraryExercise->images->pluck('image')->values()->all()
+                    : [],
                 'completed_rounds_today' => (int) ($e->completed_rounds_today ?? 0),
             ])->all() : null,
             'meals' => $p->relationLoaded('meals') ? $p->meals->map(fn ($m) => [

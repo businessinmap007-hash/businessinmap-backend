@@ -31,7 +31,7 @@ final class ExerciseLibraryController extends Controller
 
         $q = trim((string) ($data['q'] ?? ''));
 
-        $exercises = LibraryExercise::query()->active()
+        $exercises = LibraryExercise::query()->active()->with('images')
             ->whereHas('category', fn ($c) => $c->where('is_active', true))
             ->when(! empty($data['category_id']), fn ($w) => $w->where('exercise_category_id', $data['category_id']))
             ->when(! empty($data['kind']), fn ($w) => $w->where('kind', $data['kind']))
@@ -59,6 +59,7 @@ final class ExerciseLibraryController extends Controller
                 'equipment' => $e->equipment,
                 'default_sets' => $e->default_sets,
                 'default_reps' => $e->default_reps,
+                'images' => $e->images->pluck('image')->values()->all(),
             ])->values(),
         ]]);
     }

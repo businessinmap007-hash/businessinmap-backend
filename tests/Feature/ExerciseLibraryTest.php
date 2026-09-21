@@ -233,4 +233,85 @@ class ExerciseLibraryTest extends TestCase
         $this->actingAs($admin)->delete(route('admin.exercise-library.categories.destroy', $cat))->assertRedirect();
         $this->assertNull(ExerciseCategory::find($cat->id));
     }
+
+    /** A real 1x1 PNG, so getimagesizefromstring accepts it. */
+    private const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+    private function mapFile(array $map): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'exmap') . '.php';
+        file_put_contents($path, '<?php return ' . var_export($map, true) . ';');
+
+        return $path;
+    }
+
+    public function test_the_import_command_downloads_and_attaches_photos_and_they_die_with_the_exercise(): void
+    {
+        $name = 'Zz Test Press ' . uniqid();
+        $entry = $this->entry($this->category(), 'اختبار ' . uniqid(), ['name_en' => $name]);
+        \Illuminate\Support\Facades\Http::fake(['raw.githubusercontent.com/*' => \Illuminate\Support\Facades\Http::response(base64_decode(self::PNG), 200)]);
+
+        $this->artisan('exercise-library:import-images', ['--map' => $this->mapFile([$name => 'Some_Folder'])])
+            ->assertSuccessful();
+
+        $paths = $entry->fresh()->images->pluck('image')->all();
+        $this->assertCount(2, $paths);
+        foreach ($paths as $p) {
+            $this->assertFileExists(public_path($p));
+        }
+
+        // Idempotent: a second run leaves an exercise that has photos alone.
+        $this->artisan('exercise-library:import-images', ['--map' => $this->mapFile([$name => 'Some_Folder'])])->assertSuccessful();
+        $this->assertCount(2, $entry->fresh()->images);
+
+        // Rows AND files go with the exercise.
+        $entry->delete();
+        foreach ($paths as $p) {
+            $this->assertFileDoesNotExist(public_path($p));
+        }
+        $this->assertSame(0, \App\Models\Image::query()->whereIn('image', $paths)->count());
+    }
+
+    public function test_the_import_command_stores_nothing_when_the_download_is_not_a_picture(): void
+    {
+        $name = 'Zz Bad ' . uniqid();
+        $entry = $this->entry($this->category(), 'اختبار ' . uniqid(), ['name_en' => $name]);
+        \Illuminate\Support\Facades\Http::fake(['raw.githubusercontent.com/*' => \Illuminate\Support\Facades\Http::response('<html>not found</html>', 200)]);
+
+        $this->artisan('exercise-library:import-images', ['--map' => $this->mapFile([$name => 'Some_Folder'])])
+            ->assertFailed();
+
+        $this->assertCount(0, $entry->fresh()->images);
+    }
+
+    public function test_the_library_and_the_plan_expose_the_demonstration_photos(): void
+    {
+        $trainer = $this->user(User::TYPE_BUSINESS, 'Gym');
+        $client = $this->user(User::TYPE_CLIENT, 'Trainee');
+        $plan = TrainingPlan::create([
+            'trainer_id' => $trainer->id, 'client_id' => $client->id,
+            'title' => 'Plan', 'status' => TrainingPlan::STATUS_ACTIVE,
+        ]);
+        $entry = $this->entry($this->category(), 'مصوّر ' . uniqid());
+        \App\Models\Image::create(['image' => 'files/uploads/exercise-library/x-0.jpg', 'imageable_id' => $entry->id, 'imageable_type' => $entry->getMorphClass(), 'source' => 'upload']);
+
+        Sanctum::actingAs($trainer);
+        $row = collect($this->library()['exercises'])->firstWhere('id', $entry->id);
+        $this->assertSame(['files/uploads/exercise-library/x-0.jpg'], $row['images']);
+
+        $this->postJson("/api/v2/business/training-plans/{$plan->id}/exercises", ['library_exercise_id' => $entry->id])->assertCreated();
+        // A free-text exercise carries no library photos.
+        $this->postJson("/api/v2/business/training-plans/{$plan->id}/exercises", ['name' => 'Free'])->assertCreated();
+
+        $byName = fn (array $exercises) => collect($exercises)->keyBy('name');
+
+        $trainerView = $this->getJson("/api/v2/business/training-plans/{$plan->id}")->assertOk()->json('data.plan.exercises');
+        $this->assertSame(['files/uploads/exercise-library/x-0.jpg'], $byName($trainerView)[$entry->name_ar]['library_images']);
+        $this->assertSame([], $byName($trainerView)['Free']['library_images']);
+
+        Sanctum::actingAs($client);
+        $clientView = $this->getJson("/api/v2/training-plans/{$plan->id}")->assertOk()->json('data.plan.exercises');
+        $this->assertSame(['files/uploads/exercise-library/x-0.jpg'], $byName($clientView)[$entry->name_ar]['library_images']);
+        $this->assertSame([], $byName($clientView)['Free']['library_images']);
+    }
 }

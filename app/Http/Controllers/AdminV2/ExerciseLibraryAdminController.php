@@ -21,7 +21,7 @@ class ExerciseLibraryAdminController extends Controller
         $categoryId = (int) $request->get('category_id', 0);
 
         $exercises = LibraryExercise::query()
-            ->with('category:id,name_ar')
+            ->with(['category:id,name_ar', 'images'])
             ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x
                 ->where('name_ar', 'like', "%{$q}%")->orWhere('name_en', 'like', "%{$q}%")))
             ->when($categoryId > 0, fn ($w) => $w->where('exercise_category_id', $categoryId))

@@ -100,7 +100,7 @@
         <div class="a2-table-wrap">
             <table class="a2-table">
                 <thead><tr>
-                    <th>{{ __('القسم') }}</th><th>{{ __('التمرين') }}</th><th>English</th>
+                    <th style="width:70px;">{{ __('صورة') }}</th><th>{{ __('القسم') }}</th><th>{{ __('التمرين') }}</th><th>English</th>
                     <th>{{ __('النوع') }}</th><th>{{ __('الأداة') }}</th>
                     <th style="width:80px;">{{ __('مجموعات') }}</th><th style="width:110px;">{{ __('تكرارات') }}</th>
                     <th style="width:70px;">{{ __('نشط') }}</th><th style="width:170px;"></th>
@@ -108,6 +108,7 @@
                 <tbody>
                 @forelse($exercises as $e)
                     <tr>
+                        <td>@if($e->images->isNotEmpty())<img src="{{ asset($e->images->first()->image) }}" alt="" loading="lazy" style="width:56px;height:38px;object-fit:cover;border-radius:6px">@endif</td>
                         <td>
                             <select class="a2-input" form="ex-{{ $e->id }}" name="exercise_category_id">{!! $catOpts($e->exercise_category_id) !!}</select>
                         </td>
@@ -124,7 +125,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td></tr>
+                    <tr><td colspan="10" class="a2-empty-cell">{{ __('لا يوجد بيانات') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>

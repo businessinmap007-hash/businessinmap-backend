@@ -3529,10 +3529,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [category_id, title, body]
+              required: [category_id, body]
+              description: 'Send job_title_id (from GET /jobs/titles) or a free-text title — at least one.'
               properties:
                 category_id: { type: integer }
                 category_child_id: { type: integer, description: Must belong to category_id. }
+                job_title_id: { type: integer, description: 'A title from GET /jobs/titles for this field; fills title when none is typed.' }
                 title: { type: string, maxLength: 191, description: 'The job title, in whichever language the business writes it.' }
                 body: { type: string, description: The job description. }
                 requirements: { type: string }
@@ -3543,6 +3545,8 @@ paths:
         '201': { description: Created }
         '403': { description: Not a business account }
         '422': { $ref: '#/components/responses/Validation' }
+  /jobs/titles:
+    get: { tags: [Jobs], summary: The closed job-title list a business picks from (that field's titles + its root's + the general ones; each with its open-jobs count) (public), security: [], parameters: [ { in: query, name: category_id, schema: { type: integer } }, { in: query, name: category_child_id, schema: { type: integer } } ], responses: { '200': { description: OK } } }
   /jobs/categories:
     get: { tags: [Jobs], summary: Category/specialty tree — only branches with an open job, with a count each (public), security: [], responses: { '200': { description: OK } } }
   /deposits:

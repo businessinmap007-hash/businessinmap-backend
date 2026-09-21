@@ -7,6 +7,7 @@ use App\Models\Apply;
 use App\Models\Category;
 use App\Models\CategoryChild;
 use App\Models\JobPost;
+use App\Models\JobTitle;
 use App\Models\Post;
 use App\Services\Jobs\JobFollowMatchingService;
 use App\Services\Notifications\NotificationDispatcherService;
@@ -33,6 +34,7 @@ final class JobController extends Controller
         $data = $request->validate([
             'category_id' => ['nullable', 'integer', 'min:1'],
             'category_child_id' => ['nullable', 'integer', 'min:1'],
+            'job_title_id' => ['nullable', 'integer', 'min:1'],
             'q' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
@@ -40,7 +42,8 @@ final class JobController extends Controller
         $q = trim((string) ($data['q'] ?? ''));
 
         $jobs = Post::query()->openJobs()
-            ->with(['user:id,name,logo', 'category:id,name_ar,name_en', 'categoryChild:id,name_ar,name_en'])
+            ->with(['user:id,name,logo', 'category:id,name_ar,name_en', 'categoryChild:id,name_ar,name_en', 'jobTitle:id,name_ar,name_en'])
+            ->when(! empty($data['job_title_id']), fn ($w) => $w->where('job_title_id', $data['job_title_id']))
             ->when(! empty($data['category_id']), fn ($w) => $w->where('category_id', $data['category_id']))
             ->when(! empty($data['category_child_id']), fn ($w) => $w->where('category_child_id', $data['category_child_id']))
             ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x
@@ -58,7 +61,7 @@ final class JobController extends Controller
     /** GET /api/v2/jobs/{post} — public job detail + applicant count only. */
     public function show(JobPost $post)
     {
-        $post->loadMissing(['user:id,name,logo', 'category:id,name_ar,name_en', 'categoryChild:id,name_ar,name_en']);
+        $post->loadMissing(['user:id,name,logo', 'category:id,name_ar,name_en', 'categoryChild:id,name_ar,name_en', 'jobTitle:id,name_ar,name_en']);
         $post->loadCount('applies');
 
         return response()->json(['success' => true, 'data' => $this->publicShape($post, withBody: true)]);
@@ -119,6 +122,39 @@ final class JobController extends Controller
     }
 
     /**
+     * GET /api/v2/jobs/titles — the closed list a business picks a job title
+     * from. With category_id / category_child_id it returns that field's
+     * titles plus its root's plus the general ones; with neither, everything.
+     * jobs_count = open jobs carrying the title (the follow/search handle).
+     */
+    public function titles(Request $request)
+    {
+        $data = $request->validate([
+            'category_id' => ['nullable', 'integer', 'min:1'],
+            'category_child_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $titles = JobTitle::query()->active()
+            ->when(! empty($data['category_id']) || ! empty($data['category_child_id']),
+                fn ($w) => $w->availableFor($data['category_id'] ?? null, $data['category_child_id'] ?? null))
+            ->orderBy('sort_order')->orderBy('id')
+            ->get();
+
+        $open = Post::query()->openJobs()->whereNotNull('job_title_id')
+            ->groupBy('job_title_id')
+            ->select('job_title_id', DB::raw('COUNT(*) as c'))
+            ->pluck('c', 'job_title_id');
+
+        return response()->json(['success' => true, 'data' => $titles->map(fn (JobTitle $t) => [
+            'id' => $t->id,
+            'name' => $t->label(),
+            'category_id' => $t->category_id,
+            'category_child_id' => $t->category_child_id,
+            'jobs_count' => (int) ($open[$t->id] ?? 0),
+        ])->values()]);
+    }
+
+    /**
      * GET /api/v2/jobs/mine — this business's own job posts, any status
      * (open, closed, expired) — unlike the public index, which is open-only.
      */
@@ -154,7 +190,8 @@ final class JobController extends Controller
         $data = $request->validate([
             'category_id' => ['required', 'integer', Rule::exists('categories', 'id')],
             'category_child_id' => ['nullable', 'integer', Rule::exists('category_children_master', 'id')],
-            'title' => ['required', 'string', 'max:191'],
+            'job_title_id' => ['nullable', 'integer', Rule::exists('job_titles', 'id')->where('is_active', 1)],
+            'title' => ['required_without:job_title_id', 'nullable', 'string', 'max:191'],
             'body' => ['required', 'string'],
             'requirements' => ['nullable', 'string'],
             'salary' => ['nullable', 'string', 'max:191'],
@@ -172,6 +209,8 @@ final class JobController extends Controller
                 abort(422, 'category_child_id does not belong to category_id.');
             }
         }
+
+        $this->resolveTitle($data, (int) $data['category_id'], $data['category_child_id'] ?? null);
 
         $data['user_id'] = $user->id;
         $data['is_active'] = true;
@@ -312,6 +351,7 @@ final class JobController extends Controller
         }
 
         $data = $request->validate([
+            'job_title_id' => ['nullable', 'integer', Rule::exists('job_titles', 'id')->where('is_active', 1)],
             'title' => ['sometimes', 'required', 'string', 'max:191'],
             'body' => ['sometimes', 'required', 'string'],
             'requirements' => ['nullable', 'string'],
@@ -320,6 +360,10 @@ final class JobController extends Controller
             'expire_at' => ['nullable', 'date', 'after_or_equal:interview_starts_at'],
             'is_active' => ['nullable', 'boolean'],
         ]);
+
+        if (! empty($data['job_title_id'])) {
+            $this->resolveTitle($data, (int) $post->category_id, $post->category_child_id ? (int) $post->category_child_id : null, $post->title);
+        }
 
         foreach ($data as $field => $value) {
             $post->{$field} = $value;
@@ -390,6 +434,30 @@ final class JobController extends Controller
         ]]);
     }
 
+    /**
+     * A picked job_title_id must be one the job's field offers, and it fills
+     * the display title when the author typed none.
+     */
+    private function resolveTitle(array &$data, int $categoryId, ?int $childId, ?string $currentTitle = null): void
+    {
+        if (empty($data['job_title_id'])) {
+            unset($data['job_title_id']);
+
+            return;
+        }
+
+        $title = JobTitle::query()->active()->availableFor($categoryId, $childId)
+            ->whereKey($data['job_title_id'])->first();
+
+        if (! $title) {
+            abort(422, 'job_title_id is not available for this job field.');
+        }
+
+        if (trim((string) ($data['title'] ?? $currentTitle ?? '')) === '') {
+            $data['title'] = $title->name_ar;
+        }
+    }
+
     private function publicShape(Post $post, bool $withBody = false): array
     {
         $out = [
@@ -399,6 +467,7 @@ final class JobController extends Controller
             'interview_starts_at' => $post->interview_starts_at?->toIso8601String(),
             'expire_at' => $post->expire_at?->toIso8601String(),
             'category' => $post->category ? ['id' => $post->category->id, 'name' => $this->label($post->category)] : null,
+            'job_title' => $post->jobTitle ? ['id' => $post->jobTitle->id, 'name' => $post->jobTitle->label()] : null,
             'category_child' => $post->categoryChild ? ['id' => $post->categoryChild->id, 'name' => $this->label($post->categoryChild)] : null,
             'business' => $post->relationLoaded('user') && $post->user ? [
                 'id' => $post->user->id,

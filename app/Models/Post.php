@@ -28,6 +28,7 @@ class Post extends Model
     // Job fields (type='job' only — see 2026_08_08_000000_add_job_fields_to_posts).
     'category_id',
     'category_child_id',
+    'job_title_id',
     'salary',
     'requirements',
     'interview_starts_at',
@@ -71,6 +72,11 @@ class Post extends Model
     public function categoryChild()
     {
         return $this->belongsTo(CategoryChild::class, 'category_child_id');
+    }
+
+    public function jobTitle()
+    {
+        return $this->belongsTo(JobTitle::class, 'job_title_id');
     }
 
     public function scopeJobs($query)

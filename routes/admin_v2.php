@@ -49,6 +49,7 @@ use App\Http\Controllers\AdminV2\{
     PrescriptionAdminController,
     AgendaAdminController,
     JobFollowController,
+    JobTitleController,
     JobPostController,
     TripScheduleAdminController,
     MedicineDictionaryController,
@@ -758,6 +759,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             // Its own path segment, not jobs/*, because Route::resource above
             // registers an unconstrained GET jobs/{post} that would swallow it.
             Route::get('job-follows', [JobFollowController::class, 'index'])->name('job-follows.index');
+
+            Route::get('job-titles', [JobTitleController::class, 'index'])->name('job-titles.index');
+            Route::post('job-titles', [JobTitleController::class, 'store'])->name('job-titles.store');
+            Route::put('job-titles/{jobTitle}', [JobTitleController::class, 'update'])->whereNumber('jobTitle')->name('job-titles.update');
+            Route::delete('job-titles/{jobTitle}', [JobTitleController::class, 'destroy'])->whereNumber('jobTitle')->name('job-titles.destroy');
 
             Route::resource('albums', AlbumController::class)->names('albums');
             Route::post('albums/{album}/images/{imageId}/set-cover', [AlbumController::class, 'setCover'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.set-cover');

@@ -58,6 +58,9 @@ final class AuthController extends Controller
             'governorate_id' => ['required', 'integer', 'exists:governorates,id'],
             'city_id' => ['required', 'integer', 'exists:cities,id'],
             'address_line' => ['required', 'string', 'min:5', 'max:191'],
+            // Optional GPS point taken at signup ("use my location").
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             // No consent, no account: registration is cancelled if the terms are
             // not accepted. `accepted` also fails when the field is absent.
             'terms_accepted' => ['accepted'],
@@ -90,6 +93,8 @@ final class AuthController extends Controller
                 'category_child_id' => $data['category_child_id'] ?? null,
                 'governorate_id' => (int) $data['governorate_id'],
                 'city_id' => (int) $data['city_id'],
+                'latitude' => $data['latitude'] ?? null,
+                'longitude' => $data['longitude'] ?? null,
                 'api_token' => $this->freshApiToken(),
             ]);
 
@@ -98,6 +103,8 @@ final class AuthController extends Controller
                 'governorate_id' => (int) $data['governorate_id'],
                 'city_id' => (int) $data['city_id'],
                 'address_line' => $data['address_line'],
+                'lat' => $data['latitude'] ?? null,
+                'lng' => $data['longitude'] ?? null,
                 'is_primary' => true,
             ]);
 

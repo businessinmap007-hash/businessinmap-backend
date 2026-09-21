@@ -20,3 +20,6 @@ yarn-error.log
 
 # Local Claude Code preview/config
 .claude/
+
+# Exercise-library photos are downloaded by `php artisan exercise-library:import-images`
+/public/files/uploads/exercise-library/

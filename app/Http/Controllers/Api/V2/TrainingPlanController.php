@@ -103,7 +103,7 @@ class TrainingPlanController extends Controller
             'success' => true,
             'data' => ['plan' => $this->serialize($row->load([
                 'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
-                'exercises.images', 'meals', 'meals.images', 'progressLogs', 'client:id,name',
+                'exercises.images', 'exercises.libraryExercise.images', 'meals', 'meals.images', 'progressLogs', 'client:id,name',
             ]))],
         ]);
     }
@@ -368,6 +368,11 @@ class TrainingPlanController extends Controller
             'notes' => $e->notes,
             'sort_order' => (int) $e->sort_order,
             'images' => $e->relationLoaded('images') ? $e->imagePayload() : [],
+            // The catalogue's demonstration photos, shown when the trainer
+            // attached none of their own. Read-only: they belong to the library.
+            'library_images' => $e->relationLoaded('libraryExercise') && $e->libraryExercise?->relationLoaded('images')
+                ? $e->libraryExercise->images->pluck('image')->values()->all()
+                : [],
             'completed_rounds_today' => $e->completed_rounds_today !== null ? (int) $e->completed_rounds_today : null,
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOwnedImages;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** One entry of the shared exercise catalogue a trainer picks from. */
 class LibraryExercise extends Model
 {
+    /** Demonstration photos: rows AND files die with the exercise. */
+    use HasOwnedImages;
+
     protected $table = 'exercise_library';
 
     public const KINDS = [

@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\ExerciseLibraryController;
 use App\Http\Controllers\Api\V2\PlanPhotoController;
+use App\Http\Controllers\Api\V2\TrainerClientLookupController;
 use App\Http\Controllers\Api\V2\TrainerPhotoController;
 use App\Http\Controllers\Api\V2\TrainingTemplateController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
@@ -1132,6 +1133,10 @@ Route::prefix('v2')->group(function () {
         // The exercise catalogue a trainer picks from (read-only; curated in admin).
         Route::get('business/training/exercise-library', [ExerciseLibraryController::class, 'index'])
             ->middleware('business.member:' . BusinessCapability::TRAINING);
+
+        // Find the client to write a plan for: an EXACT phone or e-mail, throttled.
+        Route::get('business/training/clients/lookup', [TrainerClientLookupController::class, 'show'])
+            ->middleware(['business.member:' . BusinessCapability::TRAINING, 'throttle:30,1']);
 
         // The trainer's private photo library, reusable across clients.
         Route::prefix('business/training/photos')->middleware('business.member:' . BusinessCapability::TRAINING)->group(function () {

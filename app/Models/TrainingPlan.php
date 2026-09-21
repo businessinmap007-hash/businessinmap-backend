@@ -39,12 +39,14 @@ class TrainingPlan extends Model
         'starts_on',
         'ends_on',
         'duration_weeks',
+        'lapse_alerted_on',
         'notes',
     ];
 
     protected $casts = [
         'starts_on' => 'date',
         'ends_on' => 'date',
+        'lapse_alerted_on' => 'date',
     ];
 
     public function trainer(): BelongsTo

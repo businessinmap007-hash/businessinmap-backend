@@ -156,6 +156,8 @@ final class BusinessPageController extends Controller
                 'fulfillment' => [
                     'methods' => \App\Models\BusinessMenuSetting::fulfillmentMethodsFor($model),
                     'dine_in' => $hasActiveTables,
+                    // Which city the business is in: a delivery to another city is priced per order.
+                    'city_id' => $model->city_id !== null ? (int) $model->city_id : null,
                     // The flat delivery charge added to a delivery order, so the
                     // app can show it before the total at checkout.
                     'delivery_fee' => $model->delivery_fee_amount !== null ? (float) $model->delivery_fee_amount : null,

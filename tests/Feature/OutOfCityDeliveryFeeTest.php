@@ -134,6 +134,14 @@ class OutOfCityDeliveryFeeTest extends TestCase
         $this->assertNull($order->delivery_fee_status);
     }
 
+    public function test_the_business_page_exposes_its_city(): void
+    {
+        $o = $this->placeOrder($this->cityA, $this->cityA);
+
+        $page = $this->getJson('/api/v2/businesses/' . $o['business']->id)->assertOk();
+        $this->assertSame($this->cityA, (int) $page->json('data.fulfillment.city_id'));
+    }
+
     public function test_an_out_of_city_order_starts_unpriced_and_awaiting_a_quote(): void
     {
         $o = $this->placeOrder($this->cityB, $this->cityA);

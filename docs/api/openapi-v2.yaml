@@ -4009,7 +4009,17 @@ paths:
       parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /plan-photos/{image}:
-    get: { tags: [Training], summary: A training-plan photo from private storage — no login, the signed time-limited link in the plan payload is the credential (403 if missing, tampered or expired), security: [], parameters: [ { in: path, name: image, required: true, schema: { type: integer } } ], responses: { '200': { description: The image }, '403': { description: Missing, tampered or expired signature }, '404': { description: Not a plan photo } } }
+    get:
+      tags: [Training]
+      summary: A training-plan photo from private storage
+      description: 'No login: the signed, time-limited link in the plan payload is the credential. 403 when the signature is missing, tampered or expired.'
+      security: []
+      parameters:
+        - { in: path, name: image, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: The image }
+        '403': { description: 'Missing, tampered or expired signature' }
+        '404': { description: Not a plan photo }
   /business/training/exercise-library:
     get: { tags: [Training], summary: The exercise catalogue a trainer picks from (sections, kinds, equipment and exercises; filter by category_id/kind/equipment/q), parameters: [ { in: query, name: category_id, schema: { type: integer } }, { in: query, name: kind, schema: { type: string } }, { in: query, name: equipment, schema: { type: string } }, { in: query, name: q, schema: { type: string } } ], responses: { '200': { description: OK }, '403': { description: Not a training-capable business } } }
   /business/training-plans/{plan}/exercises:

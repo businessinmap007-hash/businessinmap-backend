@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\V2\OperationChatController;
 use App\Http\Controllers\Api\V2\ThreadAccessController;
 use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
+use App\Http\Controllers\Api\V2\ExerciseLibraryController;
 use App\Http\Controllers\Api\V2\TrainingTemplateController;
 use App\Http\Controllers\Api\V2\PharmacyPrescriptionController;
 use App\Http\Controllers\Api\V2\PrescriptionController;
@@ -1142,6 +1143,10 @@ Route::prefix('v2')->group(function () {
         });
 
         // Reusable training templates: build once, apply to many clients.
+        // The exercise catalogue a trainer picks from (read-only; curated in admin).
+        Route::get('business/training/exercise-library', [ExerciseLibraryController::class, 'index'])
+            ->middleware('business.member:' . BusinessCapability::TRAINING);
+
         Route::prefix('business/training-templates')->middleware('business.member:' . BusinessCapability::TRAINING)->group(function () {
             Route::get('/', [TrainingTemplateController::class, 'index']);
             Route::post('/', [TrainingTemplateController::class, 'store']);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
+use App\Models\LibraryExercise;
 use App\Models\PlanMeal;
 use App\Models\TemplateExercise;
 use App\Models\TemplateMeal;
@@ -121,7 +122,8 @@ class TrainingTemplateController extends Controller
         $row = $this->ownedOrFail($request, $template);
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:200'],
+            'library_exercise_id' => ['nullable', 'integer', Rule::exists('exercise_library', 'id')->where('is_active', 1)],
+            'name' => ['required_without:library_exercise_id', 'nullable', 'string', 'max:200'],
             'day_of_week' => ['nullable', 'integer', 'between:0,6'],
             'sets' => ['nullable', 'integer', 'min:0'],
             'reps' => ['nullable', 'string', 'max:40'],
@@ -130,7 +132,7 @@ class TrainingTemplateController extends Controller
             'sort_order' => ['nullable', 'integer'],
         ]);
 
-        $exercise = $row->exercises()->create($data);
+        $exercise = $row->exercises()->create(LibraryExercise::withDefaults($data));
 
         return response()->json(['success' => true, 'data' => ['exercise' => $this->exercise($exercise)]], 201);
     }
@@ -225,6 +227,7 @@ class TrainingTemplateController extends Controller
     {
         return [
             'id' => (int) $e->id,
+            'library_exercise_id' => $e->library_exercise_id ? (int) $e->library_exercise_id : null,
             'day_of_week' => $e->day_of_week !== null ? (int) $e->day_of_week : null,
             'name' => (string) $e->name,
             'sets' => $e->sets !== null ? (int) $e->sets : null,

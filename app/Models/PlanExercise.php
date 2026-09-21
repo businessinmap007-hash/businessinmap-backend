@@ -20,6 +20,7 @@ class PlanExercise extends Model
 
     protected $fillable = [
         'training_plan_id',
+        'library_exercise_id',
         'day_of_week',
         'name',
         'sets',

@@ -185,11 +185,12 @@
             ['label' => 'شحن الأرصدة', 'route' => 'admin.wallet-topups.index', 'active' => 'admin.wallet-topups.'],
             ['label' => 'مدفوعات التجّار', 'route' => 'admin.merchant-payments.index', 'active' => 'admin.merchant-payments.'],
         ]],
-        ['label' => 'المحتوى', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => ['admin.posts.', 'admin.jobs.', 'admin.job-follows.', 'admin.job-titles.', 'admin.albums.', 'admin.medicines.'], 'children' => [
+        ['label' => 'المحتوى', 'route' => 'admin.posts.index', 'icon' => 'file', 'active' => ['admin.posts.', 'admin.jobs.', 'admin.job-follows.', 'admin.job-titles.', 'admin.exercise-library.', 'admin.albums.', 'admin.medicines.'], 'children' => [
             ['label' => 'المنشورات', 'route' => 'admin.posts.index', 'active' => 'admin.posts.'],
             ['label' => 'الوظائف', 'route' => 'admin.jobs.index', 'active' => 'admin.jobs.'],
             ['label' => 'المسميات الوظيفية', 'route' => 'admin.job-titles.index', 'active' => 'admin.job-titles.'],
             ['label' => 'متابعات الوظائف', 'route' => 'admin.job-follows.index', 'active' => 'admin.job-follows.'],
+            ['label' => 'مكتبة التمارين', 'route' => 'admin.exercise-library.index', 'active' => 'admin.exercise-library.'],
             ['label' => 'الألبومات', 'route' => 'admin.albums.index', 'active' => 'admin.albums.'],
             ['label' => 'قاموس الأدوية', 'route' => 'admin.medicines.index', 'active' => 'admin.medicines.'],
         ]],

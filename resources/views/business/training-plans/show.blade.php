@@ -26,6 +26,11 @@
     // measure: muscle up is good, fat up is not. The arrow says the direction;
     // the colour says which way is the right way for THIS number.
     $goodWhenDown = ['fat_percent' => true, 'weight_kg' => true];
+
+    // The programme: which week it is today, and how long it runs.
+    $week = \App\Support\ExerciseProgression::weekNumber($plan, now());
+    $totalWeeks = \App\Support\ExerciseProgression::totalWeeks($plan);
+    $fmtKg = fn ($w) => rtrim(rtrim(number_format((float) $w, 2, '.', ''), '0'), '.');
 @endphp
 
 @section('content')
@@ -89,6 +94,39 @@
     </div>
 </form>
 
+{{-- ── البرنامج: المدة وزيادة الأوزان ─────────────────────────────── --}}
+<div class="a2-card">
+    <h2 class="a2-card-title">
+        {{ __('البرنامج') }}
+        @if($totalWeeks)
+            <span class="a2-pill a2-pill-gray">{{ __('الأسبوع :w من :t', ['w' => min($week, $totalWeeks), 't' => $totalWeeks]) }}</span>
+        @endif
+    </h2>
+    <div class="a2-help">{{ __('حدّد المدة وقاعدة الزيادة مرة واحدة فتُحسب أوزان كل أسبوع تلقائياً، وتنطبق على كل تمرين له وزن. تعديل القاعدة يعيد تخطيط الأسابيع القادمة كلها.') }}</div>
+    <form method="POST" action="{{ route('business.training-plans.program', $plan->id) }}"
+          style="display:grid;grid-template-columns:repeat(4,1fr) auto;gap:8px;align-items:end;margin-top:8px;">
+        @csrf
+        @method('PUT')
+        <div class="a2-field">
+            <label class="a2-label">{{ __('تبدأ في') }}</label>
+            <input class="a2-input" type="date" name="starts_on" value="{{ optional($plan->starts_on)->toDateString() }}">
+        </div>
+        <div class="a2-field">
+            <label class="a2-label">{{ __('عدد الأسابيع') }}</label>
+            <input class="a2-input" type="number" name="duration_weeks" min="1" max="52" value="{{ $plan->duration_weeks ?: $totalWeeks }}">
+        </div>
+        <div class="a2-field">
+            <label class="a2-label">{{ __('زيادة الوزن كل (أسبوع)') }}</label>
+            <input class="a2-input" type="number" name="progression[every_weeks]" min="1" max="26" placeholder="2">
+        </div>
+        <div class="a2-field">
+            <label class="a2-label">{{ __('مقدار الزيادة (كجم)') }}</label>
+            <input class="a2-input" type="number" name="progression[increment_kg]" min="0" max="100" step="0.25" placeholder="5">
+        </div>
+        <button class="a2-btn a2-btn-primary" type="submit">{{ __('تطبيق') }}</button>
+    </form>
+</div>
+
 {{-- ── التمارين ──────────────────────────────────────────────────── --}}
 <div class="a2-card">
     <h2 class="a2-card-title">{{ __('التمارين') }}</h2>
@@ -100,6 +138,8 @@
                     <th>{{ __('اليوم') }}</th>
                     <th>{{ __('التمرين') }}</th>
                     <th>{{ __('مجموعات × عدّات') }}</th>
+                    <th>{{ __('الأوزان (هذا الأسبوع)') }}</th>
+                    <th>{{ __('الزيادة') }}</th>
                     <th>{{ __('راحة') }}</th>
                     <th>{{ __('ملاحظات') }}</th>
                     <th>{{ __('صور') }}</th>
@@ -109,9 +149,15 @@
             <tbody>
                 @forelse($plan->exercises as $exercise)
                     <tr>
-                        <td>{{ $exercise->day_of_week === null ? '—' : ($dayLabels[$exercise->day_of_week] ?? $exercise->day_of_week) }}</td>
+                        <td>
+                            {{ $exercise->day_of_week === null ? '—' : ($dayLabels[$exercise->day_of_week] ?? $exercise->day_of_week) }}
+                            @if($exercise->day_label)<span class="a2-pill a2-pill-gray">{{ $exercise->day_label }}</span>@endif
+                        </td>
                         <td>{{ $exercise->name }}</td>
                         <td>{{ $exercise->sets ?: '—' }} × {{ $exercise->reps ?: '—' }}</td>
+                        @php $targets = \App\Support\ExerciseProgression::targetsFor($exercise, $week); @endphp
+                        <td>{{ $targets ? implode(' - ', array_map($fmtKg, $targets)) . ' ' . __('كجم') : '—' }}</td>
+                        <td>{{ ($exercise->progress_every_weeks && $exercise->progress_increment_kg) ? '+' . $fmtKg($exercise->progress_increment_kg) . ' ' . __('كجم / :n أسبوع', ['n' => $exercise->progress_every_weeks]) : '—' }}</td>
                         <td>{{ $exercise->rest_seconds ? $exercise->rest_seconds . ' ' . __('ث') : '—' }}</td>
                         <td>{{ $exercise->notes ?: '—' }}</td>
                         <td>{{ $exercise->images->count() }}</td>
@@ -125,7 +171,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="a2-empty">{{ __('لا تمارين بعد.') }}</td></tr>
+                    <tr><td colspan="9" class="a2-empty">{{ __('لا تمارين بعد.') }}</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -162,6 +208,24 @@
         <div class="a2-field">
             <label class="a2-label">{{ __('ملاحظات') }}</label>
             <input class="a2-input" name="notes" maxlength="255">
+        </div>
+        <div style="grid-column:1 / -1;display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:8px;">
+            <div class="a2-field">
+                <label class="a2-label">{{ __('اسم اليوم') }}</label>
+                <input class="a2-input" name="day_label" maxlength="40" placeholder="Push">
+            </div>
+            <div class="a2-field">
+                <label class="a2-label">{{ __('الأوزان لكل مجموعة (20-25-30)') }}</label>
+                <input class="a2-input" name="weights_text" maxlength="80" placeholder="20-25-30">
+            </div>
+            <div class="a2-field">
+                <label class="a2-label">{{ __('زيادة كل (أسبوع)') }}</label>
+                <input class="a2-input" type="number" name="progress_every_weeks" min="1" max="26">
+            </div>
+            <div class="a2-field">
+                <label class="a2-label">{{ __('مقدار الزيادة (كجم)') }}</label>
+                <input class="a2-input" type="number" name="progress_increment_kg" min="0" max="100" step="0.25">
+            </div>
         </div>
         <button class="a2-btn a2-btn-primary" type="submit">{{ __('إضافة') }}</button>
     </form>

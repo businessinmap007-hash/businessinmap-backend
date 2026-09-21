@@ -17,6 +17,7 @@ class TrainingPlanTemplate extends Model
         'title',
         'goal',
         'notes',
+        'duration_weeks',
     ];
 
     public function trainer(): BelongsTo

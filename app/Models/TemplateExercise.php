@@ -15,10 +15,16 @@ class TemplateExercise extends Model
         'sets',
         'reps',
         'target_weight',
+        'set_weights',
+        'progress_every_weeks',
+        'progress_increment_kg',
+        'day_label',
         'rest_seconds',
         'notes',
         'sort_order',
     ];
+
+    protected $casts = ['set_weights' => 'array'];
 
     public function template(): BelongsTo
     {

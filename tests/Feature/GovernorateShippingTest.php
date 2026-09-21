@@ -158,6 +158,38 @@ class GovernorateShippingTest extends TestCase
         $this->assertSame(60.0, (float) $companies->firstWhere('id', $cheap->id)['price']);
     }
 
+    public function test_the_list_keeps_only_companies_running_the_route_today_or_tomorrow_from_the_business_governorate(): void
+    {
+        $o = $this->shippingOrder();
+
+        $this->carrier('Today', $this->govA, [$this->govB => 70]);
+        [$monday] = $this->carrier('MondayOnly', $this->govA, []);
+        [$tuesday] = $this->carrier('TuesdayOnly', $this->govA, []);
+        [$thursday] = $this->carrier('ThursdayOnly', $this->govA, []);
+        [$elsewhere] = $this->carrier('OtherOrigin', $this->govC, []);
+
+        foreach ([[$monday, [1]], [$tuesday, [2]], [$thursday, [4]], [$elsewhere, [1, 2]]] as [$company, $days]) {
+            $this->actingWithToken($this->tokenFor($company))->putJson('/api/v2/business/shipping/rates', [
+                'rates' => [['governorate_id' => $this->govB, 'price' => 50, 'days' => $days]],
+            ])->assertOk();
+        }
+
+        // Monday: the business is in A, the customer in B.
+        \Illuminate\Support\Carbon::setTestNow('2026-09-21 09:00:00');
+        try {
+            $ids = collect($this->actingWithToken($o['business_token'])
+                ->getJson('/api/v2/business/orders/' . $o['order_id'] . '/shipping-companies')->assertOk()->json('data.companies'))
+                ->pluck('id')->all();
+        } finally {
+            \Illuminate\Support\Carbon::setTestNow();
+        }
+
+        $this->assertContains($monday->id, $ids, 'Runs Monday (today).');
+        $this->assertContains($tuesday->id, $ids, 'Runs Tuesday (tomorrow).');
+        $this->assertNotContains($thursday->id, $ids, 'Neither today nor tomorrow.');
+        $this->assertNotContains($elsewhere->id, $ids, 'Ships from another governorate.');
+    }
+
     public function test_picking_a_company_puts_its_price_on_the_invoice(): void
     {
         $o = $this->shippingOrder();

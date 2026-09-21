@@ -35,7 +35,8 @@ final class ShippingController extends Controller
                 'governorate_id' => (int) $g->id,
                 'name_ar' => $g->name_ar,
                 'name_en' => $g->name_en,
-                'price' => $prices[(int) $g->id] ?? null,
+                'price' => $prices[(int) $g->id]['price'] ?? null,
+                'days' => $prices[(int) $g->id]['days'] ?? null,
             ])->values();
 
         return response()->json(['success' => true, 'data' => [
@@ -51,6 +52,8 @@ final class ShippingController extends Controller
             'rates' => ['required', 'array'],
             'rates.*.governorate_id' => ['required', 'integer', 'exists:governorates,id'],
             'rates.*.price' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+            'rates.*.days' => ['nullable', 'array'],
+            'rates.*.days.*' => ['integer', 'between:0,6'],
         ]);
 
         $this->shipping->replaceRates(BusinessContext::business($request), $data['rates']);

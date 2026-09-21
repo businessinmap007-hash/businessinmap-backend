@@ -30,11 +30,12 @@ class ShippingService
 
     // ───────────────────────── The company's price list ─────────────────────────
 
-    /** @return array<int,float> governorate id => price */
+    /** @return array<int,array{price:float,days:?array<int,int>}> governorate id => price and weekdays */
     public function ratesFor(int $companyId): array
     {
-        return ShippingRate::query()->where('company_id', $companyId)->pluck('price', 'to_governorate_id')
-            ->map(fn ($p) => (float) $p)->all();
+        return ShippingRate::query()->where('company_id', $companyId)->get()
+            ->mapWithKeys(fn ($r) => [(int) $r->to_governorate_id => ['price' => (float) $r->price, 'days' => $r->days]])
+            ->all();
     }
 
     /**
@@ -42,7 +43,7 @@ class ShippingService
      * blank) simply isn't served. The company's own governorate can't be a
      * destination.
      *
-     * @param  array<int,array{governorate_id:int,price:float|int|string|null}>  $rates
+     * @param  array<int,array{governorate_id:int,price:float|int|string|null,days?:?array<int,int>}>  $rates
      */
     public function replaceRates(User $company, array $rates): void
     {
@@ -57,7 +58,19 @@ class ShippingService
                 if ($gov <= 0 || $price === null || $price === '' || $gov === (int) $company->governorate_id) {
                     continue;
                 }
-                ShippingRate::query()->create(['company_id' => $company->id, 'to_governorate_id' => $gov, 'price' => round((float) $price, 2)]);
+                $days = isset($rate['days']) && is_array($rate['days'])
+                    ? array_values(array_unique(array_map('intval', $rate['days'])))
+                    : null;
+                if (is_array($days)) {
+                    sort($days);
+                }
+
+                ShippingRate::query()->create([
+                    'company_id' => $company->id,
+                    'to_governorate_id' => $gov,
+                    'price' => round((float) $price, 2),
+                    'days' => $days === [] ? null : $days,
+                ]);
             }
         });
     }
@@ -68,22 +81,42 @@ class ShippingService
     public function companiesFor(int $businessId, int $orderId)
     {
         $order = $this->ownedShippingOrder($businessId, $orderId);
+        $fromGovernorate = (int) User::query()->whereKey($businessId)->value('governorate_id');
+
+        $today = now();
+        $tomorrow = now()->addDay();
 
         return User::query()
             ->where('users.type', User::TYPE_BUSINESS)
+            // Ships FROM the business's governorate...
+            ->where('users.governorate_id', $fromGovernorate)
             ->join('categories as c', 'c.id', '=', 'users.category_id')
             ->where('c.slug', 'shipping-delivery')
+            // ...TO the customer's governorate...
             ->join('shipping_rates as r', function ($j) use ($order) {
                 $j->on('r.company_id', '=', 'users.id')->where('r.to_governorate_id', '=', (int) $order->shipping_to_governorate_id);
             })
             ->orderBy('r.price')
-            ->get(['users.id', 'users.name', 'users.logo', 'users.governorate_id', 'r.price'])
-            ->map(fn ($u) => [
-                'id' => (int) $u->id,
-                'name' => (string) $u->name,
-                'logo' => $u->logo ?: null,
-                'price' => (float) $u->price,
-            ]);
+            ->get(['users.id', 'users.name', 'users.logo', 'users.governorate_id', 'r.price', 'r.days'])
+            // ...on a day it actually runs that route: today or tomorrow.
+            ->map(function ($u) use ($today, $tomorrow) {
+                $days = is_string($u->days) ? json_decode($u->days, true) : $u->days;
+                $runsToday = $days === null || in_array($today->dayOfWeek, $days, true);
+                $runsTomorrow = $days === null || in_array($tomorrow->dayOfWeek, $days, true);
+
+                return [
+                    'id' => (int) $u->id,
+                    'name' => (string) $u->name,
+                    'logo' => $u->logo ?: null,
+                    'price' => (float) $u->price,
+                    'days' => $days,
+                    'runs_today' => $runsToday,
+                    'runs_tomorrow' => $runsTomorrow,
+                    'next_date' => $runsToday ? $today->toDateString() : ($runsTomorrow ? $tomorrow->toDateString() : null),
+                ];
+            })
+            ->filter(fn ($c) => $c['runs_today'] || $c['runs_tomorrow'])
+            ->values();
     }
 
     public function assignCompany(int $businessId, int $orderId, int $companyId): Order
@@ -100,11 +133,11 @@ class ShippingService
                 throw ValidationException::withMessages(['company_id' => __('شركة الشحن غير صالحة.')]);
             }
 
-            $price = ShippingRate::query()->where('company_id', $companyId)
-                ->where('to_governorate_id', (int) $order->shipping_to_governorate_id)->value('price');
-            if ($price === null) {
+            $offered = $this->companiesFor($businessId, $orderId)->firstWhere('id', $companyId);
+            if (! $offered) {
                 throw ValidationException::withMessages(['company_id' => __('هذه الشركة لا تشحن إلى محافظة العميل.')]);
             }
+            $price = $offered['price'];
 
             // Swap the fee on the invoice if a company had already been picked.
             $old = (float) $order->shipping_fee;

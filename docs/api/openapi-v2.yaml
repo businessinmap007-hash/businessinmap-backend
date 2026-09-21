@@ -4262,6 +4262,18 @@ paths:
         '403': { description: Not a training-capable business }
         '404': { description: 'Not your plan' }
         '422': { $ref: '#/components/responses/Validation' }
+  /business/training/clients/lookup:
+    get:
+      tags: [Training]
+      summary: Find the client a plan is for - an EXACT phone or e-mail (trainer)
+      description: 'Deliberately not a search: only a full phone number or e-mail as registered matches, and only client accounts, so it is a client picker and not a people-finder. Throttled to 30 requests a minute.'
+      parameters:
+        - { in: query, name: q, required: true, schema: { type: string, maxLength: 120 } }
+      responses:
+        '200': { description: 'OK - data.found and, when found, data.client {id, name, phone}' }
+        '403': { description: Not a training-capable business }
+        '422': { $ref: '#/components/responses/Validation' }
+        '429': { description: Too many lookups }
   /business/training-templates:
     get:
       tags: [Training]

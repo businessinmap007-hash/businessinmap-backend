@@ -45,6 +45,7 @@ use App\Http\Controllers\AdminV2\{
     OperationChatController,
     ProjectAdminController,
     TrainingAdminController,
+    ExerciseLibraryAdminController,
     ClinicAppointmentAdminController,
     PrescriptionAdminController,
     AgendaAdminController,
@@ -518,6 +519,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('training-plans')->name('training-plans.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
             Route::get('/', [TrainingAdminController::class, 'index'])->name('index');
             Route::get('{plan}', [TrainingAdminController::class, 'show'])->whereNumber('plan')->name('show');
+        });
+
+        // The exercise catalogue trainers pick from — curated content. Gated CONTENT.
+        Route::prefix('exercise-library')->name('exercise-library.')->middleware('can:' . AdminAbility::CONTENT)->group(function () {
+            Route::get('/', [ExerciseLibraryAdminController::class, 'index'])->name('index');
+            Route::post('exercises', [ExerciseLibraryAdminController::class, 'storeExercise'])->name('exercises.store');
+            Route::put('exercises/{exercise}', [ExerciseLibraryAdminController::class, 'updateExercise'])->whereNumber('exercise')->name('exercises.update');
+            Route::delete('exercises/{exercise}', [ExerciseLibraryAdminController::class, 'destroyExercise'])->whereNumber('exercise')->name('exercises.destroy');
+            Route::post('categories', [ExerciseLibraryAdminController::class, 'storeCategory'])->name('categories.store');
+            Route::put('categories/{category}', [ExerciseLibraryAdminController::class, 'updateCategory'])->whereNumber('category')->name('categories.update');
+            Route::delete('categories/{category}', [ExerciseLibraryAdminController::class, 'destroyCategory'])->whereNumber('category')->name('categories.destroy');
         });
 
         // Read-only oversight of every clinic's appointments. Gated OPERATIONS.

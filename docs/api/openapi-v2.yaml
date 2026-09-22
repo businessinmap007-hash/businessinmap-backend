@@ -190,6 +190,12 @@ tags:
       posts. Job postings are excluded here; they live under Jobs.
   - name: Follows
     description: Follow/unfollow another account — the table the personal feed's audience is built from.
+  - name: Retail Discovery
+    description: Customer-facing retail browsing (public shelf, cross-seller product pages, one seller's storefront).
+  - name: Business Groups
+    description: A business's own named groups of other businesses — a reusable target list for directed offers.
+  - name: Staff
+    description: Delegated staff management, invitations, and attendance check-in/out.
   - name: Thread Access
     description: >-
       A chat participant's own standing say over whether an admin may ever
@@ -2630,6 +2636,66 @@ paths:
     put: { tags: [Business Retail], summary: Replace the group's name and full variant list, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
     patch: { tags: [Business Retail], summary: Replace the group's name and full variant list, responses: { '200': { description: OK } } }
     delete: { tags: [Business Retail], summary: Delete the group (the listings themselves are untouched), responses: { '200': { description: OK } } }
+
+  # ─────────────────── Undocumented-route sweep 2026-09-22 ───────────────────
+  /discovery/retail/listings:
+    get: { tags: [Retail Discovery], summary: One card per active listing across every seller (Categories screen retail feed), responses: { '200': { description: OK } } }
+  /discovery/retail/business/{business}:
+    get: { tags: [Retail Discovery], summary: One seller's whole retail shelf, plus its variant groups, parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /training-plans/{plan}/accept:
+    post: { tags: [Training], summary: Client accepts a training plan a trainer built for them, parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /training-plans/{plan}/decline:
+    post: { tags: [Training], summary: Client declines a training plan, parameters: [{ name: plan, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /business-groups:
+    get: { tags: [Business Groups], summary: A business's own named groups of other businesses (a reusable offer-targeting list), responses: { '200': { description: OK } } }
+    post: { tags: [Business Groups], summary: Create a business group, responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business-groups/{group}:
+    parameters: [{ name: group, in: path, required: true, schema: { type: integer } }]
+    put: { tags: [Business Groups], summary: Rename a business group, responses: { '200': { description: OK } } }
+    patch: { tags: [Business Groups], summary: Rename a business group, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Groups], summary: Delete a business group, responses: { '200': { description: OK } } }
+  /business-groups/{group}/members:
+    post: { tags: [Business Groups], summary: Add a business to the group, parameters: [{ name: group, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business-groups/{group}/members/{member}:
+    delete: { tags: [Business Groups], summary: Remove a business from the group, parameters: [{ name: group, in: path, required: true, schema: { type: integer } }, { name: member, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /business/orders/reports:
+    get: { tags: [Orders (Business)], summary: Aggregate order stats/revenue for the acting business, responses: { '200': { description: OK } } }
+  /business/orders/{order}/complete:
+    post: { tags: [Orders (Business)], summary: Mark a ready pickup/dine-in order completed, parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/orders/{order}/assign-driver:
+    post: { tags: [Orders (Business)], summary: Assign one of the business's own drivers to a delivery order, parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/staff-activity:
+    get: { tags: [Staff], summary: Owner's audit log of what each delegated staff member did, responses: { '200': { description: OK } } }
+  /business/staff/groups:
+    get: { tags: [Staff], summary: The shared capability groups a business grants staff from, responses: { '200': { description: OK } } }
+  /staff/attendance/check-in:
+    post: { tags: [Staff], summary: A staff member checks in for their shift, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/attendance/check-out:
+    post: { tags: [Staff], summary: A staff member checks out, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/attendance/today:
+    get: { tags: [Staff], summary: The acting staff member's own attendance record for today, responses: { '200': { description: OK } } }
+  /staff/invitations:
+    get: { tags: [Staff], summary: Pending staff invitations for the signed-in user (plain auth - not yet accepted, so business.member would refuse them), responses: { '200': { description: OK } } }
+  /staff/invitations/{business}/accept:
+    post: { tags: [Staff], summary: Accept an invitation to delegate for a business, parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/invitations/{business}/decline:
+    post: { tags: [Staff], summary: Decline an invitation to delegate for a business, parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /business/menu/sale-units:
+    get: { tags: [Business Menu], summary: The sale units this business's menu may use (kg/piece/portion...), responses: { '200': { description: OK } } }
+  /business/menu/vocabulary:
+    get: { tags: [Business Menu], summary: This menu's line/modifier option vocabulary, resolved for its own category child, responses: { '200': { description: OK } } }
+  /business/menu/available-types:
+    get: { tags: [Business Menu], summary: Which menu item types this business's menu currently allows, responses: { '200': { description: OK } } }
+    put: { tags: [Business Menu], summary: Set which menu item types this business's menu allows, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/menu/display-mode:
+    get: { tags: [Business Menu], summary: Grid vs list display mode for this business's customer-facing menu, responses: { '200': { description: OK } } }
+    put: { tags: [Business Menu], summary: Set grid vs list display mode, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /delivery/me:
+    get: { tags: [Delivery], summary: The acting driver's own carrier profile/status, responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /delivery/my-orders:
+    get: { tags: [Delivery], summary: Orders this driver has accepted, including a delivered one until its fee is confirmed, responses: { '200': { description: OK } } }
+  /notifications/archive-all:
+    post: { tags: [Notifications], summary: Archive every one of the signed-in user's notifications, responses: { '200': { description: OK } } }
 
   # ─────────────────────── Business Offers ───────────────────────
   /business/offers:

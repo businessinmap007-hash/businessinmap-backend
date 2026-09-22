@@ -18,6 +18,11 @@ class Prescription extends Model
     /** A scan of the original paper prescription, or a doctor's supporting note. */
     public const MAX_IMAGES = 5;
 
+    // A customer-origin request starts here — no doctor, no items yet.
+    public const STATUS_REQUESTED = 'requested';
+    // The pharmacy read the request and replied with real, priced items —
+    // waiting on the customer to accept or decline before anything is prepared.
+    public const STATUS_QUOTED = 'quoted';
     public const STATUS_ISSUED = 'issued';
     public const STATUS_SENT = 'sent_to_pharmacy';
     public const STATUS_PREPARING = 'preparing';
@@ -26,6 +31,8 @@ class Prescription extends Model
     public const STATUS_CANCELLED = 'cancelled';
 
     public const STATUSES = [
+        self::STATUS_REQUESTED,
+        self::STATUS_QUOTED,
         self::STATUS_ISSUED,
         self::STATUS_SENT,
         self::STATUS_PREPARING,
@@ -33,6 +40,9 @@ class Prescription extends Model
         self::STATUS_DISPENSED,
         self::STATUS_CANCELLED,
     ];
+
+    public const ORIGIN_DOCTOR = 'doctor';
+    public const ORIGIN_CUSTOMER = 'customer';
 
     public const FULFILLMENT_DELIVERY = 'delivery';
     public const FULFILLMENT_PICKUP = 'pickup';
@@ -58,17 +68,29 @@ class Prescription extends Model
             && in_array((int) ($user->category_child_id ?? 0), self::DOCTOR_CHILD_IDS, true);
     }
 
+    /** صيدلية — same hardcoded id as {@see \App\Support\BusinessPanelNav::PHARMACY_CHILD_ID}. */
+    public const PHARMACY_CHILD_ID = 215;
+
+    public static function isPharmacyBusiness(?User $user): bool
+    {
+        return $user
+            && $user->isBusiness()
+            && (int) ($user->category_child_id ?? 0) === self::PHARMACY_CHILD_ID;
+    }
+
     protected $fillable = [
         'doctor_id',
         'patient_id',
         'appointment_id',
         'revises_prescription_id',
         'pharmacy_id',
+        'origin',
         'status',
         'fulfillment_type',
         'diagnosis',
         'patient_condition',
         'notes',
+        'request_note',
         'delivery_address',
         'delivery_address_id',
         'issued_at',

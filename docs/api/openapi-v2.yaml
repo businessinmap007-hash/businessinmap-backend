@@ -4728,6 +4728,17 @@ paths:
       summary: Read a prescription (doctor, patient, or pharmacy only)
       parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { description: 'Not found, or you are not a party' } }
+  /prescriptions/request:
+    post:
+      tags: [Prescriptions]
+      summary: Customer asks a pharmacy for medicine directly (no doctor)
+      responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } }
+  /prescriptions/{prescription}/confirm-quote:
+    post:
+      tags: [Prescriptions]
+      summary: Customer accepts the pharmacy's quote on a direct request
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /prescriptions/{prescription}/send:
     post:
       tags: [Prescriptions]
@@ -5054,6 +5065,18 @@ paths:
     post:
       tags: [Prescriptions]
       summary: Pharmacy rejects (returns it to the patient to send elsewhere)
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /pharmacy/prescriptions/{prescription}/quote:
+    post:
+      tags: [Prescriptions]
+      summary: Pharmacy replies to a direct customer request with priced items
+      parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /pharmacy/prescriptions/{prescription}/decline:
+    post:
+      tags: [Prescriptions]
+      summary: Pharmacy declines a direct customer request it cannot fulfil
       parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /operations/{type}/{id}/project:

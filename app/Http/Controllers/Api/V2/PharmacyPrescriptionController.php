@@ -35,6 +35,48 @@ class PharmacyPrescriptionController extends Controller
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
+    /**
+     * POST /api/v2/pharmacy/prescriptions/{prescription}/quote — reply to a
+     * customer's direct request with real, dictionary-bound, priced items in
+     * one shot. Nothing is prepared yet — the customer must accept first.
+     */
+    public function quote(Request $request, int $prescription)
+    {
+        $row = $this->ownedOrFail($request, $prescription);
+
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:30'],
+            'items.*.medicine_id' => ['required', 'integer', 'exists:medicines,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $row = $this->service->quoteForCustomer($row, $data['items']);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إرسال السعر إلى العميل.'),
+            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'patient:id,name']))],
+        ]);
+    }
+
+    /** POST /api/v2/pharmacy/prescriptions/{prescription}/decline — cannot fulfil a direct request. */
+    public function decline(Request $request, int $prescription)
+    {
+        $row = $this->ownedOrFail($request, $prescription);
+
+        $data = $request->validate(['note' => ['nullable', 'string', 'max:255']]);
+
+        $row = $this->service->declineRequest($row, $data['note'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم رفض الطلب.'),
+            'data' => ['prescription' => $this->serialize($row->fresh(['patient:id,name']))],
+        ]);
+    }
+
     public function prepare(Request $request, int $prescription)
     {
         return $this->act($request, $prescription, fn (Prescription $p) => $this->service->startPreparing($p), __('جارٍ تجهيز الوصفة.'));
@@ -105,11 +147,13 @@ class PharmacyPrescriptionController extends Controller
         return [
             'id' => (int) $p->id,
             'status' => (string) $p->status,
+            'origin' => (string) ($p->origin ?: Prescription::ORIGIN_DOCTOR),
+            'request_note' => $p->request_note,
             'fulfillment_type' => $p->fulfillment_type,
             'delivery_address' => $p->delivery_address,
             'diagnosis' => $p->diagnosis,
             'notes' => $p->notes,
-            'doctor' => $p->doctor ? ['id' => (int) $p->doctor->id, 'name' => $p->doctor->name] : ['id' => (int) $p->doctor_id],
+            'doctor' => $p->doctor ? ['id' => (int) $p->doctor->id, 'name' => $p->doctor->name] : null,
             'patient' => $p->patient ? ['id' => (int) $p->patient->id, 'name' => $p->patient->name] : ['id' => (int) $p->patient_id],
             'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
             'priced_at' => optional($p->priced_at)->toIso8601String(),

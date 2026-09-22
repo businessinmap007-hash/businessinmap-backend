@@ -446,9 +446,12 @@ Route::prefix('v2')->group(function () {
         // dispense (delivery or pickup). Only the three parties may read one.
         Route::get('prescriptions', [PrescriptionController::class, 'index']);
         Route::post('prescriptions', [PrescriptionController::class, 'store']);
+        // Direct customer -> pharmacy request, no doctor involved (photo/free text).
+        Route::post('prescriptions/request', [PrescriptionController::class, 'requestFromPharmacy']);
         Route::get('prescriptions/issued', [PrescriptionController::class, 'issued']);
         Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
+        Route::post('prescriptions/{prescription}/confirm-quote', [PrescriptionController::class, 'confirmQuote'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/share', [PrescriptionController::class, 'share'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/revise', [PrescriptionController::class, 'revise'])->whereNumber('prescription');
@@ -515,6 +518,8 @@ Route::prefix('v2')->group(function () {
             Route::post('{prescription}/ready', [PharmacyPrescriptionController::class, 'ready'])->whereNumber('prescription');
             Route::post('{prescription}/dispense', [PharmacyPrescriptionController::class, 'dispense'])->whereNumber('prescription');
             Route::post('{prescription}/reject', [PharmacyPrescriptionController::class, 'reject'])->whereNumber('prescription');
+            Route::post('{prescription}/quote', [PharmacyPrescriptionController::class, 'quote'])->whereNumber('prescription');
+            Route::post('{prescription}/decline', [PharmacyPrescriptionController::class, 'decline'])->whereNumber('prescription');
         });
 
         // General person-to-person chat (direct messages). A conversation about

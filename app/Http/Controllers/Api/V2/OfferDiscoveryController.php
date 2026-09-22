@@ -54,6 +54,7 @@ final class OfferDiscoveryController extends Controller
         $this->applySort($query, (string) ($data['sort'] ?? 'boosted'));
 
         $offers = $query->paginate((int) ($data['per_page'] ?? 20))->withQueryString();
+        $offers->getCollection()->transform(fn (CommercialOffer $o) => $this->serialize($o));
 
         return response()->json([
             'success' => true,
@@ -83,9 +84,47 @@ final class OfferDiscoveryController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'offer' => $row,
+                'offer' => $this->serialize($row),
             ],
         ]);
+    }
+
+    /**
+     * The public shape of an offer — hand-picked, not the model's raw
+     * attributes. Drops `ranking_score`/`boost_score` (a competitor's most
+     * interesting read: exactly how much another business paid for boost,
+     * and the algorithm's internal weight) and `meta` (whatever an admin
+     * action happened to stash there), the same way OfferComparisonService's
+     * own payload() does for /offers/compare and /offers/lowest.
+     */
+    private function serialize(CommercialOffer $offer): array
+    {
+        $business = fn ($b) => $b ? ['id' => (int) $b->id, 'name' => (string) $b->name, 'logo' => $b->logo] : null;
+
+        return [
+            'id' => (int) $offer->id,
+            'offerable_type' => (string) $offer->offerable_type,
+            'offerable_id' => (int) $offer->offerable_id,
+            'owner_business_id' => (int) $offer->owner_business_id,
+            'seller_business_id' => (int) $offer->seller_business_id,
+            'source_type' => (string) $offer->source_type,
+            'audience_type' => $offer->audience_type,
+            'title_ar' => $offer->title_ar,
+            'title_en' => $offer->title_en,
+            'base_price' => $offer->base_price === null ? null : (float) $offer->base_price,
+            'final_price' => (float) $offer->final_price,
+            'currency' => (string) ($offer->currency ?: 'EGP'),
+            'discount_type' => $offer->discount_type,
+            'discount_value' => $offer->discount_value === null ? null : (float) $offer->discount_value,
+            'availability_mode' => $offer->availability_mode,
+            'available_quantity' => $offer->available_quantity === null ? null : (int) $offer->available_quantity,
+            'starts_at' => optional($offer->starts_at)->toIso8601String(),
+            'ends_at' => optional($offer->ends_at)->toIso8601String(),
+            'is_featured' => (bool) $offer->is_featured,
+            'status' => (string) $offer->status,
+            'seller_business' => $business($offer->relationLoaded('sellerBusiness') ? $offer->sellerBusiness : null),
+            'owner_business' => $business($offer->relationLoaded('ownerBusiness') ? $offer->ownerBusiness : null),
+        ];
     }
 
     public function byBusiness(Request $request, int $business)

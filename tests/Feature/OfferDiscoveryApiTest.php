@@ -272,4 +272,54 @@ class OfferDiscoveryApiTest extends TestCase
         $this->assertNotContains($b2b->id, $ids, 'A guest must not see B2B offers.');
         $this->assertNotContains($private->id, $ids, 'A guest must not see PRIVATE offers.');
     }
+
+    /**
+     * A competitor reading a public discovery/search/compare response must
+     * never learn `ranking_score`/`boost_score` (exactly how much another
+     * business paid for boost, and the ranking algorithm's raw internal
+     * weight) or `meta` (arbitrary internal data). OfferDiscoveryController,
+     * SearchOffersController and OfferComparisonService all used to hand out
+     * the model's raw attributes.
+     */
+    public function test_no_public_surface_leaks_ranking_boost_or_meta(): void
+    {
+        $offer = $this->makeOffer(CommercialOffer::AUDIENCE_B2C, [
+            'ranking_score' => 987.6543,
+            'boost_score' => 555.4321,
+            'meta' => ['internal_note' => 'do-not-show-the-customer'],
+        ]);
+
+        $needle = fn (array $body) => str_contains(json_encode($body), '987.6543')
+            || str_contains(json_encode($body), '555.4321')
+            || str_contains(json_encode($body), 'do-not-show-the-customer');
+
+        $list = $this->actingAs($this->client, 'sanctum')
+            ->getJson('/api/v2/offers?offerable_id=' . $this->offerableId)
+            ->assertOk()->json();
+        $this->assertFalse($needle($list), 'GET /offers leaked ranking_score/boost_score/meta.');
+
+        $show = $this->actingAs($this->client, 'sanctum')
+            ->getJson("/api/v2/offers/{$offer->id}")
+            ->assertOk()->json();
+        $this->assertFalse($needle($show), 'GET /offers/{id} leaked ranking_score/boost_score/meta.');
+
+        $search = $this->actingAs($this->client, 'sanctum')
+            ->getJson('/api/v2/search/offers?q=' . urlencode($offer->title_ar))
+            ->assertOk()->json();
+        $this->assertFalse($needle($search), 'GET /search/offers leaked ranking_score/boost_score/meta.');
+
+        $compare = $this->actingAs($this->client, 'sanctum')
+            ->getJson('/api/v2/offers/compare?offerable_type=' . CommercialOffer::OFFERABLE_PRODUCT . '&offerable_id=' . $this->offerableId)
+            ->assertOk()->json();
+        $this->assertFalse($needle($compare), 'GET /offers/compare leaked ranking_score/boost_score/meta.');
+
+        $lowest = $this->actingAs($this->client, 'sanctum')
+            ->getJson('/api/v2/offers/lowest?offerable_type=' . CommercialOffer::OFFERABLE_PRODUCT . '&offerable_id=' . $this->offerableId)
+            ->assertOk()->json();
+        $this->assertFalse($needle($lowest), 'GET /offers/lowest leaked ranking_score/boost_score/meta.');
+
+        // The offer still works: still findable, still correctly priced.
+        $this->assertContains($offer->id, collect($list['data']['offers']['data'])->pluck('id')->all());
+        $this->assertSame(90.0, (float) $compare['data']['offers'][0]['final_price']);
+    }
 }

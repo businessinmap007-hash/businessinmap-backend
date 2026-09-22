@@ -117,11 +117,19 @@ final class OfferComparisonService
         };
     }
 
+    /**
+     * The public shape of a comparison row — deliberately hand-picked, not
+     * the model's own attributes. `ranking_score`/`boost_score` are what a
+     * competitor would most want to read off this endpoint (exactly how much
+     * another business paid for boost, and the algorithm's raw internal
+     * weight); `meta` is whatever an admin action happened to have stashed
+     * there. `is_boosted`/`is_featured` are the honest, already-derived
+     * booleans a customer is meant to see.
+     */
     private function payload(CommercialOffer $offer, int $quantity): array
     {
         $unitPrice = round((float) $offer->final_price, 2);
         $totalPrice = round($unitPrice * $quantity, 2);
-        $boostScore = round($offer->effectiveBoostScore(), 4);
 
         return [
             'id' => (int) $offer->id,
@@ -156,12 +164,9 @@ final class OfferComparisonService
             'quantity_requested' => $quantity,
             'is_refundable' => (bool) $offer->is_refundable,
             'payment_model' => $offer->payment_model,
-            'ranking_score' => round((float) ($offer->ranking_score ?? 0), 4),
             'is_featured' => (bool) ($offer->is_featured ?? false),
             'featured_until' => $offer->featured_until ? $offer->featured_until->toDateTimeString() : null,
             'is_boosted' => $offer->isBoosted(),
-            'boost_score' => $boostScore,
-            'meta' => is_array($offer->meta) ? $offer->meta : [],
         ];
     }
 }

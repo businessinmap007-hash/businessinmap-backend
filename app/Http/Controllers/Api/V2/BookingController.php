@@ -551,7 +551,7 @@ final class BookingController extends Controller
             'success' => true,
             'data' => [
                 'booking' => $this->titled($booking),
-                'financial_preview' => $this->safeFinancialPreview($booking),
+                'financial_preview' => $this->partyPreview(request(), $booking),
             ],
         ]);
     }
@@ -812,7 +812,7 @@ final class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->serviceExecutionEngine->financialPreview($booking),
+            'data' => $this->partyPreview($request, $booking),
         ]);
     }
 
@@ -865,7 +865,7 @@ final class BookingController extends Controller
             'message' => $message,
             'data' => [
                 'booking' => $this->titled($booking),
-                'financial_preview' => $this->safeFinancialPreview($booking),
+                'financial_preview' => $this->partyPreview(request(), $booking),
             ],
         ]);
     }
@@ -1118,6 +1118,26 @@ final class BookingController extends Controller
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer'],
         ];
+    }
+
+    /**
+     * The financial preview as the CALLER may see it: their own side of the
+     * money only (see BookingFinancialView) — never the counterparty's wallet
+     * balance or guarantee checks. Null when the preview cannot be computed.
+     */
+    private function partyPreview(Request $request, Booking $booking): ?array
+    {
+        $preview = $this->safeFinancialPreview($booking);
+
+        if ($preview === null) {
+            return null;
+        }
+
+        $side = (int) $request->user()->id === (int) $booking->business_id
+            ? \App\Support\BookingFinancialView::BUSINESS
+            : \App\Support\BookingFinancialView::CLIENT;
+
+        return \App\Support\BookingFinancialView::forParty($preview, $side);
     }
 
     private function safeFinancialPreview(Booking $booking): ?array

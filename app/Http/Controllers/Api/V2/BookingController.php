@@ -318,7 +318,7 @@ final class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => ['bookings' => $bookings],
+            'data' => ['bookings' => $this->titled($bookings)],
         ]);
     }
 
@@ -350,7 +350,7 @@ final class BookingController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'bookings' => $query->paginate($perPage),
+                'bookings' => $this->titled($query->paginate($perPage)),
             ],
         ]);
     }
@@ -382,7 +382,7 @@ final class BookingController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'bookings' => $query->paginate($perPage),
+                'bookings' => $this->titled($query->paginate($perPage)),
             ],
         ]);
     }
@@ -536,7 +536,7 @@ final class BookingController extends Controller
             'success' => true,
             'message' => 'Booking request created successfully.',
             'data' => [
-                'booking' => $booking,
+                'booking' => $this->titled($booking),
             ],
         ], 201);
     }
@@ -550,7 +550,7 @@ final class BookingController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'booking' => $booking,
+                'booking' => $this->titled($booking),
                 'financial_preview' => $this->safeFinancialPreview($booking),
             ],
         ]);
@@ -864,7 +864,7 @@ final class BookingController extends Controller
             'success' => true,
             'message' => $message,
             'data' => [
-                'booking' => $booking,
+                'booking' => $this->titled($booking),
                 'financial_preview' => $this->safeFinancialPreview($booking),
             ],
         ]);
@@ -1044,6 +1044,25 @@ final class BookingController extends Controller
             ->where('business_id', $businessId)
             ->where('is_active', 1)
             ->first();
+    }
+
+    /**
+     * Give each booking its `title` — «كشف — عظام», not just «حجز» — the way
+     * Booking::title() names it. The relations it reads are already loaded by
+     * relations(), so this costs no extra queries.
+     *
+     * @param  \App\Models\Booking|\Illuminate\Support\Collection|\Illuminate\Contracts\Pagination\Paginator  $subject
+     */
+    private function titled($subject)
+    {
+        if ($subject instanceof Booking) {
+            return $subject->append('title');
+        }
+
+        $items = $subject instanceof \Illuminate\Contracts\Pagination\Paginator ? $subject->getCollection() : $subject;
+        $items->each(fn (Booking $booking) => $booking->append('title'));
+
+        return $subject;
     }
 
     private function relations(bool $details = false): array

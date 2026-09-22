@@ -93,6 +93,29 @@ class BookingApiTest extends TestCase
             ->assertJsonPath('data.booking.title', $row['title']);
     }
 
+    /**
+     * The business's own email is not otherwise public (the public business
+     * page never sends it — see OfferDiscoveryApiTest's own no-leak
+     * discipline), so a booking must not hand it to the client either. The
+     * relations() comment already said "never email" for the client side;
+     * the business side's own eager-load select quietly carried it anyway.
+     */
+    public function test_the_bookings_business_email_is_never_sent_to_the_client(): void
+    {
+        $this->business->update(['email' => 'owner-private-' . uniqid() . '@example.test']);
+        $booking = $this->makeBooking();
+
+        $show = $this->actingAs($this->client, 'sanctum')
+            ->getJson('/api/v2/bookings/' . $booking->id)
+            ->assertOk()->json();
+        $this->assertStringNotContainsString($this->business->email, json_encode($show));
+
+        $list = $this->actingAs($this->client, 'sanctum')
+            ->getJson('/api/v2/bookings?scope=my&per_page=100')
+            ->assertOk()->json();
+        $this->assertStringNotContainsString($this->business->email, json_encode($list));
+    }
+
     public function test_business_scope_is_blocked_for_clients(): void
     {
         $this->actingAs($this->client, 'sanctum')

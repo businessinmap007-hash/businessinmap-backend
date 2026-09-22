@@ -1068,13 +1068,14 @@ final class BookingController extends Controller
     private function relations(bool $details = false): array
     {
         $relations = [
-            // The client party is intentionally minimal — a business only
-            // learns what it needs to fulfil a booking it is actually a
-            // party to (name, phone, location, photo), never email. This is
-            // the one place that contact data is exposed at all; nowhere in
-            // the API can a business browse a customer's profile otherwise.
+            // Both parties get only what they need to fulfil a booking they
+            // are actually a party to (name, phone, location, photo) — never
+            // email on either side. This is the one place that contact data
+            // is exposed at all; nowhere in the API can either party browse
+            // the other's profile otherwise, and a business's email is not
+            // otherwise public (the public business page never sends it).
             'user:id,name,phone,image,latitude,longitude',
-            'business:id,name,type,phone,email,logo,image,category_id,category_child_id',
+            'business:id,name,type,phone,logo,image,category_id,category_child_id',
             'service:id,key,name_ar,name_en,supports_deposit',
             'bookable',
             // the booking names itself from these; loading them here keeps

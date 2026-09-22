@@ -28,7 +28,7 @@ class ClinicAppointmentController extends Controller
             // prescription is loaded so serialize()'s prescription_id is ever
             // non-null on the list a patient actually browses — without it
             // this only worked on show()/reschedule(), which nothing calls.
-            ->with(['clinic:id,name,logo', 'prescription:id,appointment_id'])
+            ->with(['clinic:id,name,name_en,medical_title,logo', 'prescription:id,appointment_id'])
             ->orderByDesc('scheduled_at')
             ->paginate((int) $request->get('per_page', 20));
 
@@ -58,7 +58,7 @@ class ClinicAppointmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم إرسال طلب الموعد.'),
-            'data' => ['appointment' => $this->serialize($appointment->load('clinic:id,name,logo'))],
+            'data' => ['appointment' => $this->serialize($appointment->load('clinic:id,name,name_en,medical_title,logo'))],
         ], 201);
     }
 
@@ -66,7 +66,7 @@ class ClinicAppointmentController extends Controller
     public function show(Request $request, int $appointment)
     {
         $row = ClinicAppointment::query()
-            ->with(['clinic:id,name,logo', 'patient:id,name', 'prescription:id,appointment_id'])
+            ->with(['clinic:id,name,name_en,medical_title,logo', 'patient:id,name', 'prescription:id,appointment_id'])
             ->findOrFail($appointment);
 
         abort_unless($row->isParty((int) $request->user()->id), 404);
@@ -109,7 +109,7 @@ class ClinicAppointmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم تغيير موعدك.'),
-            'data' => ['appointment' => $this->serialize($row->fresh(['clinic:id,name,logo', 'prescription:id,appointment_id']))],
+            'data' => ['appointment' => $this->serialize($row->fresh(['clinic:id,name,name_en,medical_title,logo', 'prescription:id,appointment_id']))],
         ]);
     }
 
@@ -148,7 +148,7 @@ class ClinicAppointmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم حجز الموعد.'),
-            'data' => ['appointment' => $this->serialize($appointment->load('clinic:id,name,logo'))],
+            'data' => ['appointment' => $this->serialize($appointment->load('clinic:id,name,name_en,medical_title,logo'))],
         ], 201);
     }
 
@@ -164,7 +164,7 @@ class ClinicAppointmentController extends Controller
             'prescription_id' => $a->relationLoaded('prescription') && $a->prescription
                 ? (int) $a->prescription->id : null,
             'clinic' => $a->relationLoaded('clinic') && $a->clinic
-                ? ['id' => (int) $a->clinic->id, 'name' => $a->clinic->name, 'logo' => $a->clinic->logo]
+                ? ['id' => (int) $a->clinic->id, 'name' => $a->clinic->displayName(), 'logo' => $a->clinic->logo]
                 : ['id' => (int) $a->clinic_id],
             'patient' => $a->relationLoaded('patient') && $a->patient
                 ? ['id' => (int) $a->patient->id, 'name' => $a->patient->name]

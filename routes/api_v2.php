@@ -291,6 +291,10 @@ Route::prefix('v2')->group(function () {
         // describe it, scoped to what its own specialty (child) allows.
         Route::get('profile/options', [ProfileController::class, 'showOptions']);
         Route::match(['put', 'patch'], 'profile/options', [ProfileController::class, 'updateOptions']);
+        // «تخصصات طبية» — a doctor's own clinic account only, kept separate
+        // from profile/options above because the group is priced (`line`).
+        Route::get('profile/specialties', [ProfileController::class, 'showSpecialties']);
+        Route::match(['put', 'patch'], 'profile/specialties', [ProfileController::class, 'updateSpecialties']);
 
         // My photo albums — first v2 surface for the legacy Album model.
         Route::get('profile/albums', [AlbumController::class, 'index']);
@@ -1126,6 +1130,13 @@ Route::prefix('v2')->group(function () {
             Route::post('{appointment}/complete', [BusinessClinicAppointmentController::class, 'complete'])->whereNumber('appointment');
             Route::post('{appointment}/no-show', [BusinessClinicAppointmentController::class, 'noShow'])->whereNumber('appointment');
             Route::post('{appointment}/reschedule', [BusinessClinicAppointmentController::class, 'reschedule'])->whereNumber('appointment');
+        });
+
+        // What to open when the patient walks in: gated on `prescriptions`
+        // (not `clinic`) since it reveals diagnosis/medication content — the
+        // secretary manages the calendar but does not necessarily read this.
+        Route::middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
+            Route::get('business/clinic-appointments/{appointment}/patient-record', [BusinessClinicAppointmentController::class, 'patientRecord'])->whereNumber('appointment');
         });
 
         // Clinic's published open slots (a delegate = the secretary manages these).

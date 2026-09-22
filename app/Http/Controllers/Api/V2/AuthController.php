@@ -52,12 +52,48 @@ final class AuthController extends Controller
                 'required_if:type,' . User::TYPE_BUSINESS,
                 'nullable', 'integer', 'exists:category_children_master,id',
             ],
+            // «د.» / «أ.د.» / «استشاري» before the name, and which of the
+            // medical specialties describe this practice — only meaningful
+            // (and only accepted) for an individual doctor's own clinic
+            // account, never a hospital/medical-center's own name.
+            'medical_title' => [
+                Rule::requiredIf(($request->input('category_child_id')) == User::DOCTOR_OWN_CLINIC_CHILD_ID),
+                Rule::prohibitedIf(($request->input('category_child_id')) != User::DOCTOR_OWN_CLINIC_CHILD_ID),
+                'nullable', Rule::in(User::MEDICAL_TITLES),
+            ],
+            'specialty_option_ids' => ['nullable', 'array', 'max:10'],
+            'specialty_option_ids.*' => ['integer', 'distinct'],
             // No consent, no account: registration is cancelled if the terms are
             // not accepted. `accepted` also fails when the field is absent.
             'terms_accepted' => ['accepted'],
         ], [
             'terms_accepted.accepted' => __('يجب الموافقة على الشروط والأحكام لإنشاء الحساب.'),
         ]);
+
+        $specialtyIds = [];
+        if (! empty($data['specialty_option_ids'])) {
+            abort_unless(
+                (int) ($data['category_child_id'] ?? 0) === User::DOCTOR_OWN_CLINIC_CHILD_ID,
+                422,
+                __('التخصص الطبي متاح لحسابات العيادات فقط.')
+            );
+
+            // Only real options this specific child actually offers — never
+            // trust a bare id list straight from the client.
+            $specialtyIds = \App\Models\CategoryChild::query()
+                ->find((int) $data['category_child_id'])
+                ?->activeOptionsForParent((int) ($data['category_id'] ?? 0))
+                ->whereIn('options.id', $data['specialty_option_ids'])
+                ->where('options.group_id', User::MEDICAL_SPECIALTY_GROUP_ID)
+                ->pluck('options.id')
+                ->all() ?? [];
+
+            abort_if(
+                count($specialtyIds) !== count(array_unique($data['specialty_option_ids'])),
+                422,
+                __('اختر تخصصاً طبياً صحيحاً.')
+            );
+        }
 
         // A ban is on the identity, not on the row: without this, a banned user
         // registers again with the same email and phone and the ban means
@@ -68,8 +104,8 @@ final class AuthController extends Controller
             ]);
         }
 
-        $user = DB::transaction(function () use ($data) {
-            return User::create([
+        $user = DB::transaction(function () use ($data, $specialtyIds) {
+            $user = User::create([
                 'name' => $data['name'],
                 'name_en' => $data['name_en'] ?? null,
                 'email' => $data['email'],
@@ -78,8 +114,15 @@ final class AuthController extends Controller
                 'type' => $data['type'] ?? User::TYPE_CLIENT,
                 'category_id' => $data['category_id'] ?? null,
                 'category_child_id' => $data['category_child_id'] ?? null,
+                'medical_title' => $data['medical_title'] ?? null,
                 'api_token' => $this->freshApiToken(),
             ]);
+
+            if ($specialtyIds) {
+                $user->options()->syncWithoutDetaching($specialtyIds);
+            }
+
+            return $user;
         });
 
         // Consent was just validated as accepted → record it against the current

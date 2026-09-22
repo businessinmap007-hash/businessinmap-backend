@@ -38,6 +38,9 @@ final class ProfileController extends Controller
             'name' => ['sometimes', 'string', 'max:191'],
             // Business only: a customer's single box already takes either script.
             'name_en' => ['sometimes', 'nullable', 'string', 'max:191'],
+            // «د.» / «أ.د.» / «استشاري» — an individual doctor's own clinic
+            // only (category_child_id = عيادة); nothing else may set one.
+            'medical_title' => ['sometimes', 'nullable', Rule::in(\App\Models\User::MEDICAL_TITLES)],
             'phone' => ['sometimes', 'string', 'max:15', Rule::unique('users', 'phone')->ignore($user->id)],
             'about' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'latitude' => ['sometimes', 'nullable', 'numeric', 'between:-90,90'],
@@ -93,6 +96,15 @@ final class ProfileController extends Controller
             if (empty($categoryChildId)) {
                 throw ValidationException::withMessages([
                     'category_child_id' => [__('اختر تخصص النشاط التجاري قبل التحويل.')],
+                ]);
+            }
+        }
+
+        if (! empty($data['medical_title'])) {
+            $childId = (int) ($data['category_child_id'] ?? $user->category_child_id ?? 0);
+            if ($childId !== \App\Models\User::DOCTOR_OWN_CLINIC_CHILD_ID) {
+                throw ValidationException::withMessages([
+                    'medical_title' => [__('اللقب الطبي متاح لحسابات العيادات فقط.')],
                 ]);
             }
         }
@@ -310,6 +322,95 @@ final class ProfileController extends Controller
         return [
             'child_id' => $childId ?: null,
             'groups' => array_values($groups),
+            'selected_ids' => $selected,
+        ];
+    }
+
+    /**
+     * GET /api/v2/profile/specialties — «تخصصات طبية» (group 26) for the
+     * doctor's OWN clinic account. This group is `price_role: line` (a
+     * hospital prices a كشف per specialty, and each doctor prices it
+     * independently — see User::MEDICAL_SPECIALTY_GROUP_ID), so it is
+     * deliberately excluded from the generic optionsPayload() above. This is
+     * the separate, direct door: which specialties describe this doctor, as
+     * a plain fact, independent of any priced offering.
+     */
+    public function showSpecialties(Request $request)
+    {
+        $user = $request->user();
+        abort_unless((int) ($user->category_child_id ?? 0) === \App\Models\User::DOCTOR_OWN_CLINIC_CHILD_ID, 403, __('التخصص الطبي متاح لحسابات العيادات فقط.'));
+
+        return response()->json(['success' => true, 'data' => $this->specialtiesPayload($user)]);
+    }
+
+    /** PATCH /api/v2/profile/specialties — the doctor sets which specialties describe them. */
+    public function updateSpecialties(Request $request)
+    {
+        $user = $request->user();
+        abort_unless((int) ($user->category_child_id ?? 0) === \App\Models\User::DOCTOR_OWN_CLINIC_CHILD_ID, 403, __('التخصص الطبي متاح لحسابات العيادات فقط.'));
+
+        $data = $request->validate([
+            'specialty_option_ids' => ['present', 'array', 'max:10'],
+            'specialty_option_ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $allowed = CategoryChild::query()->find((int) $user->category_child_id)
+            ?->activeOptionsForParent((int) ($user->category_id ?? 0))
+            ->where('options.group_id', \App\Models\User::MEDICAL_SPECIALTY_GROUP_ID)
+            ->pluck('options.id')
+            ->all() ?? [];
+
+        $optionIds = array_values(array_unique(array_map('intval', $data['specialty_option_ids'])));
+        $invalid = array_diff($optionIds, $allowed);
+
+        if ($invalid) {
+            throw ValidationException::withMessages([
+                'specialty_option_ids' => [__('اختر تخصصاً طبياً صحيحاً.')],
+            ]);
+        }
+
+        // Scoped to this group's own option ids only — the same table also
+        // carries this doctor's non-line attribute picks (optionsPayload()
+        // above) and, for other account types, their `line` catalog ticks;
+        // a bare sync() here would erase either.
+        $groupOptionIds = DB::table('options')->where('group_id', \App\Models\User::MEDICAL_SPECIALTY_GROUP_ID)->pluck('id');
+
+        DB::transaction(function () use ($user, $optionIds, $groupOptionIds) {
+            DB::table('option_user')->where('user_id', $user->id)->whereIn('option_id', $groupOptionIds)->delete();
+
+            $rows = collect($optionIds)->map(fn ($id) => ['user_id' => $user->id, 'option_id' => $id])->all();
+            foreach (array_chunk($rows, 200) as $chunk) {
+                if ($chunk) {
+                    DB::table('option_user')->insertOrIgnore($chunk);
+                }
+            }
+        });
+
+        return response()->json(['success' => true, 'data' => $this->specialtiesPayload($user->fresh())]);
+    }
+
+    /** The «تخصصات طبية» catalog for this doctor's clinic child, marked with their current picks. */
+    private function specialtiesPayload($user): array
+    {
+        $childId = (int) ($user->category_child_id ?? 0);
+        $rootId = (int) ($user->category_id ?? 0);
+
+        $selected = $user->options()
+            ->where('options.group_id', \App\Models\User::MEDICAL_SPECIALTY_GROUP_ID)
+            ->pluck('options.id')
+            ->all();
+
+        $options = CategoryChild::query()->find($childId)
+            ?->activeOptionsForParent($rootId)
+            ->where('options.group_id', \App\Models\User::MEDICAL_SPECIALTY_GROUP_ID)
+            ->get() ?? collect();
+
+        return [
+            'options' => $options->map(fn ($o) => [
+                'id' => (int) $o->id,
+                'name' => $o->displayName,
+                'selected' => in_array((int) $o->id, $selected, true),
+            ])->values()->all(),
             'selected_ids' => $selected,
         ];
     }

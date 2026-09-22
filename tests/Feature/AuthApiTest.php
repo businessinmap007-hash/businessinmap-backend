@@ -112,4 +112,79 @@ class AuthApiTest extends TestCase
 
         $this->assertSame(0, (int) $user->tokens()->count());
     }
+
+    /** One of the 45 real, health-root-linked «تخصصات طبية» options. */
+    private function aSpecialtyOptionId(): int
+    {
+        return (int) \App\Models\CategoryChild::query()
+            ->find(User::DOCTOR_OWN_CLINIC_CHILD_ID)
+            ->activeOptionsForParent(null)
+            ->where('options.group_id', User::MEDICAL_SPECIALTY_GROUP_ID)
+            ->value('options.id');
+    }
+
+    public function test_a_doctors_own_clinic_can_register_with_a_title_and_specialty(): void
+    {
+        $suffix = Str::random(8);
+        $specialtyId = $this->aSpecialtyOptionId();
+
+        $res = $this->postJson('/api/v2/auth/register', [
+            'name' => 'عيادة د. تجريبي',
+            'name_en' => 'Dr Test Clinic',
+            'email' => "doc_{$suffix}@example.com",
+            'phone' => '019' . random_int(10_000_000, 99_999_999),
+            'password' => 'Secret123',
+            'password_confirmation' => 'Secret123',
+            'terms_accepted' => true,
+            'type' => User::TYPE_BUSINESS,
+            'category_child_id' => User::DOCTOR_OWN_CLINIC_CHILD_ID,
+            'medical_title' => User::MEDICAL_TITLE_CONSULTANT,
+            'specialty_option_ids' => [$specialtyId],
+        ])->assertCreated();
+
+        $this->assertSame(User::MEDICAL_TITLE_CONSULTANT, $res->json('data.medical_title'));
+        $this->assertStringStartsWith(User::MEDICAL_TITLE_CONSULTANT . ' ', $res->json('data.display_name'));
+
+        $userId = (int) $res->json('data.id');
+        $this->assertDatabaseHas('option_user', ['user_id' => $userId, 'option_id' => $specialtyId]);
+    }
+
+    public function test_a_title_is_refused_for_a_non_clinic_business(): void
+    {
+        $childId = (int) \App\Models\CategoryChild::query()
+            ->where('id', '!=', User::DOCTOR_OWN_CLINIC_CHILD_ID)->orderBy('id')->value('id');
+        $suffix = Str::random(8);
+
+        $this->postJson('/api/v2/auth/register', [
+            'name' => 'محل تجريبي',
+            'name_en' => 'Test Shop',
+            'email' => "shop_{$suffix}@example.com",
+            'phone' => '019' . random_int(10_000_000, 99_999_999),
+            'password' => 'Secret123',
+            'password_confirmation' => 'Secret123',
+            'terms_accepted' => true,
+            'type' => User::TYPE_BUSINESS,
+            'category_child_id' => $childId,
+            'medical_title' => User::MEDICAL_TITLE_DOCTOR,
+        ])->assertStatus(422)->assertJsonValidationErrors('medical_title');
+    }
+
+    public function test_a_fabricated_specialty_option_id_is_rejected(): void
+    {
+        $suffix = Str::random(8);
+
+        $this->postJson('/api/v2/auth/register', [
+            'name' => 'عيادة د. تجريبي 2',
+            'name_en' => 'Dr Test Clinic 2',
+            'email' => "doc2_{$suffix}@example.com",
+            'phone' => '019' . random_int(10_000_000, 99_999_999),
+            'password' => 'Secret123',
+            'password_confirmation' => 'Secret123',
+            'terms_accepted' => true,
+            'type' => User::TYPE_BUSINESS,
+            'category_child_id' => User::DOCTOR_OWN_CLINIC_CHILD_ID,
+            'medical_title' => User::MEDICAL_TITLE_DOCTOR,
+            'specialty_option_ids' => [999999999],
+        ])->assertStatus(422);
+    }
 }

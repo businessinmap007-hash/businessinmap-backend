@@ -81,6 +81,21 @@ class ClinicAppointmentFlowTest extends TestCase
             ->assertOk()->assertJsonPath('data.appointment.status', 'completed');
     }
 
+    /** The patient reads the clinic's title-prefixed name, not the bare name. */
+    public function test_the_clinic_is_shown_with_the_doctors_title(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $clinic->forceFill(['medical_title' => User::MEDICAL_TITLE_DOCTOR])->save();
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        Sanctum::actingAs($patient);
+        $this->postJson('/api/v2/clinic-appointments', [
+            'clinic_id' => $clinic->id,
+            'scheduled_at' => $this->soon(),
+        ])->assertCreated()
+            ->assertJsonPath('data.appointment.clinic.name', User::MEDICAL_TITLE_DOCTOR . ' ' . $clinic->name);
+    }
+
     public function test_the_clinic_cannot_double_book_a_confirmed_slot(): void
     {
         $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
@@ -327,5 +342,100 @@ class ClinicAppointmentFlowTest extends TestCase
         ])->assertStatus(422);
 
         $this->assertDatabaseMissing('prescriptions', ['appointment_id' => $appointment->id]);
+    }
+
+    public function test_a_first_time_patients_record_is_a_blank_slate(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addDay(), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        Sanctum::actingAs($clinic);
+        $this->getJson("/api/v2/business/clinic-appointments/{$appointment->id}/patient-record")
+            ->assertOk()
+            ->assertJsonPath('data.is_first_visit', true)
+            ->assertJsonPath('data.previous_prescription', null);
+    }
+
+    /** «افتح الروشتة والتقرير السابق» — a returning patient's latest report/prescription. */
+    public function test_a_returning_patients_previous_prescription_and_report_open(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        $firstVisit = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->subMonth(), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_COMPLETED,
+        ]);
+        Sanctum::actingAs($clinic);
+        $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'appointment_id' => $firstVisit->id,
+            'diagnosis' => 'Flu',
+            'patient_condition' => 'Fever, sore throat',
+            'items' => [['medicine_id' => Medicine::create(['name' => 'Paracetamol'])->id, 'dosage' => '500mg']],
+        ])->assertCreated();
+
+        $secondVisit = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addDay(), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        $this->getJson("/api/v2/business/clinic-appointments/{$secondVisit->id}/patient-record")
+            ->assertOk()
+            ->assertJsonPath('data.is_first_visit', false)
+            ->assertJsonPath('data.previous_prescription.diagnosis', 'Flu')
+            ->assertJsonPath('data.previous_prescription.patient_condition', 'Fever, sore throat')
+            ->assertJsonPath('data.previous_prescription.items.0.dosage', '500mg');
+    }
+
+    /** The visit's OWN just-issued prescription is the current record, not a "previous" one. */
+    public function test_the_current_visits_own_prescription_is_not_shown_as_previous(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addDay(), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson('/api/v2/prescriptions', [
+            'patient_id' => $patient->id,
+            'appointment_id' => $appointment->id,
+            'items' => [['medicine_id' => Medicine::create(['name' => 'Paracetamol'])->id]],
+        ])->assertCreated();
+
+        $this->getJson("/api/v2/business/clinic-appointments/{$appointment->id}/patient-record")
+            ->assertOk()
+            ->assertJsonPath('data.is_first_visit', true)
+            ->assertJsonPath('data.previous_prescription', null);
+    }
+
+    public function test_the_patient_record_is_refused_without_the_prescriptions_capability(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $secretary = $this->user(User::TYPE_CLIENT, 'Secretary');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        BusinessStaff::create([
+            'business_id' => $clinic->id, 'user_id' => $secretary->id,
+            'capabilities' => [BusinessCapability::CLINIC], 'is_active' => true,
+        ]);
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addDay(), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        Sanctum::actingAs($secretary);
+        $this->getJson("/api/v2/business/clinic-appointments/{$appointment->id}/patient-record")
+            ->assertStatus(403);
     }
 }

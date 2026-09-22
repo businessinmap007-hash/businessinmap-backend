@@ -256,4 +256,98 @@ class ProfileApiTest extends TestCase
             ->postJson('/api/v2/profile/image', [])
             ->assertStatus(422);
     }
+
+    public function test_a_clinic_owner_can_set_their_own_medical_title(): void
+    {
+        $this->user->forceFill(['type' => 'business', 'category_child_id' => User::DOCTOR_OWN_CLINIC_CHILD_ID])->save();
+
+        $res = $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['medical_title' => User::MEDICAL_TITLE_PROFESSOR])
+            ->assertOk()
+            ->assertJsonPath('data.medical_title', User::MEDICAL_TITLE_PROFESSOR);
+
+        $this->assertStringStartsWith(User::MEDICAL_TITLE_PROFESSOR . ' ', (string) $res->json('data.display_name'));
+        $this->assertSame(User::MEDICAL_TITLE_PROFESSOR, (string) $this->user->fresh()->medical_title);
+    }
+
+    public function test_a_medical_title_is_refused_off_a_non_clinic_account(): void
+    {
+        $this->user->forceFill(['type' => 'business', 'category_child_id' => 116])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile', ['medical_title' => User::MEDICAL_TITLE_DOCTOR])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('medical_title');
+
+        $this->assertNull($this->user->fresh()->medical_title);
+    }
+
+    /** One of the real, health-root-linked «تخصصات طبية» options. */
+    private function aSpecialtyOptionId(): int
+    {
+        return (int) \App\Models\CategoryChild::query()
+            ->find(User::DOCTOR_OWN_CLINIC_CHILD_ID)
+            ->activeOptionsForParent(null)
+            ->where('options.group_id', User::MEDICAL_SPECIALTY_GROUP_ID)
+            ->value('options.id');
+    }
+
+    public function test_a_clinic_owner_can_set_and_read_back_their_specialty(): void
+    {
+        $this->user->forceFill(['type' => 'business', 'category_child_id' => User::DOCTOR_OWN_CLINIC_CHILD_ID])->save();
+        $specialtyId = $this->aSpecialtyOptionId();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile/specialties', ['specialty_option_ids' => [$specialtyId]])
+            ->assertOk()
+            ->assertJsonPath('data.selected_ids.0', $specialtyId);
+
+        $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v2/profile/specialties')
+            ->assertOk()
+            ->assertJsonPath('data.selected_ids.0', $specialtyId);
+
+        $this->assertDatabaseHas('option_user', ['user_id' => $this->user->id, 'option_id' => $specialtyId]);
+    }
+
+    public function test_specialties_are_refused_off_a_non_clinic_account(): void
+    {
+        $this->user->forceFill(['type' => 'business', 'category_child_id' => 116])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->getJson('/api/v2/profile/specialties')
+            ->assertStatus(403);
+    }
+
+    public function test_a_fabricated_specialty_id_is_rejected_on_update(): void
+    {
+        $this->user->forceFill(['type' => 'business', 'category_child_id' => User::DOCTOR_OWN_CLINIC_CHILD_ID])->save();
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile/specialties', ['specialty_option_ids' => [999999999]])
+            ->assertStatus(422);
+    }
+
+    public function test_updating_specialties_does_not_disturb_the_businesss_other_attribute_picks(): void
+    {
+        $this->user->forceFill(['type' => 'business', 'category_child_id' => User::DOCTOR_OWN_CLINIC_CHILD_ID])->save();
+        $specialtyId = $this->aSpecialtyOptionId();
+
+        $otherOptionId = (int) \App\Models\CategoryChild::query()
+            ->find(User::DOCTOR_OWN_CLINIC_CHILD_ID)
+            ->activeOptionsForParent(null)
+            ->where('options.group_id', '!=', User::MEDICAL_SPECIALTY_GROUP_ID)
+            ->join('option_groups as og', 'og.id', '=', 'options.group_id')
+            ->where('og.price_role', '!=', \App\Models\OptionGroup::ROLE_LINE)
+            ->value('options.id');
+        $this->assertNotNull($otherOptionId, 'the clinic child must carry at least one non-specialty attribute for this test to mean anything');
+
+        \Illuminate\Support\Facades\DB::table('option_user')->insert(['user_id' => $this->user->id, 'option_id' => $otherOptionId]);
+
+        $this->actingAs($this->user, 'sanctum')
+            ->patchJson('/api/v2/profile/specialties', ['specialty_option_ids' => [$specialtyId]])
+            ->assertOk();
+
+        $this->assertDatabaseHas('option_user', ['user_id' => $this->user->id, 'option_id' => $otherOptionId]);
+    }
 }

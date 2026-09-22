@@ -1058,6 +1058,33 @@ paths:
         '200': { description: OK }
         '403': { description: Not a business account }
         '422': { $ref: '#/components/responses/Validation' }
+  /profile/specialties:
+    get:
+      tags: [Profile]
+      summary: «تخصصات طبية» for the doctor's own clinic account, marked with current picks
+      description: >
+        Separate from /profile/options because this option group is priced
+        (price_role: line — a clinic prices a كشف per specialty, and each
+        doctor prices it independently). This is the direct, unpriced pick of
+        which specialties describe the doctor, written to option_user
+        independently of any BusinessServicePrice row.
+      responses: { '200': { description: OK }, '403': { description: Not a clinic account } }
+    patch:
+      tags: [Profile]
+      summary: The doctor sets which specialties describe them (full replace, max 10)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [specialty_option_ids]
+              properties:
+                specialty_option_ids: { type: array, items: { type: integer }, maxItems: 10 }
+      responses:
+        '200': { description: OK }
+        '403': { description: Not a clinic account }
+        '422': { $ref: '#/components/responses/Validation' }
   /profile/password:
     post:
       tags: [Profile]
@@ -4375,6 +4402,17 @@ paths:
                 scheduled_at: { type: string, format: date-time }
                 duration_minutes: { type: integer }
       responses: { '200': { description: Rescheduled }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/{appointment}/patient-record:
+    get:
+      tags: [Clinic Appointments]
+      summary: What to open when the patient walks in — a blank slate for a first visit, or their latest prescription/report to continue for a returning one
+      description: >
+        Gated on the `prescriptions` capability (not `clinic`) since it reveals
+        diagnosis/medication content — the secretary who manages the calendar
+        does not necessarily read this. previous_prescription excludes this
+        same appointment's own just-issued prescription, if any.
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '403': { description: Missing the prescriptions capability }, '404': { $ref: '#/components/responses/NotFound' } }
   /clinics/{clinic}/slots:
     get:
       tags: [Clinic Appointments]

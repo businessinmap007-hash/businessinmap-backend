@@ -19,6 +19,9 @@ class AccountResource extends JsonResource
             // Business only: a customer has one name box and a null here would
             // read as «he forgot to fill it in».
             'name_en' => $this->isBusiness() ? $this->name_en : null,
+            // «د.» / «أ.د.» / «استشاري» — only ever set for an individual
+            // doctor's own clinic account; already folded into display_name.
+            'medical_title' => $this->medical_title,
             'display_name' => $this->displayName(),
             'email' => (string) $this->email,
             'phone' => $this->phone,

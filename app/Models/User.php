@@ -40,9 +40,47 @@ class User extends Authenticatable
         self::TYPE_ADMIN,
     ];
 
+    /**
+     * The closed set of professional titles a doctor's own name may carry
+     * («د. محمد», «أ.د. محمد», «استشاري محمد») — everywhere that name is
+     * shown, not a free-text field a merchant could type anything into.
+     * Only meaningful for an individual practitioner's own clinic account
+     * (category_child_id = عيادة, see Prescription::DOCTOR_CHILD_IDS); a
+     * hospital/medical-center's own name never carries one.
+     */
+    public const MEDICAL_TITLE_DOCTOR = 'د.';
+
+    public const MEDICAL_TITLE_PROFESSOR = 'أ.د.';
+
+    public const MEDICAL_TITLE_CONSULTANT = 'استشاري';
+
+    public const MEDICAL_TITLES = [
+        self::MEDICAL_TITLE_DOCTOR,
+        self::MEDICAL_TITLE_PROFESSOR,
+        self::MEDICAL_TITLE_CONSULTANT,
+    ];
+
+    /** The one category_child a title/specialty pair describes an individual by. */
+    public const DOCTOR_OWN_CLINIC_CHILD_ID = 514;
+
+    /**
+     * «تخصصات طبية» — deliberately `price_role: line` (see
+     * database/seeders/data/option_price_roles.php and the "three-axis
+     * remodel" this belongs to): a hospital/clinic prices a كشف per
+     * specialty, and the same specialty can be priced differently by
+     * different doctors since BusinessServicePrice is scoped per business
+     * regardless of role. That pricing meaning is untouched here — this
+     * constant only identifies the group so a doctor can ALSO pick it as a
+     * plain descriptive fact about themselves (who they are), written
+     * straight to `option_user` independently of any priced offering. See
+     * AuthController::register() and ProfileController::showSpecialties().
+     */
+    public const MEDICAL_SPECIALTY_GROUP_ID = 26;
+
     protected $fillable = [
         'name',
         'name_en',
+        'medical_title',
         'email',
         'phone',
         'password',
@@ -206,11 +244,17 @@ class User extends Authenticatable
     {
         $english = trim((string) $this->name_en);
 
-        if (app()->getLocale() === 'en' && $english !== '') {
-            return $english;
-        }
+        $name = (app()->getLocale() === 'en' && $english !== '')
+            ? $english
+            : (trim((string) $this->name) ?: $english);
 
-        return trim((string) $this->name) ?: $english;
+        // A single change here reaches every screen that already calls
+        // displayName() — business cards, search results, staff rosters,
+        // offers, prescriptions — rather than threading the title through
+        // each one by hand.
+        $title = trim((string) $this->medical_title);
+
+        return $title !== '' ? "{$title} {$name}" : $name;
     }
 
     public function scopeOfType(Builder $query, ?string $type): Builder

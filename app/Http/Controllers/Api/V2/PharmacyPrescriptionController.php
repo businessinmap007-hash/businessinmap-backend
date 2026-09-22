@@ -26,7 +26,7 @@ class PharmacyPrescriptionController extends Controller
         $rows = Prescription::query()
             ->where('pharmacy_id', BusinessContext::id($request))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->get('status')))
-            ->with(['items', 'doctor:id,name', 'patient:id,name'])
+            ->with(['items', 'doctor:id,name,name_en,medical_title', 'patient:id,name'])
             ->latest('id')
             ->paginate((int) $request->get('per_page', 20));
 
@@ -61,7 +61,7 @@ class PharmacyPrescriptionController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم تسعير الوصفة.'),
-            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name', 'patient:id,name']))],
+            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name,name_en,medical_title', 'patient:id,name']))],
         ]);
     }
 
@@ -88,7 +88,7 @@ class PharmacyPrescriptionController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message,
-            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name', 'patient:id,name']))],
+            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name,name_en,medical_title', 'patient:id,name']))],
         ]);
     }
 
@@ -109,7 +109,7 @@ class PharmacyPrescriptionController extends Controller
             'delivery_address' => $p->delivery_address,
             'diagnosis' => $p->diagnosis,
             'notes' => $p->notes,
-            'doctor' => $p->doctor ? ['id' => (int) $p->doctor->id, 'name' => $p->doctor->name] : ['id' => (int) $p->doctor_id],
+            'doctor' => $p->doctor ? ['id' => (int) $p->doctor->id, 'name' => $p->doctor->displayName()] : ['id' => (int) $p->doctor_id],
             'patient' => $p->patient ? ['id' => (int) $p->patient->id, 'name' => $p->patient->name] : ['id' => (int) $p->patient_id],
             'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
             'priced_at' => optional($p->priced_at)->toIso8601String(),

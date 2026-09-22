@@ -249,6 +249,61 @@ class BusinessClinicAppointmentController extends Controller
         return response()->json(['success' => true, 'message' => __('تم حذف الفتحة.')]);
     }
 
+    /**
+     * GET .../clinic-appointments/{appointment}/patient-record — what the
+     * doctor opens when the patient walks in: no prior visit means a blank
+     * new prescription + report; a returning patient means their latest
+     * prescription/report, to view or amend (via POST prescriptions/{id}
+     * /revise) rather than starting from nothing.
+     */
+    public function patientRecord(Request $request, int $appointment)
+    {
+        $row = $this->ownedOrFail($request, $appointment);
+        $clinicId = BusinessContext::id($request);
+        $currentPrescriptionId = optional($row->prescription)->id;
+
+        $previous = \App\Models\Prescription::query()
+            ->where('doctor_id', $clinicId)
+            ->where('patient_id', (int) $row->patient_id)
+            ->when($currentPrescriptionId, fn ($q) => $q->where('id', '!=', $currentPrescriptionId))
+            ->with('items')
+            ->latest('id')
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'is_first_visit' => $previous === null,
+                'previous_prescription' => $previous ? $this->serializePrescriptionSummary($previous) : null,
+            ],
+        ]);
+    }
+
+    private function serializePrescriptionSummary(\App\Models\Prescription $p): array
+    {
+        return [
+            'id' => (int) $p->id,
+            'status' => (string) $p->status,
+            'diagnosis' => $p->diagnosis,
+            'patient_condition' => $p->patient_condition,
+            'notes' => $p->notes,
+            'issued_at' => optional($p->issued_at)->toIso8601String(),
+            'items' => $p->items->map(fn ($i) => [
+                'id' => (int) $i->id,
+                'medicine_id' => $i->medicine_id ? (int) $i->medicine_id : null,
+                'name' => $i->name,
+                'dosage' => $i->dosage,
+                'quantity' => $i->quantity,
+                'instructions' => $i->instructions,
+                'frequency_per_day' => $i->frequency_per_day,
+                'food_timing' => $i->food_timing,
+                'time_slots' => $i->time_slots,
+                'duration_value' => $i->duration_value,
+                'duration_unit' => $i->duration_unit,
+            ])->all(),
+        ];
+    }
+
     private function act(Request $request, int $appointmentId, \Closure $action, string $message)
     {
         $row = $this->ownedOrFail($request, $appointmentId);

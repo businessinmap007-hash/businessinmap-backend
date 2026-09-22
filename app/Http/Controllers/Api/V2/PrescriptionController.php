@@ -107,7 +107,7 @@ class PrescriptionController extends Controller
     {
         $rows = Prescription::query()
             ->where('patient_id', (int) $request->user()->id)
-            ->with(['items', 'doctor:id,name', 'pharmacy:id,name'])
+            ->with(['items', 'doctor:id,name,name_en,medical_title', 'pharmacy:id,name'])
             ->latest('id')
             ->paginate((int) $request->get('per_page', 20));
 
@@ -157,7 +157,7 @@ class PrescriptionController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم إرسال الوصفة إلى الصيدلية.'),
-            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name', 'pharmacy:id,name']))],
+            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name,name_en,medical_title', 'pharmacy:id,name']))],
         ]);
     }
 
@@ -268,7 +268,7 @@ class PrescriptionController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تمت مشاركة الوصفة مع الطبيب.'),
-            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name', 'patient:id,name', 'pharmacy:id,name', 'shares.doctor:id,name']))],
+            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'doctor:id,name,name_en,medical_title', 'patient:id,name', 'pharmacy:id,name', 'shares.doctor:id,name,name_en,medical_title']))],
         ]);
     }
 
@@ -341,7 +341,7 @@ class PrescriptionController extends Controller
     private function partyOrFail(Request $request, int $id): Prescription
     {
         $row = Prescription::query()
-            ->with(['items', 'doctor:id,name', 'patient:id,name', 'pharmacy:id,name', 'shares.doctor:id,name'])
+            ->with(['items', 'doctor:id,name,name_en,medical_title', 'patient:id,name', 'pharmacy:id,name', 'shares.doctor:id,name,name_en,medical_title'])
             ->findOrFail($id);
 
         abort_unless($row->isParty((int) $request->user()->id), 404);
@@ -409,6 +409,6 @@ class PrescriptionController extends Controller
 
     private function party(?User $user, $id): array
     {
-        return $user ? ['id' => (int) $user->id, 'name' => $user->name] : ['id' => (int) $id];
+        return $user ? ['id' => (int) $user->id, 'name' => $user->displayName()] : ['id' => (int) $id];
     }
 }

@@ -445,6 +445,20 @@ class PrescriptionFlowTest extends TestCase
             ->assertCreated();
     }
 
+    /** The patient reads the doctor's title-prefixed name, not the bare name. */
+    public function test_the_doctor_is_shown_with_their_title(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $doctor->forceFill(['medical_title' => User::MEDICAL_TITLE_DOCTOR])->save();
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $id = $this->issue($doctor, $patient);
+
+        Sanctum::actingAs($patient);
+        $this->getJson("/api/v2/prescriptions/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.prescription.doctor.name', User::MEDICAL_TITLE_DOCTOR . ' ' . $doctor->name);
+    }
+
     /** The same secretary, without the capability granted, is refused. */
     public function test_a_delegate_without_the_prescriptions_capability_cannot_issue(): void
     {

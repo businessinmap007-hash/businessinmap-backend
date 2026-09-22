@@ -2593,6 +2593,44 @@ paths:
     patch: { tags: [Business Retail], summary: Update a listing, responses: { '200': { description: OK } } }
     delete: { tags: [Business Retail], summary: Delete a listing, responses: { '200': { description: OK } } }
 
+  /business/retail/variant-groups:
+    get:
+      tags: [Business Retail]
+      summary: List the business's own retail variant groups (color/size families over its own listings)
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+    post:
+      tags: [Business Retail]
+      summary: Create a variant group (name + at least 2 of the business's own listings, each with a label)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name_ar, options]
+              properties:
+                name_ar: { type: string }
+                name_en: { type: string }
+                is_active: { type: boolean }
+                sort_order: { type: integer }
+                options:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [listing_id, label_ar]
+                    properties:
+                      listing_id: { type: integer }
+                      label_ar: { type: string }
+                      label_en: { type: string }
+      responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/retail/variant-groups/{group}:
+    parameters: [{ name: group, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Retail], summary: Variant group detail, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    put: { tags: [Business Retail], summary: Replace the group's name and full variant list, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+    patch: { tags: [Business Retail], summary: Replace the group's name and full variant list, responses: { '200': { description: OK } } }
+    delete: { tags: [Business Retail], summary: Delete the group (the listings themselves are untouched), responses: { '200': { description: OK } } }
+
   # ─────────────────────── Business Offers ───────────────────────
   /business/offers:
     get: { tags: [Business Offers], summary: The business's offers, responses: { '200': { description: OK } } }

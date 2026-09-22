@@ -2838,5 +2838,7 @@
     "هذه الإعدادات مخصصة لصاحب النشاط فقط.": "These settings are for the business owner only.",
     "لا يمكن تحديث موعد التوصيل في هذه المرحلة.": "The delivery ETA can't be updated at this stage.",
     "اختر عنوان التوصيل (المحافظة والمدينة) أولًا.": "Choose a delivery address (governorate and city) first.",
-    "لا يوجد موعد شحن للتأكيد.": "There is no shipping appointment to confirm."
+    "لا يوجد موعد شحن للتأكيد.": "There is no shipping appointment to confirm.",
+    "لا يمكن تسعير هذا الطلب في حالته الحالية.": "This request cannot be priced in its current state.",
+    "لا يمكن رفض هذا الطلب في حالته الحالية.": "This request cannot be declined in its current state."
 }

@@ -410,11 +410,19 @@ final class RetailDiscoveryController extends Controller
             return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
         }
 
+        // Listings promised to a variant group are pulled off the plain
+        // shelf here — they surface once, as their group, below.
+        $groupedListingIds = DB::table('retail_variant_options as o')
+            ->join('retail_variant_groups as g', 'g.id', '=', 'o.retail_variant_group_id')
+            ->where('g.business_id', $business)
+            ->pluck('o.business_catalog_listing_id');
+
         $listings = DB::table('business_catalog_listings as l')
             ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
             ->where('l.business_id', $business)
             ->where('l.is_active', 1)
             ->whereNull('p.deleted_at')
+            ->whereNotIn('l.id', $groupedListingIds)
             ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'l'))
             ->orderBy('p.name_ar')
             ->orderBy('l.id')
@@ -441,6 +449,45 @@ final class RetailDiscoveryController extends Controller
                     'image' => $r->product_image,
                 ],
             ])->values();
+
+        // A wholesale-restricted variant must stay invisible here too - same
+        // rule as the plain shelf above (RetailListingVisibility).
+        $viewer = $this->viewer($request);
+        $variantGroups = \App\Models\RetailVariantGroup::query()
+            ->where('business_id', $business)
+            ->active()
+            // A second with('options.listing.product') here would silently
+            // reset this constraint back to unconstrained — Eloquent's nested
+            // dotted with() overwrites an already-constrained parent segment
+            // instead of merging into it. Everything has to be one call.
+            ->with(['options' => fn ($q) => $q
+                ->whereHas('listing', fn ($qq) => $this->visibility->apply($qq->where('is_active', 1), $viewer, 'business_catalog_listings'))
+                ->with('listing.product')])
+            ->orderBy('sort_order')
+            ->orderByDesc('id')
+            ->get()
+            ->filter(fn ($g) => $g->options->isNotEmpty())
+            ->map(function (\App\Models\RetailVariantGroup $g) {
+                $first = $g->options->first()->listing;
+
+                return [
+                    'group_id' => (int) $g->id,
+                    'name' => $g->display_name,
+                    'image' => $first?->product?->main_image,
+                    'price_from' => (float) $g->options->min(fn ($o) => (float) ($o->listing->price ?? 0)),
+                    'options' => $g->options->map(fn ($o) => [
+                        'listing_id' => (int) $o->business_catalog_listing_id,
+                        'label' => $o->display_label,
+                        'price' => (float) ($o->listing->price ?? 0),
+                        'currency' => $o->listing->currency ?: 'EGP',
+                        'stock' => $o->listing->stock !== null ? (int) $o->listing->stock : null,
+                        'min_order_qty' => $o->listing->min_order_qty !== null ? (int) $o->listing->min_order_qty : null,
+                        'max_order_qty' => $o->listing->max_order_qty !== null ? (int) $o->listing->max_order_qty : null,
+                        'unit' => $o->listing->unit ?: null,
+                    ])->values(),
+                ];
+            })->values();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -450,6 +497,7 @@ final class RetailDiscoveryController extends Controller
                     'logo' => $biz->logo,
                 ],
                 'listings' => $listings,
+                'variant_groups' => $variantGroups,
             ],
         ]);
     }

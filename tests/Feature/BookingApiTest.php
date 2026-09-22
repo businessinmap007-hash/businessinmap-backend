@@ -74,6 +74,25 @@ class BookingApiTest extends TestCase
         $this->assertNotContains($foreign->id, $ids);
     }
 
+    public function test_bookings_carry_a_title_in_the_list_and_the_detail(): void
+    {
+        $booking = $this->makeBooking();
+
+        $row = collect(
+            $this->actingAs($this->client, 'sanctum')
+                ->getJson('/api/v2/bookings?scope=my&per_page=100')
+                ->assertOk()
+                ->json('data.bookings.data')
+        )->firstWhere('id', $booking->id);
+
+        $this->assertNotEmpty($row['title'] ?? null);
+
+        $this->actingAs($this->client, 'sanctum')
+            ->getJson('/api/v2/bookings/' . $booking->id)
+            ->assertOk()
+            ->assertJsonPath('data.booking.title', $row['title']);
+    }
+
     public function test_business_scope_is_blocked_for_clients(): void
     {
         $this->actingAs($this->client, 'sanctum')

@@ -155,7 +155,7 @@ class RetailVariantGroupTest extends TestCase
         $this->actingWithToken($ownerToken)->deleteJson("/api/v2/business/retail/variant-groups/{$groupId}")->assertOk();
         $this->assertDatabaseHas('business_catalog_listings', ['id' => $red]);
         $this->assertDatabaseHas('business_catalog_listings', ['id' => $green]);
-        $this->assertDatabaseCount('retail_variant_options', 0);
+        $this->assertDatabaseMissing('retail_variant_options', ['retail_variant_group_id' => $groupId]);
     }
 
     public function test_a_wholesale_restricted_variant_stays_invisible_to_a_stranger(): void

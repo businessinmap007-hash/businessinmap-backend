@@ -718,6 +718,42 @@ class CustomerCartService
     {
         $cart->fulfillment_type = $data['fulfillment_type'] ?? $cart->fulfillment_type ?: Order::FULFILLMENT_DELIVERY;
 
+        // The business's own flat delivery charge (Api\V2\DeliveryController::
+        // updateDeliverySettings) - known and shown to the customer right here
+        // at checkout, before any driver is even chosen. A freelance driver
+        // who later accepts an unassigned order from the open pool may still
+        // apply their OWN rate, but only as a fallback when this stayed at 0
+        // (DeliveryDispatchService::acceptOrder).
+        $cart->delivery_fee_status = null;
+        $cart->shipping_status = null;
+        $cart->shipping_to_governorate_id = null;
+        if ($cart->fulfillment_type === Order::FULFILLMENT_DELIVERY) {
+            $business = User::query()->find($cart->business_id);
+
+            if (empty($data['address_id']) && empty($data['governorate_id'])) {
+                throw ValidationException::withMessages(['address_id' => __('اختر عنوان التوصيل (المحافظة والمدينة) أولًا.')]);
+            }
+
+            $zone = $this->deliveryZone($cart, $business, (int) ($data['address_id'] ?? 0), (int) ($data['governorate_id'] ?? 0));
+
+            if ($zone['zone'] === 'shipping') {
+                // Another governorate: shipped by a company the merchant picks
+                // (ShippingService), never offered to couriers.
+                $cart->delivery_fee = 0;
+                $cart->shipping_status = Order::SHIP_AWAITING_COMPANY;
+                $cart->shipping_to_governorate_id = $zone['governorate_id'];
+            } elseif ($zone['zone'] === 'quote') {
+                // Priced per order by the courier, by distance - see
+                // DeliveryDispatchService::acceptOrder / respondToFeeProposal.
+                $cart->delivery_fee = 0;
+                $cart->delivery_fee_status = Order::FEE_AWAITING_QUOTE;
+            } else {
+                $cart->delivery_fee = $business && $business->delivery_fee_amount !== null
+                    ? (float) $business->delivery_fee_amount
+                    : 0;
+            }
+        }
+
         // Delivery target, most specific first. Each is scoped to the cart owner
         // and snapshotted so a later edit never rewrites an order already out for
         // delivery:
@@ -784,6 +820,49 @@ class CustomerCartService
         // that funnels through here — personal delivery/pickup, a shared cart, and
         // a dine-in table scan — so a scanned table order reaches the restaurant.
         $this->notifyBusinessOfNewOrder($cart);
+    }
+
+    /**
+     * Delivery to a different city than the business's own. Only a saved
+     * address carries a city; a free-text address is treated as in-city (the
+     * business's fixed fee), never guessed at.
+     */
+    /**
+     * Where a delivery goes relative to the business: 'city' (same city, or
+     * unknown - the fixed fee), 'quote' (another city, same governorate - the
+     * courier prices it) or 'shipping' (another governorate - a shipping
+     * company). Only a saved address carries a location.
+     *
+     * @return array{zone: string, governorate_id: ?int}
+     */
+    private function deliveryZone(Order $cart, ?User $business, int $addressId, int $governorateId = 0): array
+    {
+        $none = ['zone' => 'city', 'governorate_id' => null];
+
+        if (! $business) {
+            return $none;
+        }
+
+        if ($addressId > 0) {
+            $address = Address::query()->whereKey($addressId)->where('user_id', (int) $cart->user_id)->first(['city_id', 'governorate_id']);
+        } elseif ($governorateId > 0) {
+            $address = new Address(['governorate_id' => $governorateId]);
+        } else {
+            $address = null;
+        }
+        if (! $address) {
+            return $none;
+        }
+
+        if ($business->governorate_id && $address->governorate_id && (int) $address->governorate_id !== (int) $business->governorate_id) {
+            return ['zone' => 'shipping', 'governorate_id' => (int) $address->governorate_id];
+        }
+
+        if ($business->city_id && $address->city_id && (int) $address->city_id !== (int) $business->city_id) {
+            return ['zone' => 'quote', 'governorate_id' => null];
+        }
+
+        return $none;
     }
 
     /**
@@ -1012,7 +1091,7 @@ class CustomerCartService
                 ? 'New order from table ' . $tableLabel . '.'
                 : 'You have a new order.';
 
-            $this->notifications->dispatch('menu_order_created', $businessId, [
+            $payload = [
                 'type' => AppNotification::TYPE_OFFER,
                 'actor_id' => (int) $cart->user_id,
                 'body_ar' => $bodyAr,
@@ -1029,7 +1108,24 @@ class CustomerCartService
                     'table_label' => $tableLabel,
                     'fulfillment_type' => $cart->fulfillment_type,
                 ],
-            ]);
+            ];
+
+            $this->notifications->dispatch('menu_order_created', $businessId, $payload);
+
+            // Delegated staff who handle orders get the same ping - the
+            // owner's account is not who is standing at the counter.
+            $staffIds = \App\Models\BusinessStaff::query()
+                ->where('business_id', $businessId)
+                ->where('is_active', true)
+                ->where('status', \App\Models\BusinessStaff::STATUS_ACCEPTED)
+                ->get()
+                ->filter(fn ($s) => in_array(\App\Support\BusinessCapability::ORDERS, (array) $s->capabilities, true))
+                ->pluck('user_id')
+                ->unique();
+
+            foreach ($staffIds as $staffUserId) {
+                $this->notifications->dispatch('menu_order_created', (int) $staffUserId, $payload);
+            }
         } catch (\Throwable $e) {
             report($e);
         }

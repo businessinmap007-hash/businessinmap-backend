@@ -42,6 +42,7 @@ class AccountResource extends JsonResource
             'city_id' => $this->city_id !== null ? (int) $this->city_id : null,
             'category_id' => $this->category_id !== null ? (int) $this->category_id : null,
             'category_child_id' => $this->category_child_id !== null ? (int) $this->category_child_id : null,
+            'category_slug' => optional($this->category)->slug,
             'balance' => (float) $this->balance,
             'social' => $this->socialLinks(),
             'created_at' => optional($this->created_at)->toIso8601String(),

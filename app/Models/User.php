@@ -122,6 +122,9 @@ class User extends Authenticatable
         //   - attendance_verification_enabled → written only by
         //                                        StaffAttendanceController::updateSettings
         //                                        (direct property assignment).
+        //   - delivery_fee_amount             → written only by
+        //                                        DeliveryController::updateDeliverySettings
+        //                                        (direct property assignment).
     ];
 
     protected $hidden = [
@@ -143,6 +146,7 @@ class User extends Authenticatable
         'rating_enabled' => 'boolean',
         'commercial_operations_enabled' => 'boolean',
         'attendance_verification_enabled' => 'boolean',
+        'delivery_fee_amount' => 'float',
 
         'deleted_at'        => 'datetime',
 
@@ -339,6 +343,16 @@ class User extends Authenticatable
     public function isBusiness(): bool
     {
         return $this->type === self::TYPE_BUSINESS;
+    }
+
+    /**
+     * A "Shipping & Delivery" business account - the only kind that registers
+     * as a freelance driver / courier on its own account. (A driver a business
+     * links to its own team is added by that business, never self-registers.)
+     */
+    public function isShippingCarrier(): bool
+    {
+        return $this->isBusiness() && optional($this->category)->slug === 'shipping-delivery';
     }
 
     public function isClient(): bool

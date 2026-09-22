@@ -292,6 +292,30 @@ class SharedCartTest extends TestCase
         );
     }
 
+    public function test_host_can_invite_only_selected_members_of_a_group(): void
+    {
+        $orderId = $this->shareAsHost();
+
+        $group = ContactGroup::query()->create(['user_id' => $this->host->id, 'name' => 'العائلة']);
+        $group->members()->create(['user_id' => $this->member->id]);
+        $group->members()->create(['user_id' => $this->outsider->id]);
+
+        Sanctum::actingAs($this->host);
+        $this->postJson("/api/v2/cart/shared/{$orderId}/invite-group/{$group->id}", [
+            'member_ids' => [$this->member->id],
+        ])
+            ->assertOk()
+            ->assertJsonCount(1, 'data.invited')
+            ->assertJsonPath('data.invited.0.id', $this->member->id);
+
+        $this->assertSame(
+            0,
+            AppNotification::query()->where('source_type', 'shared_cart_invited')
+                ->where('user_id', $this->outsider->id)->count(),
+            'a member left unchecked in the picker is never notified'
+        );
+    }
+
     public function test_group_invite_skips_a_member_already_in_the_cart(): void
     {
         $orderId = $this->shareAsHost();

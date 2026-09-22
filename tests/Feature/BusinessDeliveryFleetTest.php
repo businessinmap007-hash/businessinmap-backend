@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\DeliveryDispatchService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
+use Tests\Concerns\PromotesCarriers;
 use Tests\TestCase;
 
 /**
@@ -21,6 +22,7 @@ use Tests\TestCase;
  */
 class BusinessDeliveryFleetTest extends TestCase
 {
+    use PromotesCarriers;
     use DatabaseTransactions;
 
     private const RESTAURANT_CHILD = 245;
@@ -84,6 +86,7 @@ class BusinessDeliveryFleetTest extends TestCase
         ])->assertSuccessful();
 
         $order = $this->actingWithToken($customerToken)->postJson('/api/v2/cart/' . $business->id . '/checkout', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'address' => 'شارع الاختبار',
         ])->assertCreated()->json('data.order');
@@ -284,7 +287,7 @@ class BusinessDeliveryFleetTest extends TestCase
 
         $freelancer = $this->makeUser(User::TYPE_CLIENT, 'FreeRiderGeo');
         $freelancerToken = $this->tokenFor($freelancer);
-        $this->actingWithToken($freelancerToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($freelancerToken)->postJson('/api/v2/delivery/register')->assertCreated();
         $this->actingWithToken($freelancerToken)->postJson('/api/v2/delivery/location', [
             'lat' => 30.0600, 'lng' => 31.2450,
         ])->assertOk();
@@ -316,7 +319,7 @@ class BusinessDeliveryFleetTest extends TestCase
         $freelancer = $this->makeUser(User::TYPE_CLIENT, 'Freelancer');
         $freelancerToken = $this->tokenFor($freelancer);
 
-        $this->actingWithToken($freelancerToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($freelancerToken)->postJson('/api/v2/delivery/register')->assertCreated();
 
         $orderId = $this->readyOrderFor($owner);
 

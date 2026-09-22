@@ -200,6 +200,9 @@ class AccountDeletionApiTest extends TestCase
 
         // ...and still refused.
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'Back Again',
             'email' => $email,
             'phone' => $phone,
@@ -210,6 +213,9 @@ class AccountDeletionApiTest extends TestCase
 
         // Including in the Arabic-digit spelling of the same number.
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'Back Again',
             'email' => 'totally-new-' . uniqid() . '@example.test',
             'phone' => strtr($phone, ['0' => '٠', '1' => '١', '2' => '٢', '3' => '٣', '4' => '٤', '5' => '٥', '6' => '٦', '7' => '٧', '8' => '٨', '9' => '٩']),

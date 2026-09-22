@@ -282,6 +282,11 @@ final class RatingService
             return $this->reviewError(409, __('لا يمكن التقييم إلا بعد اكتمال العملية.'));
         }
 
+        // A cash order is only reviewable once every party confirmed the cash.
+        if ($operation instanceof Order && $operation->requiresPaymentConfirmation() && ! $operation->payment_settled_at) {
+            return $this->reviewError(409, __('يفتح التقييم بعد تأكيد الدفع من جميع الأطراف.'));
+        }
+
         // The rater must have actually been part of this operation.
         if (! in_array($raterId, [$businessId, $clientId], true)) {
             return $this->reviewError(403, __('لا يمكنك تقييم عملية لست طرفاً فيها.'));

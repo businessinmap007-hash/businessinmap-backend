@@ -94,6 +94,9 @@ class MenuOrderJourneyTest extends TestCase
     private function registerCustomer(): string
     {
         $response = $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'عميل الرحلة',
             'email' => 'journey-' . uniqid() . '@example.test',
             'phone' => '0155' . random_int(1000000, 9999999),

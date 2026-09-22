@@ -257,6 +257,9 @@ class AccountSecurityTest extends TestCase
         $child = \Illuminate\Support\Facades\DB::table('category_parent_child')->first();
 
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'محل بلا اسم إنجليزي',
             'email' => 'zz-noen-' . uniqid() . '@test.local',
             'phone' => '01' . random_int(100000000, 999999999),
@@ -268,6 +271,9 @@ class AccountSecurityTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('name_en');
 
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'عميل باسم واحد',
             'email' => 'zz-client-' . uniqid() . '@test.local',
             'phone' => '01' . random_int(100000000, 999999999),

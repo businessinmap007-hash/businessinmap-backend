@@ -69,6 +69,8 @@ use App\Http\Controllers\Api\V2\OfferFollowController;
 use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderController;
+use App\Http\Controllers\Api\V2\OrderTrustController;
+use App\Http\Controllers\Api\V2\ShippingController;
 use App\Http\Controllers\Api\V2\OrderHandoverController;
 use App\Http\Controllers\Api\V2\PasswordResetController;
 use App\Http\Controllers\Api\V2\CommentController;
@@ -689,6 +691,15 @@ Route::prefix('v2')->group(function () {
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->whereNumber('order');
         // "Order it again": re-adds the past order's lines to the cart.
         Route::post('orders/{order}/reorder', [OrderController::class, 'reorder'])->whereNumber('order');
+        // Cash-payment attestation (customer's own leg) - see the business
+        // and delivery confirm-payment routes below for the other two legs.
+        Route::post('orders/{order}/confirm-payment', [OrderController::class, 'confirmPayment'])->whereNumber('order');
+        // "I trust" checkbox toward another party of the order (customer / driver).
+        Route::post('orders/{order}/trust', [OrderTrustController::class, 'update'])->whereNumber('order');
+        Route::post('orders/{order}/shipping/appointment-ok', [ShippingController::class, 'confirmAppointment'])->whereNumber('order');
+        // Out-of-city delivery fee: the customer accepts or declines the courier's price.
+        Route::post('orders/{order}/delivery-fee/accept', [DeliveryController::class, 'acceptFee'])->whereNumber('order');
+        Route::post('orders/{order}/delivery-fee/decline', [DeliveryController::class, 'declineFee'])->whereNumber('order');
 
         // Placed orders: the business's incoming-order queue + detail + lifecycle.
         // Owner OR a delegated staff member granted the `orders` capability.
@@ -708,9 +719,27 @@ Route::prefix('v2')->group(function () {
             // Pickup/dine-in only -- delivery completes via the QR handover
             // (DeliveryDispatchService::confirmDelivery) instead.
             Route::post('business/orders/{order}/complete', [OrderController::class, 'businessComplete'])->whereNumber('order');
+            // Cash-payment attestation (merchant's own leg, order amount only).
+            Route::post('business/orders/{order}/confirm-payment', [OrderController::class, 'businessConfirmPayment'])->whereNumber('order');
+            Route::post('business/orders/{order}/trust', [OrderTrustController::class, 'update'])->whereNumber('order');
             Route::get('business/delivery-drivers', [DeliveryController::class, 'roster']);
             Route::patch('business/delivery-drivers/{driver}', [DeliveryController::class, 'updateDriver'])->whereNumber('driver');
+            Route::get('business/delivery-settings', [DeliveryController::class, 'deliverySettings']);
+            Route::patch('business/delivery-settings', [DeliveryController::class, 'updateDeliverySettings']);
             Route::post('business/orders/{order}/assign-driver', [DeliveryController::class, 'assignDriver'])->whereNumber('order');
+            Route::post('business/orders/{order}/pickup-token', [DeliveryController::class, 'businessPickupToken'])->whereNumber('order');
+            Route::post('business/orders/{order}/pickup-token/reset', [DeliveryController::class, 'resetPickupToken'])->whereNumber('order');
+            // Governorate shipping: the merchant picks a company; the company keeps
+            // its price list, sets the appointment and moves the order along.
+            Route::get('business/orders/{order}/shipping-companies', [ShippingController::class, 'companies'])->whereNumber('order');
+            Route::post('business/orders/{order}/shipping-company', [ShippingController::class, 'assign'])->whereNumber('order');
+            Route::get('business/shipping/rates', [ShippingController::class, 'rates']);
+            Route::put('business/shipping/rates', [ShippingController::class, 'updateRates']);
+            Route::get('business/shipping/orders', [ShippingController::class, 'orders']);
+            Route::post('business/shipping/orders/{order}/appointment', [ShippingController::class, 'appointment'])->whereNumber('order');
+            Route::post('business/shipping/orders/{order}/shipped', [ShippingController::class, 'shipped'])->whereNumber('order');
+            Route::post('business/shipping/orders/{order}/delivered', [ShippingController::class, 'delivered'])->whereNumber('order');
+            Route::post('business/orders/{order}/delivery-fee/recommendation', [DeliveryController::class, 'recommendFee'])->whereNumber('order');
             // A specific line turns out unavailable while preparing — applies
             // whatever the customer chose at checkout (out_of_stock_policy).
             Route::post('business/orders/{order}/items/{item}/unavailable', [OrderController::class, 'businessMarkItemUnavailable'])
@@ -865,6 +894,7 @@ Route::prefix('v2')->group(function () {
         // staff member with the bookings capability (mirrors business/orders).
         Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('business/bookings', [BookingController::class, 'businessIndex']);
+            Route::post('business/bookings/{booking}/confirm-payment', [BookingController::class, 'businessConfirmPayment'])->whereNumber('booking');
         });
 
         // Business bookable items: the units customers book (booking service).
@@ -907,12 +937,16 @@ Route::prefix('v2')->group(function () {
             Route::get('me', [DeliveryController::class, 'me']);
             Route::post('register', [DeliveryController::class, 'register']);
             Route::post('availability', [DeliveryController::class, 'availability']);
+            Route::patch('delivery-fee', [DeliveryController::class, 'updateOwnDeliveryFee']);
             Route::post('location', [DeliveryController::class, 'pingLocation']);
             Route::get('available-orders', [DeliveryController::class, 'available']);
             Route::post('orders/{order}/accept', [DeliveryController::class, 'accept'])->whereNumber('order');
             Route::post('orders/{order}/pickup-token', [DeliveryController::class, 'issuePickupToken'])->whereNumber('order');
             Route::post('orders/{order}/delivery-token', [DeliveryController::class, 'issueDeliveryToken'])->whereNumber('order');
             Route::post('orders/{order}/eta', [DeliveryController::class, 'notifyEta'])->whereNumber('order');
+            // Cash-payment attestation (driver's own leg, delivery_fee only).
+            Route::post('orders/{order}/confirm-payment', [DeliveryController::class, 'confirmPayment'])->whereNumber('order');
+            Route::post('orders/{order}/fee-proposal', [DeliveryController::class, 'proposeFee'])->whereNumber('order');
             Route::post('pickup/{token}/confirm', [DeliveryController::class, 'confirmPickup']);
             Route::post('deliver/{token}/confirm', [DeliveryController::class, 'confirmDelivery']);
             Route::get('my-orders', [DeliveryController::class, 'myOrders']);
@@ -996,6 +1030,7 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/start', [BookingController::class, 'start'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/complete', [BookingController::class, 'complete'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            Route::post('{booking}/confirm-payment', [BookingController::class, 'confirmPayment'])->whereNumber('booking');
             Route::post('{booking}/deposit/agree-release', [BookingController::class, 'agreeReleaseDeposit'])->whereNumber('booking');
             Route::post('{booking}/deposit/agree-refund', [BookingController::class, 'agreeRefundDeposit'])->whereNumber('booking');
         });

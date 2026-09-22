@@ -43,6 +43,12 @@ class TrustedPartnerService
             ]);
         }
 
+        return $this->vouchUser($businessId, $user);
+    }
+
+    /** Same vouch for an already-resolved user (e.g. the customer of an order). */
+    public function vouchUser(int $businessId, User $user): TrustedPartner
+    {
         if ((int) $user->id === $businessId) {
             throw ValidationException::withMessages([
                 'phone' => __('لا يمكنك توثيق نفسك.'),

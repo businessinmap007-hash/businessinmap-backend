@@ -748,6 +748,64 @@ final class BookingController extends Controller
         return $this->bookingResponse($booking->fresh(), 'Refund agreement recorded successfully.');
     }
 
+    /**
+     * POST /api/v2/bookings/{booking}/confirm-payment - the client says they
+     * paid in cash. Also counts as their agreement to release the frozen
+     * deposit (see recordCashConfirmation).
+     */
+    public function confirmPayment(Request $request, Booking $booking)
+    {
+        $this->authorizeClientBooking($request, $booking);
+
+        return $this->recordCashConfirmation($booking, 'client', (int) $booking->user_id);
+    }
+
+    /** POST /api/v2/business/bookings/{booking}/confirm-payment - the business says it received the cash. */
+    public function businessConfirmPayment(Request $request, Booking $booking)
+    {
+        $this->authorizeBusinessBooking($request, $booking);
+
+        return $this->recordCashConfirmation($booking, 'business', (int) $booking->business_id);
+    }
+
+    /**
+     * One party's cash confirmation. Allowed once the booking is under way
+     * (the same point deposit agreements open). It stamps that side's
+     * timestamp, and - when a deposit is frozen and no dispute is open -
+     * records the same party's release agreement, so the deposit releases as
+     * soon as both sides have confirmed. Once both confirmed the booking is
+     * marked settled.
+     */
+    private function recordCashConfirmation(Booking $booking, string $side, int $partyUserId)
+    {
+        if (! in_array((string) $booking->status, [Booking::STATUS_IN_PROGRESS, Booking::STATUS_COMPLETED], true)) {
+            throw ValidationException::withMessages([
+                'payment' => __('لا يمكن تأكيد الدفع إلا بعد بدء التنفيذ.'),
+            ]);
+        }
+
+        $column = $side . '_payment_confirmed_at';
+        if ($booking->{$column}) {
+            abort(409, __('سبق تأكيد الدفع.'));
+        }
+
+        $booking->{$column} = now();
+        $booking->save();
+
+        $deposit = $this->bookingDepositService->latestDeposit($booking);
+        if ($deposit && $deposit->isFrozen() && ! $this->bookingDepositService->hasLiveDispute($deposit)) {
+            $this->bookingDepositService->agreeRelease($booking, $partyUserId);
+        }
+
+        $booking = $booking->fresh();
+        if ($booking->client_payment_confirmed_at && $booking->business_payment_confirmed_at && ! $booking->payment_settled_at) {
+            $booking->payment_settled_at = now();
+            $booking->save();
+        }
+
+        return $this->bookingResponse($booking->fresh(), 'Payment confirmation recorded successfully.');
+    }
+
     public function financialPreview(Request $request, Booking $booking)
     {
         $this->authorizeBookingAccess($request, $booking);

@@ -103,6 +103,15 @@ class Order extends Model
         'paid_at' => 'datetime',
         'pickup_at' => 'datetime',
         'delivery_eta_at' => 'datetime',
+        'customer_payment_confirmed_at' => 'datetime',
+        'merchant_payment_confirmed_at' => 'datetime',
+        'driver_payment_confirmed_at' => 'datetime',
+        'payment_settled_at' => 'datetime',
+        'delivery_fee_proposed' => 'float',
+        'delivery_fee_decided_at' => 'datetime',
+        'shipping_fee' => 'float',
+        'shipping_appointment_at' => 'datetime',
+        'shipping_appointment_confirmed_at' => 'datetime',
         'requires_deposit' => 'boolean',
         'deposit_amount' => 'float',
         'deposit_covered' => 'boolean',
@@ -113,6 +122,91 @@ class Order extends Model
     public function needsExplicitDepositDecision(): bool
     {
         return (bool) $this->requires_deposit && ! $this->deposit_covered;
+    }
+
+    /**
+     * True once every party to the cash has attested: customer + merchant
+     * always, plus the driver when a delivery fee was actually collected by
+     * an assigned driver. Nothing is held for an order (the deposit flag is
+     * advisory - see CustomerCartService::assessDeposit), so "settled" is the
+     * point where that advisory deposit is considered released.
+     */
+    public function paymentsFullyConfirmed(): bool
+    {
+        if (! $this->customer_payment_confirmed_at || ! $this->merchant_payment_confirmed_at) {
+            return false;
+        }
+
+        $driverOwed = (string) $this->fulfillment_type === self::FULFILLMENT_DELIVERY
+            && $this->delivery_driver_id
+            && (float) $this->delivery_fee > 0;
+
+        return ! $driverOwed || (bool) $this->driver_payment_confirmed_at;
+    }
+
+    /** Orders placed before cash confirmation existed are never held to it. */
+    public const PAYMENT_CONFIRMATION_SINCE = '2026-09-20 00:00:00';
+
+    /**
+     * Whether this order is held to the cash-confirmation rules: a cash /
+     * cash-on-delivery order placed after the feature shipped. Older orders
+     * and anything paid another way are unaffected.
+     */
+    public function requiresPaymentConfirmation(): bool
+    {
+        return $this->booking_id === null
+            && in_array((string) $this->payment_method, ['cash', 'cash_on_delivery'], true)
+            && $this->created_at !== null
+            && $this->created_at->gte(\Illuminate\Support\Carbon::parse(self::PAYMENT_CONFIRMATION_SINCE));
+    }
+
+    /** Stamps payment_settled_at once, the first time every required party has confirmed. */
+    public function settlePaymentsIfComplete(): void
+    {
+        if ($this->payment_settled_at === null && $this->paymentsFullyConfirmed()) {
+            $this->payment_settled_at = now();
+            $this->save();
+        }
+    }
+
+    /**
+     * Per-order delivery pricing for out-of-city orders: awaiting_quote (no
+     * courier price yet) -> proposed (a courier wrote an amount) -> accepted
+     * (the customer agreed; it is on the invoice). A declined proposal goes
+     * back to awaiting_quote and the courier is released.
+     */
+    public const FEE_AWAITING_QUOTE = 'awaiting_quote';
+    public const FEE_PROPOSED = 'proposed';
+    public const FEE_ACCEPTED = 'accepted';
+
+    public const FEE_RECOMMENDATIONS = ['suitable', 'not_suitable'];
+
+    /**
+     * Governorate shipping (a different governorate than the business's): the
+     * merchant picks a shipping company (awaiting_company), the company sets the
+     * appointment (awaiting_appointment -> scheduled), then ships and delivers.
+     * A shipping order is never offered to couriers.
+     */
+    public const SHIP_AWAITING_COMPANY = 'awaiting_company';
+    public const SHIP_AWAITING_APPOINTMENT = 'awaiting_appointment';
+    public const SHIP_SCHEDULED = 'scheduled';
+    public const SHIP_SHIPPED = 'shipped';
+    public const SHIP_DELIVERED = 'delivered';
+
+    public function isShipping(): bool
+    {
+        return $this->shipping_status !== null;
+    }
+
+    public function shippingCompany()
+    {
+        return $this->belongsTo(User::class, 'shipping_company_id');
+    }
+
+    /** The delivery loop must not start while the fee is still being agreed. */
+    public function deliveryFeeUnsettled(): bool
+    {
+        return in_array((string) $this->delivery_fee_status, [self::FEE_AWAITING_QUOTE, self::FEE_PROPOSED], true);
     }
 
     public const PAYMENT_UNPAID = 'unpaid';

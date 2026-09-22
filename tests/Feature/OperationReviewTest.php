@@ -33,13 +33,19 @@ class OperationReviewTest extends TestCase
 
     private function order(string $status = 'completed'): Order
     {
-        return Order::create([
+        $order = Order::create([
             'user_id' => $this->client->id,
             'business_id' => $this->business->id,
             'total' => 100,
             'address' => 'addr',
             'status' => $status,
         ]);
+
+        // A cash order is reviewable only once every party confirmed the cash.
+        $order->payment_settled_at = now();
+        $order->save();
+
+        return $order;
     }
 
     private function booking(string $status = 'completed'): Booking

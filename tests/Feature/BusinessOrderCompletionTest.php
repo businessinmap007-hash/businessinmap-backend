@@ -43,6 +43,8 @@ class BusinessOrderCompletionTest extends TestCase
     private function advanceToReady(Order $order): void
     {
         $order->prep_status = Order::PREP_READY;
+        // A cash order is only completable once the merchant confirmed the cash.
+        $order->merchant_payment_confirmed_at = now();
         $order->save();
     }
 
@@ -93,8 +95,10 @@ class BusinessOrderCompletionTest extends TestCase
             ->assertStatus(409);
     }
 
-    public function test_completion_notifies_the_customer_naming_the_business(): void
+    public function test_completion_sends_the_customer_no_notification(): void
     {
+        // A customer's order pings are cut down to "accepted" and "the driver
+        // has it"; a pickup order's completion is the customer collecting it.
         $order = $this->makeOrder(Order::FULFILLMENT_PICKUP);
         $this->advanceToReady($order);
 
@@ -102,16 +106,9 @@ class BusinessOrderCompletionTest extends TestCase
             ->postJson("/api/v2/business/orders/{$order->id}/complete")
             ->assertOk();
 
-        $notification = AppNotification::query()
-            ->where('user_id', $this->customer->id)
-            ->where('meta->order_id', $order->id)
-            ->latest('id')
-            ->first();
-
-        $this->assertNotNull($notification);
-        $this->assertStringContainsString((string) $this->business->name, (string) $notification->body_ar);
-        $this->assertSame('open_customer_order', $notification->action_type);
-        $this->assertSame('/orders/' . $order->id, $notification->action_url);
+        $this->assertFalse(
+            AppNotification::query()->where('user_id', $this->customer->id)->where('meta->order_id', $order->id)->exists()
+        );
     }
 
     public function test_another_businesss_order_cannot_be_completed(): void

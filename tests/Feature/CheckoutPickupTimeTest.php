@@ -99,6 +99,7 @@ class CheckoutPickupTimeTest extends TestCase
         $this->fillCart();
 
         $this->postJson("/api/v2/cart/{$this->businessId}/checkout", [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'address' => 'شارع النصر',
         ])->assertCreated();

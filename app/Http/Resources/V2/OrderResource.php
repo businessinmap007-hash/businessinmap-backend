@@ -11,6 +11,25 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class OrderResource extends JsonResource
 {
+    private function trustFor($request): array
+    {
+        $parties = \App\Http\Controllers\Api\V2\OrderTrustController::partyIds($this->resource);
+        $viewer = \App\Support\BusinessContext::id($request);
+        $out = [];
+
+        foreach ($parties as $role => $id) {
+            if (! $id || $id === $viewer) {
+                continue;
+            }
+            $out[$role] = [
+                'trusted_by_me' => \App\Models\PartyTrust::exists($viewer, $id),
+                'trusts_me' => \App\Models\PartyTrust::exists($id, $viewer),
+            ];
+        }
+
+        return $out;
+    }
+
     public function toArray($request): array
     {
         return [
@@ -31,9 +50,49 @@ class OrderResource extends JsonResource
                 'final_total' => (float) $this->final_total,
             ],
 
+            // Out-of-city delivery pricing (null on an ordinary order): the
+            // courier's proposal, and the merchant's recommendation on it.
+            'delivery_fee_quote' => $this->delivery_fee_status ? [
+                'status' => (string) $this->delivery_fee_status,
+                'proposed_amount' => $this->delivery_fee_proposed !== null ? (float) $this->delivery_fee_proposed : null,
+                'recommendation' => $this->delivery_fee_recommendation,
+                'recommendation_note' => $this->delivery_fee_recommendation_note,
+            ] : null,
+
+            // Governorate shipping (null on an ordinary order).
+            'shipping' => $this->shipping_status ? [
+                'status' => (string) $this->shipping_status,
+                'fee' => $this->shipping_fee !== null ? (float) $this->shipping_fee : null,
+                'appointment_at' => optional($this->shipping_appointment_at)->toIso8601String(),
+                'appointment_note' => $this->shipping_appointment_note,
+                'appointment_confirmed_at' => optional($this->shipping_appointment_confirmed_at)->toIso8601String(),
+                'to_governorate_id' => $this->shipping_to_governorate_id ? (int) $this->shipping_to_governorate_id : null,
+                'company' => $this->shipping_company_id ? [
+                    'id' => (int) $this->shipping_company_id,
+                    'name' => optional($this->shippingCompany)->name,
+                ] : null,
+            ] : null,
+
             'payment_method' => $this->payment_method,
             'payment_status' => (string) ($this->payment_status ?? 'unpaid'),
             'paid_at' => optional($this->paid_at)->toIso8601String(),
+
+            // Three independent cash-payment attestations for the no-wallet
+            // COD flow - each party confirms only the leg of cash they're
+            // party to. Never a chain: any subset can be set at once.
+            // The viewer's own "I trust" ticks toward the other parties of the
+            // order, plus whether each of them trusts the viewer. Detail views
+            // only (items loaded) - a list row never needs it.
+            // Cash orders are held to the three-party confirmation (completion
+            // of pickup/dine-in, and reviews, wait on it).
+            'payment_confirmation_required' => $this->requiresPaymentConfirmation(),
+            'trust' => $this->relationLoaded('items') ? $this->trustFor($request) : null,
+            'payment_confirmations' => [
+                'customer_confirmed_at' => optional($this->customer_payment_confirmed_at)->toIso8601String(),
+                'merchant_confirmed_at' => optional($this->merchant_payment_confirmed_at)->toIso8601String(),
+                'driver_confirmed_at' => optional($this->driver_payment_confirmed_at)->toIso8601String(),
+                'settled_at' => optional($this->payment_settled_at)->toIso8601String(),
+            ],
 
             // Set at checkout from the merchant's own deposit_required_above
             // setting — advisory, nothing is held. See Order::needsExplicitDepositDecision().
@@ -43,6 +102,8 @@ class OrderResource extends JsonResource
                 'covered' => (bool) $this->deposit_covered,
                 'covered_by' => $this->deposit_covered_by,
                 'accepted_without_cover' => (bool) $this->deposit_accepted_without_cover,
+                // Advisory deposit is released only once every party confirmed the cash.
+                'released' => (bool) $this->requires_deposit && $this->payment_settled_at !== null,
             ],
             'address' => $this->address,
             'delivery_coordinates' => $this->customerLatLng()

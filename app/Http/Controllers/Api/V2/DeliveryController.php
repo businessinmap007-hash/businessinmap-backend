@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\OrderResource;
 use App\Models\Order;
 use App\Services\DeliveryDispatchService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 
 /**
@@ -37,6 +38,10 @@ final class DeliveryController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'vehicle_label' => ['nullable', 'string', 'max:120'],
         ]);
+
+        if (! $request->user()->isShippingCarrier()) {
+            abort(403, __('التسجيل كموصّل متاح لحسابات «شحن وتوصيل» فقط.'));
+        }
 
         $driver = $this->delivery->registerDriver((int) $request->user()->id, $data);
 
@@ -76,15 +81,32 @@ final class DeliveryController extends Controller
 
         // A business's own private driver only ever sees that business's own
         // orders; a freelance driver (business_id null) keeps the full pool.
+        // The driver's own position (sent by the app) turns the list into an
+        // "available near you" one: distance to the pickup point, nearest
+        // first. Without it the list is just oldest-first.
+        $lat = $request->filled('lat') ? (float) $request->query('lat') : null;
+        $lng = $request->filled('lng') ? (float) $request->query('lng') : null;
+
         $orders = $this->delivery
             ->availableOrders(50, $driver->business_id ? (int) $driver->business_id : null)
-            ->map(fn ($o) => [
-                'order_id' => (int) $o->id,
-                'business' => $o->business ? ['id' => (int) $o->business->id, 'name' => (string) $o->business->name] : null,
-                'address' => (string) $o->address,
-                'final_total' => (float) $o->final_total,
-                'delivery_fee' => (float) $o->delivery_fee,
-            ]);
+            ->map(function ($o) use ($lat, $lng) {
+                $b = $o->business;
+                $distance = ($lat !== null && $lng !== null && $b && $b->latitude !== null && $b->longitude !== null)
+                    ? round(\App\Models\DeliveryDriver::haversineKm($lat, $lng, (float) $b->latitude, (float) $b->longitude), 1)
+                    : null;
+
+                return [
+                    'order_id' => (int) $o->id,
+                    'business' => $b ? ['id' => (int) $b->id, 'name' => (string) $b->name] : null,
+                    'address' => (string) $o->address,
+                    'final_total' => (float) $o->final_total,
+                    'delivery_fee' => (float) $o->delivery_fee,
+                    'distance_km' => $distance,
+                    'needs_quote' => (string) $o->delivery_fee_status === \App\Models\Order::FEE_AWAITING_QUOTE,
+                ];
+            })
+            ->sortBy(fn ($row) => $row['distance_km'] ?? PHP_INT_MAX)
+            ->values();
 
         return response()->json(['success' => true, 'data' => ['orders' => $orders]]);
     }
@@ -92,12 +114,33 @@ final class DeliveryController extends Controller
     /** POST /api/v2/delivery/orders/{order}/accept */
     public function accept(Request $request, int $order)
     {
-        $model = $this->delivery->acceptOrder((int) $request->user()->id, $order);
+        $data = $request->validate(['fee_amount' => ['nullable', 'numeric', 'min:0', 'max:99999.99']]);
+
+        $model = $this->delivery->acceptOrder(
+            (int) $request->user()->id,
+            $order,
+            isset($data['fee_amount']) ? (float) $data['fee_amount'] : null,
+        );
 
         return response()->json(['success' => true, 'data' => [
             'order_id' => (int) $model->id,
             'delivery_stage' => (string) $model->delivery_stage,
         ]], 201);
+    }
+
+    /**
+     * PATCH /api/v2/delivery/delivery-fee — a freelance driver's own flat
+     * rate (fallback only, see DeliveryDispatchService::setOwnDeliveryFee).
+     * Any registered driver may call this, business-linked or not - it's
+     * simply unused while they carry their own business's orders.
+     */
+    public function updateOwnDeliveryFee(Request $request)
+    {
+        $data = $request->validate(['delivery_fee_amount' => ['nullable', 'numeric', 'min:0', 'max:99999.99']]);
+
+        $driver = $this->delivery->setOwnDeliveryFee((int) $request->user()->id, $data['delivery_fee_amount'] ?? null);
+
+        return response()->json(['success' => true, 'data' => ['delivery_fee_amount' => $driver->delivery_fee_amount]]);
     }
 
     /**
@@ -108,7 +151,7 @@ final class DeliveryController extends Controller
      */
     public function roster(Request $request)
     {
-        $business = $request->user();
+        $business = BusinessContext::business($request);
         $lat = $business->latitude !== null ? (float) $business->latitude : null;
         $lng = $business->longitude !== null ? (float) $business->longitude : null;
         $radiusKm = max(1, min(50, (float) $request->get('radius_km', 5)));
@@ -142,9 +185,37 @@ final class DeliveryController extends Controller
     {
         $data = $request->validate(['is_active' => ['required', 'boolean']]);
 
-        $row = $this->delivery->setBusinessDriverActive((int) $request->user()->id, $driver, (bool) $data['is_active']);
+        $row = $this->delivery->setBusinessDriverActive(BusinessContext::id($request), $driver, (bool) $data['is_active']);
 
         return response()->json(['success' => true, 'data' => ['id' => (int) $row->id, 'is_active' => (bool) $row->is_active]]);
+    }
+
+    /**
+     * GET /api/v2/business/delivery-settings — the business's own flat
+     * delivery charge (applied automatically at checkout when the customer
+     * chooses delivery, see CustomerCartService::placeOrder). Owner-only.
+     */
+    public function deliverySettings(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => ['delivery_fee_amount' => $request->user()->delivery_fee_amount],
+        ]);
+    }
+
+    /** PATCH /api/v2/business/delivery-settings — owner-only. */
+    public function updateDeliverySettings(Request $request)
+    {
+        $data = $request->validate(['delivery_fee_amount' => ['nullable', 'numeric', 'min:0', 'max:99999.99']]);
+
+        $business = $request->user();
+        $business->delivery_fee_amount = $data['delivery_fee_amount'] ?? null;
+        $business->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => ['delivery_fee_amount' => $business->delivery_fee_amount],
+        ]);
     }
 
     /** POST /api/v2/business/orders/{order}/assign-driver */
@@ -152,7 +223,7 @@ final class DeliveryController extends Controller
     {
         $data = $request->validate(['driver_id' => ['required', 'integer']]);
 
-        $model = $this->delivery->assignDriver((int) $request->user()->id, $order, (int) $data['driver_id']);
+        $model = $this->delivery->assignDriver(BusinessContext::id($request), $order, (int) $data['driver_id']);
 
         return response()->json(['success' => true, 'data' => [
             'order_id' => (int) $model->id,
@@ -193,6 +264,105 @@ final class DeliveryController extends Controller
         );
 
         return response()->json(['success' => true, 'data' => ['order_id' => (int) $model->id]]);
+    }
+
+    /**
+     * POST /api/v2/delivery/orders/{order}/confirm-payment — the assigned
+     * driver confirms they collected the delivery_fee in cash from the
+     * customer (their own leg only - see OrderController::businessConfirmPayment
+     * for the order-amount leg the merchant confirms separately).
+     */
+    public function confirmPayment(Request $request, int $order)
+    {
+        $model = $this->delivery->confirmPaymentReceived($order, (int) $request->user()->id);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'driver_payment_confirmed_at' => optional($model->driver_payment_confirmed_at)->toIso8601String(),
+        ]]);
+    }
+
+    /**
+     * POST /api/v2/business/orders/{order}/pickup-token - same stage-1 token,
+     * for the owner or a delegated staff member acting for the business.
+     */
+    public function businessPickupToken(Request $request, int $order)
+    {
+        $model = Order::query()->findOrFail($order);
+        $token = $this->delivery->issuePickupToken($model, BusinessContext::id($request));
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'pickup_token' => $token,
+            'scan_path' => '/dp/' . $token,
+        ]]);
+    }
+
+    /** POST /api/v2/delivery/orders/{order}/fee-proposal - the assigned courier prices an out-of-city order. */
+    public function proposeFee(Request $request, int $order)
+    {
+        $data = $request->validate(['amount' => ['required', 'numeric', 'min:0', 'max:99999.99']]);
+
+        $model = $this->delivery->proposeFee((int) $request->user()->id, $order, (float) $data['amount']);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'delivery_fee_status' => (string) $model->delivery_fee_status,
+            'delivery_fee_proposed' => $model->delivery_fee_proposed,
+        ]]);
+    }
+
+    /** POST /api/v2/orders/{order}/delivery-fee/accept - the customer agrees to the courier's price. */
+    public function acceptFee(Request $request, int $order)
+    {
+        return $this->answerFee($request, $order, true);
+    }
+
+    /** POST /api/v2/orders/{order}/delivery-fee/decline - the courier is released, the order is re-offered. */
+    public function declineFee(Request $request, int $order)
+    {
+        return $this->answerFee($request, $order, false);
+    }
+
+    private function answerFee(Request $request, int $order, bool $accept)
+    {
+        $model = $this->delivery->respondToFeeProposal((int) $request->user()->id, $order, $accept);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'delivery_fee_status' => (string) $model->delivery_fee_status,
+            'delivery_fee' => (float) $model->delivery_fee,
+            'final_total' => (float) $model->final_total,
+        ]]);
+    }
+
+    /** POST /api/v2/business/orders/{order}/delivery-fee/recommendation */
+    public function recommendFee(Request $request, int $order)
+    {
+        $data = $request->validate([
+            'recommendation' => ['required', 'in:suitable,not_suitable'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $model = $this->delivery->recommendFee(BusinessContext::id($request), $order, $data['recommendation'], $data['note'] ?? null);
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'recommendation' => $model->delivery_fee_recommendation,
+        ]]);
+    }
+
+    /** POST /api/v2/business/orders/{order}/pickup-token/reset - a fresh pickup code; the old one dies. */
+    public function resetPickupToken(Request $request, int $order)
+    {
+        $model = Order::query()->findOrFail($order);
+        $token = $this->delivery->resetPickupToken($model, BusinessContext::id($request));
+
+        return response()->json(['success' => true, 'data' => [
+            'order_id' => (int) $model->id,
+            'pickup_token' => $token,
+            'scan_path' => '/dp/' . $token,
+        ]]);
     }
 
     /** POST /api/v2/delivery/orders/{order}/pickup-token — restaurant issues stage-1 token. */
@@ -252,6 +422,11 @@ final class DeliveryController extends Controller
             'picked_up_count' => (int) $driver->picked_up_count,
             'delivered_count' => (int) $driver->delivered_count,
             'fast_delivery_count' => (int) $driver->fast_delivery_count,
+            'delivery_fee_amount' => $driver->delivery_fee_amount,
+            // Set when a business linked this driver to its own team (they
+            // work for it, and see the job under "أعمالي"); null = independent.
+            'business_id' => $driver->business_id ? (int) $driver->business_id : null,
+            'business_name' => $driver->business_id ? optional(\App\Models\User::query()->find($driver->business_id))->name : null,
         ];
     }
 }

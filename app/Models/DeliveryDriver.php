@@ -34,6 +34,7 @@ class DeliveryDriver extends Model
         'picked_up_count',
         'delivered_count',
         'fast_delivery_count',
+        'delivery_fee_amount',
     ];
 
     protected $casts = [
@@ -47,6 +48,7 @@ class DeliveryDriver extends Model
         'picked_up_count' => 'integer',
         'delivered_count' => 'integer',
         'fast_delivery_count' => 'integer',
+        'delivery_fee_amount' => 'float',
     ];
 
     public function user(): BelongsTo

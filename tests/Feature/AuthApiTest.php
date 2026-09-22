@@ -20,6 +20,9 @@ class AuthApiTest extends TestCase
         $suffix = Str::random(8);
 
         $res = $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'Test User',
             'email' => "t_{$suffix}@example.com",
             'phone' => '019' . random_int(10_000_000, 99_999_999),
@@ -40,6 +43,9 @@ class AuthApiTest extends TestCase
         // The business path must pick its category_child (the service catalog
         // key). Omitting it is a 422, not a half-built merchant account.
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'Biz No Child',
             'email' => "b_{$suffix}@example.com",
             'phone' => '019' . random_int(10_000_000, 99_999_999),
@@ -56,6 +62,9 @@ class AuthApiTest extends TestCase
         $suffix = Str::random(8);
 
         $res = $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             // Both names since 2026-08-12: a shop is searched for, and 35% of
             // them carried a Latin-only name no Arabic search could reach.
             'name' => 'نشاط له تخصص',

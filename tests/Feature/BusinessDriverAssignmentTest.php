@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\DeliveryDispatchService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
+use Tests\Concerns\PromotesCarriers;
 use Tests\TestCase;
 
 /**
@@ -21,6 +22,7 @@ use Tests\TestCase;
  */
 class BusinessDriverAssignmentTest extends TestCase
 {
+    use PromotesCarriers;
     use DatabaseTransactions;
 
     private const RESTAURANT_CHILD = 245;
@@ -84,6 +86,7 @@ class BusinessDriverAssignmentTest extends TestCase
         ])->assertSuccessful();
 
         $order = $this->actingWithToken($customerToken)->postJson('/api/v2/cart/' . $business->id . '/checkout', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'address' => 'شارع الاختبار',
         ])->assertCreated()->json('data.order');
@@ -135,7 +138,7 @@ class BusinessDriverAssignmentTest extends TestCase
     {
         $owner = $this->makeUser(User::TYPE_BUSINESS, 'Rest');
         $freelancer = $this->makeUser(User::TYPE_CLIENT, 'Freelancer');
-        $this->actingWithToken($this->tokenFor($freelancer))->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($this->tokenFor($freelancer))->postJson('/api/v2/delivery/register')->assertCreated();
         $freelancerDriverId = (int) DeliveryDriver::query()->where('user_id', $freelancer->id)->value('id');
 
         ['order_id' => $orderId, 'business_token' => $businessToken] = $this->readyOrderFor($owner);
@@ -221,7 +224,7 @@ class BusinessDriverAssignmentTest extends TestCase
         $assignedRider = $this->makeUser(User::TYPE_CLIENT, 'Assigned');
         $strangerRider = $this->makeUser(User::TYPE_CLIENT, 'Stranger');
         $this->actingAs($owner)->post('/business/delivery-drivers', ['phone' => $assignedRider->phone])->assertRedirect();
-        $this->actingWithToken($this->tokenFor($strangerRider))->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($this->tokenFor($strangerRider))->postJson('/api/v2/delivery/register')->assertCreated();
         $driverId = (int) DeliveryDriver::query()->where('user_id', $assignedRider->id)->value('id');
 
         ['order_id' => $orderId, 'business_token' => $businessToken] = $this->readyOrderFor($owner);

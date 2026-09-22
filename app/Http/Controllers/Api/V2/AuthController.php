@@ -63,6 +63,15 @@ final class AuthController extends Controller
             ],
             'specialty_option_ids' => ['nullable', 'array', 'max:10'],
             'specialty_option_ids.*' => ['integer', 'distinct'],
+            // Where the account is. Everything location-aware hangs on this - which
+            // shops a customer sees, delivery vs governorate shipping, which
+            // shipping companies a merchant can pick - so it is not optional.
+            'governorate_id' => ['required', 'integer', 'exists:governorates,id'],
+            'city_id' => ['required', 'integer', 'exists:cities,id'],
+            'address_line' => ['required', 'string', 'min:5', 'max:191'],
+            // Optional GPS point taken at signup ("use my location").
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
             // No consent, no account: registration is cancelled if the terms are
             // not accepted. `accepted` also fails when the field is absent.
             'terms_accepted' => ['accepted'],
@@ -95,6 +104,10 @@ final class AuthController extends Controller
             );
         }
 
+        if (! \App\Models\City::query()->whereKey((int) $data['city_id'])->where('governorate_id', (int) $data['governorate_id'])->exists()) {
+            throw ValidationException::withMessages(['city_id' => [__('المدينة المختارة لا تتبع المحافظة المختارة.')]]);
+        }
+
         // A ban is on the identity, not on the row: without this, a banned user
         // registers again with the same email and phone and the ban means
         // nothing. The list is hashed, so this is a membership test only.
@@ -115,12 +128,26 @@ final class AuthController extends Controller
                 'category_id' => $data['category_id'] ?? null,
                 'category_child_id' => $data['category_child_id'] ?? null,
                 'medical_title' => $data['medical_title'] ?? null,
+                'governorate_id' => (int) $data['governorate_id'],
+                'city_id' => (int) $data['city_id'],
+                'latitude' => $data['latitude'] ?? null,
+                'longitude' => $data['longitude'] ?? null,
                 'api_token' => $this->freshApiToken(),
             ]);
 
             if ($specialtyIds) {
                 $user->options()->syncWithoutDetaching($specialtyIds);
             }
+
+            // The first address of the address book (customer AND business).
+            $user->addresses()->create([
+                'governorate_id' => (int) $data['governorate_id'],
+                'city_id' => (int) $data['city_id'],
+                'address_line' => $data['address_line'],
+                'lat' => $data['latitude'] ?? null,
+                'lng' => $data['longitude'] ?? null,
+                'is_primary' => true,
+            ]);
 
             return $user;
         });

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\DeliveryDispatchService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
+use Tests\Concerns\PromotesCarriers;
 use Tests\TestCase;
 
 /**
@@ -33,6 +34,7 @@ use Tests\TestCase;
  */
 class DeliveryJourneyTest extends TestCase
 {
+    use PromotesCarriers;
     use DatabaseTransactions;
 
     private const PASSWORD = 'secret-password';
@@ -130,6 +132,7 @@ class DeliveryJourneyTest extends TestCase
         // the address book (BIM-11.1) is not wired to it yet. Recorded in
         // docs/06_ENGINEERING_REFERENCE.md §9.
         $order = $this->actingWithToken($token)->postJson('/api/v2/cart/' . $this->business->id . '/checkout', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('governorates')->orderBy('id')->value('id'),
             'fulfillment_type' => 'delivery',
             'address' => '12 شارع الجمهورية، وسط البلد',
         ])->assertCreated()->json('data.order');
@@ -150,7 +153,7 @@ class DeliveryJourneyTest extends TestCase
     {
         $token = $this->tokenFor($this->makeUser($name));
 
-        $this->actingWithToken($token)->postJson('/api/v2/delivery/register', [
+        $this->carrierActing($token)->postJson('/api/v2/delivery/register', [
             'vehicle_label' => 'موتوسيكل',
         ])->assertCreated();
 

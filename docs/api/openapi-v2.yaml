@@ -102,6 +102,8 @@ tags:
   - name: Business Bookables
   - name: Business Retail
   - name: Delivery
+  - name: Shipping
+    description: Governorate shipping - a Shipping & Delivery company's price list, appointments and shipped / delivered.
   - name: Order Handover
   - name: Business Page
   - name: Operator Presence
@@ -1642,6 +1644,83 @@ paths:
       responses:
         '201': { description: 'Lines added to the cart; see data.added / data.skipped / data.cart_order_id.' }
         '404': { description: 'Not found, or not your order' }
+  /orders/{order}/confirm-payment:
+    post:
+      tags: [Orders (Customer)]
+      summary: Customer attests they paid the order in cash
+      description: >-
+        Protective evidence for a later dispute, not a gate on anything else:
+        independent of the merchant's and driver's own confirm-payment calls
+        (each party confirms only the cash leg they're party to). Once set it
+        cannot be unset; a repeat call is a 409.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /orders/{order}/trust:
+    post:
+      tags: [Orders (Customer)]
+      summary: Tick or untick "I trust" toward another party of the order
+      description: >-
+        The caller (must be a party of the order) trusts the customer, the
+        business or the assigned driver. Merchant-to-customer also vouches
+        through the trusted-partners waiver, which needs the customer to hold
+        an active guarantee (422 otherwise); the other directions are recorded
+        only. List/detail order responses carry `trust.<party>.trusted_by_me`
+        and `trusts_me` on detail views.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [party, trusted]
+              properties:
+                party: { type: string, enum: [customer, business, driver] }
+                trusted: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /bookings/{booking}/confirm-payment:
+    post:
+      tags: [Bookings]
+      summary: Client confirms they paid the booking in cash
+      description: >-
+        Allowed once the booking is in progress or completed. Also counts as
+        the client's agreement to release the frozen deposit (when one is
+        frozen and no dispute is open), so the deposit releases once the
+        business confirms too. Once set it cannot be unset (409).
+      parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/bookings/{booking}/confirm-payment:
+    post:
+      tags: [Bookings]
+      summary: Business confirms it received the booking's cash (owner or delegated staff)
+      description: Same rules as the client's confirmation, for the business side.
+      parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /orders/{order}/delivery-fee/accept:
+    post:
+      tags: [Orders (Customer)]
+      summary: Accept the courier's proposed delivery fee (out-of-city order)
+      description: Adds the proposed fee to the invoice and lets the delivery loop start. 409 when there is no proposal waiting.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
+  /orders/{order}/delivery-fee/decline:
+    post:
+      tags: [Orders (Customer)]
+      summary: Decline the courier's proposed delivery fee
+      description: Releases the courier; the order goes back to the pool for another courier to price and the available drivers are pinged again.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
   /orders/{order}/handover/issue:
     post:
       tags: [Order Handover]
@@ -2012,6 +2091,19 @@ paths:
           application/json:
             schema: { type: object, required: [is_active], properties: { is_active: { type: boolean } } }
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/delivery-settings:
+    get:
+      tags: [Delivery]
+      summary: The business's own flat delivery fee, applied automatically at checkout
+      responses: { '200': { description: OK } }
+    patch:
+      tags: [Delivery]
+      summary: Set the business's own flat delivery fee (null clears it)
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { delivery_fee_amount: { type: number, nullable: true } } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
   /business/orders:
     get:
       tags: [Orders (Business)]
@@ -2056,6 +2148,123 @@ paths:
       parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
       requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } } }
       responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } }
+  /business/orders/{order}/confirm-payment:
+    post:
+      tags: [Orders (Business)]
+      summary: Merchant confirms they received the order amount in cash
+      description: >-
+        The order amount only — excludes delivery_fee, which whoever
+        actually collects it confirms separately (see
+        /delivery/orders/{order}/confirm-payment, since that could be this
+        same business's own driver or an unrelated freelancer).
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /business/orders/{order}/trust:
+    post:
+      tags: [Orders (Business)]
+      summary: Tick or untick "I trust" toward another party of the order
+      description: >-
+        The caller (must be a party of the order) trusts the customer, the
+        business or the assigned driver. Merchant-to-customer also vouches
+        through the trusted-partners waiver, which needs the customer to hold
+        an active guarantee (422 otherwise); the other directions are recorded
+        only. List/detail order responses carry `trust.<party>.trusted_by_me`
+        and `trusts_me` on detail views.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [party, trusted]
+              properties:
+                party: { type: string, enum: [customer, business, driver] }
+                trusted: { type: boolean }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/orders/{order}/pickup-token:
+    post:
+      tags: [Orders (Business)]
+      summary: Issue the stage-1 pickup QR token (owner or delegated staff)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /business/orders/{order}/pickup-token/reset:
+    post:
+      tags: [Orders (Business)]
+      summary: Reset the pickup code (owner or delegated staff) - the previous code stops working
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/orders/{order}/delivery-fee/recommendation:
+    post:
+      tags: [Orders (Business)]
+      summary: Recommend the courier's proposed delivery fee to the customer (suitable / not suitable)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recommendation]
+              properties:
+                recommendation: { type: string, enum: [suitable, not_suitable] }
+                note: { type: string, maxLength: 500 }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
+  /business/orders/{order}/shipping-companies:
+    get:
+      tags: [Orders (Business)]
+      summary: Shipping companies that ship this order's governorate, with their price
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/orders/{order}/shipping-company:
+    post:
+      tags: [Orders (Business)]
+      summary: Pick the shipping company; its price is added to the invoice
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/shipping/rates:
+    get:
+      tags: [Shipping]
+      summary: A shipping company's price to every other governorate
+      responses: { '200': { description: OK } }
+    put:
+      tags: [Shipping]
+      summary: Replace the company's price list (Shipping & Delivery accounts only)
+      responses: { '200': { description: OK } }
+  /business/shipping/orders:
+    get:
+      tags: [Shipping]
+      summary: The shipping company's orders
+      responses: { '200': { description: OK } }
+  /business/shipping/orders/{order}/appointment:
+    post:
+      tags: [Shipping]
+      summary: Set or change the shipping appointment (appointment_at, note)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/shipping/orders/{order}/shipped:
+    post:
+      tags: [Shipping]
+      summary: Mark the order shipped
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /business/shipping/orders/{order}/delivered:
+    post:
+      tags: [Shipping]
+      summary: Mark the order delivered (completes it)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
+  /orders/{order}/shipping/appointment-ok:
+    post:
+      tags: [Shipping]
+      summary: The customer confirms the scheduled shipping appointment suits them
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK } }
   /business/orders/{order}/items/{item}/unavailable:
     post:
       tags: [Orders (Business)]
@@ -2433,7 +2642,17 @@ paths:
 
   # ─────────────────────────── Delivery ───────────────────────────
   /delivery/register:
-    post: { tags: [Delivery], summary: Register as a delivery driver, responses: { '200': { description: OK } } }
+    post: { tags: [Delivery], summary: 'Register as a delivery driver (Shipping & Delivery business accounts only)', responses: { '201': { description: Registered }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /delivery/delivery-fee:
+    patch:
+      tags: [Delivery]
+      summary: A freelance driver sets their own flat delivery fee (null clears it)
+      description: Used only as a fallback on acceptOrder() when the business itself never set a fee - the business's own configured rate always wins.
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { delivery_fee_amount: { type: number, nullable: true } } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
   /delivery/availability:
     post:
       tags: [Delivery]
@@ -2446,6 +2665,30 @@ paths:
       summary: Driver pings their live position (every 30-60s while carrying an active order)
       requestBody: { content: { application/json: { schema: { type: object, required: [lat, lng], properties: { lat: { type: number }, lng: { type: number } } } } } }
       responses: { '200': { description: OK } }
+  /delivery/orders/{order}/confirm-payment:
+    post:
+      tags: [Delivery]
+      summary: Assigned driver confirms they collected the delivery fee in cash
+      description: >-
+        Their own leg only — see /business/orders/{order}/confirm-payment for
+        the order-amount leg the merchant confirms. Refused (409) before the
+        order actually reaches the delivered stage.
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /delivery/orders/{order}/fee-proposal:
+    post:
+      tags: [Delivery]
+      summary: The assigned courier prices an out-of-city order (or revises the price)
+      parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [amount], properties: { amount: { type: number } } }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '409': { $ref: '#/components/responses/Conflict' } }
   /delivery/available-orders:
     get: { tags: [Delivery], summary: Delivery orders open to take (preparing/ready, unassigned), responses: { '200': { description: OK } } }
   /delivery/orders/{order}/accept:

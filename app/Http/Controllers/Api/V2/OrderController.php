@@ -39,6 +39,7 @@ final class OrderController extends Controller
         private readonly \App\Services\CustomerCartService $cart,
         private readonly MenuOrderService $menuOrders,
         private readonly StaffActivityLogger $activity,
+        private readonly \App\Services\DeliveryDispatchService $delivery,
     ) {
     }
 
@@ -112,6 +113,39 @@ final class OrderController extends Controller
                 'cart_order_id' => $result['order'] ? (int) $result['order']->id : null,
             ],
         ], 201);
+    }
+
+    /**
+     * POST /api/v2/orders/{order}/confirm-payment — the customer attests
+     * they paid the order amount in cash. Independent of the merchant's
+     * and driver's own confirmations below (each party confirms the leg
+     * of the cash they're party to) — this one exists mainly so a
+     * merchant or driver can't later deny the customer paid. Once set it
+     * cannot be unset.
+     */
+    public function confirmPayment(Request $request, int $order)
+    {
+        $userId = (int) $request->user()->id;
+
+        $model = DB::transaction(function () use ($userId, $order) {
+            /** @var Order|null $m */
+            $m = Order::query()->where('user_id', $userId)->where('status', '!=', 'cart')->lockForUpdate()->find($order);
+
+            if (! $m) {
+                abort(404, __('الطلب غير موجود.'));
+            }
+            if ($m->customer_payment_confirmed_at) {
+                abort(409, __('سبق تأكيد الدفع.'));
+            }
+
+            $m->customer_payment_confirmed_at = now();
+            $m->save();
+            $m->settlePaymentsIfComplete();
+
+            return $m;
+        });
+
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
 
     /** POST /api/v2/orders/{order}/cancel — customer cancels their pending order. */
@@ -267,6 +301,9 @@ final class OrderController extends Controller
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_ACCEPTED, Order::PREP_PREPARING);
 
+        // Preparing is the point a driver may take the order - tell them.
+        $this->delivery->notifyDriversOrderAvailable($model);
+
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
 
@@ -275,11 +312,15 @@ final class OrderController extends Controller
     {
         $model = $this->transitionPrep($request, $order, Order::PREP_PREPARING, Order::PREP_READY);
 
-        $businessName = optional($model->business)->name;
-        $this->notifyCustomer($model, 'menu_order_ready', BusinessContext::id($request), [
-            'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز' . ($businessName ? ' في ' . $businessName : '') . '.',
-            'body_en' => 'Your order #' . $model->id . ' is ready' . ($businessName ? ' at ' . $businessName : '') . '.',
-        ]);
+        // A delivery customer hears next from the driver; only a pickup /
+        // dine-in customer, who has no driver, is told it is ready.
+        if ((string) $model->fulfillment_type !== Order::FULFILLMENT_DELIVERY) {
+            $businessName = optional($model->business)->name;
+            $this->notifyCustomer($model, 'menu_order_ready', BusinessContext::id($request), [
+                'body_ar' => 'طلبك رقم #' . $model->id . ' جاهز' . ($businessName ? ' في ' . $businessName : '') . '.',
+                'body_en' => 'Your order #' . $model->id . ' is ready' . ($businessName ? ' at ' . $businessName : '') . '.',
+            ]);
+        }
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
@@ -314,6 +355,10 @@ final class OrderController extends Controller
                 abort(409, __('لا يمكن إكمال هذا الطلب في حالته الحالية.'));
             }
 
+            if ($m->requiresPaymentConfirmation() && ! $m->merchant_payment_confirmed_at) {
+                abort(409, __('أكّد استلام مبلغ الطلب أولًا قبل إكمال الطلب.'));
+            }
+
             $m->status = 'completed';
             $m->save();
 
@@ -329,12 +374,6 @@ final class OrderController extends Controller
             operationType: \App\Models\RatingOutcomeEvent::OP_ORDER,
             operationId: (int) $model->id,
         );
-
-        $businessName = optional($model->business)->name;
-        $this->notifyCustomer($model, 'menu_order_completed', $businessId, [
-            'body_ar' => 'تم استلام طلبك رقم #' . $model->id . ($businessName ? ' من ' . $businessName : '') . ' بنجاح.',
-            'body_en' => 'Your order #' . $model->id . ($businessName ? ' from ' . $businessName : '') . ' was completed successfully.',
-        ]);
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }
@@ -447,6 +486,44 @@ final class OrderController extends Controller
 
             $this->notifyCustomer($model, 'menu_order_item_unavailable', $businessId, ['body_ar' => $bodyAr, 'body_en' => $bodyEn]);
         }
+
+        return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
+    }
+
+    /**
+     * POST /api/v2/business/orders/{order}/confirm-payment — the merchant
+     * confirms they received the order's own amount in cash. Deliberately
+     * scoped to the order amount only: the delivery_fee leg (when this is
+     * a delivery order) is confirmed separately by whoever actually
+     * collects it — see DeliveryController::confirmPayment, since that
+     * could be this same business's own driver or an unrelated freelancer.
+     */
+    public function businessConfirmPayment(Request $request, int $order)
+    {
+        $businessId = BusinessContext::id($request);
+
+        $model = DB::transaction(function () use ($businessId, $order) {
+            /** @var Order|null $m */
+            $m = Order::query()
+                ->where('business_id', $businessId)
+                ->whereNull('booking_id')
+                ->where('status', '!=', 'cart')
+                ->lockForUpdate()
+                ->find($order);
+
+            if (! $m) {
+                abort(404, __('الطلب غير موجود.'));
+            }
+            if ($m->merchant_payment_confirmed_at) {
+                abort(409, __('سبق تأكيد استلام المبلغ.'));
+            }
+
+            $m->merchant_payment_confirmed_at = now();
+            $m->save();
+            $m->settlePaymentsIfComplete();
+
+            return $m;
+        });
 
         return (new OrderResource($this->loadForResource($model)))->additional(['success' => true]);
     }

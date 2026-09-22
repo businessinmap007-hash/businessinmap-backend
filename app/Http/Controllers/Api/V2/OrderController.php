@@ -70,7 +70,7 @@ final class OrderController extends Controller
 
         $model = Order::query()
             ->where('status', '!=', 'cart')
-            ->with(['business:id,name,logo', 'items.menuItem:id,name_ar,name_en', 'project:id,operation_type,operation_id'])
+            ->with(['business:id,name,logo', 'items.menuItem:id,name_ar,name_en', 'project:id,operation_type,operation_id', 'deliveryDriver.user:id,name,phone'])
             ->findOrFail($order);
 
         // Party-only, via OrderPolicy (throws 403 for non-parties).
@@ -468,6 +468,7 @@ final class OrderController extends Controller
             'items.menuItem:id,name_ar,name_en',
             'businessTable:id,label',
             'project:id,operation_type,operation_id',
+            'deliveryDriver.user:id,name,phone',
         ]);
     }
 

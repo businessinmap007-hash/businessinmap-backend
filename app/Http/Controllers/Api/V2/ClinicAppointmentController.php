@@ -25,7 +25,10 @@ class ClinicAppointmentController extends Controller
         $rows = ClinicAppointment::query()
             ->where('patient_id', (int) $request->user()->id)
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->get('status')))
-            ->with('clinic:id,name,logo')
+            // prescription is loaded so serialize()'s prescription_id is ever
+            // non-null on the list a patient actually browses — without it
+            // this only worked on show()/reschedule(), which nothing calls.
+            ->with(['clinic:id,name,logo', 'prescription:id,appointment_id'])
             ->orderByDesc('scheduled_at')
             ->paginate((int) $request->get('per_page', 20));
 

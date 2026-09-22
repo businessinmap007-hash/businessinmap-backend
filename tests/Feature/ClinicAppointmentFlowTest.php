@@ -299,6 +299,12 @@ class ClinicAppointmentFlowTest extends TestCase
         Sanctum::actingAs($patient);
         $this->getJson("/api/v2/clinic-appointments/{$appointment->id}")
             ->assertOk()->assertJsonPath('data.appointment.prescription_id', (int) $rxId);
+
+        // Same on the list the app's own "my appointments" screen actually
+        // calls — the prescription relation must be loaded there too, not
+        // only on show(), or the app's "view prescription" link never appears.
+        $this->getJson('/api/v2/clinic-appointments')
+            ->assertOk()->assertJsonPath('data.data.0.prescription_id', (int) $rxId);
     }
 
     public function test_a_prescription_cannot_link_to_another_clinics_appointment(): void

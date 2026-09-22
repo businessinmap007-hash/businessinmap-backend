@@ -85,6 +85,8 @@ final class SearchOffersController extends Controller
             }
         }
 
+        $offers->getCollection()->transform(fn (CommercialOffer $o) => $this->serializeOffer($o));
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -109,6 +111,41 @@ final class SearchOffersController extends Controller
         $request->merge(['business_id' => $businessId]);
 
         return $this->index($request);
+    }
+
+    /**
+     * The public shape of a search result — hand-picked, same reasoning as
+     * OfferDiscoveryController::serialize(): never `ranking_score`,
+     * `boost_score` or `meta` off a raw model to a search caller.
+     */
+    private function serializeOffer(CommercialOffer $offer): array
+    {
+        $business = fn ($b) => $b ? ['id' => (int) $b->id, 'name' => (string) $b->name, 'logo' => $b->logo] : null;
+
+        return [
+            'id' => (int) $offer->id,
+            'offerable_type' => (string) $offer->offerable_type,
+            'offerable_id' => (int) $offer->offerable_id,
+            'owner_business_id' => (int) $offer->owner_business_id,
+            'seller_business_id' => (int) $offer->seller_business_id,
+            'source_type' => (string) $offer->source_type,
+            'audience_type' => $offer->audience_type,
+            'title_ar' => $offer->title_ar,
+            'title_en' => $offer->title_en,
+            'base_price' => $offer->base_price === null ? null : (float) $offer->base_price,
+            'final_price' => (float) $offer->final_price,
+            'currency' => (string) ($offer->currency ?: 'EGP'),
+            'discount_type' => $offer->discount_type,
+            'discount_value' => $offer->discount_value === null ? null : (float) $offer->discount_value,
+            'availability_mode' => $offer->availability_mode,
+            'available_quantity' => $offer->available_quantity === null ? null : (int) $offer->available_quantity,
+            'starts_at' => optional($offer->starts_at)->toIso8601String(),
+            'ends_at' => optional($offer->ends_at)->toIso8601String(),
+            'is_featured' => (bool) $offer->is_featured,
+            'status' => (string) $offer->status,
+            'seller_business' => $business($offer->relationLoaded('sellerBusiness') ? $offer->sellerBusiness : null),
+            'owner_business' => $business($offer->relationLoaded('ownerBusiness') ? $offer->ownerBusiness : null),
+        ];
     }
 
     private function businessesQuery(array $data): Builder

@@ -3254,23 +3254,23 @@ paths:
 
   # ─────────────────────── Offers (Discovery) ───────────────────────
   /offers:
-    get: { tags: [Offers (Discovery)], summary: 'Browse offers (public). Filterable by category_id/child_id — the selling business''s own root/child, not the offerable''s. open_now=1 keeps only offers whose selling shop is open now.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }, { name: category_id, in: query, required: false, schema: { type: integer } }, { name: child_id, in: query, required: false, schema: { type: integer } }], responses: { '200': { description: OK } } }
+    get: { tags: [Offers (Discovery)], summary: 'Browse offers (public). Filterable by category_id/child_id — the selling business''s own root/child, not the offerable''s. open_now=1 keeps only offers whose selling shop is open now. Each row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta`.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }, { name: category_id, in: query, required: false, schema: { type: integer } }, { name: child_id, in: query, required: false, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /offers/categories:
     get: { tags: [Offers (Discovery)], summary: Root categories that currently have live offers, with a count each (public) — the offers tab's own top-level navigation, security: [], responses: { '200': { description: OK } } }
   /offers/lowest:
-    get: { tags: [Offers (Discovery)], summary: Lowest offer for an offerable (public), security: [], responses: { '200': { description: OK } } }
+    get: { tags: [Offers (Discovery)], summary: Lowest offer for an offerable (public), description: 'The row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta`.', security: [], responses: { '200': { description: OK } } }
   /offers/business/{business}:
     get: { tags: [Offers (Discovery)], summary: A business's offers (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /offers/{offer}:
-    get: { tags: [Offers (Discovery)], summary: Offer detail (public), security: [], parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+    get: { tags: [Offers (Discovery)], summary: Offer detail (public), description: 'The row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta`.', security: [], parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /offers/{offer}/track:
     post: { tags: [Offers (Discovery)], summary: Track an offer view/click (public), security: [], parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /offers/compare:
-    get: { tags: [Offers (Discovery)], summary: Compare offers (authed), responses: { '200': { description: OK } } }
+    get: { tags: [Offers (Discovery)], summary: Compare offers (authed), description: 'The row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta` (exactly what a competitor would most want to read off this endpoint).', responses: { '200': { description: OK } } }
 
   # ─────────────────────────── Search ───────────────────────────
   /search/offers:
-    get: { tags: [Search], summary: 'Search offers (public). open_now=1 keeps only offers whose selling shop is open now.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
+    get: { tags: [Search], summary: 'Search offers (public). open_now=1 keeps only offers whose selling shop is open now. Each row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta`.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
   /search/business/{business}/offers:
     get: { tags: [Search], summary: Search a business's offers (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
 

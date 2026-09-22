@@ -417,21 +417,24 @@ class ServiceExecutionEngine
             && $businessWallet['balance'] >= $businessRequiredTotal;
 
         $messages = [];
+        // The same messages, filed under the party each one is about, so a caller
+        // can show a party only its own (see App\Support\BookingFinancialView).
+        $bySide = ['client' => [], 'business' => []];
 
         if ((bool) data_get($depositPolicy, 'client_guarantee_covered', false) && ! $clientDepositCoveredByGuarantee && $clientDepositRequired > 0) {
-            $messages[] = __('ضمان طالب الحجز غير كافٍ أو غير صالح لتغطية Wallet Hold لهذا الحجز.');
+            $messages[] = $bySide['client'][] = __('ضمان طالب الحجز غير كافٍ أو غير صالح لتغطية Wallet Hold لهذا الحجز.');
         }
 
         if ((bool) data_get($depositPolicy, 'business_guarantee_covered', false) && ! $businessDepositCoveredByGuarantee && $businessDepositRequired > 0) {
-            $messages[] = __('ضمان مقدم الخدمة غير كافٍ أو غير صالح لتغطية Counter Hold لهذا الحجز.');
+            $messages[] = $bySide['business'][] = __('ضمان مقدم الخدمة غير كافٍ أو غير صالح لتغطية Counter Hold لهذا الحجز.');
         }
 
         if (! $clientReady && $clientRequiredTotal > 0) {
-            $messages[] = __('رصيد طالب الحجز غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.');
+            $messages[] = $bySide['client'][] = __('رصيد طالب الحجز غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.');
         }
 
         if (! $businessReady && $businessRequiredTotal > 0) {
-            $messages[] = __('رصيد مقدم الخدمة غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.');
+            $messages[] = $bySide['business'][] = __('رصيد مقدم الخدمة غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.');
         }
 
         // When the client can't proceed, offer concrete ways to close the gap:
@@ -511,6 +514,7 @@ class ServiceExecutionEngine
             ],
 
             'messages' => $messages,
+            'messages_by_side' => $bySide,
         ];
     }
 

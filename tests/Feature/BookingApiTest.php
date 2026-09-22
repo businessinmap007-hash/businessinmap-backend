@@ -302,6 +302,43 @@ class BookingApiTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_each_party_sees_only_its_own_side_of_the_financial_preview(): void
+    {
+        $booking = $this->makeBooking();
+
+        $forClient = $this->actingAs($this->client, 'sanctum')
+            ->getJson("/api/v2/bookings/{$booking->id}/financial-preview")
+            ->assertOk()->json('data');
+        $forBusiness = $this->actingAs($this->business, 'sanctum')
+            ->getJson("/api/v2/bookings/{$booking->id}/financial-preview")
+            ->assertOk()->json('data');
+
+        $this->assertSame('client', $forClient['side']);
+        $this->assertSame('business', $forBusiness['side']);
+
+        // No counterparty wallet, guarantee checks or required amounts anywhere.
+        foreach ([$forClient, $forBusiness] as $view) {
+            $this->assertArrayHasKey('me', $view);
+            $this->assertArrayHasKey('counterpart_ready', $view);
+            $this->assertArrayNotHasKey('client', $view);
+            $this->assertArrayNotHasKey('business', $view);
+            $this->assertArrayNotHasKey('operation_coverage', $view);
+            $this->assertArrayNotHasKey('wallet', $view['me']);
+            $this->assertArrayNotHasKey('guarantee_checks', $view['deposit']);
+            $this->assertArrayNotHasKey('policy', $view['deposit']);
+        }
+
+        // Own balance really is own: it matches the wallet of that party.
+        $clientBalance = (float) (\App\Models\Wallet::query()->where('user_id', $this->client->id)->value('balance') ?? 0);
+        $this->assertEqualsWithDelta($clientBalance, $forClient['me']['balance'], 0.01);
+
+        // The embedded copy on the booking detail is the same scoped view.
+        $this->actingAs($this->client, 'sanctum')
+            ->getJson("/api/v2/bookings/{$booking->id}")
+            ->assertOk()
+            ->assertJsonPath('data.financial_preview.side', 'client');
+    }
+
     public function test_bookings_require_authentication(): void
     {
         $this->getJson('/api/v2/bookings')->assertUnauthorized();

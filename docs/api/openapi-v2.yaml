@@ -3055,7 +3055,7 @@ paths:
   /bookings/{booking}:
     get: { tags: [Bookings], summary: Booking detail, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/financial-preview:
-    get: { tags: [Bookings], summary: Fee/deposit preview, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+    get: { tags: [Bookings], summary: Fee/deposit preview (the caller's own side only), description: 'Returns only the calling party''s money - deposit, fee lines, own wallet balance and readiness - plus a single counterpart_ready flag. The counterparty''s wallet and guarantee checks are never included.', parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/accept:
     post: { tags: [Bookings], summary: Business accepts, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/reject:

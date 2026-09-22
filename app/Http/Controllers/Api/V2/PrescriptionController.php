@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Agenda\MedicationScheduleService;
 use App\Services\Media\ImageUploadService;
 use App\Services\Prescriptions\PrescriptionService;
+use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -315,18 +316,26 @@ class PrescriptionController extends Controller
      * DOCTOR_CHILD_IDS — مستشفى/عيادة/مركز طبي, not a lab/pharmacy/imaging
      * center/cupping center).
      */
+    /**
+     * The acting business — the doctor themselves, or a staff member the
+     * route's `business.member:prescriptions` middleware already confirmed
+     * carries that capability for this clinic. Never the raw caller: that
+     * was the bug — a delegate could be granted `prescriptions` and it did
+     * nothing, because this read `$request->user()` straight past the
+     * acting-business context the middleware sets up for exactly this case.
+     */
     private function businessOrFail(Request $request): User
     {
-        $user = $request->user();
+        $business = BusinessContext::business($request);
 
-        if (! Prescription::isDoctorBusiness($user)) {
+        if (! Prescription::isDoctorBusiness($business)) {
             abort(response()->json([
                 'success' => false,
                 'message' => __('إصدار الوصفات متاح لحسابات العيادات والمستشفيات والمراكز الطبية فقط.'),
             ], 403));
         }
 
-        return $user;
+        return $business;
     }
 
     private function partyOrFail(Request $request, int $id): Prescription

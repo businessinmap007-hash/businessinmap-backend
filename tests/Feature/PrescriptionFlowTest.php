@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\AppNotification;
+use App\Models\BusinessStaff;
 use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\User;
+use App\Support\BusinessCapability;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
@@ -399,5 +401,70 @@ class PrescriptionFlowTest extends TestCase
         Sanctum::actingAs($patient);
         $this->postJson("/api/v2/prescriptions/{$id}/share", ['doctor_id' => $notADoctor->id])
             ->assertStatus(422);
+    }
+
+    /**
+     * A clinic secretary granted the `prescriptions` capability can issue,
+     * list-issued and revise on the doctor's behalf — the capability existed
+     * and was grantable before this, but every one of these three actions
+     * read the raw caller instead of the acting-business context, so a
+     * delegate with it granted could never actually use it.
+     */
+    public function test_a_delegate_with_the_prescriptions_capability_can_issue_on_the_clinics_behalf(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $secretary = $this->user(User::TYPE_CLIENT, 'Secretary');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        BusinessStaff::create([
+            'business_id' => $doctor->id,
+            'user_id' => $secretary->id,
+            'capabilities' => [BusinessCapability::PRESCRIPTIONS],
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($secretary);
+        $id = $this->withHeader('X-Business-Id', $doctor->id)
+            ->postJson('/api/v2/prescriptions', [
+                'patient_id' => $patient->id,
+                'items' => [['medicine_id' => $this->medicine('Amoxicillin')->id]],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.prescription.doctor.id', $doctor->id)
+            ->json('data.prescription.id');
+
+        $this->withHeader('X-Business-Id', $doctor->id)
+            ->getJson('/api/v2/prescriptions/issued')
+            ->assertOk()
+            ->assertJsonPath('data.data.0.id', $id);
+
+        $this->withHeader('X-Business-Id', $doctor->id)
+            ->postJson("/api/v2/prescriptions/{$id}/revise", [
+                'items' => [['medicine_id' => $this->medicine('Amoxicillin 2')->id]],
+            ])
+            ->assertCreated();
+    }
+
+    /** The same secretary, without the capability granted, is refused. */
+    public function test_a_delegate_without_the_prescriptions_capability_cannot_issue(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $secretary = $this->user(User::TYPE_CLIENT, 'Secretary');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        BusinessStaff::create([
+            'business_id' => $doctor->id,
+            'user_id' => $secretary->id,
+            'capabilities' => [BusinessCapability::CLINIC], // clinic, not prescriptions
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($secretary);
+        $this->withHeader('X-Business-Id', $doctor->id)
+            ->postJson('/api/v2/prescriptions', [
+                'patient_id' => $patient->id,
+                'items' => [['medicine_id' => $this->medicine('Amoxicillin')->id]],
+            ])
+            ->assertForbidden();
     }
 }

@@ -443,13 +443,20 @@ Route::prefix('v2')->group(function () {
         // for a patient; the patient reads theirs and sends one to a pharmacy to
         // dispense (delivery or pickup). Only the three parties may read one.
         Route::get('prescriptions', [PrescriptionController::class, 'index']);
-        Route::post('prescriptions', [PrescriptionController::class, 'store']);
-        Route::get('prescriptions/issued', [PrescriptionController::class, 'issued']);
+        // The doctor-only actions (issue/list-issued/revise): a secretary with
+        // the `prescriptions` capability was grantable but could never actually
+        // use it — these sat outside any business.member gate, so
+        // PrescriptionController::businessOrFail() only ever saw the raw
+        // authenticated caller, never a delegate acting for the clinic.
+        Route::middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
+            Route::post('prescriptions', [PrescriptionController::class, 'store']);
+            Route::get('prescriptions/issued', [PrescriptionController::class, 'issued']);
+            Route::post('prescriptions/{prescription}/revise', [PrescriptionController::class, 'revise'])->whereNumber('prescription');
+        });
         Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/share', [PrescriptionController::class, 'share'])->whereNumber('prescription');
-        Route::post('prescriptions/{prescription}/revise', [PrescriptionController::class, 'revise'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/schedule-reminders', [PrescriptionController::class, 'scheduleReminders'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/images', [PrescriptionController::class, 'storeImage'])->whereNumber('prescription');
         Route::delete('prescriptions/{prescription}/images/{image}', [PrescriptionController::class, 'destroyImage'])->whereNumber(['prescription', 'image']);

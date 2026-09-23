@@ -182,19 +182,42 @@ class MenuCrudApiTest extends TestCase
     }
 
     /**
-     * A closed brand vocabulary exists for appliance children (child 88) —
-     * see the 2026-09-09 migration. Its group must come back flagged
-     * `is_brand` so the item form can single it out as its own dropdown
-     * instead of a generic modifier chip, and an ordinary modifier group
-     * (not named "ماركات...") must not be flagged.
+     * A business whose modifier vocabulary carries a "ماركات..." group —
+     * e.g. car-parts children (58 «ماركات السيارات» reaches several). Not
+     * pinned to one hardcoded child id: أجهزة كهربائية (88) carried this
+     * role until 2026-09-23, when its own hand-curated 11-brand group was
+     * retired in favor of the real catalog_brands/catalog_manufacturers
+     * catalog (see docs/services-reorganization-plan.md §8) — hardcoding
+     * that id here is exactly the fragility that broke.
+     *
+     * @return array{0: User, 1: string} [business, expected Arabic group name]
+     */
+    private function businessWithBrandVocabulary(): array
+    {
+        $vocabulary = app(MerchantOfferingVocabulary::class);
+
+        foreach (User::query()->where('type', 'business')->orderBy('id')->cursor() as $candidate) {
+            $modifiers = $vocabulary->for((int) $candidate->id, (int) $candidate->category_child_id, (int) $candidate->category_id)['modifiers'];
+
+            foreach ($modifiers as $groupName => $options) {
+                if (str_contains((string) $groupName, 'ماركات') || str_contains((string) $groupName, 'العلامة التجارية')) {
+                    return [$candidate, (string) $groupName];
+                }
+            }
+        }
+
+        $this->markTestSkipped('Needs a business whose specialty carries a «ماركات...» modifier group.');
+    }
+
+    /**
+     * A closed brand vocabulary group must come back flagged `is_brand` so
+     * the item form can single it out as its own dropdown instead of a
+     * generic modifier chip, and an ordinary modifier group (not named
+     * "ماركات...") must not be flagged.
      */
     public function test_a_brand_named_group_is_flagged_as_the_brand_vocabulary(): void
     {
-        $business = User::query()->where('category_child_id', 88)->first();
-
-        if (! $business) {
-            $this->markTestSkipped('Needs a business on the appliance child (88).');
-        }
+        [$business] = $this->businessWithBrandVocabulary();
 
         $modifiers = collect(
             $this->actingAs($business, 'sanctum')
@@ -205,8 +228,7 @@ class MenuCrudApiTest extends TestCase
         // English — see config/app.php), so the brand group is found by its
         // `is_brand` flag, not by its Arabic display name.
         $brandGroup = $modifiers->firstWhere('is_brand', true);
-        $this->assertNotNull($brandGroup, 'the appliance brand group must be in this business\'s modifiers');
-        $this->assertTrue(collect($brandGroup['options'])->pluck('name_ar')->contains('كريازي'));
+        $this->assertNotNull($brandGroup, 'the brand group must be in this business\'s modifiers');
 
         $nonBrand = $modifiers->first(fn ($g) => $g['is_brand'] === false);
         if ($nonBrand) {
@@ -222,11 +244,8 @@ class MenuCrudApiTest extends TestCase
      */
     public function test_vocabulary_group_name_respects_the_requests_locale(): void
     {
-        $business = User::query()->where('category_child_id', 88)->first();
-
-        if (! $business) {
-            $this->markTestSkipped('Needs a business on the appliance child (88).');
-        }
+        [$business, $arGroupName] = $this->businessWithBrandVocabulary();
+        $enGroupName = DB::table('option_groups')->where('name_ar', $arGroupName)->value('name_en');
 
         $arModifiers = collect(
             $this->actingAs($business, 'sanctum')
@@ -242,8 +261,8 @@ class MenuCrudApiTest extends TestCase
         $arBrand = $arModifiers->firstWhere('is_brand', true);
         $enBrand = $enModifiers->firstWhere('is_brand', true);
 
-        $this->assertSame('ماركات الأجهزة الكهربائية', $arBrand['group_name']);
-        $this->assertSame('Appliance Brands', $enBrand['group_name']);
+        $this->assertSame($arGroupName, $arBrand['group_name']);
+        $this->assertSame($enGroupName, $enBrand['group_name']);
     }
 
     public function test_item_with_a_line_option_grows_its_own_section(): void

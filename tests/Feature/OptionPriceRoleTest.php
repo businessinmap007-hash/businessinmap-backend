@@ -29,7 +29,7 @@ class OptionPriceRoleTest extends TestCase
     /** The option IS what the customer buys. */
     public function test_the_groups_that_carry_a_price_are_lines(): void
     {
-        foreach (['تخصصات طبية', 'التحاليل الطبية', 'الأنشطة الرياضية', 'أثاث وتشطيب منزلي',
+        foreach (['التحاليل الطبية', 'الأنشطة الرياضية', 'أثاث وتشطيب منزلي',
             'عقارات وممتلكات', 'خدمات الكوافير والتجميل', 'المواد الدراسية',
             // «الغرف» absorbed the hotel room kinds and «عدد الغرف» (2026-08-05):
             // once جناح and ثلاث غرف share a list, that list is the thing bought.
@@ -38,6 +38,20 @@ class OptionPriceRoleTest extends TestCase
             'خدمات الصيدلية'] as $group) {
             $this->assertSame(OptionGroup::ROLE_LINE, $this->roleOf($group), "«{$group}» is what gets bought");
         }
+    }
+
+    /**
+     * «تخصصات طبية» is never the priced thing itself, even though it once
+     * was `line`. A عيادة (one doctor) prices كشف/استشارة/إعادة as a single
+     * uniform BusinessServicePrice row per bookable_item_type — the
+     * specialty never enters the price. A مستشفى/مركز طبي prices per DOCTOR
+     * and per TIME SLOT («كشف استشاري باطنة» ≠ «كشف دكتور», same specialty,
+     * different fee) — set by its own administration, not by specialty
+     * either. Either way it only describes who the doctor is.
+     */
+    public function test_medical_specialty_is_descriptive_not_a_priced_line(): void
+    {
+        $this->assertSame(OptionGroup::ROLE_DESCRIPTIVE, $this->roleOf('تخصصات طبية'));
     }
 
     /**

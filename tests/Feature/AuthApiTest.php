@@ -122,13 +122,14 @@ class AuthApiTest extends TestCase
         $this->assertSame(0, (int) $user->tokens()->count());
     }
 
-    /** One of the 45 real, health-root-linked «تخصصات طبية» options. */
+    /** One of the 45 real, health-root-linked «تخصصات طبية» options — now descriptive, picked like any other attribute. */
     private function aSpecialtyOptionId(): int
     {
         return (int) \App\Models\CategoryChild::query()
             ->find(User::DOCTOR_OWN_CLINIC_CHILD_ID)
             ->activeOptionsForParent(null)
-            ->where('options.group_id', User::MEDICAL_SPECIALTY_GROUP_ID)
+            ->join('option_groups as og', 'og.id', '=', 'options.group_id')
+            ->where('og.name_ar', 'تخصصات طبية')
             ->value('options.id');
     }
 
@@ -151,7 +152,7 @@ class AuthApiTest extends TestCase
             'type' => User::TYPE_BUSINESS,
             'category_child_id' => User::DOCTOR_OWN_CLINIC_CHILD_ID,
             'medical_title' => User::MEDICAL_TITLE_CONSULTANT,
-            'specialty_option_ids' => [$specialtyId],
+            'option_ids' => [$specialtyId],
         ])->assertCreated();
 
         $this->assertSame(User::MEDICAL_TITLE_CONSULTANT, $res->json('data.medical_title'));
@@ -184,7 +185,7 @@ class AuthApiTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('medical_title');
     }
 
-    public function test_a_fabricated_specialty_option_id_is_rejected(): void
+    public function test_a_fabricated_option_id_is_rejected_at_registration(): void
     {
         $suffix = Str::random(8);
 
@@ -202,7 +203,7 @@ class AuthApiTest extends TestCase
             'type' => User::TYPE_BUSINESS,
             'category_child_id' => User::DOCTOR_OWN_CLINIC_CHILD_ID,
             'medical_title' => User::MEDICAL_TITLE_DOCTOR,
-            'specialty_option_ids' => [999999999],
+            'option_ids' => [999999999],
         ])->assertStatus(422);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\AccountResource;
 use App\Models\BlockedIdentity;
+use App\Models\OptionGroup;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -52,17 +53,22 @@ final class AuthController extends Controller
                 'required_if:type,' . User::TYPE_BUSINESS,
                 'nullable', 'integer', 'exists:category_children_master,id',
             ],
-            // «د.» / «أ.د.» / «استشاري» before the name, and which of the
-            // medical specialties describe this practice — only meaningful
-            // (and only accepted) for an individual doctor's own clinic
-            // account, never a hospital/medical-center's own name.
+            // «د.» / «أ.د.» / «استشاري» before the name — only meaningful (and
+            // only accepted) for an individual doctor's own clinic account,
+            // never a hospital/medical-center's own name.
             'medical_title' => [
                 Rule::requiredIf(($request->input('category_child_id')) == User::DOCTOR_OWN_CLINIC_CHILD_ID),
                 Rule::prohibitedIf(($request->input('category_child_id')) != User::DOCTOR_OWN_CLINIC_CHILD_ID),
                 'nullable', Rule::in(User::MEDICAL_TITLES),
             ],
-            'specialty_option_ids' => ['nullable', 'array', 'max:10'],
-            'specialty_option_ids.*' => ['integer', 'distinct'],
+            // Attributes describing THIS business — a doctor's specialty
+            // included — pickable right at signup instead of only afterward
+            // on the profile/options screen. Same rule either place: any
+            // non-`line` option valid for the chosen category_child/root
+            // (a `line` is priced per catalog item/offering, never picked
+            // bare like this — see ProfileController::updateOptions()).
+            'option_ids' => ['nullable', 'array', 'max:20'],
+            'option_ids.*' => ['integer', 'distinct'],
             // Where the account is. Everything location-aware hangs on this - which
             // shops a customer sees, delivery vs governorate shipping, which
             // shipping companies a merchant can pick - so it is not optional.
@@ -79,28 +85,29 @@ final class AuthController extends Controller
             'terms_accepted.accepted' => __('يجب الموافقة على الشروط والأحكام لإنشاء الحساب.'),
         ]);
 
-        $specialtyIds = [];
-        if (! empty($data['specialty_option_ids'])) {
-            abort_unless(
-                (int) ($data['category_child_id'] ?? 0) === User::DOCTOR_OWN_CLINIC_CHILD_ID,
-                422,
-                __('التخصص الطبي متاح لحسابات العيادات فقط.')
-            );
+        $optionIds = [];
+        if (! empty($data['option_ids'])) {
+            abort_unless(! empty($data['category_child_id']), 422, __('اختر تخصص النشاط أولاً.'));
 
-            // Only real options this specific child actually offers — never
-            // trust a bare id list straight from the client.
-            $specialtyIds = \App\Models\CategoryChild::query()
-                ->find((int) $data['category_child_id'])
-                ?->activeOptionsForParent((int) ($data['category_id'] ?? 0))
-                ->whereIn('options.id', $data['specialty_option_ids'])
-                ->where('options.group_id', User::MEDICAL_SPECIALTY_GROUP_ID)
-                ->pluck('options.id')
-                ->all() ?? [];
+            // Only real, non-`line` options this specific child actually
+            // offers — never trust a bare id list straight from the client.
+            $optionIds = DB::table('category_child_option as cco')
+                ->join('options as o', 'o.id', '=', 'cco.option_id')
+                ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                ->where('cco.child_id', (int) $data['category_child_id'])
+                ->where('g.price_role', '!=', OptionGroup::ROLE_LINE)
+                ->whereIn('o.id', $data['option_ids'])
+                ->when(
+                    (int) ($data['category_id'] ?? 0) > 0,
+                    fn ($q) => $q->whereIn('cco.category_id', [0, (int) $data['category_id']])
+                )
+                ->pluck('o.id')
+                ->all();
 
             abort_if(
-                count($specialtyIds) !== count(array_unique($data['specialty_option_ids'])),
+                count($optionIds) !== count(array_unique($data['option_ids'])),
                 422,
-                __('اختر تخصصاً طبياً صحيحاً.')
+                __('هذه الخصائص لا تنتمي لتخصص نشاطك المُختار.')
             );
         }
 
@@ -117,7 +124,7 @@ final class AuthController extends Controller
             ]);
         }
 
-        $user = DB::transaction(function () use ($data, $specialtyIds) {
+        $user = DB::transaction(function () use ($data, $optionIds) {
             $user = User::create([
                 'name' => $data['name'],
                 'name_en' => $data['name_en'] ?? null,
@@ -135,8 +142,8 @@ final class AuthController extends Controller
                 'api_token' => $this->freshApiToken(),
             ]);
 
-            if ($specialtyIds) {
-                $user->options()->syncWithoutDetaching($specialtyIds);
+            if ($optionIds) {
+                $user->options()->syncWithoutDetaching($optionIds);
             }
 
             // The first address of the address book (customer AND business).

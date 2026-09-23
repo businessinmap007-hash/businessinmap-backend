@@ -60,22 +60,16 @@ class User extends Authenticatable
         self::MEDICAL_TITLE_CONSULTANT,
     ];
 
-    /** The one category_child a title/specialty pair describes an individual by. */
-    public const DOCTOR_OWN_CLINIC_CHILD_ID = 514;
-
     /**
-     * «تخصصات طبية» — deliberately `price_role: line` (see
-     * database/seeders/data/option_price_roles.php and the "three-axis
-     * remodel" this belongs to): a hospital/clinic prices a كشف per
-     * specialty, and the same specialty can be priced differently by
-     * different doctors since BusinessServicePrice is scoped per business
-     * regardless of role. That pricing meaning is untouched here — this
-     * constant only identifies the group so a doctor can ALSO pick it as a
-     * plain descriptive fact about themselves (who they are), written
-     * straight to `option_user` independently of any priced offering. See
-     * AuthController::register() and ProfileController::showSpecialties().
+     * The one category_child a title/specialty pair describes an individual
+     * by. «تخصصات طبية» (option group 26) is `price_role: descriptive` — the
+     * priced thing is never the specialty: a عيادة (one doctor) prices
+     * كشف/استشارة/إعادة once uniformly, and a مستشفى prices per doctor and
+     * time slot (set by its own administration), so the specialty just picks
+     * through the ordinary /profile/options and register() `option_ids`
+     * mechanism like any other business attribute — no special door.
      */
-    public const MEDICAL_SPECIALTY_GROUP_ID = 26;
+    public const DOCTOR_OWN_CLINIC_CHILD_ID = 514;
 
     protected $fillable = [
         'name',

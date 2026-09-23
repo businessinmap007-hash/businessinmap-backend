@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\V2\BodyCompositionController;
 use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\ClinicAppointmentController;
 use App\Http\Controllers\Api\V2\ClinicLinkController;
+use App\Http\Controllers\Api\V2\ClinicPriceController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
 use App\Http\Controllers\Api\V2\ThreadAccessController;
@@ -294,10 +295,6 @@ Route::prefix('v2')->group(function () {
         // describe it, scoped to what its own specialty (child) allows.
         Route::get('profile/options', [ProfileController::class, 'showOptions']);
         Route::match(['put', 'patch'], 'profile/options', [ProfileController::class, 'updateOptions']);
-        // «تخصصات طبية» — a doctor's own clinic account only, kept separate
-        // from profile/options above because the group is priced (`line`).
-        Route::get('profile/specialties', [ProfileController::class, 'showSpecialties']);
-        Route::match(['put', 'patch'], 'profile/specialties', [ProfileController::class, 'updateSpecialties']);
 
         // My photo albums — first v2 surface for the legacy Album model.
         Route::get('profile/albums', [AlbumController::class, 'index']);
@@ -890,6 +887,14 @@ Route::prefix('v2')->group(function () {
             Route::get('{price}', [BusinessServicePriceController::class, 'show'])->whereNumber('price');
             Route::match(['put', 'patch'], '{price}', [BusinessServicePriceController::class, 'update'])->whereNumber('price');
             Route::delete('{price}', [BusinessServicePriceController::class, 'destroy'])->whereNumber('price');
+        });
+
+        // «تحديد اسعار الكشف الخ يتم بشكل معقد جدا» — المالك: a one-call door
+        // for a clinic's own visit-kind fees, no service_id/line discovery
+        // first. Same rows as business/prices above, same capability gate.
+        Route::prefix('business/clinic-prices')->middleware('business.member:' . BusinessCapability::PRICES)->group(function () {
+            Route::get('/', [ClinicPriceController::class, 'index']);
+            Route::match(['put', 'patch'], '/', [ClinicPriceController::class, 'update']);
         });
 
         // The business's own incoming-booking queue - owner or a delegated

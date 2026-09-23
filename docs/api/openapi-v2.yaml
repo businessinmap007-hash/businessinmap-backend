@@ -546,6 +546,7 @@ paths:
                 type: { type: string, enum: [client, business] }
                 category_id: { type: integer }
                 category_child_id: { type: integer }
+                option_ids: { type: array, items: { type: integer }, description: 'Non-line attributes describing this business (a doctor''s specialty included) — same rule as PATCH /profile/options, pickable right at signup.' }
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
         '422': { $ref: '#/components/responses/Validation' }
@@ -1059,33 +1060,6 @@ paths:
       responses:
         '200': { description: OK }
         '403': { description: Not a business account }
-        '422': { $ref: '#/components/responses/Validation' }
-  /profile/specialties:
-    get:
-      tags: [Profile]
-      summary: «تخصصات طبية» for the doctor's own clinic account, marked with current picks
-      description: >
-        Separate from /profile/options because this option group is priced
-        (price_role: line — a clinic prices a كشف per specialty, and each
-        doctor prices it independently). This is the direct, unpriced pick of
-        which specialties describe the doctor, written to option_user
-        independently of any BusinessServicePrice row.
-      responses: { '200': { description: OK }, '403': { description: Not a clinic account } }
-    patch:
-      tags: [Profile]
-      summary: The doctor sets which specialties describe them (full replace, max 10)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [specialty_option_ids]
-              properties:
-                specialty_option_ids: { type: array, items: { type: integer }, maxItems: 10 }
-      responses:
-        '200': { description: OK }
-        '403': { description: Not a clinic account }
         '422': { $ref: '#/components/responses/Validation' }
   /profile/password:
     post:
@@ -2534,6 +2508,48 @@ paths:
     put: { tags: [Business Prices], summary: Update a price, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
     patch: { tags: [Business Prices], summary: Update a price, responses: { '200': { description: OK } } }
     delete: { tags: [Business Prices], summary: Delete a price, responses: { '200': { description: OK } } }
+  /business/clinic-prices:
+    get:
+      tags: [Business Prices]
+      summary: A doctor's own clinic account only — every visit kind it may price, each with its current price/duration if already set
+      description: A one-call convenience over the same BusinessServicePrice rows business/prices manages, skipping the service_id/bookable_item_type discovery step and the general line/modifier shape a clinic never uses.
+      responses: { '200': { description: OK }, '422': { description: 'Not a clinic account, or the service is unavailable' } }
+    patch:
+      tags: [Business Prices]
+      summary: Set (or update) several visit-kind fees in one call
+      description: An unset kind is left untouched — this never clears a fee the doctor didn't mention. Every key must be one GET already lists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prices]
+              properties:
+                prices:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    required: [price]
+                    properties:
+                      price: { type: number, minimum: 0 }
+                      duration_minutes: { type: integer, minimum: 5, maximum: 480 }
+                      is_active: { type: boolean }
+                  example: { booking_examination: { price: 100, duration_minutes: 20 } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
+    put:
+      tags: [Business Prices]
+      summary: Same as PATCH
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prices]
+              properties:
+                prices: { type: object }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
 
   # ─────────────────────── Business Bookables ───────────────────────
   /business/bookable-items:

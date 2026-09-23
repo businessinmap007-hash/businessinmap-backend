@@ -226,7 +226,6 @@ return [
         'خدمات التصوير',
         'أنواع الاستوديوهات',
         'المراكب والرحلات النيلية',
-        'تخصصات طبية',            // كشف عظام
         'التحاليل الطبية',        // صورة دم كاملة
         'أنواع الأشعة',           // رنين مغناطيسي
         // A night in a private room is a nightly rate and an operation is a
@@ -720,5 +719,27 @@ return [
          * prices nothing.
          */
         'صفوف متقاعدة',
+
+        /*
+         * «تخصصات طبية» — reversed back to `descriptive` 2026-09-26, having
+         * spent time as `line` under the "three-axis remodel"'s reasoning
+         * that a hospital carrying many specialties needed a priced row to
+         * hang a كشف's price on, and that BusinessServicePrice being scoped
+         * per business already let two doctors price the same specialty
+         * differently.
+         *
+         * The owner's own correction: what is actually priced is never the
+         * SPECIALTY. In a عيادة (one doctor, one account) the كشف/استشارة/
+         * إعادة fee is already a single, uniform BusinessServicePrice row
+         * per bookable_item_type — the specialty never enters the price at
+         * all, it only describes who the doctor is. In a مستشفى/مركز طبي,
+         * two doctors of the SAME specialty («كشف استشاري باطنة» vs «كشف
+         * دكتور») charge DIFFERENT fees, so specialty isn't even the right
+         * pricing key there either — the price is per DOCTOR and per TIME
+         * SLOT, set by the hospital's own administration (a duty-roster
+         * concept, not yet built). Either way «تخصصات طبية» is a plain fact
+         * about the practice, exactly like «قسّم مرافق النادي الرياضي» above.
+         */
+        'تخصصات طبية',
     ],
 ];

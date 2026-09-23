@@ -131,6 +131,63 @@ class PrescriptionFlowTest extends TestCase
         );
     }
 
+    /**
+     * «الاسعار متغيرة ولكل صيدلية سعر مختلف» — المالك. A rejecting pharmacy's
+     * price must not survive the reject: it is THAT pharmacy's own quote, not
+     * a fact about the drug, and the next pharmacy the patient sends it to
+     * has never agreed to it.
+     */
+    public function test_rejecting_a_priced_prescription_clears_that_pharmacys_price(): void
+    {
+        $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+        $pharmacyA = $this->user(User::TYPE_BUSINESS, 'PharmacyA');
+        $pharmacyB = $this->user(User::TYPE_BUSINESS, 'PharmacyB');
+
+        $id = $this->issue($doctor, $patient);
+
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/prescriptions/{$id}/send", [
+            'pharmacy_id' => $pharmacyA->id, 'fulfillment_type' => 'pickup',
+        ])->assertOk();
+
+        $itemIds = Prescription::query()->findOrFail($id)->items()->pluck('id')->all();
+        Sanctum::actingAs($pharmacyA);
+        $this->postJson("/api/v2/pharmacy/prescriptions/{$id}/price", [
+            'items' => [
+                ['prescription_item_id' => $itemIds[0], 'unit_price' => 15, 'billed_quantity' => 2],
+                ['prescription_item_id' => $itemIds[1], 'unit_price' => 20, 'billed_quantity' => 1],
+            ],
+        ])->assertOk()->assertJsonPath('data.prescription.medicine_total', 50);
+
+        // Pharmacy A can't fulfil it after all — rejects it back to the patient.
+        $this->postJson("/api/v2/pharmacy/prescriptions/{$id}/reject")->assertOk()
+            ->assertJsonPath('data.prescription.status', 'issued')
+            ->assertJsonPath('data.prescription.medicine_total', null)
+            ->assertJsonPath('data.prescription.items.0.unit_price', null)
+            ->assertJsonPath('data.prescription.items.0.line_total', null);
+
+        $fresh = Prescription::query()->with('items')->findOrFail($id);
+        $this->assertNull($fresh->medicine_total);
+        $this->assertNull($fresh->priced_at);
+        foreach ($fresh->items as $item) {
+            $this->assertNull($item->unit_price);
+            $this->assertNull($item->billed_quantity);
+            $this->assertNull($item->line_total);
+        }
+
+        // The patient sends it to a different pharmacy — no stale price greets it.
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/prescriptions/{$id}/send", [
+            'pharmacy_id' => $pharmacyB->id, 'fulfillment_type' => 'pickup',
+        ])->assertOk();
+
+        Sanctum::actingAs($pharmacyB);
+        $this->getJson('/api/v2/pharmacy/prescriptions')->assertOk()
+            ->assertJsonPath('data.data.0.medicine_total', null)
+            ->assertJsonPath('data.data.0.items.0.unit_price', null);
+    }
+
     public function test_only_the_patient_may_send_and_only_a_party_may_read(): void
     {
         $doctor = $this->user(User::TYPE_BUSINESS, 'Clinic');

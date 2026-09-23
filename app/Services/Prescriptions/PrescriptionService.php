@@ -309,7 +309,15 @@ class PrescriptionService
         return $prescription;
     }
 
-    /** Pharmacy: cannot fulfil — return it to the patient to send elsewhere. */
+    /**
+     * Pharmacy: cannot fulfil — return it to the patient to send elsewhere.
+     * Also clears this pharmacy's pricing: a price is that pharmacy's own
+     * quote, never a fixed fact about the drug («الاسعار متغيرة ولكل صيدلية
+     * سعر مختلف» — المالك) — leaving it in place after a reject showed the
+     * REJECTING pharmacy's stale numbers as if they still meant anything,
+     * even though a different pharmacy (with its own price) is who will
+     * actually price and dispense it next.
+     */
     public function reject(Prescription $prescription): Prescription
     {
         $this->transition(
@@ -317,7 +325,21 @@ class PrescriptionService
             [Prescription::STATUS_SENT, Prescription::STATUS_PREPARING],
             Prescription::STATUS_ISSUED,
         );
-        $prescription->update(['pharmacy_id' => null, 'fulfillment_type' => null, 'delivery_address' => null]);
+
+        $prescription->update([
+            'pharmacy_id' => null,
+            'fulfillment_type' => null,
+            'delivery_address' => null,
+            'delivery_address_id' => null,
+            'medicine_total' => null,
+            'priced_at' => null,
+        ]);
+
+        $prescription->items()->update([
+            'unit_price' => null,
+            'billed_quantity' => null,
+            'line_total' => null,
+        ]);
 
         return $prescription;
     }

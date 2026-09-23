@@ -32,6 +32,17 @@ class ButcherAndDisplayOrderTest extends TestCase
         return $id ?: $this->markTestSkipped('«جزارة» is not in this database.');
     }
 
+    /** Option names the admin withdrew from the butcher (the decisions ledger). */
+    private function withdrawnNames(): array
+    {
+        return DB::table('category_child_option_decisions as d')
+            ->join('options as o', 'o.id', '=', 'd.option_id')
+            ->where('d.child_id', $this->butcherId())
+            ->where('d.kind', 'withdrawn')
+            ->pluck('o.name_ar')
+            ->all();
+    }
+
     // ── the trade that sells meat ───────────────────────────────────────────
 
     public function test_the_butcher_stands_under_the_shops_root(): void
@@ -58,8 +69,18 @@ class ButcherAndDisplayOrderTest extends TestCase
             $this->assertContains($cut, $byGroup['أنواع اللحوم']->pluck('o')->all());
         }
 
+        // The seeder grants the birds too, but the ledger outranks it: the
+        // admin withdrew them from the butcher on 2026-09-23 (poultry has its
+        // own «دواجن» trade). Assert each bird is either there or withdrawn —
+        // never silently lost.
+        $have = ($byGroup['أنواع الدواجن والطيور'] ?? collect())->pluck('o')->all();
+        $withdrawn = $this->withdrawnNames();
+
         foreach (['فراخ بلدي', 'بط', 'رومي'] as $bird) {
-            $this->assertContains($bird, $byGroup['أنواع الدواجن والطيور']->pluck('o')->all());
+            $this->assertTrue(
+                in_array($bird, $have, true) || in_array($bird, $withdrawn, true),
+                "«{$bird}» is neither linked to the butcher nor withdrawn in the ledger."
+            );
         }
     }
 
@@ -73,9 +94,14 @@ class ButcherAndDisplayOrderTest extends TestCase
             ->pluck('o.name_ar')
             ->all();
 
+        // «بالرأس» may have been withdrawn by the admin (ledger); anything else
+        // beyond the two that fit is the bug this test exists for.
+        $expected = array_values(array_diff(['بالرأس', 'بالكيلو'], $this->withdrawnNames()));
         sort($units);
+        sort($expected);
 
-        $this->assertSame(['بالرأس', 'بالكيلو'], $units, 'Nobody buys meat «بالأردب».');
+        $this->assertContains('بالكيلو', $units);
+        $this->assertSame($expected, $units, 'Nobody buys meat «بالأردب».');
     }
 
     /**

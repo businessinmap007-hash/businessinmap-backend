@@ -60,10 +60,15 @@ final class ProfileController extends Controller
             // The same mistake was already found and fixed in AuthController.
             'category_child_id' => ['sometimes', 'nullable', 'integer', 'exists:category_children_master,id'],
             // A client can self-upgrade to a business from their own profile
-            // screen. The reverse isn't offered here — downgrading a real
-            // business account needs to deal with its menu/services/bookings
-            // first, which this endpoint has no business doing.
-            'type' => ['sometimes', Rule::in(['business'])],
+            // screen. `type` is otherwise mass-assignable, so anything else
+            // is handled below rather than by this rule: a real business
+            // account trying to move away from 'business' is a deliberate
+            // downgrade this endpoint refuses (422 — it has no business
+            // touching a live menu/services/bookings), while a non-business
+            // account sending junk (or its own current type) is silently
+            // dropped rather than failing the whole request over one
+            // meaningless field sitting next to legitimate ones like `name`.
+            'type' => ['sometimes', 'nullable', 'string'],
             // The `socials` table + its v1 controller both already existed —
             // only ported here now. Each is optional on its own (a business
             // with just an Instagram account shouldn't be forced to fill in
@@ -75,6 +80,16 @@ final class ProfileController extends Controller
             'youtube' => ['sometimes', 'nullable', 'string', 'max:255'],
             'linkedin' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
+
+        if (array_key_exists('type', $data) && $data['type'] !== 'business') {
+            if ($user->isBusiness()) {
+                throw ValidationException::withMessages([
+                    'type' => [__('لا يمكن التراجع عن نوع الحساب من هذه الشاشة.')],
+                ]);
+            }
+
+            unset($data['type']);
+        }
 
         $socialKeys = ['facebook', 'instagram', 'twitter', 'youtube', 'linkedin'];
         $socialData = array_intersect_key($data, array_flip($socialKeys));

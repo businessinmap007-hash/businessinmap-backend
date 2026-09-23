@@ -138,6 +138,9 @@ class AuthApiTest extends TestCase
         $specialtyId = $this->aSpecialtyOptionId();
 
         $res = $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'عيادة د. تجريبي',
             'name_en' => 'Dr Test Clinic',
             'email' => "doc_{$suffix}@example.com",
@@ -165,6 +168,9 @@ class AuthApiTest extends TestCase
         $suffix = Str::random(8);
 
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'محل تجريبي',
             'name_en' => 'Test Shop',
             'email' => "shop_{$suffix}@example.com",
@@ -183,6 +189,9 @@ class AuthApiTest extends TestCase
         $suffix = Str::random(8);
 
         $this->postJson('/api/v2/auth/register', [
+            'governorate_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('governorate_id'),
+            'city_id' => (int) \Illuminate\Support\Facades\DB::table('cities')->orderBy('id')->value('id'),
+            'address_line' => 'شارع الاختبار 1',
             'name' => 'عيادة د. تجريبي 2',
             'name_en' => 'Dr Test Clinic 2',
             'email' => "doc2_{$suffix}@example.com",

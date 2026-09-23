@@ -10,6 +10,7 @@ use App\Services\Clinics\ClinicAppointmentService;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * The clinic's side of appointments. The business.member:clinic middleware
@@ -73,9 +74,133 @@ class BusinessClinicAppointmentController extends Controller
         return $this->act($request, $appointment, fn ($a) => $this->service->reject($a), __('تم رفض/إلغاء الموعد.'));
     }
 
+    /**
+     * POST .../clinic-appointments/{appointment}/complete — the doctor's
+     * «تم» button: closes this visit AND hands back whoever queues next
+     * (tagged with their own visit kind), in the same response, so the app
+     * can move straight to them without a second round trip.
+     */
     public function complete(Request $request, int $appointment)
     {
-        return $this->act($request, $appointment, fn ($a) => $this->service->complete($a), __('تم إكمال الموعد.'));
+        $row = $this->ownedOrFail($request, $appointment);
+        $result = $this->service->completeAndAdvance($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إكمال الموعد.'),
+            'data' => [
+                'appointment' => $this->serialize($result['completed']->fresh('patient:id,name,phone')),
+                'next' => $result['next'] ? $this->serializeQueueEntry($result['next']) : null,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/v2/business/clinic-appointments/walk-in — a patient the
+     * secretary adds straight into today's queue: between existing bookings,
+     * or standing in for one who hasn't shown up (who keeps their own place
+     * untouched). No time slot to reserve — it joins the queue already
+     * checked in.
+     */
+    public function storeWalkIn(Request $request)
+    {
+        $clinicId = BusinessContext::id($request);
+
+        $data = $request->validate([
+            'patient_id' => ['required', 'integer', 'exists:users,id', 'different:' . $clinicId],
+            'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
+            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $clinic = User::query()->findOrFail($clinicId);
+        $patient = User::query()->findOrFail((int) $data['patient_id']);
+
+        $appointment = $this->service->insertWalkIn($clinic, $patient, $data);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('انضم المريض إلى الدور.'),
+            'data' => ['appointment' => $this->serializeQueueEntry($appointment->load('patient:id,name,phone'))],
+        ], 201);
+    }
+
+    /**
+     * GET /api/v2/business/clinic-appointments/queue — today's waiting
+     * patients (checked in, not yet seen), with the automatic-next one
+     * flagged so the app can highlight them.
+     */
+    public function queue(Request $request)
+    {
+        $clinic = User::query()->findOrFail(BusinessContext::id($request));
+
+        $waiting = ClinicAppointment::query()
+            ->where('clinic_id', $clinic->id)
+            ->where('status', ClinicAppointment::STATUS_CONFIRMED)
+            ->whereNotNull('checked_in_at')
+            ->with(['patient:id,name,phone', 'servicePrice'])
+            ->orderByRaw('queue_priority_override IS NULL, queue_priority_override, checked_in_at')
+            ->get();
+
+        $next = $this->service->nextInQueue($clinic);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'queue_pattern' => $clinic->clinic_queue_pattern,
+                'next_id' => $next ? (int) $next->id : null,
+                'waiting' => $waiting->map(fn (ClinicAppointment $a) => $this->serializeQueueEntry($a))->values()->all(),
+            ],
+        ]);
+    }
+
+    /** POST .../clinic-appointments/{appointment}/checkin — clinic scans the patient's QR. */
+    public function checkin(Request $request, string $token)
+    {
+        $appointment = $this->service->confirmCheckin($token, BusinessContext::id($request));
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تسجيل حضور المريض.'),
+            'data' => ['appointment' => $this->serializeQueueEntry($appointment->load('patient:id,name,phone'))],
+        ]);
+    }
+
+    /**
+     * POST .../clinic-appointments/{appointment}/call-now — secretary calls a
+     * specific waiting patient ahead of the automatic pattern (the one whose
+     * turn it is hasn't shown, so someone else goes instead).
+     */
+    public function callNow(Request $request, int $appointment)
+    {
+        $row = $this->ownedOrFail($request, $appointment);
+        $row = $this->service->callNow($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم استدعاء المريض.'),
+            'data' => ['appointment' => $this->serializeQueueEntry($row->load('patient:id,name,phone'))],
+        ]);
+    }
+
+    /**
+     * PATCH /api/v2/business/clinic-queue-pattern — «1 كشف ثم 2 استشارة»: the
+     * repeating sequence of visit kinds (bookable_item_type keys) the queue
+     * cycles through when deciding who's next. Send an empty array to go
+     * back to plain first-checked-in-first-called.
+     */
+    public function updateQueuePattern(Request $request)
+    {
+        $data = $request->validate([
+            'pattern' => ['present', 'array', 'max:20'],
+            'pattern.*' => ['string', Rule::exists('platform_service_item_types', 'key')],
+        ]);
+
+        $clinic = User::query()->findOrFail(BusinessContext::id($request));
+        $clinic->clinic_queue_pattern = $data['pattern'] ?: null;
+        $clinic->save();
+
+        return response()->json(['success' => true, 'data' => ['queue_pattern' => $clinic->clinic_queue_pattern]]);
     }
 
     public function noShow(Request $request, int $appointment)
@@ -212,6 +337,38 @@ class BusinessClinicAppointmentController extends Controller
         ], 201);
     }
 
+    /**
+     * POST /api/v2/business/clinic-slots/generate-from-hours — publish slots
+     * straight from the clinic's own configured working hours instead of
+     * re-typing days/start/end: each open day gets its own slots sliced from
+     * ITS OWN open/close window (see business/hours). A day left unset or
+     * marked closed is simply skipped.
+     */
+    public function slotsGenerateFromHours(Request $request)
+    {
+        $data = $request->validate([
+            'weeks' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'interval_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+            'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
+            'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+        ]);
+
+        $clinic = User::query()->findOrFail(BusinessContext::id($request));
+
+        $result = $this->service->generateSlotsFromHours(
+            $clinic,
+            (int) ($data['weeks'] ?? 4) * 7,
+            isset($data['interval_minutes']) ? (int) $data['interval_minutes'] : null,
+            $data,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم نشر الفتحات من مواعيد العمل.'),
+            'data' => $result,
+        ], 201);
+    }
+
     /** Build the time list from explicit times or a start/end/interval range. */
     private function resolveTimes(array $data): array
     {
@@ -338,6 +495,20 @@ class BusinessClinicAppointmentController extends Controller
             'patient' => $a->relationLoaded('patient') && $a->patient
                 ? ['id' => (int) $a->patient->id, 'name' => $a->patient->name, 'phone' => $a->patient->phone]
                 : ['id' => (int) $a->patient_id],
+        ];
+    }
+
+    /** The base serialize() plus the queue-specific fields — check-in, kind tag, walk-in flag. */
+    private function serializeQueueEntry(ClinicAppointment $a): array
+    {
+        $kind = $a->visitKind();
+
+        return $this->serialize($a) + [
+            'checked_in_at' => optional($a->checked_in_at)->toIso8601String(),
+            'is_walk_in' => (bool) $a->is_walk_in,
+            'called_now' => $a->queue_priority_override !== null,
+            'visit_kind' => $kind,
+            'visit_kind_label' => \App\Models\PlatformServiceItemType::query()->where('key', $kind)->value('name_ar'),
         ];
     }
 }

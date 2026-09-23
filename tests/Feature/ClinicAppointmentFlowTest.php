@@ -52,6 +52,19 @@ class ClinicAppointmentFlowTest extends TestCase
         return Carbon::parse($at)->format('Y-m-d H:i:s');
     }
 
+    private function servicePrice(User $clinic, string $itemType): \App\Models\BusinessServicePrice
+    {
+        return \App\Models\BusinessServicePrice::create([
+            'business_id' => $clinic->id,
+            'child_id' => $clinic->category_child_id,
+            'service_id' => 1, // booking
+            'bookable_item_type' => $itemType,
+            'price' => 50,
+            'charge_mode' => 'standard',
+            'is_active' => 1,
+        ]);
+    }
+
     public function test_patient_requests_and_clinic_confirms_then_completes(): void
     {
         $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
@@ -201,6 +214,35 @@ class ClinicAppointmentFlowTest extends TestCase
 
         // The same slot can't be booked twice.
         $this->postJson("/api/v2/clinic-slots/{$slotId}/book")->assertStatus(422);
+    }
+
+    /** «الفتحات بدلها بمواعيد العمل السابق ضبطها» — slots sliced straight from the clinic's own configured hours. */
+    public function test_a_clinic_generates_slots_from_its_own_working_hours(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $tomorrow = Carbon::tomorrow();
+
+        \App\Models\BusinessWorkingHour::create([
+            'business_id' => $clinic->id, 'day_of_week' => $tomorrow->dayOfWeek,
+            'is_closed' => false, 'open_time' => '09:00:00', 'close_time' => '11:00:00',
+        ]);
+        // A day the clinic marked closed must generate nothing.
+        \App\Models\BusinessWorkingHour::create([
+            'business_id' => $clinic->id, 'day_of_week' => $tomorrow->copy()->addDay()->dayOfWeek,
+            'is_closed' => true, 'open_time' => null, 'close_time' => null,
+        ]);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson('/api/v2/business/clinic-slots/generate-from-hours', [
+            'weeks' => 1, 'interval_minutes' => 30,
+        ])->assertCreated()->assertJsonPath('data.created', 4); // 09:00, 09:30, 10:00, 10:30
+
+        $rows = $this->getJson('/api/v2/business/clinic-slots')->assertOk()->json('data.data');
+        $this->assertCount(4, $rows);
+        $this->assertSame(
+            Carbon::parse($tomorrow->format('Y-m-d') . ' 09:00')->toIso8601String(),
+            $rows[0]['starts_at'],
+        );
     }
 
     public function test_the_patient_gets_a_day_and_a_two_hour_reminder_each_once(): void
@@ -437,5 +479,151 @@ class ClinicAppointmentFlowTest extends TestCase
         Sanctum::actingAs($secretary);
         $this->getJson("/api/v2/business/clinic-appointments/{$appointment->id}/patient-record")
             ->assertStatus(403);
+    }
+
+    /** «تقدر تدخل مريض بين الحجوزات» — a walk-in joins today's queue already checked in, no slot reserved. */
+    public function test_a_secretary_adds_a_walk_in_straight_into_the_queue(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        Sanctum::actingAs($clinic);
+        $res = $this->postJson('/api/v2/business/clinic-appointments/walk-in', [
+            'patient_id' => $patient->id,
+        ])->assertCreated();
+
+        $this->assertNotNull($res->json('data.appointment.checked_in_at'));
+        $this->assertTrue($res->json('data.appointment.is_walk_in'));
+        $this->assertSame('confirmed', $res->json('data.appointment.status'));
+
+        $this->getJson('/api/v2/business/clinic-appointments/queue')->assertOk()
+            ->assertJsonPath('data.next_id', (int) $res->json('data.appointment.id'));
+    }
+
+    /** «كل مريض له QR خاص بحجزه» — the patient's own code, scanned by the clinic to check them in. */
+    public function test_the_patients_own_qr_checks_them_in(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $otherClinic = $this->user(User::TYPE_BUSINESS, 'OtherClinic');
+        $patient = $this->user(User::TYPE_CLIENT, 'Patient');
+
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
+            'scheduled_at' => Carbon::now()->addHour(), 'duration_minutes' => 30,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+        ]);
+
+        Sanctum::actingAs($patient);
+        $token = $this->getJson("/api/v2/clinic-appointments/{$appointment->id}/checkin-token")
+            ->assertOk()->json('data.checkin_token');
+        $this->assertNotEmpty($token);
+
+        // A different clinic scanning the same token must not check it in.
+        Sanctum::actingAs($otherClinic);
+        $this->postJson("/api/v2/business/clinic-appointments/checkin/{$token}")->assertStatus(404);
+        $this->assertNull($appointment->fresh()->checked_in_at);
+
+        // The right clinic scans it — checked in.
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/checkin/{$token}")->assertOk()
+            ->assertJsonPath('data.appointment.id', $appointment->id);
+        $this->assertNotNull($appointment->fresh()->checked_in_at);
+
+        // Scanning again is a harmless no-op, not an error.
+        $this->postJson("/api/v2/business/clinic-appointments/checkin/{$token}")->assertOk();
+    }
+
+    /** «1 كشف ثم 2 استشارة» — the clinic's own repeating pattern decides whose turn it is. */
+    public function test_the_queue_pattern_alternates_visit_kinds(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $examPrice = $this->servicePrice($clinic, 'booking_examination');
+        $consultPrice = $this->servicePrice($clinic, 'booking_consultation');
+
+        Sanctum::actingAs($clinic);
+        $this->patchJson('/api/v2/business/clinic-queue-pattern', [
+            'pattern' => ['booking_examination', 'booking_consultation', 'booking_consultation'],
+        ])->assertOk();
+
+        // Two exam patients and two consultation patients all check in, exam patients first.
+        $exam1 = $this->postJson('/api/v2/business/clinic-appointments/walk-in', [
+            'patient_id' => $this->user(User::TYPE_CLIENT, 'Exam1')->id, 'service_price_id' => $examPrice->id,
+        ])->json('data.appointment.id');
+        $exam2 = $this->postJson('/api/v2/business/clinic-appointments/walk-in', [
+            'patient_id' => $this->user(User::TYPE_CLIENT, 'Exam2')->id, 'service_price_id' => $examPrice->id,
+        ])->json('data.appointment.id');
+        $consult1 = $this->postJson('/api/v2/business/clinic-appointments/walk-in', [
+            'patient_id' => $this->user(User::TYPE_CLIENT, 'Consult1')->id, 'service_price_id' => $consultPrice->id,
+        ])->json('data.appointment.id');
+        $consult2 = $this->postJson('/api/v2/business/clinic-appointments/walk-in', [
+            'patient_id' => $this->user(User::TYPE_CLIENT, 'Consult2')->id, 'service_price_id' => $consultPrice->id,
+        ])->json('data.appointment.id');
+
+        // Nobody served yet today → pattern slot 0 → examination.
+        $this->getJson('/api/v2/business/clinic-appointments/queue')->assertOk()
+            ->assertJsonPath('data.next_id', $exam1)
+            ->assertJsonPath('data.waiting.0.visit_kind', 'booking_examination');
+
+        $this->postJson("/api/v2/business/clinic-appointments/{$exam1}/complete")->assertOk()
+            ->assertJsonPath('data.next.id', $consult1)
+            ->assertJsonPath('data.next.visit_kind', 'booking_consultation');
+
+        $this->postJson("/api/v2/business/clinic-appointments/{$consult1}/complete")->assertOk()
+            ->assertJsonPath('data.next.id', $consult2);
+
+        // Pattern slot back to examination (served count 3 % 3 == 0) — but
+        // exam2 is the only examination left waiting either way.
+        $this->postJson("/api/v2/business/clinic-appointments/{$consult2}/complete")->assertOk()
+            ->assertJsonPath('data.next.id', $exam2)
+            ->assertJsonPath('data.next.visit_kind', 'booking_examination');
+    }
+
+    /** A kind the pattern calls for with nobody waiting doesn't block the doctor. */
+    public function test_the_pattern_falls_back_when_its_kind_has_no_one_waiting(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $consultPrice = $this->servicePrice($clinic, 'booking_consultation');
+
+        Sanctum::actingAs($clinic);
+        $this->patchJson('/api/v2/business/clinic-queue-pattern', [
+            'pattern' => ['booking_examination', 'booking_consultation'],
+        ])->assertOk();
+
+        // Only a consultation patient is waiting — the pattern wants an
+        // examination first, but nobody's here for one.
+        $only = $this->postJson('/api/v2/business/clinic-appointments/walk-in', [
+            'patient_id' => $this->user(User::TYPE_CLIENT, 'OnlyOne')->id, 'service_price_id' => $consultPrice->id,
+        ])->json('data.appointment.id');
+
+        $this->getJson('/api/v2/business/clinic-appointments/queue')->assertOk()
+            ->assertJsonPath('data.next_id', $only);
+    }
+
+    /** «تقدر تدخل غيره لحد ما يحضر» — calling someone specific overrides the pattern, without touching the one skipped. */
+    public function test_calling_a_patient_now_overrides_the_pattern(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, 'Clinic');
+        $examPrice = $this->servicePrice($clinic, 'booking_examination');
+
+        Sanctum::actingAs($clinic);
+        $this->patchJson('/api/v2/business/clinic-queue-pattern', ['pattern' => ['booking_examination']])->assertOk();
+
+        $lateComer = $this->postJson('/api/v2/business/clinic-appointments/walk-in', [
+            'patient_id' => $this->user(User::TYPE_CLIENT, 'LateComer')->id, 'service_price_id' => $examPrice->id,
+        ])->json('data.appointment.id');
+        $steppedOut = $this->postJson('/api/v2/business/clinic-appointments/walk-in', [
+            'patient_id' => $this->user(User::TYPE_CLIENT, 'SteppedOut')->id, 'service_price_id' => $examPrice->id,
+        ])->json('data.appointment.id');
+
+        // The pattern would call $lateComer first (earliest checked_in_at) —
+        // the secretary instead calls the other one now.
+        $this->postJson("/api/v2/business/clinic-appointments/{$steppedOut}/call-now")->assertOk();
+
+        $this->getJson('/api/v2/business/clinic-appointments/queue')->assertOk()
+            ->assertJsonPath('data.next_id', $steppedOut);
+
+        // $lateComer is untouched — still waiting, still checked in.
+        $this->assertNotNull(ClinicAppointment::query()->findOrFail($lateComer)->checked_in_at);
+        $this->assertSame('confirmed', ClinicAppointment::query()->findOrFail($lateComer)->status);
     }
 }

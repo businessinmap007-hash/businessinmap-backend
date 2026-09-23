@@ -2757,7 +2757,7 @@ paths:
     get:
       tags: [Business Page]
       summary: The public business page aggregate (profile + rating + section flags)
-      description: What a search result opens — profile header (including address, country, governorate/city, category + sub-category names, and its options list), rating summary, open-now, which tabs exist (posts/menu/services), and which fulfillment methods (delivery/pickup/dine_in) the unified entry point above the menu should offer. The heavy lists stay on their own endpoints.
+      description: What a search result opens — profile header (including address, country, governorate/city, category + sub-category names, and its options list), rating summary, open-now, which tabs exist (posts/menu/services), and which fulfillment methods (delivery/pickup/dine_in) the unified entry point above the menu should offer. The heavy lists stay on their own endpoints. For a doctor's own clinic account with an accepted-linked sister clinic, `linked_schedule` carries the whole group's days/hours; null otherwise.
       parameters: [{ name: business, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /businesses/{business}/posts:
@@ -4583,6 +4583,13 @@ paths:
                 scheduled_at: { type: string, format: date-time }
                 duration_minutes: { type: integer }
       responses: { '200': { description: Rescheduled }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
+  /clinic-appointments/{appointment}/checkin-token:
+    get:
+      tags: [Clinic Appointments]
+      summary: My own check-in code for this appointment («كل مريض له QR خاص بحجزه») — render it as a QR for the clinic to scan on arrival
+      description: Stable across repeat calls (issued once). Only while the appointment is confirmed.
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { description: 'Not yours' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/clinic-appointments:
     get:
       tags: [Clinic Appointments]
@@ -4620,7 +4627,44 @@ paths:
   /business/clinic-appointments/{appointment}/complete:
     post:
       tags: [Clinic Appointments]
-      summary: Mark an appointment completed (clinic)
+      summary: The doctor's «تم» button — closes this visit AND hands back whoever queues next, tagged with their visit kind
+      parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/walk-in:
+    post:
+      tags: [Clinic Appointments]
+      summary: Secretary adds a patient straight into today's queue — between existing bookings, or standing in for one who hasn't shown (who keeps their own place)
+      description: No time slot reserved — joins the queue already checked in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [patient_id]
+              properties:
+                patient_id: { type: integer }
+                service_price_id: { type: integer }
+                duration_minutes: { type: integer }
+                reason: { type: string }
+      responses: { '201': { description: Joined the queue }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/queue:
+    get:
+      tags: [Clinic Appointments]
+      summary: Today's waiting patients (checked in, not yet seen), with the automatic-next one flagged
+      responses: { '200': { description: OK } }
+  /business/clinic-appointments/checkin/{token}:
+    post:
+      tags: [Clinic Appointments]
+      summary: Clinic scans the patient's own QR to check them in
+      description: Idempotent — scanning an already-checked-in appointment is a harmless no-op, not an error.
+      parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK }, '404': { description: 'Invalid token, or not this clinic''s' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/{appointment}/call-now:
+    post:
+      tags: [Clinic Appointments]
+      summary: Secretary calls a specific waiting patient ahead of the automatic pattern («تقدر تدخل غيره لحد ما يحضر»)
+      description: The one skipped keeps their place untouched — reconsidered normally next time.
       parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/clinic-appointments/{appointment}/no-show:
@@ -4656,6 +4700,65 @@ paths:
         same appointment's own just-issued prescription, if any.
       parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '403': { description: Missing the prescriptions capability }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/clinic-links:
+    get:
+      tags: [Clinic Appointments]
+      summary: My own clinic-account links — sent/received pending requests, and accepted
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Clinic Appointments]
+      summary: Request linking this clinic account with another one as the same doctor (mutual consent)
+      description: Both accounts must be individual doctor's-own-clinic accounts. If the other side already requested a link to this one, it is accepted on the spot instead of creating a duplicate pending row.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_id]
+              properties:
+                target_id: { type: integer }
+      responses: { '201': { description: Created (pending or auto-accepted) }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-links/{link}/accept:
+    post:
+      tags: [Clinic Appointments]
+      summary: The TARGET side accepts a pending link request
+      parameters: [{ name: link, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '403': { description: Not the target of this request }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-links/{link}:
+    delete:
+      tags: [Clinic Appointments]
+      summary: Decline a pending request, or unlink an already-accepted one (either party, either state)
+      parameters: [{ name: link, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '403': { description: Not a party to this link } }
+  /business/clinic-queue-pattern:
+    put:
+      tags: [Clinic Appointments]
+      summary: Set the clinic's repeating queue pattern («1 كشف ثم 2 استشارة»)
+      description: An ordered list of bookable_item_type keys (booking_examination, booking_consultation, …) the queue cycles through when deciding who's next. Send an empty array to go back to plain first-checked-in-first-called.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pattern]
+              properties:
+                pattern: { type: array, items: { type: string } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
+    patch:
+      tags: [Clinic Appointments]
+      summary: Same as PUT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pattern]
+              properties:
+                pattern: { type: array, items: { type: string } }
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
   /clinics/{clinic}/slots:
     get:
       tags: [Clinic Appointments]
@@ -4710,6 +4813,22 @@ paths:
                 end_time: { type: string, example: '13:00' }
                 interval_minutes: { type: integer }
                 weeks: { type: integer, minimum: 1, maximum: 12 }
+                duration_minutes: { type: integer }
+      responses: { '201': { description: 'Published (returns created/skipped)' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-slots/generate-from-hours:
+    post:
+      tags: [Clinic Appointments]
+      summary: Publish slots straight from the clinic's own configured working hours (business/hours) instead of re-typing days/start/end
+      description: Each open day is sliced from ITS OWN open/close window; a day left unset or marked closed generates nothing.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weeks: { type: integer, minimum: 1, maximum: 12 }
+                interval_minutes: { type: integer, description: 'Defaults to the resolved visit duration' }
+                service_price_id: { type: integer }
                 duration_minutes: { type: integer }
       responses: { '201': { description: 'Published (returns created/skipped)' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/clinic-slots/{slot}:

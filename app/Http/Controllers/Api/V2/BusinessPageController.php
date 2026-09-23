@@ -30,6 +30,7 @@ final class BusinessPageController extends Controller
     public function __construct(
         private readonly RatingService $ratings,
         private readonly BusinessHoursService $hours,
+        private readonly \App\Services\Clinics\ClinicLinkService $clinicLinks,
     ) {
     }
 
@@ -137,6 +138,14 @@ final class BusinessPageController extends Controller
                 'social' => $this->socialLinks($model),
                 'rating' => $this->ratings->summaryFor((int) $model->id, UserOperationRating::ROLE_BUSINESS),
                 'open_now' => $this->hours->isOpenNow((int) $model->id),
+                // «سبت واتنين واربعاء عيادة دمياط... حد وتلاتة وخميس عيادة
+                // القاهرة»: a doctor running more than one linked clinic
+                // account shows the whole group here, each with its own
+                // days/hours — null for anything else (no clinic-link
+                // concept applies, or a clinic with no linked sister account).
+                'linked_schedule' => (int) ($model->category_child_id ?? 0) === User::DOCTOR_OWN_CLINIC_CHILD_ID
+                    ? $this->linkedScheduleIfAny((int) $model->id)
+                    : null,
                 'check_in_time' => $bookingSettings?->check_in_time,
                 'check_out_time' => $bookingSettings?->check_out_time,
                 'is_following' => $isFollowing,
@@ -165,6 +174,14 @@ final class BusinessPageController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /** Null when this clinic has no accepted-linked sister account — no group of one. */
+    private function linkedScheduleIfAny(int $clinicId): ?array
+    {
+        $group = $this->clinicLinks->scheduleGroupFor($clinicId);
+
+        return count($group) > 1 ? $group : null;
     }
 
     /** Null when the business has never set a single link — not an empty object. */

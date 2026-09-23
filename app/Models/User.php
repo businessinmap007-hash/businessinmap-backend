@@ -125,6 +125,10 @@ class User extends Authenticatable
         //   - delivery_fee_amount             → written only by
         //                                        DeliveryController::updateDeliverySettings
         //                                        (direct property assignment).
+        //   - clinic_queue_pattern            → written only by
+        //                                        BusinessClinicAppointmentController
+        //                                        ::updateQueuePattern (direct property
+        //                                        assignment).
     ];
 
     protected $hidden = [
@@ -147,6 +151,7 @@ class User extends Authenticatable
         'commercial_operations_enabled' => 'boolean',
         'attendance_verification_enabled' => 'boolean',
         'delivery_fee_amount' => 'float',
+        'clinic_queue_pattern' => 'array',
 
         'deleted_at'        => 'datetime',
 

@@ -41,6 +41,7 @@ class ClinicAppointment extends Model
         'notes',
         'reminded_day_at',
         'reminded_soon_at',
+        'is_walk_in',
     ];
 
     protected $casts = [
@@ -49,6 +50,9 @@ class ClinicAppointment extends Model
         'service_price_id' => 'integer',
         'reminded_day_at' => 'datetime',
         'reminded_soon_at' => 'datetime',
+        'checked_in_at' => 'datetime',
+        'is_walk_in' => 'boolean',
+        'queue_priority_override' => 'integer',
     ];
 
     public function clinic(): BelongsTo
@@ -85,5 +89,15 @@ class ClinicAppointment extends Model
     public function isParty(int $userId): bool
     {
         return in_array($userId, [(int) $this->clinic_id, (int) $this->patient_id], true);
+    }
+
+    /**
+     * The visit's kind for queue-pattern purposes — booking_examination,
+     * booking_consultation, … — from what the clinic priced this visit as.
+     * A walk-in with no priced visit type defaults to a plain كشف.
+     */
+    public function visitKind(): string
+    {
+        return $this->servicePrice?->bookable_item_type ?: 'booking_examination';
     }
 }

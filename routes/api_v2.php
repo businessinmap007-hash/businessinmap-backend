@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\V2\BusinessClinicAppointmentController;
 use App\Http\Controllers\Api\V2\BodyCompositionController;
 use App\Http\Controllers\Api\V2\ClientTrainingController;
 use App\Http\Controllers\Api\V2\ClinicAppointmentController;
+use App\Http\Controllers\Api\V2\ClinicLinkController;
 use App\Http\Controllers\Api\V2\CustomerProjectController;
 use App\Http\Controllers\Api\V2\OperationChatController;
 use App\Http\Controllers\Api\V2\ThreadAccessController;
@@ -514,6 +515,7 @@ Route::prefix('v2')->group(function () {
         Route::get('clinic-appointments/{appointment}', [ClinicAppointmentController::class, 'show'])->whereNumber('appointment');
         Route::post('clinic-appointments/{appointment}/cancel', [ClinicAppointmentController::class, 'cancel'])->whereNumber('appointment');
         Route::post('clinic-appointments/{appointment}/reschedule', [ClinicAppointmentController::class, 'reschedule'])->whereNumber('appointment');
+        Route::get('clinic-appointments/{appointment}/checkin-token', [ClinicAppointmentController::class, 'checkinToken'])->whereNumber('appointment');
         // Published open slots: browse a clinic's, then book one in a tap.
         Route::get('clinics/{clinic}/slots', [ClinicAppointmentController::class, 'slots'])->whereNumber('clinic');
         Route::post('clinic-slots/{slot}/book', [ClinicAppointmentController::class, 'bookSlot'])->whereNumber('slot');
@@ -1165,7 +1167,28 @@ Route::prefix('v2')->group(function () {
             Route::post('{appointment}/complete', [BusinessClinicAppointmentController::class, 'complete'])->whereNumber('appointment');
             Route::post('{appointment}/no-show', [BusinessClinicAppointmentController::class, 'noShow'])->whereNumber('appointment');
             Route::post('{appointment}/reschedule', [BusinessClinicAppointmentController::class, 'reschedule'])->whereNumber('appointment');
+
+            // Today's walk-in queue («الدور منفصل عن الوقت»): a secretary-added
+            // patient, the waiting list, QR check-in, and manually calling
+            // someone ahead of the automatic pattern.
+            Route::post('walk-in', [BusinessClinicAppointmentController::class, 'storeWalkIn']);
+            Route::get('queue', [BusinessClinicAppointmentController::class, 'queue']);
+            Route::post('checkin/{token}', [BusinessClinicAppointmentController::class, 'checkin']);
+            Route::post('{appointment}/call-now', [BusinessClinicAppointmentController::class, 'callNow'])->whereNumber('appointment');
         });
+
+        // A doctor links their own clinic accounts together (mutual consent)
+        // so a patient sees one unified schedule across all of them.
+        Route::prefix('business/clinic-links')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
+            Route::get('/', [ClinicLinkController::class, 'index']);
+            Route::post('/', [ClinicLinkController::class, 'store']);
+            Route::post('{link}/accept', [ClinicLinkController::class, 'accept'])->whereNumber('link');
+            Route::delete('{link}', [ClinicLinkController::class, 'destroy'])->whereNumber('link');
+        });
+
+        // «1 كشف ثم 2 استشارة»: the clinic's own repeating queue pattern.
+        Route::match(['put', 'patch'], 'business/clinic-queue-pattern', [BusinessClinicAppointmentController::class, 'updateQueuePattern'])
+            ->middleware('business.member:' . BusinessCapability::CLINIC);
 
         // What to open when the patient walks in: gated on `prescriptions`
         // (not `clinic`) since it reveals diagnosis/medication content — the
@@ -1179,6 +1202,7 @@ Route::prefix('v2')->group(function () {
             Route::get('/', [BusinessClinicAppointmentController::class, 'slotsIndex']);
             Route::post('/', [BusinessClinicAppointmentController::class, 'slotsStore']);
             Route::post('generate', [BusinessClinicAppointmentController::class, 'slotsGenerate']);
+            Route::post('generate-from-hours', [BusinessClinicAppointmentController::class, 'slotsGenerateFromHours']);
             Route::delete('{slot}', [BusinessClinicAppointmentController::class, 'slotsDestroy'])->whereNumber('slot');
         });
 

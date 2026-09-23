@@ -13,6 +13,7 @@ use App\Services\BusinessHoursService;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -243,6 +244,57 @@ class ClinicAppointmentService
         return ['created' => $created, 'skipped' => $skipped, 'outside_hours' => $closed];
     }
 
+    /**
+     * Publish slots straight from the clinic's own configured working hours —
+     * no re-typing days/start/end here. Only a day with an explicit, open
+     * (non-closed, both times set) window generates anything; a day left
+     * unset or marked closed is skipped, same as generateSlots() itself. Each
+     * day keeps its OWN open/close (a clinic's Saturday can run 9–2 while its
+     * Monday runs 4–9), so this calls generateSlots() once per open day
+     * rather than assuming one shared time range for every weekday.
+     */
+    public function generateSlotsFromHours(User $clinic, int $days, ?int $intervalMinutes, ?array $slotData): array
+    {
+        [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $slotData ?? []);
+        $interval = $intervalMinutes ?: $duration;
+
+        $hours = app(BusinessHoursService::class)->hoursFor((int) $clinic->id);
+
+        $created = 0;
+        $skipped = 0;
+        foreach ($hours as $row) {
+            if ($row->is_closed || ! $row->open_time || ! $row->close_time) {
+                continue;
+            }
+
+            $times = $this->resolveTimesForWindow((string) $row->open_time, (string) $row->close_time, $interval);
+            if (! $times) {
+                continue;
+            }
+
+            $result = $this->generateSlots($clinic, [(int) $row->day_of_week], $times, $days, $duration, $priceId);
+            $created += $result['created'];
+            $skipped += $result['skipped'];
+        }
+
+        return ['created' => $created, 'skipped' => $skipped];
+    }
+
+    /** Every $intervalMinutes step from $open up to (but not crossing) $close, both "H:i[:s]". */
+    private function resolveTimesForWindow(string $open, string $close, int $intervalMinutes): array
+    {
+        $cursor = Carbon::createFromFormat('H:i:s', strlen($open) === 5 ? $open . ':00' : $open);
+        $end = Carbon::createFromFormat('H:i:s', strlen($close) === 5 ? $close . ':00' : $close);
+
+        $times = [];
+        while ($cursor->lt($end)) {
+            $times[] = $cursor->format('H:i');
+            $cursor->addMinutes($intervalMinutes);
+        }
+
+        return $times;
+    }
+
     /** Clinic deletes an open (unbooked) slot; a booked one can't be removed here. */
     public function deleteSlot(ClinicAppointmentSlot $slot): void
     {
@@ -432,6 +484,170 @@ class ClinicAppointmentService
                 $this->syncAgenda($appointment);
             }
         });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Today's walk-in queue
+    |--------------------------------------------------------------------------
+    |
+    | Separate from scheduled_at («الدور منفصل عن الوقت» — المالك): a booked
+    | appointment keeps its original time, but who the doctor actually SEES
+    | next is decided here, once the patient has physically checked in.
+    */
+
+    /**
+     * Secretary adds a patient straight into today's queue — between existing
+     * bookings, or standing in for one who hasn't shown up yet (who keeps
+     * their own place; nothing here touches them). No slot, no time
+     * conflict to guard: a walk-in doesn't reserve a moment on the calendar,
+     * it joins the queue already checked in.
+     */
+    public function insertWalkIn(User $clinic, User $patient, array $data): ClinicAppointment
+    {
+        [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $data);
+        $now = Carbon::now();
+
+        $appointment = ClinicAppointment::create([
+            'clinic_id' => (int) $clinic->id,
+            'patient_id' => (int) $patient->id,
+            'service_price_id' => $priceId,
+            'created_by' => (int) $clinic->id,
+            'scheduled_at' => $now,
+            'duration_minutes' => $duration,
+            'status' => ClinicAppointment::STATUS_CONFIRMED,
+            'reason' => $data['reason'] ?? null,
+            'is_walk_in' => true,
+        ]);
+
+        // checked_in_at is deliberately not mass-assignable (see User's own
+        // privilege-sensitive-column convention) — a walk-in is, by
+        // definition, already standing at reception.
+        $appointment->checked_in_at = $now;
+        $appointment->save();
+
+        return $appointment;
+    }
+
+    /**
+     * A booked patient's own check-in QR — issued once, for the app to render
+     * as a QR the clinic scans on arrival. Only while confirmed and not
+     * already checked in (re-scanning after that is a no-op in confirmCheckin()).
+     */
+    public function issueCheckinToken(ClinicAppointment $appointment): string
+    {
+        if ($appointment->status !== ClinicAppointment::STATUS_CONFIRMED) {
+            throw ValidationException::withMessages(['status' => __('لا يمكن تسجيل الحضور لهذا الموعد الآن.')]);
+        }
+
+        if (! $appointment->checkin_token) {
+            $appointment->checkin_token = Str::random(40);
+            $appointment->save();
+        }
+
+        return (string) $appointment->checkin_token;
+    }
+
+    /**
+     * The clinic scans the patient's QR: mark them arrived and in the queue.
+     * Idempotent — scanning an already-checked-in appointment just returns it,
+     * since a double tap/scan must never be an error.
+     */
+    public function confirmCheckin(string $token, int $clinicId): ClinicAppointment
+    {
+        $appointment = ClinicAppointment::query()
+            ->where('checkin_token', $token)
+            ->where('clinic_id', $clinicId)
+            ->first();
+
+        if (! $appointment) {
+            abort(404, __('رمز الحضور غير صالح.'));
+        }
+
+        if ($appointment->status !== ClinicAppointment::STATUS_CONFIRMED) {
+            throw ValidationException::withMessages(['status' => __('لا يمكن تسجيل الحضور لهذا الموعد الآن.')]);
+        }
+
+        if (! $appointment->checked_in_at) {
+            $appointment->checked_in_at = Carbon::now();
+            $appointment->save();
+        }
+
+        return $appointment;
+    }
+
+    /**
+     * Secretary calls a specific waiting patient right now, ahead of whatever
+     * the automatic pattern would have picked — for the one whose turn it is
+     * but hasn't shown: she calls someone else instead, and the absent one
+     * simply stays waiting, reconsidered normally next time.
+     */
+    public function callNow(ClinicAppointment $appointment): ClinicAppointment
+    {
+        if (! $appointment->checked_in_at) {
+            throw ValidationException::withMessages(['status' => __('المريض لم يسجل حضوره بعد.')]);
+        }
+
+        $lowest = (int) (ClinicAppointment::query()
+            ->where('clinic_id', $appointment->clinic_id)
+            ->where('status', ClinicAppointment::STATUS_CONFIRMED)
+            ->whereNotNull('checked_in_at')
+            ->min('queue_priority_override') ?? 0);
+
+        $appointment->queue_priority_override = min($lowest, 0) - 1;
+        $appointment->save();
+
+        return $appointment;
+    }
+
+    /**
+     * Who the doctor sees next: a manual "call now" always wins (lowest
+     * override first); otherwise the clinic's own repeating pattern of visit
+     * kinds decides whose turn it is («1 كشف ثم 2 استشارة» — المالك), falling
+     * back to plain arrival order for a kind with no one waiting, or when the
+     * clinic set no pattern at all.
+     */
+    public function nextInQueue(User $clinic): ?ClinicAppointment
+    {
+        $waiting = ClinicAppointment::query()
+            ->where('clinic_id', (int) $clinic->id)
+            ->where('status', ClinicAppointment::STATUS_CONFIRMED)
+            ->whereNotNull('checked_in_at')
+            ->with('servicePrice')
+            ->orderBy('checked_in_at')
+            ->get();
+
+        if ($waiting->isEmpty()) {
+            return null;
+        }
+
+        $overridden = $waiting->whereNotNull('queue_priority_override')->sortBy('queue_priority_override')->first();
+        if ($overridden) {
+            return $overridden;
+        }
+
+        $pattern = $clinic->clinic_queue_pattern;
+        if (empty($pattern)) {
+            return $waiting->first();
+        }
+
+        $servedToday = ClinicAppointment::query()
+            ->where('clinic_id', (int) $clinic->id)
+            ->where('status', ClinicAppointment::STATUS_COMPLETED)
+            ->whereDate('checked_in_at', Carbon::today())
+            ->count();
+
+        $desiredKind = $pattern[$servedToday % count($pattern)];
+
+        return $waiting->first(fn (ClinicAppointment $a) => $a->visitKind() === $desiredKind) ?? $waiting->first();
+    }
+
+    /** Doctor presses «تم»: close this visit and hand back whoever queues next. */
+    public function completeAndAdvance(ClinicAppointment $appointment): array
+    {
+        $completed = $this->complete($appointment);
+
+        return ['completed' => $completed, 'next' => $this->nextInQueue($completed->clinic)];
     }
 
     /** Mirror a confirmed appointment onto the patient's agenda. */

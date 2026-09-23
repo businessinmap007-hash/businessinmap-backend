@@ -113,6 +113,22 @@ class ClinicAppointmentController extends Controller
         ]);
     }
 
+    /**
+     * GET /api/v2/clinic-appointments/{appointment}/checkin-token — the
+     * patient's own check-in code («كل مريض له QR خاص بحجزه»): the app
+     * renders it as a QR for the clinic to scan on arrival. Issued once
+     * (stable across repeat views) while the appointment is confirmed.
+     */
+    public function checkinToken(Request $request, int $appointment)
+    {
+        $row = ClinicAppointment::query()->findOrFail($appointment);
+        abort_if((int) $row->patient_id !== (int) $request->user()->id, 404);
+
+        $token = $this->service->issueCheckinToken($row);
+
+        return response()->json(['success' => true, 'data' => ['checkin_token' => $token]]);
+    }
+
     /** GET /api/v2/clinics/{clinic}/slots — a clinic's open, still-future slots. */
     public function slots(Request $request, int $clinic)
     {

@@ -1,3 +1,14 @@
+<IfModule mod_headers.c>
+    # The Flutter web build runs on its own dev port (a different origin
+    # from this server), and Flutter Web's CanvasKit renderer fetches
+    # images via CORS-checked requests (not a passive <img> load) to
+    # rasterize them onto canvas — so an uploaded business logo/cover
+    # rendered fine on mobile (no CORS there) but silently failed on web.
+    <FilesMatch "\.(png|jpe?g|gif|webp|svg)$">
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

@@ -12,23 +12,19 @@
         P::SURFACE_PRICING => 'شاشة التسعير',
         P::SURFACE_SEARCH_FILTER => 'فلتر بحث العميل',
         P::SURFACE_RESULT_CARD => 'كارت النتيجة',
-        P::SURFACE_ITEM_DETAIL => 'تفاصيل الصنف',
+        P::SURFACE_ITEM_DETAIL => 'الوصف / تفاصيل الصنف',
         P::SURFACE_BUSINESS_PAGE => 'صفحة البزنس',
     ];
     $usageLabels = [
-        P::USAGE_DEFINES_ITEM => 'تعرّف الصنف (سطر)',
-        P::USAGE_CHANGES_PRICE => 'تغيّر السعر (مُعدِّل)',
-        P::USAGE_DESCRIPTIVE => 'وصف فقط',
-        P::USAGE_FILTER_ONLY => 'فلتر فقط',
+        P::USAGE_DEFINES_ITEM => 'مسعَّر — هو الصنف نفسه (السطر)',
+        P::USAGE_CHANGES_PRICE => 'معدِّل للسعر — يزيد/ينقص سعر المسعَّر',
+        P::USAGE_DESCRIPTIVE => 'وصفي — يظهر فى الوصف',
+        P::USAGE_FILTER_ONLY => 'فلتر بحث فقط',
     ];
-    $inputLabels = [
-        P::INPUT_SINGLE => 'اختيار واحد',
-        P::INPUT_MULTIPLE => 'اختيار متعدد',
-        P::INPUT_CHECKBOX => 'Checkbox',
-    ];
+    $inputLabels = [P::INPUT_SINGLE => 'اختيار واحد', P::INPUT_MULTIPLE => 'اختيار متعدد', P::INPUT_CHECKBOX => 'Checkbox'];
+    $roleLabel = ['line' => 'مسعَّر', 'modifier' => 'معدِّل', 'descriptive' => 'وصفي'];
     $name = fn ($m) => trim((string) ($m->name_ar ?? '')) ?: (trim((string) ($m->name_en ?? '')) ?: ('#' . $m->id));
-    $counter = 0;
-    $roleLabel = ['line' => 'سطر', 'modifier' => 'مُعدِّل', 'descriptive' => 'وصفي'];
+    $serviceIdx = $services->pluck('id')->search($serviceId);
 @endphp
 
 <div class="a2-page">
@@ -36,7 +32,7 @@
         <div>
             <h1 class="a2-page-title">{{ __('مكونات الخدمة') }}</h1>
             <div class="a2-page-subtitle">
-                {{ __('لكل مجموعة خيارات: أين تظهر داخل الخدمة، وكيف تُستخدم مع أي بند من بنودها. ربط الابن بالمجموعة نفسه من «خيارات التصنيفات الفرعية».') }}
+                {{ __('اختر الأب والابن، ثم خدمة خدمة: حدّد لكل مجموعة خيارات إن كانت المسعَّر أو معدِّلًا للسعر أو وصفًا، وأين تظهر. الإعدادات لهذا الابن فقط.') }}
             </div>
         </div>
     </div>
@@ -51,93 +47,119 @@
     <div class="a2-card a2-card--soft a2-mb-16">
         <form method="GET" action="{{ route('admin.service-components.index') }}" class="a2-filterbar">
             <div class="a2-filter-md">
-                <label class="a2-label">{{ __('الخدمة') }}</label>
-                <select class="a2-select" name="service_id" onchange="this.form.child_id.value=0;this.form.submit()">
-                    @foreach($services as $service)
-                        <option value="{{ $service->id }}" @selected($serviceId === (int) $service->id)>{{ $name($service) }} — {{ $service->key }}</option>
+                <label class="a2-label">{{ __('الأب') }}</label>
+                <select class="a2-select" name="root_id" onchange="this.form.child_id.value=0;this.form.service_id.value=0;this.form.submit()">
+                    @foreach($roots as $root)
+                        <option value="{{ $root->id }}" @selected($rootId === (int) $root->id)>{{ $name($root) }}</option>
                     @endforeach
                 </select>
             </div>
             <div class="a2-filter-md">
-                <label class="a2-label">{{ __('النطاق') }}</label>
-                <select class="a2-select" name="child_id" onchange="this.form.submit()">
-                    <option value="0" @selected($childId === 0)>{{ __('افتراضي للخدمة كلها') }}</option>
+                <label class="a2-label">{{ __('الابن') }}</label>
+                <select class="a2-select" name="child_id" onchange="this.form.service_id.value=0;this.form.submit()">
                     @foreach($children as $child)
-                        <option value="{{ $child->id }}" @selected($childId === (int) $child->id)>{{ __('استثناء لـ') }} {{ $name($child) }}</option>
+                        <option value="{{ $child->id }}" @selected($childId === (int) $child->id)>{{ $name($child) }}</option>
                     @endforeach
                 </select>
             </div>
+            <input type="hidden" name="service_id" value="{{ $serviceId }}">
         </form>
-        @if($childId > 0)
-            <div class="a2-muted a2-mt-8">{{ __('صفوف هذا الابن تتغلّب على الافتراضي لنفس (المجموعة + البند). ما لا يُعرَّف هنا يُؤخذ من الافتراضي. الصف المعطَّل يخفي المجموعة عن هذا الابن.') }}</div>
-        @endif
+
+        <div style="margin-top:12px">
+            <span class="a2-label">{{ __('الخدمات المتاحة لهذا الابن') }}</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+                @forelse($services as $service)
+                    <a class="a2-btn {{ $serviceId === (int) $service->id ? 'a2-btn-primary' : 'a2-btn-ghost' }}"
+                       href="{{ route('admin.service-components.index', ['root_id' => $rootId, 'child_id' => $childId, 'service_id' => $service->id]) }}">
+                        {{ $name($service) }}
+                    </a>
+                @empty
+                    <span class="a2-muted">{{ __('لا توجد خدمات مفعّلة لهذا الابن تحت هذا الأب.') }}</span>
+                @endforelse
+            </div>
+        </div>
     </div>
 
-    <form method="POST" action="{{ route('admin.service-components.save') }}">
-        @csrf
-        <input type="hidden" name="service_id" value="{{ $serviceId }}">
-        <input type="hidden" name="child_id" value="{{ $childId }}">
+    @if($serviceId > 0)
+        <form method="POST" action="{{ route('admin.service-components.save') }}">
+            @csrf
+            <input type="hidden" name="root_id" value="{{ $rootId }}">
+            <input type="hidden" name="child_id" value="{{ $childId }}">
+            <input type="hidden" name="service_id" value="{{ $serviceId }}">
 
-        @forelse($groups as $group)
-            @php $groupRows = $rows->get($group->id, collect()); if ($groupRows->isEmpty()) { $groupRows = collect([null]); } @endphp
-            <div class="a2-card a2-mb-16" data-group="{{ $group->id }}">
-                <div class="a2-card-head" style="display:flex;justify-content:space-between;align-items:center">
-                    <div>
-                        <span class="a2-fw-900">{{ $name($group) }}</span>
-                        <span class="a2-pill a2-pill-gray">{{ $roleLabel[$group->price_role] ?? $group->price_role }}</span>
-                        @if($childId > 0 && $defaults->has($group->id))
-                            <span class="a2-muted">{{ __('له تعريف افتراضي للخدمة') }}</span>
-                        @endif
-                    </div>
-                    <button type="button" class="a2-btn a2-btn-ghost js-add-row" data-group="{{ $group->id }}">{{ __('+ ربط ببند آخر') }}</button>
-                </div>
-
+            <div class="a2-card a2-mb-16">
                 <div class="a2-table-wrap">
                     <table class="a2-table">
                         <thead>
                             <tr>
-                                <th>{{ __('البند') }}</th>
-                                <th>{{ __('أين تظهر') }}</th>
-                                <th>{{ __('كيف تُستخدم') }}</th>
+                                <th>{{ __('البند (مجموعة الخيارات)') }}</th>
+                                <th>{{ __('هو فى الخدمة') }}</th>
+                                <th>{{ __('أين يظهر') }}</th>
                                 <th>{{ __('نوع الإدخال') }}</th>
                                 <th>{{ __('إلزامي') }}</th>
                                 <th>{{ __('مفعّل') }}</th>
                             </tr>
                         </thead>
-                        <tbody class="js-rows">
-                            @foreach($groupRows as $row)
-                                @php $i = $counter++; @endphp
-                                @include('admin-v2.service-components._row', ['i' => $i, 'group' => $group, 'row' => $row, 'itemTypes' => $itemTypes, 'surfaceLabels' => $surfaceLabels, 'usageLabels' => $usageLabels, 'inputLabels' => $inputLabels, 'name' => $name])
-                            @endforeach
+                        <tbody>
+                            @forelse($groups as $i => $group)
+                                @php
+                                    $row = $saved->get($group->id);
+                                    [$defUsage, $defSurfaces] = $roleDefaults[$group->price_role] ?? [P::USAGE_DESCRIPTIVE, [P::SURFACE_ITEM_FORM]];
+                                    $usage = $row->usage ?? $defUsage;
+                                    $surfaces = $row ? (array) $row->surfaces : $defSurfaces;
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <input type="hidden" name="rows[{{ $i }}][option_group_id]" value="{{ $group->id }}">
+                                        <div class="a2-fw-900">{{ $name($group) }}</div>
+                                        <div class="a2-muted">{{ __('نوعها الحالي') }}: {{ $roleLabel[$group->price_role] ?? $group->price_role }}@if(! $row) — {{ __('لم يُحفظ بعد') }}@endif</div>
+                                    </td>
+                                    <td>
+                                        <select class="a2-select" name="rows[{{ $i }}][usage]">
+                                            @foreach($usageLabels as $key => $label)
+                                                <option value="{{ $key }}" @selected($usage === $key)>{{ __($label) }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        @foreach($surfaceLabels as $key => $label)
+                                            <label style="display:block;white-space:nowrap">
+                                                <input type="checkbox" name="rows[{{ $i }}][surfaces][]" value="{{ $key }}" @checked(in_array($key, $surfaces, true))>
+                                                {{ __($label) }}
+                                            </label>
+                                        @endforeach
+                                    </td>
+                                    <td>
+                                        <select class="a2-select" name="rows[{{ $i }}][input_type]">
+                                            @foreach($inputLabels as $key => $label)
+                                                <option value="{{ $key }}" @selected(($row->input_type ?? 'single') === $key)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="hidden" name="rows[{{ $i }}][is_required]" value="0">
+                                        <input type="checkbox" name="rows[{{ $i }}][is_required]" value="1" @checked($row->is_required ?? false)>
+                                    </td>
+                                    <td>
+                                        <input type="hidden" name="rows[{{ $i }}][is_active]" value="0">
+                                        <input type="checkbox" name="rows[{{ $i }}][is_active]" value="1" @checked($row->is_active ?? true)>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="6" class="a2-muted">{{ __('هذا الابن لا يحمل أي مجموعة خيارات. اربطها من «خيارات التصنيفات الفرعية».') }}</td></tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
-        @empty
-            <div class="a2-card"><div class="a2-muted" style="padding:16px">{{ __('لا توجد مجموعات خيارات مرتبطة بأبناء هذه الخدمة.') }}</div></div>
-        @endforelse
 
-        @if($groups->isNotEmpty())
-            <button class="a2-btn a2-btn-primary" type="submit">{{ __('حفظ') }}</button>
-        @endif
-    </form>
-
-    <template id="row-template">
-        @include('admin-v2.service-components._row', ['i' => '__I__', 'group' => (object) ['id' => '__G__'], 'row' => null, 'itemTypes' => $itemTypes, 'surfaceLabels' => $surfaceLabels, 'usageLabels' => $usageLabels, 'inputLabels' => $inputLabels, 'name' => $name])
-    </template>
+            @if($groups->isNotEmpty())
+                <button class="a2-btn a2-btn-ghost" type="submit">{{ __('حفظ') }}</button>
+                @if($serviceIdx !== false && $serviceIdx < $services->count() - 1)
+                    <button class="a2-btn a2-btn-primary" type="submit" name="next" value="1">{{ __('حفظ والانتقال للخدمة التالية') }}</button>
+                @endif
+            @endif
+        </form>
+    @endif
 </div>
-
-<script>
-(function () {
-    var next = {{ $counter }};
-    var tpl = document.getElementById('row-template');
-    document.querySelectorAll('.js-add-row').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var group = btn.getAttribute('data-group');
-            var html = tpl.innerHTML.split('__I__').join(next++).split('__G__').join(group);
-            btn.closest('.a2-card').querySelector('.js-rows').insertAdjacentHTML('beforeend', html);
-        });
-    });
-})();
-</script>
 @endsection

@@ -80,49 +80,73 @@ class ServiceComponentsTest extends TestCase
         return User::query()->where('type', 'admin')->first() ?: $this->markTestSkipped('No admin account to act as.');
     }
 
-    public function test_the_admin_screen_renders_and_saves_a_placement(): void
+    /** @return array{0:int,1:int,2:int,3:int} root, child, service, group — a real child with a service and a group */
+    private function scope(): array
     {
-        [$service, $group] = $this->ids();
+        $row = DB::table('category_platform_services as cps')
+            ->join('category_child_option as cco', function ($j) {
+                $j->on('cco.child_id', '=', 'cps.child_id')->whereIn('cco.category_id', [0]);
+            })
+            ->join('options as o', 'o.id', '=', 'cco.option_id')
+            ->where('cps.is_active', 1)->where('cps.category_id', '>', 0)
+            ->first(['cps.category_id as root', 'cps.child_id as child', 'cps.platform_service_id as service', 'o.group_id as grp']);
+
+        return $row ? [(int) $row->root, (int) $row->child, (int) $row->service, (int) $row->grp]
+            : $this->markTestSkipped('Needs a child with an active service and a linked option group.');
+    }
+
+    public function test_the_admin_screen_lists_the_childs_services_and_saves_for_that_child_only(): void
+    {
+        [$root, $child, $service, $group] = $this->scope();
         $admin = $this->admin();
 
         $this->actingAs($admin)
-            ->get(route('admin.service-components.index', ['service_id' => $service], false))
-            ->assertOk();
+            ->get(route('admin.service-components.index', ['root_id' => $root, 'child_id' => $child, 'service_id' => $service], false))
+            ->assertOk()->assertSee('name="rows[0][usage]"', false);
 
         $this->actingAs($admin)->post(route('admin.service-components.save', [], false), [
-            'service_id' => $service,
-            'child_id' => 0,
+            'root_id' => $root, 'child_id' => $child, 'service_id' => $service,
             'rows' => [[
                 'option_group_id' => $group,
-                'item_type_key' => '',
-                'surfaces' => [P::SURFACE_ITEM_FORM, P::SURFACE_SEARCH_FILTER],
-                'usage' => P::USAGE_DESCRIPTIVE,
-                'input_type' => P::INPUT_SINGLE,
-                'is_required' => 1,
-                'is_active' => 1,
+                'surfaces' => [P::SURFACE_ITEM_FORM, P::SURFACE_PRICING],
+                'usage' => P::USAGE_CHANGES_PRICE,
+                'input_type' => P::INPUT_MULTIPLE,
+                'is_required' => 1, 'is_active' => 1,
             ]],
         ])->assertRedirect();
 
-        $row = P::query()->where('platform_service_id', $service)->where('option_group_id', $group)->where('child_id', 0)->first();
+        $row = P::query()->where('platform_service_id', $service)->where('option_group_id', $group)->where('child_id', $child)->first();
         $this->assertNotNull($row);
-        $this->assertSame([P::SURFACE_ITEM_FORM, P::SURFACE_SEARCH_FILTER], $row->surfaces);
-        $this->assertTrue($row->is_required);
+        $this->assertSame(P::USAGE_CHANGES_PRICE, $row->usage);
+        $this->assertSame(0, P::query()->where('child_id', 0)->count(), 'never written service-wide from this screen');
 
-        // Saving with the row's usage cleared removes it (nothing configured).
+        // Clearing the role removes the row.
         $this->actingAs($admin)->post(route('admin.service-components.save', [], false), [
-            'service_id' => $service, 'child_id' => 0,
-            'rows' => [['option_group_id' => $group, 'item_type_key' => '', 'usage' => '']],
+            'root_id' => $root, 'child_id' => $child, 'service_id' => $service,
+            'rows' => [['option_group_id' => $group, 'usage' => '']],
         ])->assertRedirect();
 
-        $this->assertSame(0, P::query()->where('platform_service_id', $service)->where('child_id', 0)->count());
+        $this->assertSame(0, P::query()->where('platform_service_id', $service)->where('child_id', $child)->count());
     }
 
-    public function test_an_unknown_item_type_or_surface_is_refused(): void
+    public function test_a_service_the_child_does_not_offer_is_refused(): void
     {
-        [$service, $group] = $this->ids();
+        [$root, $child, , $group] = $this->scope();
+        $offered = DB::table('category_platform_services')->where('category_id', $root)->where('child_id', $child)->where('is_active', 1)->pluck('platform_service_id');
+        $foreign = (int) DB::table('platform_services')->whereNotIn('id', $offered)->value('id');
 
         $this->actingAs($this->admin())->post(route('admin.service-components.save', [], false), [
-            'service_id' => $service, 'child_id' => 0,
+            'root_id' => $root, 'child_id' => $child, 'service_id' => $foreign,
+            'rows' => [['option_group_id' => $group, 'usage' => P::USAGE_DESCRIPTIVE]],
+        ])->assertStatus(422);
+    }
+
+    public function test_an_unknown_surface_is_refused(): void
+    {
+        [$root, $child, $service, $group] = $this->scope();
+
+        $this->actingAs($this->admin())->post(route('admin.service-components.save', [], false), [
+            'root_id' => $root, 'child_id' => $child, 'service_id' => $service,
             'rows' => [['option_group_id' => $group, 'surfaces' => ['nowhere'], 'usage' => P::USAGE_DESCRIPTIVE]],
         ])->assertSessionHasErrors('rows.0.surfaces.0');
     }

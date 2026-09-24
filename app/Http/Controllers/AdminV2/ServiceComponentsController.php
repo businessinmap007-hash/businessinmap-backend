@@ -15,8 +15,8 @@ use Illuminate\Validation\Rule;
 /**
  * «مكونات الخدمة»: pick a root and a child, see the services that child
  * offers, then for ONE service at a time say what each of the child's option
- * groups is there (the priced line, a price modifier, or the description) and
- * where it shows. Settings are for that child only.
+ * groups is there (a section, a descriptive field, or a price dimension).
+ * Settings are for that child only.
  *
  * The «item» here is the option group. category_child_option decides which
  * groups the child carries; this decides what each one DOES in the service.
@@ -25,9 +25,9 @@ class ServiceComponentsController extends Controller
 {
     /** What a group most likely is, taken from its price_role until the admin says otherwise. */
     private const ROLE_DEFAULTS = [
-        OptionGroup::ROLE_LINE => [Placement::USAGE_DEFINES_ITEM, [Placement::SURFACE_ITEM_FORM, Placement::SURFACE_PRICING, Placement::SURFACE_RESULT_CARD]],
-        OptionGroup::ROLE_MODIFIER => [Placement::USAGE_CHANGES_PRICE, [Placement::SURFACE_ITEM_FORM, Placement::SURFACE_PRICING]],
-        OptionGroup::ROLE_DESCRIPTIVE => [Placement::USAGE_DESCRIPTIVE, [Placement::SURFACE_ITEM_FORM, Placement::SURFACE_ITEM_DETAIL]],
+        OptionGroup::ROLE_LINE => Placement::USAGE_SECTION,
+        OptionGroup::ROLE_MODIFIER => Placement::USAGE_PRICE_VARIANT,
+        OptionGroup::ROLE_DESCRIPTIVE => Placement::USAGE_DESCRIPTIVE,
     ];
 
     public function index(Request $request)
@@ -74,11 +74,7 @@ class ServiceComponentsController extends Controller
             'next' => ['nullable', 'boolean'],
             'rows' => ['nullable', 'array', 'max:300'],
             'rows.*.option_group_id' => ['required', 'integer', 'exists:option_groups,id'],
-            'rows.*.surfaces' => ['nullable', 'array'],
-            'rows.*.surfaces.*' => ['string', Rule::in(Placement::SURFACES)],
             'rows.*.usage' => ['nullable', Rule::in(Placement::USAGES)],
-            'rows.*.input_type' => ['nullable', Rule::in(Placement::INPUT_TYPES)],
-            'rows.*.is_required' => ['nullable', 'boolean'],
             'rows.*.is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -106,10 +102,7 @@ class ServiceComponentsController extends Controller
                         'item_type_key' => '',
                     ],
                     [
-                        'surfaces' => array_values(array_unique($row['surfaces'] ?? [])),
                         'usage' => $row['usage'],
-                        'input_type' => $row['input_type'] ?? Placement::INPUT_SINGLE,
-                        'is_required' => (bool) ($row['is_required'] ?? false),
                         'is_active' => (bool) ($row['is_active'] ?? true),
                         'sort_order' => ($i + 1) * 10,
                     ]

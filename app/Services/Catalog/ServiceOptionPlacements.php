@@ -6,18 +6,18 @@ use App\Models\ServiceOptionGroupPlacement as Placement;
 use Illuminate\Support\Collection;
 
 /**
- * What an option group does inside a service, resolved for one child.
+ * What each option group is inside a service, resolved for one child.
  *
- * A child's own row beats the service-wide default for the SAME (group, item
- * type); anything the child did not override still comes from the default.
- * An override with is_active = false hides the group for that child.
+ * A child's own row beats the service-wide default for the SAME group (and
+ * item type); anything the child did not override still comes from the
+ * default. An inactive child row hides the group for that child.
  */
 final class ServiceOptionPlacements
 {
     /**
      * @return Collection<int,Placement> effective, active placements
      */
-    public function for(int $serviceId, int $childId, ?string $surface = null, ?string $itemType = null): Collection
+    public function for(int $serviceId, int $childId, ?string $usage = null): Collection
     {
         $rows = Placement::query()
             ->where('platform_service_id', $serviceId)
@@ -26,14 +26,11 @@ final class ServiceOptionPlacements
             ->orderBy('id')
             ->get();
 
-        $effective = $rows
+        return $rows
             ->sortBy(fn (Placement $p) => (int) $p->child_id) // default first, override last
             ->keyBy(fn (Placement $p) => $p->option_group_id . '|' . $p->item_type_key)
-            ->filter(fn (Placement $p) => $p->is_active);
-
-        return $effective
-            ->when($surface !== null, fn ($c) => $c->filter(fn (Placement $p) => in_array($surface, (array) $p->surfaces, true)))
-            ->when($itemType !== null, fn ($c) => $c->filter(fn (Placement $p) => $p->item_type_key === '' || $p->item_type_key === $itemType))
+            ->filter(fn (Placement $p) => $p->is_active)
+            ->when($usage !== null, fn ($c) => $c->filter(fn (Placement $p) => $p->usage === $usage))
             ->sortBy(fn (Placement $p) => [$p->sort_order, $p->id])
             ->values();
     }

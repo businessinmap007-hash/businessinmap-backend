@@ -735,7 +735,10 @@ class ChildTradeVocabulariesTest extends TestCase
         );
 
         $this->assertTrue($under($factories, 'الاستبدال والإرجاع'));
-        $this->assertTrue($under($factories, 'نطاق التعامل'));
+        // «نطاق التعامل» was retired from every retail child on 2026-09-24 — a
+        // shop is retail by nature and the retail service carries wholesale —
+        // so what is guarded here is that it stays withdrawn, not present.
+        $this->assertFalse($under($factories, 'نطاق التعامل'));
     }
 
     /**
@@ -3068,6 +3071,10 @@ class ChildTradeVocabulariesTest extends TestCase
      */
     public function test_the_ceramics_shop_can_say_retail_or_wholesale(): void
     {
+        // «نطاق التعامل» (تجزئة | جملة | …) was retired from every retail child
+        // on 2026-09-24 — a shop is retail by nature and the retail service
+        // carries wholesale — so the tile shop is asked nothing about trade
+        // scope, and the withdrawal is what keeps a seeder from asking again.
         foreach ([17, 21, 22, 23] as $rootId) {
             $scope = app(\App\Services\CategoryChildOptionScope::class);
 
@@ -3077,8 +3084,7 @@ class ChildTradeVocabulariesTest extends TestCase
                 ->where('g.name_ar', 'نطاق التعامل')
                 ->pluck('o.name_ar')->all();
 
-            $this->assertContains('تجزئة', $held, "«سيراميك وأدوات صحية» is mute on trade scope under root {$rootId}");
-            $this->assertContains('جملة', $held);
+            $this->assertSame([], $held, "«سيراميك وأدوات صحية» is asked about trade scope again under root {$rootId}");
         }
 
         /*

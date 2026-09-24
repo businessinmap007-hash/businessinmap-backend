@@ -7,21 +7,11 @@
 @php
     use App\Models\ServiceOptionGroupPlacement as P;
 
-    $surfaceLabels = [
-        P::SURFACE_ITEM_FORM => 'نموذج إضافة الصنف',
-        P::SURFACE_PRICING => 'شاشة التسعير',
-        P::SURFACE_SEARCH_FILTER => 'فلتر بحث العميل',
-        P::SURFACE_RESULT_CARD => 'كارت النتيجة',
-        P::SURFACE_ITEM_DETAIL => 'الوصف / تفاصيل الصنف',
-        P::SURFACE_BUSINESS_PAGE => 'صفحة البزنس',
-    ];
     $usageLabels = [
-        P::USAGE_DEFINES_ITEM => 'مسعَّر — هو الصنف نفسه (السطر)',
-        P::USAGE_CHANGES_PRICE => 'معدِّل للسعر — يزيد/ينقص سعر المسعَّر',
-        P::USAGE_DESCRIPTIVE => 'وصفي — يظهر فى الوصف',
-        P::USAGE_FILTER_ONLY => 'فلتر بحث فقط',
+        P::USAGE_SECTION => 'قسم — اسم المجموعة = اسم القسم، وخياراتها = فروعه',
+        P::USAGE_PRICE_VARIANT => 'أسعار متعددة — للمنتج نفسه سعر لكل خيار',
+        P::USAGE_DESCRIPTIVE => 'وصفي — حقل وصف للمنتج',
     ];
-    $inputLabels = [P::INPUT_SINGLE => 'اختيار واحد', P::INPUT_MULTIPLE => 'اختيار متعدد', P::INPUT_CHECKBOX => 'Checkbox'];
     $roleLabel = ['line' => 'مسعَّر', 'modifier' => 'معدِّل', 'descriptive' => 'وصفي'];
     $name = fn ($m) => trim((string) ($m->name_ar ?? '')) ?: (trim((string) ($m->name_en ?? '')) ?: ('#' . $m->id));
     $serviceIdx = $services->pluck('id')->search($serviceId);
@@ -32,7 +22,7 @@
         <div>
             <h1 class="a2-page-title">{{ __('مكونات الخدمة') }}</h1>
             <div class="a2-page-subtitle">
-                {{ __('اختر الأب والابن، ثم خدمة خدمة: حدّد لكل مجموعة خيارات إن كانت المسعَّر أو معدِّلًا للسعر أو وصفًا، وأين تظهر. الإعدادات لهذا الابن فقط.') }}
+                {{ __('اختر الأب والابن، ثم خدمة خدمة: حدّد لكل مجموعة خيارات إن كانت قسمًا (وخياراتها فروعه)، أو حقلًا وصفيًا (مثل الماركة)، أو أسعارًا متعددة للمنتج نفسه (كاش/قسط، جديد/مستعمل). مكان الظهور تلقائي. الإعدادات لهذا الابن فقط.') }}
             </div>
         </div>
     </div>
@@ -94,9 +84,6 @@
                             <tr>
                                 <th>{{ __('البند (مجموعة الخيارات)') }}</th>
                                 <th>{{ __('هو فى الخدمة') }}</th>
-                                <th>{{ __('أين يظهر') }}</th>
-                                <th>{{ __('نوع الإدخال') }}</th>
-                                <th>{{ __('إلزامي') }}</th>
                                 <th>{{ __('مفعّل') }}</th>
                             </tr>
                         </thead>
@@ -104,9 +91,7 @@
                             @forelse($groups as $i => $group)
                                 @php
                                     $row = $saved->get($group->id);
-                                    [$defUsage, $defSurfaces] = $roleDefaults[$group->price_role] ?? [P::USAGE_DESCRIPTIVE, [P::SURFACE_ITEM_FORM]];
-                                    $usage = $row->usage ?? $defUsage;
-                                    $surfaces = $row ? (array) $row->surfaces : $defSurfaces;
+                                    $usage = $row->usage ?? ($roleDefaults[$group->price_role] ?? P::USAGE_DESCRIPTIVE);
                                 @endphp
                                 <tr>
                                     <td>
@@ -122,31 +107,12 @@
                                         </select>
                                     </td>
                                     <td>
-                                        @foreach($surfaceLabels as $key => $label)
-                                            <label style="display:block;white-space:nowrap">
-                                                <input type="checkbox" name="rows[{{ $i }}][surfaces][]" value="{{ $key }}" @checked(in_array($key, $surfaces, true))>
-                                                {{ __($label) }}
-                                            </label>
-                                        @endforeach
-                                    </td>
-                                    <td>
-                                        <select class="a2-select" name="rows[{{ $i }}][input_type]">
-                                            @foreach($inputLabels as $key => $label)
-                                                <option value="{{ $key }}" @selected(($row->input_type ?? 'single') === $key)>{{ $label }}</option>
-                                            @endforeach
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input type="hidden" name="rows[{{ $i }}][is_required]" value="0">
-                                        <input type="checkbox" name="rows[{{ $i }}][is_required]" value="1" @checked($row->is_required ?? false)>
-                                    </td>
-                                    <td>
                                         <input type="hidden" name="rows[{{ $i }}][is_active]" value="0">
                                         <input type="checkbox" name="rows[{{ $i }}][is_active]" value="1" @checked($row->is_active ?? true)>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="6" class="a2-muted">{{ __('هذا الابن لا يحمل أي مجموعة خيارات. اربطها من «خيارات التصنيفات الفرعية».') }}</td></tr>
+                                <tr><td colspan="3" class="a2-muted">{{ __('هذا الابن لا يحمل أي مجموعة خيارات. اربطها من «خيارات التصنيفات الفرعية».') }}</td></tr>
                             @endforelse
                         </tbody>
                     </table>

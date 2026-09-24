@@ -25,14 +25,12 @@ class ServiceComponentsTest extends TestCase
         return [$service, $group];
     }
 
-    public function test_a_childs_override_beats_the_service_default_for_the_same_group_and_item(): void
+    public function test_a_childs_override_beats_the_service_default_for_the_same_group(): void
     {
         [$service, $group] = $this->ids();
 
-        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 0,
-            'surfaces' => [P::SURFACE_ITEM_FORM, P::SURFACE_SEARCH_FILTER], 'usage' => P::USAGE_DESCRIPTIVE]);
-        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 88,
-            'surfaces' => [P::SURFACE_PRICING], 'usage' => P::USAGE_CHANGES_PRICE, 'input_type' => P::INPUT_MULTIPLE]);
+        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 0, 'usage' => P::USAGE_DESCRIPTIVE]);
+        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 88, 'usage' => P::USAGE_PRICE_VARIANT]);
 
         $resolver = app(ServiceOptionPlacements::class);
 
@@ -42,32 +40,27 @@ class ServiceComponentsTest extends TestCase
 
         $forChild = $resolver->for($service, 88);
         $this->assertCount(1, $forChild);
-        $this->assertSame(P::USAGE_CHANGES_PRICE, $forChild->first()->usage);
-        $this->assertSame(P::INPUT_MULTIPLE, $forChild->first()->input_type);
+        $this->assertSame(P::USAGE_PRICE_VARIANT, $forChild->first()->usage);
     }
 
-    public function test_surface_and_item_type_filters(): void
+    public function test_the_usage_filter_returns_only_that_kind(): void
     {
         [$service, $group] = $this->ids();
 
-        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 0,
-            'item_type_key' => 'home_appliances', 'surfaces' => [P::SURFACE_SEARCH_FILTER], 'usage' => P::USAGE_FILTER_ONLY]);
+        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 88, 'usage' => P::USAGE_PRICE_VARIANT]);
 
         $resolver = app(ServiceOptionPlacements::class);
 
-        $this->assertCount(1, $resolver->for($service, 88, P::SURFACE_SEARCH_FILTER, 'home_appliances'));
-        $this->assertCount(0, $resolver->for($service, 88, P::SURFACE_PRICING, 'home_appliances'));
-        $this->assertCount(0, $resolver->for($service, 88, P::SURFACE_SEARCH_FILTER, 'appliance_spare_parts'));
+        $this->assertCount(1, $resolver->for($service, 88, P::USAGE_PRICE_VARIANT));
+        $this->assertCount(0, $resolver->for($service, 88, P::USAGE_SECTION));
     }
 
     public function test_an_inactive_child_override_hides_the_group_for_that_child_only(): void
     {
         [$service, $group] = $this->ids();
 
-        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 0,
-            'surfaces' => [P::SURFACE_ITEM_FORM], 'usage' => P::USAGE_DESCRIPTIVE]);
-        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 88,
-            'surfaces' => [P::SURFACE_ITEM_FORM], 'usage' => P::USAGE_DESCRIPTIVE, 'is_active' => false]);
+        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 0, 'usage' => P::USAGE_DESCRIPTIVE]);
+        P::create(['platform_service_id' => $service, 'option_group_id' => $group, 'child_id' => 88, 'usage' => P::USAGE_DESCRIPTIVE, 'is_active' => false]);
 
         $resolver = app(ServiceOptionPlacements::class);
 
@@ -108,16 +101,14 @@ class ServiceComponentsTest extends TestCase
             'root_id' => $root, 'child_id' => $child, 'service_id' => $service,
             'rows' => [[
                 'option_group_id' => $group,
-                'surfaces' => [P::SURFACE_ITEM_FORM, P::SURFACE_PRICING],
-                'usage' => P::USAGE_CHANGES_PRICE,
-                'input_type' => P::INPUT_MULTIPLE,
-                'is_required' => 1, 'is_active' => 1,
+                'usage' => P::USAGE_PRICE_VARIANT,
+                'is_active' => 1,
             ]],
         ])->assertRedirect();
 
         $row = P::query()->where('platform_service_id', $service)->where('option_group_id', $group)->where('child_id', $child)->first();
         $this->assertNotNull($row);
-        $this->assertSame(P::USAGE_CHANGES_PRICE, $row->usage);
+        $this->assertSame(P::USAGE_PRICE_VARIANT, $row->usage);
         $this->assertSame(0, P::query()->where('child_id', 0)->count(), 'never written service-wide from this screen');
 
         // Clearing the role removes the row.
@@ -141,13 +132,13 @@ class ServiceComponentsTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_an_unknown_surface_is_refused(): void
+    public function test_an_unknown_usage_is_refused(): void
     {
         [$root, $child, $service, $group] = $this->scope();
 
         $this->actingAs($this->admin())->post(route('admin.service-components.save', [], false), [
             'root_id' => $root, 'child_id' => $child, 'service_id' => $service,
-            'rows' => [['option_group_id' => $group, 'surfaces' => ['nowhere'], 'usage' => P::USAGE_DESCRIPTIVE]],
-        ])->assertSessionHasErrors('rows.0.surfaces.0');
+            'rows' => [['option_group_id' => $group, 'usage' => 'nowhere']],
+        ])->assertSessionHasErrors('rows.0.usage');
     }
 }

@@ -103,6 +103,22 @@ final class BusinessRetailListingController extends Controller
         return response()->json(['success' => true, 'data' => ['items' => $items]]);
     }
 
+    /**
+     * GET /api/v2/business/retail-listings/variant-options — the condition
+     * (جديد/مستعمل/…) and payment (كاش/تقسيط) choices THIS business's child
+     * carries, for the add/edit form's two pickers.
+     */
+    public function variantOptions()
+    {
+        $options = app(\App\Services\Catalog\RetailPriceVariants::class)->optionsFor($this->childId(), $this->rootId());
+        $shape = fn ($rows) => $rows->map(fn ($o) => ['id' => (int) $o->id, 'name' => $this->localize($o->name_ar, $o->name_en)])->values();
+
+        return response()->json(['success' => true, 'data' => [
+            'conditions' => $shape($options['condition']),
+            'payments' => $shape($options['payment']),
+        ]]);
+    }
+
     /** GET /api/v2/business/retail-listings/{listing} */
     public function show(int $listing)
     {

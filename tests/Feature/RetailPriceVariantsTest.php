@@ -118,4 +118,15 @@ class RetailPriceVariantsTest extends TestCase
         $this->assertContains($this->new, array_column($facets['conditions'], 'id'));
         $this->assertContains($this->cash, array_column($facets['payments'], 'id'));
     }
+
+    public function test_the_form_gets_the_options_this_business_may_use(): void
+    {
+        $owner = $this->owner();
+        Sanctum::actingAs($owner);
+
+        $data = $this->getJson('/api/v2/business/retail-listings/variant-options')->assertOk()->json('data');
+
+        $this->assertContains($this->new, array_column($data['conditions'], 'id'));
+        $this->assertContains($this->cash, array_column($data['payments'], 'id'));
+    }
 }

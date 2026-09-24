@@ -933,6 +933,7 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/retail-listings')->middleware('business.member:' . BusinessCapability::RETAIL)->group(function () {
             Route::get('/', [BusinessRetailListingController::class, 'index']);
             Route::get('lookup', [BusinessRetailListingController::class, 'lookup']);
+            Route::get('variant-options', [BusinessRetailListingController::class, 'variantOptions']);
             Route::post('/', [BusinessRetailListingController::class, 'store']);
             Route::get('{listing}', [BusinessRetailListingController::class, 'show'])->whereNumber('listing');
             Route::match(['put', 'patch'], '{listing}', [BusinessRetailListingController::class, 'update'])->whereNumber('listing');

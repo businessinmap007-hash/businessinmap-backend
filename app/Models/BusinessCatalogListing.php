@@ -32,6 +32,10 @@ class BusinessCatalogListing extends Model
     protected $fillable = [
         'business_id',
         'catalog_product_id',
+        'condition_option_id',
+        'payment_option_id',
+        'description_ar',
+        'description_en',
         'sku',
         'price',
         'cost_price',
@@ -49,6 +53,8 @@ class BusinessCatalogListing extends Model
     protected $casts = [
         'business_id' => 'integer',
         'catalog_product_id' => 'integer',
+        'condition_option_id' => 'integer',
+        'payment_option_id' => 'integer',
         'price' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'stock' => 'integer',

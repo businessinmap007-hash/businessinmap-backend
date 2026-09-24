@@ -132,7 +132,9 @@ class ButcherAndDisplayOrderTest extends TestCase
             ->all();
 
         $this->assertContains('menu', $services, 'A trade with nothing to sell on is not a trade.');
-        $this->assertContains('delivery', $services);
+        // «delivery» is no longer a service of any trade but the carriers
+        // (2026-09-24) — pickup/delivery is an option group on the sale itself.
+        $this->assertNotContains('delivery', $services);
         $this->assertNotContains('retail', $services, 'A butcher weighs what he cuts; he has no barcoded shelf.');
     }
 

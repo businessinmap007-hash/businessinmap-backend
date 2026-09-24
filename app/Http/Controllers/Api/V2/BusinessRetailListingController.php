@@ -77,6 +77,9 @@ final class BusinessRetailListingController extends Controller
             ->active()
             ->search($term)
             ->whereIn('catalog_products.product_category_child_id', $scope)
+            // Products already on the shelf stay out of the picker — a further
+            // condition/payment ROW for one is added by posting its product id
+            // again with the other variant, not by picking it anew.
             ->whereNotIn('catalog_products.id', function ($sub) {
                 $sub->from('business_catalog_listings')
                     ->select('catalog_product_id')
@@ -120,11 +123,13 @@ final class BusinessRetailListingController extends Controller
         $exists = BusinessCatalogListing::query()
             ->where('business_id', $this->businessId())
             ->where('catalog_product_id', $data['catalog_product_id'])
+            ->where('condition_option_id', $data['condition_option_id'])
+            ->where('payment_option_id', $data['payment_option_id'])
             ->exists();
 
         if ($exists) {
             throw ValidationException::withMessages([
-                'catalog_product_id' => [__('هذا المنتج مضاف بالفعل في منتجاتك.')],
+                'catalog_product_id' => [__('هذا المنتج مضاف بالفعل في منتجاتك بنفس الحالة وطريقة الدفع.')],
             ]);
         }
 
@@ -152,9 +157,25 @@ final class BusinessRetailListingController extends Controller
         $row = $this->scoped($listing);
         $audiences = app(ListingAudienceWriter::class);
 
-        DB::transaction(function () use ($row, $request, $audiences) {
+        $data = $this->validatedData($request, false, $row);
+
+        $clash = BusinessCatalogListing::query()
+            ->where('business_id', $this->businessId())
+            ->where('catalog_product_id', $row->catalog_product_id)
+            ->where('condition_option_id', $data['condition_option_id'])
+            ->where('payment_option_id', $data['payment_option_id'])
+            ->where('id', '!=', $row->id)
+            ->exists();
+
+        if ($clash) {
+            throw ValidationException::withMessages([
+                'condition_option_id' => [__('يوجد بالفعل سطر لهذا المنتج بنفس الحالة وطريقة الدفع.')],
+            ]);
+        }
+
+        DB::transaction(function () use ($row, $request, $audiences, $data) {
             $row->update(
-                $this->validatedData($request, false)
+                $data
                 + $audiences->columns($request, $this->businessId(), (int) $row->catalog_product_id)
             );
 
@@ -213,7 +234,7 @@ final class BusinessRetailListingController extends Controller
     }
 
     /** @return array<string,mixed> */
-    private function validatedData(Request $request, bool $withProduct): array
+    private function validatedData(Request $request, bool $withProduct, ?BusinessCatalogListing $current = null): array
     {
         $rules = [
             'price' => ['required', 'numeric', 'min:0'],
@@ -224,6 +245,12 @@ final class BusinessRetailListingController extends Controller
             'sku' => ['nullable', 'string', 'max:100'],
             'currency' => ['nullable', 'string', 'max:10'],
             'is_active' => ['nullable', 'boolean'],
+            // The two price dimensions — a product may be listed several
+            // times, once per condition / payment combination, each a full row.
+            'condition_option_id' => ['nullable', 'integer', 'min:0'],
+            'payment_option_id' => ['nullable', 'integer', 'min:0'],
+            'description_ar' => ['nullable', 'string', 'max:2000'],
+            'description_en' => ['nullable', 'string', 'max:2000'],
         ];
 
         if ($withProduct) {
@@ -265,6 +292,30 @@ final class BusinessRetailListingController extends Controller
             throw ValidationException::withMessages([
                 'max_order_qty' => [__('الحد الأقصى يجب أن يكون أكبر من أو يساوي الحد الأدنى.')],
             ]);
+        }
+
+        // Only options this business's own child carries in the two dimension
+        // groups; anything else is refused rather than silently dropped.
+        $allowed = app(\App\Services\Catalog\RetailPriceVariants::class)->optionsFor($this->childId(), $this->rootId());
+
+        foreach (['condition' => 'condition_option_id', 'payment' => 'payment_option_id'] as $dimension => $field) {
+            $id = array_key_exists($field, $data) && $data[$field] !== null
+                ? (int) $data[$field]
+                : (int) ($current->{$field} ?? 0);
+
+            if ($id > 0 && ! $allowed[$dimension]->contains('id', $id)) {
+                throw ValidationException::withMessages([
+                    $field => [__('هذا الخيار غير متاح لنشاطك.')],
+                ]);
+            }
+
+            $out[$field] = $id;
+        }
+
+        foreach (['description_ar', 'description_en'] as $field) {
+            $out[$field] = array_key_exists($field, $data)
+                ? (trim((string) $data[$field]) ?: null)
+                : ($current->{$field} ?? null);
         }
 
         if ($withProduct) {

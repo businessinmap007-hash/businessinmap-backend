@@ -14,8 +14,9 @@ use Tests\TestCase;
  * The `drivers` capability is the Staff & Permissions door onto the same
  * private-fleet linking the dedicated "موصّليي" screen uses
  * (see BusinessDeliveryFleetTest for that screen's own coverage). A business
- * only sees this capability once it has the `delivery` platform service
- * active - a category (21/21, Antiques under Exhibitions) confirmed to have
+ * only sees this capability once it sells goods (the `menu` or `retail`
+ * platform service) — delivery is no longer a service of its own, its
+ * pickup/delivery option group carries the drivers - a category (21/21, Antiques under Exhibitions) confirmed to have
  * it is reused here rather than a synthetic one, so the test stays honest
  * about what BusinessCapability::forBusiness() actually derives.
  */
@@ -154,7 +155,7 @@ class StaffDriverCapabilityTest extends TestCase
         $this->assertContains($rider->id, array_column($roster, 'user_id'));
     }
 
-    public function test_the_capability_only_appears_for_a_business_with_the_delivery_service(): void
+    public function test_the_capability_only_appears_for_a_business_that_sells_goods(): void
     {
         $withDelivery = $this->makeUser(User::TYPE_BUSINESS, 'Shop7', withDeliveryService: true);
         $withoutDelivery = $this->makeUser(User::TYPE_BUSINESS, 'Shop8', withDeliveryService: false);

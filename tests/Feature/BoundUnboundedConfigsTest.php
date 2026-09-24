@@ -75,9 +75,15 @@ class BoundUnboundedConfigsTest extends TestCase
         // a limousine is booked by the hour and delivers nothing. The test was
         // then measuring a dormant config and failing for the right reason in
         // the wrong place.
+        // Delivery is retired everywhere but «شحن وتوصيل» (2026-09-24), so a
+        // retired-but-kept config stands in: ChildServiceWriter never deletes
+        // one, and enable() below is rolled back with the test. The carriers'
+        // own configs are hand-curated and are not what the branch map derives.
+        $carriers = (int) DB::table('categories')->where('slug', 'shipping-delivery')->value('id');
+
         $row = DB::table('category_service_configs')
             ->where('platform_service_id', $delivery)
-            ->where('is_active', 1)
+            ->where('category_id', '!=', $carriers)
             ->whereNotNull('child_id')
             ->whereRaw("JSON_LENGTH(JSON_EXTRACT(config, '$.allowed_item_types')) > 0")
             ->first(['category_id', 'child_id']);

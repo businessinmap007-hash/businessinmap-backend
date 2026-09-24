@@ -78,10 +78,22 @@ final class BusinessCapability
         self::SCHEDULES => 'schedules',
         self::TRAINING => 'training',
         self::PROJECTS => 'projects',
-        // A business only manages its own delivery drivers once it actually
-        // offers delivery — see BusinessAccessService::syncDriverLink(),
-        // which links/unlinks the DeliveryDriver row this capability grants.
-        self::DRIVERS => 'delivery',
+    ];
+
+    /**
+     * Capabilities open to a business holding ANY of these services.
+     *
+     * «نلغى خدمة التوصيل ونحن لدينا مجموعة خيارات استلام وتسليم يمكن تعيين لها
+     * سائقي المتجر او طلب مندوب خارجى» — المالك، 2026-09-24. Delivery is no
+     * longer a service of its own: any business that sells goods (menu or
+     * retail) has the pickup/delivery option group, and may assign its own
+     * drivers to it — see BusinessAccessService::syncDriverLink(), which
+     * links/unlinks the DeliveryDriver row this capability grants.
+     *
+     * @var array<string,list<string>>
+     */
+    private const NEEDS_ANY_SERVICE = [
+        self::DRIVERS => ['menu', 'retail'],
     ];
 
     /**
@@ -116,6 +128,10 @@ final class BusinessCapability
             function (string $key) use ($services, $isHealth) {
                 if (isset(self::NEEDS_SERVICE[$key])) {
                     return in_array(self::NEEDS_SERVICE[$key], $services, true);
+                }
+
+                if (isset(self::NEEDS_ANY_SERVICE[$key])) {
+                    return array_intersect(self::NEEDS_ANY_SERVICE[$key], $services) !== [];
                 }
 
                 if (in_array($key, self::NEEDS_HEALTH_ROOT, true)) {

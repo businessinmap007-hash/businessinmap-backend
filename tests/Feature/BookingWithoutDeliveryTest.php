@@ -119,59 +119,25 @@ class BookingWithoutDeliveryTest extends TestCase
     }
 
     /**
-     * The owner's exception. A commissioned wardrobe still leaves the workshop
-     * on a lorry, and the service wiring cannot see that.
-     *
-     * @dataProvider carpenters
+     * «نلغى خدمة التوصيل ونحن لدينا مجموعة خيارات استلام وتسليم» — المالك،
+     * 2026-09-24. This test used to guard the three carpenters and the goods
+     * showrooms KEEPING delivery; the service is now retired for every
+     * business, so what is guarded is the opposite: nothing outside the
+     * carriers («شحن وتوصيل») carries it, and RetireDeliveryServiceSeeder
+     * is what keeps a full re-seed from bringing it back.
      */
-    public function test_the_three_carpenters_keep_delivery(string $nameAr, string $rootSlug): void
+    public function test_delivery_is_retired_everywhere_but_the_carriers(): void
     {
         $s = $this->services();
-        $rootId = (int) DB::table('categories')->where('slug', $rootSlug)->value('id');
-        $childId = (int) DB::table('category_parent_child as p')
-            ->join('category_children_master as c', 'c.id', '=', 'p.child_id')
-            ->where('p.parent_id', $rootId)->where('c.name_ar', $nameAr)->value('c.id');
+        $carriers = (int) DB::table('categories')->where('slug', 'shipping-delivery')->value('id');
 
-        $this->assertGreaterThan(0, $childId, "«{$nameAr}» is not under «{$rootSlug}»");
+        $live = DB::table('category_platform_services as l')
+            ->join('category_children_master as c', 'c.id', '=', 'l.child_id')
+            ->where('l.platform_service_id', $s['delivery'])->where('l.is_active', 1)
+            ->where('l.category_id', '!=', $carriers)
+            ->pluck('c.name_ar', 'l.id');
 
-        $this->assertTrue(
-            DB::table('category_platform_services')->where('category_id', $rootId)->where('child_id', $childId)
-                ->where('platform_service_id', $s['delivery'])->where('is_active', 1)->exists(),
-            "«{$nameAr}» lost delivery — it makes a thing and the thing has to travel"
-        );
-    }
-
-    /** @return array<string,array{0:string,1:string}> */
-    public static function carpenters(): array
-    {
-        return [
-            'نجار موبيليا' => ['نجار موبيليا', 'professions'],
-            'منجد' => ['منجد', 'professions'],
-            'ورشة باب وشباك' => ['ورشة باب وشباك', 'workshops'],
-        ];
-    }
-
-    /** A shop that books AND sells goods is untouched. */
-    public function test_a_showroom_that_sells_goods_still_delivers(): void
-    {
-        $s = $this->services();
-        $exhibitions = (int) DB::table('categories')->where('slug', 'exhibitions')->value('id');
-
-        $childId = (int) DB::table('category_platform_services as b')
-            ->join('category_platform_services as g', function ($join) use ($s) {
-                $join->on('g.category_id', '=', 'b.category_id')->on('g.child_id', '=', 'b.child_id')
-                    ->where('g.platform_service_id', '=', $s['retail'])->where('g.is_active', '=', 1);
-            })
-            ->where('b.category_id', $exhibitions)
-            ->where('b.platform_service_id', $s['booking'])->where('b.is_active', 1)
-            ->value('b.child_id');
-
-        $this->assertGreaterThan(0, $childId, 'no showroom books and sells at once');
-
-        $this->assertTrue(
-            DB::table('category_platform_services')->where('category_id', $exhibitions)->where('child_id', $childId)
-                ->where('platform_service_id', $s['delivery'])->where('is_active', 1)->exists()
-        );
+        $this->assertSame([], $live->values()->all(), 'delivery is a service of the carriers only');
     }
 
     /**

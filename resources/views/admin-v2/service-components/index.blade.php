@@ -11,6 +11,8 @@
         P::USAGE_SECTION => 'قسم — اسم المجموعة = اسم القسم، وخياراتها = فروعه',
         P::USAGE_PRICE_VARIANT => 'أسعار متعددة — للمنتج نفسه سعر لكل خيار',
         P::USAGE_DESCRIPTIVE => 'وصفي — حقل وصف للمنتج',
+        P::USAGE_STORE_CART => 'إعداد عام للمتجر — يظهر فى عربة المشتريات',
+        P::USAGE_STORE_FILTER => 'إعداد عام للمتجر — يظهر فى فلتر البحث',
     ];
     $roleLabel = ['line' => 'مسعَّر', 'modifier' => 'معدِّل', 'descriptive' => 'وصفي'];
     $name = fn ($m) => trim((string) ($m->name_ar ?? '')) ?: (trim((string) ($m->name_en ?? '')) ?: ('#' . $m->id));

@@ -344,6 +344,9 @@ class DatabaseSeeder extends Seeder
             */
            DisplayOrderSeeder::class,
 
+           // After every seeder that ever switched delivery on — see the class.
+           RetireDeliveryServiceSeeder::class,
+
 
 
 

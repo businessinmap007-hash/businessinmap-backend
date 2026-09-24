@@ -34,7 +34,6 @@ class BusinessPanelNav
         'bookings' => PlatformService::KEY_BOOKING,
         'menu' => 'menu',
         'products' => 'retail',
-        'delivery-drivers' => 'delivery',
         'schedules' => 'schedules',
         'training-plans' => 'training',
     ];
@@ -51,6 +50,9 @@ class BusinessPanelNav
         'financial-statement' => ['menu', 'delivery', 'retail', PlatformService::KEY_BOOKING],
         // «شركاء موثوقون» يُعفي من شرط الديبوزت على الطلبات وحدها.
         'trusted-partners' => ['menu', 'delivery', 'retail'],
+        // «نلغى خدمة التوصيل» — المالك، 2026-09-24: سائقو المتجر يُربَطون بمجموعة
+        // خيارات الاستلام والتسليم، فيملكها كلُّ من يبيع سلعة.
+        'delivery-drivers' => ['menu', 'retail'],
     ];
 
     /**

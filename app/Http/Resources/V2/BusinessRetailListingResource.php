@@ -25,6 +25,11 @@ class BusinessRetailListingResource extends JsonResource
             'sku' => $this->sku,
             'is_active' => (bool) $this->is_active,
 
+            // «سطر بيانات كامل» per condition/payment combination.
+            'condition' => $this->variantOption($this->condition_option_id),
+            'payment' => $this->variantOption($this->payment_option_id),
+            'description' => $this->localize($this->description_ar, $this->description_en),
+
             /*
              * Who may see it. `public` is the shelf; `restricted` is a
              * wholesale list addressed to named buyers, and the audience is
@@ -113,5 +118,17 @@ class BusinessRetailListingResource extends JsonResource
         $primary = app()->getLocale() === 'en' ? $en : $ar;
 
         return ($primary !== null && $primary !== '') ? $primary : (($ar ?: $en) ?: null);
+    }
+
+    /** @return array{id:int,name:?string}|null */
+    private function variantOption($id): ?array
+    {
+        if (! $id) {
+            return null;
+        }
+
+        $o = \Illuminate\Support\Facades\DB::table('options')->where('id', (int) $id)->first(['id', 'name_ar', 'name_en']);
+
+        return $o ? ['id' => (int) $o->id, 'name' => $this->localize($o->name_ar, $o->name_en)] : null;
     }
 }

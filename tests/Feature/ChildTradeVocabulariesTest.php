@@ -1998,7 +1998,9 @@ class ChildTradeVocabulariesTest extends TestCase
          * leaves behind. The shape was copied from «صينى وخزف» #228, which
          * already stands under all four of these roots.
          */
-        foreach (['exhibitions' => 4, 'shops-online' => 4] as $slug => $atLeast) {
+        // One fewer than before: delivery was retired from every trade but the
+        // carriers on 2026-09-24, and menu was taken off the shops root (retail + offers remain).
+        foreach (['exhibitions' => 3, 'shops-online' => 2] as $slug => $atLeast) {
             $rootId = (int) DB::table('categories')->where('slug', $slug)->value('id');
 
             $this->assertGreaterThanOrEqual(

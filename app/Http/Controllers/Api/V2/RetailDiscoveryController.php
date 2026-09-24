@@ -123,12 +123,35 @@ final class RetailDiscoveryController extends Controller
                 'products' => (int) $b->products,
             ])->values();
 
+        // The two price dimensions, with how many live listing rows carry each.
+        $variantFacet = function (string $dimension) use ($mine, $openScope) {
+            $options = app(\App\Services\Catalog\RetailPriceVariants::class)->allOptions()[$dimension];
+            $column = $dimension === 'condition' ? 'condition_option_id' : 'payment_option_id';
+
+            $counts = DB::table('business_catalog_listings as l')
+                ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
+                ->where('l.is_active', 1)->where("l.$column", '>', 0)
+                ->whereNull('p.deleted_at')
+                ->tap($mine)->tap($openScope)
+                ->groupBy("l.$column")
+                ->selectRaw("l.$column AS option_id, COUNT(*) AS listings")
+                ->pluck('listings', 'option_id');
+
+            return $options->filter(fn ($o) => $counts->has($o->id))->map(fn ($o) => [
+                'id' => (int) $o->id,
+                'name' => $this->label($o->name_ar, $o->name_en, ''),
+                'listings' => (int) $counts[$o->id],
+            ])->values();
+        };
+
         return response()->json([
             'success' => true,
             'data' => [
                 'branches' => $branches,
                 'categories' => $categories,
                 'brands' => $brands,
+                'conditions' => $variantFacet('condition'),
+                'payments' => $variantFacet('payment'),
             ],
         ]);
     }
@@ -163,6 +186,7 @@ final class RetailDiscoveryController extends Controller
                 fn ($qq) => app(\App\Services\BusinessHoursService::class)
                     ->applyOpenNow($qq, 'business_catalog_listings.business_id')
             )
+            ->tap(fn ($qq) => $this->applyVariantFilter($qq, $request, 'business_catalog_listings'))
             ->groupBy('catalog_product_id')
             ->selectRaw('catalog_product_id, MIN(price) AS min_price, MAX(price) AS max_price, COUNT(DISTINCT business_id) AS businesses');
 
@@ -250,10 +274,12 @@ final class RetailDiscoveryController extends Controller
             ->where('l.catalog_product_id', $product)
             ->where('l.is_active', 1)
             ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'l'))
+            ->tap(fn ($qq) => $this->applyVariantFilter($qq, $request, 'l'))
             ->orderBy('l.price')
             ->orderBy('u.name')
             ->get([
                 'l.id', 'l.price', 'l.currency', 'l.stock', 'l.sku',
+                'l.condition_option_id', 'l.payment_option_id', 'l.description_ar', 'l.description_en',
                 'u.id as business_id', 'u.name as business_name_ar', 'u.name_en as business_name_en', 'u.logo as business_logo',
             ])
             ->map(fn ($o) => [
@@ -267,7 +293,7 @@ final class RetailDiscoveryController extends Controller
                 'currency' => $o->currency ?: 'EGP',
                 'stock' => $o->stock !== null ? (int) $o->stock : null,
                 'sku' => $o->sku,
-            ])->values();
+            ] + $this->variantFields($o))->values();
 
         return response()->json([
             'success' => true,
@@ -327,6 +353,7 @@ final class RetailDiscoveryController extends Controller
             ->where('u.type', 'business')
             ->whereNull('p.deleted_at')
             ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'l'))
+            ->tap(fn ($qq) => $this->applyVariantFilter($qq, $request, 'l'))
             ->when($categoryId > 0, fn ($qq) => $qq->where('u.category_id', $categoryId))
             ->when($q !== '', function ($qq) use ($q) {
                 $like = '%' . mb_strtolower($q) . '%';
@@ -344,6 +371,7 @@ final class RetailDiscoveryController extends Controller
                 'l.min_order_qty',
                 'l.max_order_qty',
                 'l.unit',
+                'l.condition_option_id', 'l.payment_option_id', 'l.description_ar', 'l.description_en',
                 'p.id as product_id', 'p.name_ar as product_name_ar', 'p.name_en as product_name_en',
                 'p.main_image as product_image',
                 'u.id as business_id', 'u.name as business_name_ar', 'u.name_en as business_name_en',
@@ -363,6 +391,7 @@ final class RetailDiscoveryController extends Controller
             'min_order_qty' => $r->min_order_qty !== null ? (int) $r->min_order_qty : null,
             'max_order_qty' => $r->max_order_qty !== null ? (int) $r->max_order_qty : null,
             'unit' => $r->unit ?: null,
+        ] + $this->variantFields($r) + [
             'product' => [
                 'id' => (int) $r->product_id,
                 'name' => $this->label($r->product_name_ar, $r->product_name_en, __('منتج #') . $r->product_id),
@@ -424,6 +453,7 @@ final class RetailDiscoveryController extends Controller
             ->whereNull('p.deleted_at')
             ->whereNotIn('l.id', $groupedListingIds)
             ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'l'))
+            ->tap(fn ($qq) => $this->applyVariantFilter($qq, $request, 'l'))
             ->orderBy('p.name_ar')
             ->orderBy('l.id')
             ->get([
@@ -431,6 +461,7 @@ final class RetailDiscoveryController extends Controller
                 'l.min_order_qty',
                 'l.max_order_qty',
                 'l.unit',
+                'l.condition_option_id', 'l.payment_option_id', 'l.description_ar', 'l.description_en',
                 'p.id as product_id', 'p.name_ar as product_name_ar', 'p.name_en as product_name_en',
                 'p.main_image as product_image',
             ])
@@ -442,6 +473,7 @@ final class RetailDiscoveryController extends Controller
                 'min_order_qty' => $r->min_order_qty !== null ? (int) $r->min_order_qty : null,
                 'max_order_qty' => $r->max_order_qty !== null ? (int) $r->max_order_qty : null,
                 'unit' => $r->unit ?: null,
+            ] + $this->variantFields($r) + [
                 'product' => [
                     'id' => (int) $r->product_id,
                     'name' => $this->label($r->product_name_ar, $r->product_name_en, __('منتج #') . $r->product_id),
@@ -500,6 +532,48 @@ final class RetailDiscoveryController extends Controller
                 'variant_groups' => $variantGroups,
             ],
         ]);
+    }
+
+    /**
+     * «اختار كاش / جديد يظهر كل من حالتهم كاش / جديد؛ ان لم اختار يظهر كل واحد
+     * فى سطر بسعره ووصفه» — المالك. Each condition/payment combination is its
+     * own listing row; choosing values narrows to rows carrying them, choosing
+     * nothing leaves every row in.
+     */
+    private function variantIds(Request $request): array
+    {
+        $ids = fn (string $key) => collect((array) $request->input($key, []))
+            ->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->unique()->values()->all();
+
+        return ['condition' => $ids('condition_option_ids'), 'payment' => $ids('payment_option_ids')];
+    }
+
+    private function applyVariantFilter($query, Request $request, string $alias)
+    {
+        $ids = $this->variantIds($request);
+
+        return $query
+            ->when($ids['condition'], fn ($q) => $q->whereIn("$alias.condition_option_id", $ids['condition']))
+            ->when($ids['payment'], fn ($q) => $q->whereIn("$alias.payment_option_id", $ids['payment']));
+    }
+
+    /** @return array<string,mixed> the variant part of a listing row */
+    private function variantFields($r): array
+    {
+        static $names = null;
+        $names ??= DB::table('options')->get(['id', 'name_ar', 'name_en'])->keyBy('id');
+
+        $opt = function ($id) use ($names) {
+            $o = $id ? $names->get((int) $id) : null;
+
+            return $o ? ['id' => (int) $o->id, 'name' => $this->label($o->name_ar, $o->name_en, '')] : null;
+        };
+
+        return [
+            'condition' => $opt($r->condition_option_id ?? 0),
+            'payment' => $opt($r->payment_option_id ?? 0),
+            'description' => $this->label($r->description_ar ?? '', $r->description_en ?? '', '') ?: null,
+        ];
     }
 
     private function package($p): string

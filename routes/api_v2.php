@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V2\MenuMarketCatalogController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\BusinessOfferingsController;
 use App\Http\Controllers\Api\V2\BusinessRetailListingController;
+use App\Http\Controllers\Api\V2\BusinessRetailVariantGroupController;
 use App\Http\Controllers\Api\V2\BusinessServicePriceController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\CategoryController;
@@ -447,6 +448,8 @@ Route::prefix('v2')->group(function () {
         // for a patient; the patient reads theirs and sends one to a pharmacy to
         // dispense (delivery or pickup). Only the three parties may read one.
         Route::get('prescriptions', [PrescriptionController::class, 'index']);
+        // Direct customer -> pharmacy request, no doctor involved (photo/free text).
+        Route::post('prescriptions/request', [PrescriptionController::class, 'requestFromPharmacy']);
         // The doctor-only actions (issue/list-issued/revise): a secretary with
         // the `prescriptions` capability was grantable but could never actually
         // use it — these sat outside any business.member gate, so
@@ -459,6 +462,7 @@ Route::prefix('v2')->group(function () {
         });
         Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
+        Route::post('prescriptions/{prescription}/confirm-quote', [PrescriptionController::class, 'confirmQuote'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/share', [PrescriptionController::class, 'share'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/schedule-reminders', [PrescriptionController::class, 'scheduleReminders'])->whereNumber('prescription');
@@ -525,6 +529,8 @@ Route::prefix('v2')->group(function () {
             Route::post('{prescription}/ready', [PharmacyPrescriptionController::class, 'ready'])->whereNumber('prescription');
             Route::post('{prescription}/dispense', [PharmacyPrescriptionController::class, 'dispense'])->whereNumber('prescription');
             Route::post('{prescription}/reject', [PharmacyPrescriptionController::class, 'reject'])->whereNumber('prescription');
+            Route::post('{prescription}/quote', [PharmacyPrescriptionController::class, 'quote'])->whereNumber('prescription');
+            Route::post('{prescription}/decline', [PharmacyPrescriptionController::class, 'decline'])->whereNumber('prescription');
         });
 
         // General person-to-person chat (direct messages). A conversation about
@@ -931,6 +937,17 @@ Route::prefix('v2')->group(function () {
             Route::get('{listing}', [BusinessRetailListingController::class, 'show'])->whereNumber('listing');
             Route::match(['put', 'patch'], '{listing}', [BusinessRetailListingController::class, 'update'])->whereNumber('listing');
             Route::delete('{listing}', [BusinessRetailListingController::class, 'destroy'])->whereNumber('listing');
+        });
+
+        // Retail variant groups: several of the business's own listings shown to the
+        // customer as one product with a color/size picker. Edited as a whole list,
+        // same convention as menu bundles above.
+        Route::prefix('business/retail/variant-groups')->middleware('business.member:' . BusinessCapability::RETAIL)->group(function () {
+            Route::get('/', [BusinessRetailVariantGroupController::class, 'index']);
+            Route::post('/', [BusinessRetailVariantGroupController::class, 'store']);
+            Route::get('{group}', [BusinessRetailVariantGroupController::class, 'show'])->whereNumber('group');
+            Route::match(['put', 'patch'], '{group}', [BusinessRetailVariantGroupController::class, 'update'])->whereNumber('group');
+            Route::delete('{group}', [BusinessRetailVariantGroupController::class, 'destroy'])->whereNumber('group');
         });
 
         // Order-handover QR (BIM-13.5): issue a ready order's one-time token, and

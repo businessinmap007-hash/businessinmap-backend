@@ -25,6 +25,113 @@ class PrescriptionService
     }
 
     /**
+     * A customer asks a pharmacy directly for medicine — no doctor, no items
+     * yet (the pharmacy reads the photo/note and replies with real, priced
+     * lines via {@see quoteForCustomer()}). Deliberately NOT bound to the
+     * medicine dictionary at this step: unlike a doctor's prescription, the
+     * whole point here is the customer does not know the exact drug name.
+     */
+    public function request(User $customer, User $pharmacy, ?string $note): Prescription
+    {
+        $prescription = Prescription::create([
+            'patient_id' => (int) $customer->id,
+            'pharmacy_id' => (int) $pharmacy->id,
+            'origin' => Prescription::ORIGIN_CUSTOMER,
+            'status' => Prescription::STATUS_REQUESTED,
+            'request_note' => $note,
+        ]);
+
+        $this->notify('prescription_received', (int) $pharmacy->id, $prescription,
+            'طلب دواء جديد', 'A new medicine request',
+            'طلب منك عميل دواءً — راجع الصورة أو الملاحظة ورُد بالسعر.', 'A customer asked you for medicine — check the photo or note and reply with a price.');
+
+        return $prescription;
+    }
+
+    /**
+     * The pharmacy reads a customer's direct request and replies with real,
+     * dictionary-bound, already-priced lines in one shot (no separate
+     * pricing step — there is no doctor's line to price against here).
+     * Nothing is prepared yet: the customer must accept this quote first.
+     *
+     * @param  array<int,array{medicine_id:int,quantity:int,unit_price:float,note?:string}>  $items
+     */
+    public function quoteForCustomer(Prescription $prescription, array $items): Prescription
+    {
+        if ($prescription->origin !== Prescription::ORIGIN_CUSTOMER || $prescription->status !== Prescription::STATUS_REQUESTED) {
+            throw ValidationException::withMessages([
+                'status' => __('لا يمكن تسعير هذا الطلب في حالته الحالية.'),
+            ]);
+        }
+
+        return DB::transaction(function () use ($prescription, $items) {
+            $total = 0.0;
+
+            foreach ($items as $item) {
+                $medicine = Medicine::query()->findOrFail((int) $item['medicine_id']);
+                $unitPrice = round((float) $item['unit_price'], 2);
+                $quantity = (int) $item['quantity'];
+                $lineTotal = round($unitPrice * $quantity, 2);
+                $total += $lineTotal;
+
+                $prescription->items()->create([
+                    'medicine_id' => $medicine->id,
+                    'name' => $medicine->name,
+                    'instructions' => $item['note'] ?? null,
+                    'unit_price' => $unitPrice,
+                    'billed_quantity' => $quantity,
+                    'line_total' => $lineTotal,
+                ]);
+
+                $medicine->increment('uses_count');
+            }
+
+            $prescription->update([
+                'status' => Prescription::STATUS_QUOTED,
+                'medicine_total' => round($total, 2),
+                'priced_at' => now(),
+            ]);
+
+            $this->notify('prescription_priced', (int) $prescription->patient_id, $prescription,
+                'عرض سعر لطلب دوائك', 'A quote for your medicine request',
+                'ردّت الصيدلية على طلبك — راجع الأصناف والسعر ووافق للمتابعة.', 'The pharmacy replied to your request — check the items and price, then confirm to proceed.');
+
+            return $prescription->fresh('items');
+        });
+    }
+
+    /** The customer accepts the pharmacy's quote — now the pharmacy may start preparing it. */
+    public function confirmQuote(Prescription $prescription): Prescription
+    {
+        $this->transition($prescription, [Prescription::STATUS_QUOTED], Prescription::STATUS_SENT);
+
+        $this->notify('prescription_received', (int) $prescription->pharmacy_id, $prescription,
+            'العميل وافق على السعر', 'The customer accepted the quote',
+            'وافق العميل على سعر طلبه — جهّز الدواء.', 'The customer accepted the quote for their request — go ahead and prepare it.');
+
+        return $prescription;
+    }
+
+    /** The pharmacy cannot fulfil a direct customer request (unreadable photo, out of stock...). */
+    public function declineRequest(Prescription $prescription, ?string $note): Prescription
+    {
+        if (! in_array($prescription->status, [Prescription::STATUS_REQUESTED, Prescription::STATUS_QUOTED], true)) {
+            throw ValidationException::withMessages([
+                'status' => __('لا يمكن رفض هذا الطلب في حالته الحالية.'),
+            ]);
+        }
+
+        $prescription->update(['status' => Prescription::STATUS_CANCELLED, 'request_note' => trim(($prescription->request_note ?? '') . ($note ? "
+— الصيدلية: {$note}" : ''))]);
+
+        $this->notify('prescription_priced', (int) $prescription->patient_id, $prescription,
+            'تعذّر تنفيذ طلب الدواء', 'Your medicine request could not be fulfilled',
+            'اعتذرت الصيدلية عن تنفيذ طلبك — جرّب صيدلية أخرى.', 'The pharmacy could not fulfil your request — try another pharmacy.');
+
+        return $prescription;
+    }
+
+    /**
      * A doctor issues a prescription for a patient, with its medicine lines.
      *
      * @param  array<int,array<string,mixed>>  $items

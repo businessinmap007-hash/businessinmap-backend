@@ -27,6 +27,53 @@ class PrescriptionController extends Controller
     {
     }
 
+    /**
+     * POST /api/v2/prescriptions/request — a customer asks a pharmacy for
+     * medicine directly, with no doctor and no dictionary-bound drug on
+     * their side (a photo of a paper prescription and/or a free-text note —
+     * attach the photo afterwards via the existing POST .../images).
+     */
+    public function requestFromPharmacy(Request $request)
+    {
+        $data = $request->validate([
+            'pharmacy_id' => ['required', 'integer', 'exists:users,id'],
+            'note' => ['nullable', 'string', 'max:1000', 'required_without:has_photo'],
+            // The screen sends this when it plans to attach a photo right after,
+            // so a photo-only request (no text) is not rejected for a missing note.
+            'has_photo' => ['nullable', 'boolean'],
+        ]);
+
+        $pharmacy = User::query()->findOrFail((int) $data['pharmacy_id']);
+        abort_unless(Prescription::isPharmacyBusiness($pharmacy), 422, __('يجب اختيار صيدلية صحيحة.'));
+
+        $prescription = $this->service->request($request->user(), $pharmacy, $data['note'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إرسال طلبك إلى الصيدلية.'),
+            'data' => ['prescription' => $this->serialize($prescription->fresh(['pharmacy:id,name']))],
+        ], 201);
+    }
+
+    /**
+     * POST /api/v2/prescriptions/{prescription}/confirm-quote — the customer
+     * accepts the pharmacy's price on a direct request; only now may the
+     * pharmacy start preparing it.
+     */
+    public function confirmQuote(Request $request, int $prescription)
+    {
+        $row = Prescription::query()->findOrFail($prescription);
+        abort_if((int) $row->patient_id !== (int) $request->user()->id, 404);
+
+        $row = $this->service->confirmQuote($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تأكيد الطلب — جارٍ تجهيزه.'),
+            'data' => ['prescription' => $this->serialize($row->fresh(['items', 'pharmacy:id,name']))],
+        ]);
+    }
+
     /** POST /api/v2/prescriptions — a doctor issues one for a patient. */
     public function store(Request $request)
     {
@@ -365,6 +412,8 @@ class PrescriptionController extends Controller
         return [
             'id' => (int) $p->id,
             'status' => (string) $p->status,
+            'origin' => (string) ($p->origin ?: Prescription::ORIGIN_DOCTOR),
+            'request_note' => $p->request_note,
             'appointment_id' => $p->appointment_id ? (int) $p->appointment_id : null,
             'revises_prescription_id' => $p->revises_prescription_id ? (int) $p->revises_prescription_id : null,
             'superseded' => (bool) ($p->status === Prescription::STATUS_CANCELLED && $p->revisedBy()->exists()),
@@ -377,7 +426,7 @@ class PrescriptionController extends Controller
             'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
             'priced_at' => optional($p->priced_at)->toIso8601String(),
             'images' => $p->imagePayload(),
-            'doctor' => $this->party($p->doctor, $p->doctor_id),
+            'doctor' => $p->doctor_id ? $this->party($p->doctor, $p->doctor_id) : null,
             'patient' => $this->party($p->patient, $p->patient_id),
             'pharmacy' => $p->pharmacy_id ? $this->party($p->pharmacy, $p->pharmacy_id) : null,
             'shared_with' => $p->relationLoaded('shares')

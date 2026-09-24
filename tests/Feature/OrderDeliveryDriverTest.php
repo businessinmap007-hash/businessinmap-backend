@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Support\Facades\DB;
+use Tests\Concerns\PromotesCarriers;
+
 use App\Models\MenuItem;
 use App\Models\MenuSection;
 use App\Models\Order;
@@ -18,6 +21,7 @@ class OrderDeliveryDriverTest extends TestCase
 {
     use DatabaseTransactions;
 
+    use PromotesCarriers;
     private const RESTAURANT_CHILD = 245;
 
     private const RESTAURANT_ROOT = 16;
@@ -81,6 +85,7 @@ class OrderDeliveryDriverTest extends TestCase
         $order = $this->actingWithToken($customerToken)->postJson('/api/v2/cart/' . $business->id . '/checkout', [
             'fulfillment_type' => 'delivery',
             'address' => 'شارع الاختبار',
+            'governorate_id' => (int) DB::table('governorates')->orderBy('id')->value('id'),
         ])->assertCreated()->json('data.order');
 
         $orderId = (int) $order['id'];
@@ -90,8 +95,8 @@ class OrderDeliveryDriverTest extends TestCase
 
         $driver = $this->makeUser(User::TYPE_CLIENT, 'Rider');
         $driverToken = $this->tokenFor($driver);
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
-        $this->actingWithToken($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/register')->assertCreated();
+        $this->carrierActing($driverToken)->postJson('/api/v2/delivery/orders/' . $orderId . '/accept')->assertCreated();
 
         return ['order_id' => $orderId, 'customer' => $customer, 'driver_token' => $driverToken];
     }

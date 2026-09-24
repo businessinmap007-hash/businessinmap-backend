@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Thread;
+use App\Models\ThreadAccessConsent;
 use App\Models\ThreadMessage;
 use App\Models\User;
+use App\Services\Chat\ThreadAccessGateService;
 use App\Services\DirectChatService;
 use App\Services\ThreadService;
 use App\Support\AdminAbility;
@@ -87,6 +90,16 @@ class AdminChatsTest extends TestCase
     public function test_a_judge_sees_the_merged_list_and_the_decrypted_conversation(): void
     {
         $judge = $this->judge();
+
+        // A direct chat (not a dispute room) is additionally gated by
+        // ThreadAccessGateService: the DISPUTES ability alone gets a judge
+        // to the screen, but the thread itself only decrypts once every real
+        // participant has consented (or admin quorum is met) — both parties
+        // agreeing is the natural way to unlock a plain 1:1 chat.
+        $thread = Thread::findOrFail($this->threadId);
+        $gate = app(ThreadAccessGateService::class);
+        $gate->recordPartyConsent($thread, $this->alice, ThreadAccessConsent::APPROVED);
+        $gate->recordPartyConsent($thread, $this->bob, ThreadAccessConsent::APPROVED);
 
         $this->actingAs($judge)->get('/admin/chats')
             ->assertOk()

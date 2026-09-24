@@ -89,7 +89,7 @@
         | عنوانها. وما يعبر الخدماتِ كلَّها — النزاعات، المحادثات — بقى فى
         | «العمليات»، لأنه ليس خدمةً بل ما يقع بين طرفَى أىِّ عملية.
         */
-        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.fee-groups.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.bookable-allocations.', 'admin.menu-review.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.prescriptions.', 'admin.agenda.', 'admin.projects.'], 'children' => [
+        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.service-components.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.fee-groups.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.bookable-allocations.', 'admin.menu-review.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.prescriptions.', 'admin.agenda.', 'admin.projects.'], 'children' => [
             ['label' => 'تعريف الخدمات', 'type' => 'section', 'children' => [
                 ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
@@ -98,6 +98,7 @@
             ['label' => 'إعداد الابن', 'type' => 'section', 'children' => [
                 ['label' => 'طاولة عمل الابن', 'route' => 'admin.child-workbench.index', 'active' => 'admin.child-workbench.'],
                 ['label' => 'ربط الخدمات (جماعي)', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
+                ['label' => 'مكونات الخدمة', 'route' => 'admin.service-components.index', 'active' => 'admin.service-components.'],
                 ['label' => 'رسوم الأبناء (جماعي)', 'route' => 'admin.category-child-service-fees.bulk.edit', 'active' => 'admin.category-child-service-fees.'],
             ]],
             ['label' => 'الحجز', 'type' => 'section', 'children' => [

@@ -224,6 +224,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('fees', [ChildWorkbenchController::class, 'saveFees'])->name('fees');
         });
 
+        // «مكونات الخدمة»: where each option group shows inside a service, and how
+        // it is used with an item type of it (category-child-options decides
+        // WHICH child may use a group; this decides what the group DOES).
+        Route::prefix('service-components')->name('service-components.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
+            Route::get('/', [\App\Http\Controllers\AdminV2\ServiceComponentsController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\AdminV2\ServiceComponentsController::class, 'save'])->name('save');
+        });
+
         Route::prefix('category-child-options')->name('category-child-options.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             // Was a closure redirecting to categories.services-bulk, which made the
             // sidebar's «خيارات التصنيفات الفرعية» open «Bulk Services + Fees» — a

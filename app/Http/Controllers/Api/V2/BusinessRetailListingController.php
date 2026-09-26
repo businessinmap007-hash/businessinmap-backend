@@ -127,6 +127,51 @@ final class BusinessRetailListingController extends Controller
         return (new BusinessRetailListingResource($row))->additional(['success' => true]);
     }
 
+    /** GET /api/v2/business/retail-listings/{listing}/extras — the merchant's own add-ons, inactive ones included. */
+    public function extras(int $listing)
+    {
+        $row = $this->scoped($listing);
+
+        return response()->json(['success' => true, 'data' => ['extras' => $this->extrasPayload($row)]]);
+    }
+
+    /**
+     * PUT /api/v2/business/retail-listings/{listing}/extras — replace the whole
+     * set. Same convention as menu bundles: the list is edited as a whole.
+     */
+    public function syncExtras(Request $request, int $listing)
+    {
+        $row = $this->scoped($listing);
+
+        $data = $request->validate([
+            'extras' => ['present', 'array', 'max:30'],
+            'extras.*.id' => ['nullable', 'integer'],
+            'extras.*.name_ar' => ['required', 'string', 'max:255'],
+            'extras.*.name_en' => ['nullable', 'string', 'max:255'],
+            'extras.*.price' => ['required', 'numeric', 'min:0', 'max:9999999'],
+            'extras.*.group_name_ar' => ['nullable', 'string', 'max:255'],
+            'extras.*.selection_type' => ['nullable', 'in:single,multiple'],
+            'extras.*.is_active' => ['nullable', 'boolean'],
+        ]);
+
+        app(\App\Services\Catalog\ListingExtras::class)->sync((int) $row->id, $data['extras']);
+
+        return response()->json(['success' => true, 'data' => ['extras' => $this->extrasPayload($row->fresh())]]);
+    }
+
+    private function extrasPayload(BusinessCatalogListing $row): array
+    {
+        return $row->extras()->get()->map(fn ($x) => [
+            'id' => (int) $x->id,
+            'name_ar' => $x->name_ar,
+            'name_en' => $x->name_en,
+            'price' => (float) $x->price,
+            'group_name_ar' => $x->group_name_ar !== '' ? $x->group_name_ar : null,
+            'selection_type' => $x->selection_type,
+            'is_active' => (bool) $x->is_active,
+        ])->values()->all();
+    }
+
     /** POST /api/v2/business/retail-listings */
     public function store(Request $request)
     {

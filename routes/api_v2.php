@@ -938,6 +938,8 @@ Route::prefix('v2')->group(function () {
             Route::get('{listing}', [BusinessRetailListingController::class, 'show'])->whereNumber('listing');
             Route::match(['put', 'patch'], '{listing}', [BusinessRetailListingController::class, 'update'])->whereNumber('listing');
             Route::delete('{listing}', [BusinessRetailListingController::class, 'destroy'])->whereNumber('listing');
+            Route::get('{listing}/extras', [BusinessRetailListingController::class, 'extras'])->whereNumber('listing');
+            Route::put('{listing}/extras', [BusinessRetailListingController::class, 'syncExtras'])->whereNumber('listing');
         });
 
         // Retail variant groups: several of the business's own listings shown to the

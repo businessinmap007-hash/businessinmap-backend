@@ -1222,7 +1222,15 @@ class CustomerCartService
                 throw ValidationException::withMessages(['offering_id' => __('المنتج غير متاح.')]);
             }
 
-            return [(int) $listing->business_id, $type, (float) $listing->price, null, null, null];
+            // Add-ons (warranty, installation…) are priced in exactly like a menu
+            // item's extras: resolved server-side, snapshotted on the line.
+            $addons = app(\App\Services\Catalog\ListingExtras::class)->resolve((int) $listing->id, $options['extras'] ?? []);
+            $unit = (float) $listing->price;
+            foreach ($addons as $addon) {
+                $unit += (float) $addon['price'] * (int) $addon['qty'];
+            }
+
+            return [(int) $listing->business_id, $type, round($unit, 2), null, null, $addons ?: null];
         }
 
         if ($type === MenuBundle::class) {

@@ -39,6 +39,7 @@ class BusinessRetailListingResource extends JsonResource
             'visibility' => (string) ($this->visibility ?: 'public'),
             'audience' => $this->audiencePayload(),
             'governorates' => $this->governoratePayload(),
+            'extras_count' => (int) $this->extras()->count(),
             'source_listing_id' => $this->source_listing_id ? (int) $this->source_listing_id : null,
 
             'product' => $product ? [

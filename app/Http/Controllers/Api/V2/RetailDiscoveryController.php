@@ -269,6 +269,9 @@ final class RetailDiscoveryController extends Controller
             return response()->json(['success' => false, 'message' => __('المنتج غير موجود.')], 404);
         }
 
+        $offerIds = DB::table('business_catalog_listings')->where('catalog_product_id', $product)->where('is_active', 1)->pluck('id')->all();
+        $offerExtras = app(\App\Services\Catalog\ListingExtras::class)->forListings($offerIds);
+
         $offers = DB::table('business_catalog_listings as l')
             ->join('users as u', 'u.id', '=', 'l.business_id')
             ->where('l.catalog_product_id', $product)
@@ -284,6 +287,7 @@ final class RetailDiscoveryController extends Controller
             ])
             ->map(fn ($o) => [
                 'listing_id' => (int) $o->id,
+                'extras' => $offerExtras[(int) $o->id] ?? [],
                 'business' => [
                     'id' => (int) $o->business_id,
                     'name' => $this->label($o->business_name_ar, $o->business_name_en, ''),
@@ -485,8 +489,10 @@ final class RetailDiscoveryController extends Controller
 
         // The spec table of each product on the shelf, in one batched read.
         $specs = app(\App\Services\Catalog\ProductSpecs::class)->forProducts($listings->pluck('product.id')->all());
-        $listings = $listings->map(function ($row) use ($specs) {
+        $extras = app(\App\Services\Catalog\ListingExtras::class)->forListings($listings->pluck('listing_id')->all());
+        $listings = $listings->map(function ($row) use ($specs, $extras) {
             $row['product']['specs'] = $specs[$row['product']['id']] ?? [];
+            $row['extras'] = $extras[$row['listing_id']] ?? [];
 
             return $row;
         })->values();

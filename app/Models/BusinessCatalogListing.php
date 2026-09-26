@@ -71,6 +71,11 @@ class BusinessCatalogListing extends Model
     }
 
     /** Who may see this listing, when it is `restricted`. */
+    public function extras(): HasMany
+    {
+        return $this->hasMany(BusinessCatalogListingExtra::class, 'listing_id')->orderBy('sort_order')->orderBy('id');
+    }
+
     public function audiences(): HasMany
     {
         return $this->hasMany(CatalogListingAudience::class, 'business_catalog_listing_id');

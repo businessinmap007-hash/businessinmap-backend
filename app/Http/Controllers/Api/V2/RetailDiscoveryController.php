@@ -309,6 +309,7 @@ final class RetailDiscoveryController extends Controller
                         'id' => $p->child_id ? (int) $p->child_id : null,
                         'name' => $this->label($p->child_name_ar, $p->child_name_en, ''),
                     ],
+                    'specs' => app(\App\Services\Catalog\ProductSpecs::class)->forProducts([(int) $p->id])[(int) $p->id] ?? [],
                 ],
                 'offers' => $offers,
             ],
@@ -481,6 +482,14 @@ final class RetailDiscoveryController extends Controller
                     'image' => $r->product_image,
                 ],
             ])->values();
+
+        // The spec table of each product on the shelf, in one batched read.
+        $specs = app(\App\Services\Catalog\ProductSpecs::class)->forProducts($listings->pluck('product.id')->all());
+        $listings = $listings->map(function ($row) use ($specs) {
+            $row['product']['specs'] = $specs[$row['product']['id']] ?? [];
+
+            return $row;
+        })->values();
 
         // A wholesale-restricted variant must stay invisible here too - same
         // rule as the plain shelf above (RetailListingVisibility).

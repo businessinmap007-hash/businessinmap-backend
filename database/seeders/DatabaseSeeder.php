@@ -347,6 +347,9 @@ class DatabaseSeeder extends Seeder
            // After every seeder that ever switched delivery on — see the class.
            RetireDeliveryServiceSeeder::class,
 
+           // Spec table (type, capacity, power…) of every appliance catalog master.
+           ApplianceSpecsSeeder::class,
+
 
 
 

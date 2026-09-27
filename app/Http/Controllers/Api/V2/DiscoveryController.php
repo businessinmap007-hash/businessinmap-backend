@@ -425,13 +425,27 @@ final class DiscoveryController extends Controller
             ->when($serviceId > 0, fn (Builder $w) => $w->where(function (Builder $inner) use ($serviceId, $serviceKey, $menuKind) {
                 // A menu_kind filter is exact about what a menu business must
                 // carry, so it replaces the generic "any priced row" check
-                // for menu rather than widening it.
+                // for menu rather than widening it. Read off the business's
+                // OWN (child, root) config — the same source
+                // BusinessPanelNav::menuKindsOf() reads — never
+                // menu_items.item_type: real items are mostly NULL there
+                // (never backfilled), so matching on it would silently hide
+                // almost every existing menu business.
                 if ($serviceKey === PlatformService::KEY_MENU && $menuKind !== '') {
-                    $inner->whereExists(function ($sub) use ($menuKind) {
+                    $inner->whereExists(function ($sub) use ($serviceId, $menuKind) {
+                        $sub->from('category_service_configs as csc')
+                            ->where('csc.platform_service_id', $serviceId)
+                            ->where('csc.is_active', 1)
+                            ->whereColumn('csc.child_id', 'users.category_child_id')
+                            ->where(function ($q) {
+                                $q->where('users.category_id', '<=', 0)
+                                    ->orWhereColumn('csc.category_id', 'users.category_id');
+                            })
+                            ->whereRaw('JSON_CONTAINS(csc.config, JSON_QUOTE(?), "$.allowed_item_types")', [$menuKind]);
+                    })->whereExists(function ($sub) {
                         $sub->from('menu_items as m')
                             ->whereColumn('m.business_id', 'users.id')
-                            ->where('m.is_active', 1)
-                            ->where('m.item_type', $menuKind);
+                            ->where('m.is_active', 1);
                     });
 
                     return;

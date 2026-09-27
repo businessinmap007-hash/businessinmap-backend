@@ -350,6 +350,9 @@ class DatabaseSeeder extends Seeder
            // Spec table (type, capacity, power…) of every appliance catalog master.
            ApplianceSpecsSeeder::class,
 
+           // Spec table (processor, RAM, storage…) of laptop/phone catalog masters.
+           TechDeviceSpecsSeeder::class,
+
 
 
 

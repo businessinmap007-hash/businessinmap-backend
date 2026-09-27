@@ -39,8 +39,8 @@ class PlatformServiceSeeder extends Seeder
             ],
             [
                 'key' => 'retail',
-                'name_ar' => 'كاتلوج',
-                'name_en' => 'Catalog',
+                'name_ar' => 'كتالوج منتجات',
+                'name_en' => 'Product Catalog',
                 'is_active' => true,
                 'sort_order' => 4,
                 'supports_deposit' => false,

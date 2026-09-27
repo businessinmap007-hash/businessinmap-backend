@@ -388,12 +388,17 @@ final class DiscoveryController extends Controller
         $data = $request->validate([
             'category_id' => ['nullable', 'integer', 'min:1'],
             'service_id' => ['nullable', 'integer', 'min:1'],
+            // «منيو مطاعم» vs «منيو ماركت» — the second chip row shown only
+            // under the (still single, unsplit) menu service chip; see
+            // MenuItem::item_type / [[three-catalog-shapes]].
+            'menu_kind' => ['nullable', 'string', 'max:40'],
             'q' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
         $categoryId = (int) ($data['category_id'] ?? 0);
         $serviceId = (int) ($data['service_id'] ?? 0);
+        $menuKind = trim((string) ($data['menu_kind'] ?? ''));
         $q = trim((string) ($data['q'] ?? ''));
 
         // COALESCE to 0 (not left NULL) so a never-rated business sorts
@@ -417,7 +422,21 @@ final class DiscoveryController extends Controller
         $businesses = User::query()
             ->where('users.type', 'business')
             ->when($categoryId > 0, fn (Builder $w) => $w->where('users.category_id', $categoryId))
-            ->when($serviceId > 0, fn (Builder $w) => $w->where(function (Builder $inner) use ($serviceId, $serviceKey) {
+            ->when($serviceId > 0, fn (Builder $w) => $w->where(function (Builder $inner) use ($serviceId, $serviceKey, $menuKind) {
+                // A menu_kind filter is exact about what a menu business must
+                // carry, so it replaces the generic "any priced row" check
+                // for menu rather than widening it.
+                if ($serviceKey === PlatformService::KEY_MENU && $menuKind !== '') {
+                    $inner->whereExists(function ($sub) use ($menuKind) {
+                        $sub->from('menu_items as m')
+                            ->whereColumn('m.business_id', 'users.id')
+                            ->where('m.is_active', 1)
+                            ->where('m.item_type', $menuKind);
+                    });
+
+                    return;
+                }
+
                 $inner->whereExists(function ($sub) use ($serviceId) {
                     $sub->from('business_service_prices as p')
                         ->whereColumn('p.business_id', 'users.id')

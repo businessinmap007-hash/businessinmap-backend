@@ -52,6 +52,18 @@ use Illuminate\Support\Facades\DB;
  *    (child, group) — an admin's later hand curation on «مكونات الخدمة»
  *    is never overwritten by a re-run. See [[seeder-must-withdraw]].
  *
+ * «فى مكونات الخدمة محلات او اونلاين قسم اجهزة بلايستيشن تم ضبط المكونات
+ * عمم نفس الضبط على كل الابناء» — المالك، 2026-09-28. `ROLE_DEFAULTS` alone
+ * is too blunt: a `descriptive`-role group is not always just informational.
+ * «التسليم والاستلام» (group 49) and «الخدمات المالية بالمحل» (group 700)
+ * had ALREADY been hand-curated to `store_cart`/`store_filter` under retail
+ * and business_offers — this seeder's first run missed that and wrote plain
+ * `descriptive` for all 83 of their menu placements instead (fixed live,
+ * same session). `usageOverrides()` below reads that established curation
+ * dynamically instead of hardcoding the two group ids, so a future admin
+ * edit on any OTHER group is picked up by a re-run too, matching the
+ * PlayStation-child example this instruction pointed at.
+ *
  * Idempotent; safe to re-run after any admin edit.
  */
 class MenuServiceDistributionSeeder extends Seeder
@@ -71,6 +83,7 @@ class MenuServiceDistributionSeeder extends Seeder
         }
 
         $writer = app(ChildServiceWriter::class);
+        $usageOverrides = $this->usageOverrides($menuServiceId);
 
         $pairs = DB::table('category_platform_services')
             ->where('is_active', 1)
@@ -141,7 +154,9 @@ class MenuServiceDistributionSeeder extends Seeder
                     'option_group_id' => $group->id,
                     'child_id' => $childId,
                     'item_type_key' => '',
-                    'usage' => self::ROLE_DEFAULTS[$group->price_role] ?? Placement::USAGE_DESCRIPTIVE,
+                    'usage' => $usageOverrides[(int) $group->id]
+                        ?? self::ROLE_DEFAULTS[$group->price_role]
+                        ?? Placement::USAGE_DESCRIPTIVE,
                     'is_active' => true,
                     'sort_order' => 0,
                 ]);
@@ -149,6 +164,59 @@ class MenuServiceDistributionSeeder extends Seeder
             }
         }
 
-        $this->command?->info("Menu granted to {$grantedMenu} retail-active (root,child) pairs; {$placementsWritten} option-group placements written.");
+        $fixed = $this->fixMisplacedUsages($menuServiceId, $usageOverrides);
+
+        $this->command?->info("Menu granted to {$grantedMenu} retail-active (root,child) pairs; {$placementsWritten} option-group placements written; {$fixed} pre-existing placements corrected to their curated usage.");
+    }
+
+    /**
+     * Every option group whose usage is consistently curated to something
+     * OTHER than its own ROLE_DEFAULTS somewhere else on the platform
+     * (retail, business_offers…) — the exact «تم ضبط المكونات» signal the
+     * owner pointed at on the PlayStation child. A group with no such
+     * consistent, non-default curation elsewhere is left out, and falls
+     * through to ROLE_DEFAULTS as before.
+     *
+     * @return array<int,string> option_group_id => usage
+     */
+    private function usageOverrides(int $menuServiceId): array
+    {
+        $roleByGroup = OptionGroup::query()->pluck('price_role', 'id');
+
+        return DB::table('service_option_group_placements')
+            ->where('platform_service_id', '!=', $menuServiceId)
+            ->where('is_active', 1)
+            ->select('option_group_id', 'usage')
+            ->distinct()
+            ->get()
+            ->groupBy('option_group_id')
+            ->filter(fn ($rows) => $rows->pluck('usage')->unique()->count() === 1)
+            ->map(fn ($rows) => $rows->first()->usage)
+            ->filter(function ($usage, $groupId) use ($roleByGroup) {
+                $role = $roleByGroup[$groupId] ?? null;
+                return $role !== null && $usage !== (self::ROLE_DEFAULTS[$role] ?? null);
+            })
+            ->all();
+    }
+
+    /**
+     * A placement THIS seeder already wrote (menu, usage still at the plain
+     * ROLE_DEFAULTS value) before an override above existed for its group is
+     * corrected in place — this is the seeder fixing its own earlier miss,
+     * never an admin's hand curation, so it stays safe to run unattended.
+     */
+    private function fixMisplacedUsages(int $menuServiceId, array $usageOverrides): int
+    {
+        $fixed = 0;
+
+        foreach ($usageOverrides as $groupId => $correctUsage) {
+            $fixed += Placement::query()
+                ->where('platform_service_id', $menuServiceId)
+                ->where('option_group_id', $groupId)
+                ->where('usage', '!=', $correctUsage)
+                ->update(['usage' => $correctUsage]);
+        }
+
+        return $fixed;
     }
 }

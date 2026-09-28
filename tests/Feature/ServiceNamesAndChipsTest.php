@@ -7,10 +7,15 @@ use Tests\TestCase;
 
 class ServiceNamesAndChipsTest extends TestCase
 {
+    /**
+     * «كتالوج منتجات» — the retail label's second rename (2026-09-27, see
+     * [[three-catalog-shapes]]), replacing «كاتلوج» from the rename this
+     * test originally covered.
+     */
     public function test_the_two_services_have_their_new_names(): void
     {
         $this->assertSame('منيو', PlatformService::query()->where('key', 'menu')->value('name_ar'));
-        $this->assertSame('كاتلوج', PlatformService::query()->where('key', 'retail')->value('name_ar'));
+        $this->assertSame('كتالوج منتجات', PlatformService::query()->where('key', 'retail')->value('name_ar'));
     }
 
     public function test_the_service_type_chips_do_not_offer_delivery(): void

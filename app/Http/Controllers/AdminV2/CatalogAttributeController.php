@@ -3,12 +3,55 @@
 namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class CatalogAttributeController extends Controller
 {
+    /**
+     * The other half of «ابني شاشة CRUD لإضافة موديلات ومواصفات جديدة» — a
+     * new attribute TYPE (e.g. «سعة البطارية») for the product form's specs
+     * picker to offer, when none of the existing ones fits. Linked from
+     * there, not surfaced as its own nav entry — matching this project's
+     * house style of pragmatic per-case screens.
+     */
+    public function create(): View
+    {
+        return view('admin-v2.catalog-attributes.create', [
+            'units' => DB::table('catalog_units')->select('id', 'name_ar', 'name_en')->orderBy('name_ar')->get(),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:80', Rule::unique('catalog_attributes', 'code')],
+            'name_ar' => ['required', 'string', 'max:180'],
+            'name_en' => ['nullable', 'string', 'max:180'],
+            'data_type' => ['required', 'in:text,number,boolean,select'],
+            'unit_id' => ['nullable', 'integer', Rule::exists('catalog_units', 'id')],
+        ]);
+
+        if (($data['unit_id'] ?? '') === '') {
+            $data['unit_id'] = null;
+        }
+
+        DB::table('catalog_attributes')->insert($data + [
+            'is_filterable' => 0,
+            'is_variant_axis' => 0,
+            'is_required' => 0,
+            'sort_order' => (int) DB::table('catalog_attributes')->max('sort_order') + 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()->route('admin.catalog-products.create')->with('success', __('تمت إضافة نوع المواصفة. يمكنك استخدامها الآن في نموذج المنتج.'));
+    }
+
     public function index(Request $request)
     {
         abort_unless(Schema::hasTable('catalog_attributes'), 404);

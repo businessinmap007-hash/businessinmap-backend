@@ -353,8 +353,13 @@ class DatabaseSeeder extends Seeder
            // Spec table (processor, RAM, storage…) of laptop/phone catalog masters.
            TechDeviceSpecsSeeder::class,
 
-
-
+           // «قم بتوزيع الخدمة بناء على ما يناسب كل مجموعة خيارات» — turns
+           // menu back on for every retail-active (root,child) and seeds a
+           // starting option-group placement per group, matching «مكونات
+           // الخدمة»'s own defaults. Last, because it reads the full
+           // category_child_option/category_platform_services state every
+           // earlier seeder above builds up.
+           MenuServiceDistributionSeeder::class,
 
             //  EgyptCountriesSeeder::class,
             //  EgyptGovernoratesSeeder::class,

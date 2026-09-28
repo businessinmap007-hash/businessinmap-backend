@@ -19,6 +19,7 @@
             <h1 class="a2-page-title">Catalog Products Manager</h1>
             <div class="a2-page-subtitle">{{ __('الحقول تظهر كنص عادي. اضغط على أي قيمة قابلة للتعديل، عدّلها، وسيتم الحفظ تلقائيًا عند الخروج من الحقل.') }}</div>
         </div>
+        <a href="{{ route('admin.catalog-products.create') }}" class="a2-btn a2-btn-primary">{{ __('+ منتج جديد') }}</a>
     </div>
 
     <div class="a2-stat-grid" style="margin-bottom:16px;">
@@ -126,6 +127,7 @@
                             <th>Size / Model</th>
                             <th>Duplicate</th>
                             <th>Status</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -169,9 +171,10 @@
                                 </div>
                                 <div class="a2-muted a2-mt-8 js-editable" data-id="{{ $row->id }}" data-field="approval_status" data-type="select" data-options="draft,pending,approved,rejected">{{ $row->approval_status }}</div>
                             </td>
+                            <td><a href="{{ route('admin.catalog-products.edit', $row->id) }}" class="a2-btn a2-btn-ghost">{{ __('تعديل / مواصفات') }}</a></td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="a2-empty">{{ __('لا توجد منتجات.') }}</td></tr>
+                        <tr><td colspan="10" class="a2-empty">{{ __('لا توجد منتجات.') }}</td></tr>
                     @endforelse
                     </tbody>
                 </table>

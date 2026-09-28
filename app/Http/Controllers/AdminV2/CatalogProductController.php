@@ -4,12 +4,179 @@ namespace App\Http\Controllers\AdminV2;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class CatalogProductController extends Controller
 {
+    /** Blank rows always offered under an existing product's own specs, to add more. */
+    private const BLANK_SPEC_ROWS = 6;
+
+    /**
+     * «ابني شاشة CRUD لإضافة موديلات ومواصفات جديدة» — a real laptop/phone/
+     * appliance model plus its spec table, in one screen (see
+     * [[menu-catalog-specs-link]] — this closes the admin-CRUD gap that
+     * memory flagged: browsing/inline-editing already existed, creating a
+     * brand-new model never did).
+     */
+    public function create(): View
+    {
+        return view('admin-v2.catalog-products.create', $this->formData());
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $this->validated($request);
+
+        $id = DB::transaction(function () use ($data, $request) {
+            $id = DB::table('catalog_products')->insertGetId($data + [
+                'bim_code' => $this->generateBimCode(),
+                'product_type' => 'simple',
+                'market_scope' => 'egypt',
+                'duplicate_status' => 'unique',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->syncSpecs($id, $request->input('specs', []));
+
+            return $id;
+        });
+
+        return redirect()->route('admin.catalog-products.edit', $id)->with('success', __('تم إنشاء المنتج بنجاح.'));
+    }
+
+    public function edit(int $product): View
+    {
+        $row = DB::table('catalog_products')->where('id', $product)->first();
+        abort_if(! $row, 404);
+
+        $specs = DB::table('catalog_product_attribute_values as v')
+            ->join('catalog_attributes as a', 'a.id', '=', 'v.attribute_id')
+            ->where('v.product_id', $product)
+            ->orderBy('a.sort_order')->orderBy('a.id')
+            ->get(['v.id', 'v.attribute_id', 'a.name_ar as attribute_name', 'v.value_text_ar', 'v.value_number']);
+
+        return view('admin-v2.catalog-products.edit', $this->formData() + [
+            'row' => $row,
+            'specs' => $specs,
+            'blankSpecRows' => self::BLANK_SPEC_ROWS,
+        ]);
+    }
+
+    public function update(Request $request, int $product): RedirectResponse
+    {
+        abort_if(! DB::table('catalog_products')->where('id', $product)->exists(), 404);
+
+        $data = $this->validated($request, $product);
+
+        DB::transaction(function () use ($data, $product, $request) {
+            DB::table('catalog_products')->where('id', $product)->update($data + ['updated_at' => now()]);
+
+            $removeIds = collect((array) $request->input('remove_spec_ids', []))->map(fn ($id) => (int) $id)->filter();
+            if ($removeIds->isNotEmpty()) {
+                DB::table('catalog_product_attribute_values')->where('product_id', $product)->whereIn('id', $removeIds)->delete();
+            }
+
+            $this->syncSpecs($product, $request->input('specs', []));
+        });
+
+        return redirect()->route('admin.catalog-products.edit', $product)->with('success', __('تم تحديث المنتج بنجاح.'));
+    }
+
+    /** Shared select-list data for both the create and edit forms. */
+    private function formData(): array
+    {
+        return [
+            'categories' => DB::table('product_categories')->select('id', 'name_ar', 'name_en')->orderBy('name_ar')->get(),
+            'children' => DB::table('product_category_children')->select('id', 'name_ar', 'name_en', 'product_category_id')->orderBy('sort_order')->orderBy('id')->get(),
+            'brandOptions' => DB::table('catalog_brands')->select('id', 'name_ar', 'name_en')->orderBy('name_ar')->limit(500)->get(),
+            'unitOptions' => DB::table('catalog_units')->select('id', 'name_ar', 'name_en', 'code')->orderBy('name_ar')->get(),
+            'attributeOptions' => DB::table('catalog_attributes')->select('id', 'name_ar', 'name_en', 'data_type')->orderBy('sort_order')->orderBy('name_ar')->get(),
+            'blankSpecRows' => self::BLANK_SPEC_ROWS,
+        ];
+    }
+
+    private function validated(Request $request, ?int $ignoreId = null): array
+    {
+        $rules = [
+            'product_category_id' => ['required', 'integer', Rule::exists('product_categories', 'id')],
+            'product_category_child_id' => ['required', 'integer', Rule::exists('product_category_children', 'id')],
+            'brand_id' => ['nullable', 'integer', Rule::exists('catalog_brands', 'id')],
+            'unit_id' => ['nullable', 'integer', Rule::exists('catalog_units', 'id')],
+            'name_ar' => ['required', 'string', 'max:255'],
+            'name_en' => ['nullable', 'string', 'max:255'],
+            'short_name_ar' => ['nullable', 'string', 'max:180'],
+            'model' => ['nullable', 'string', 'max:160'],
+            'main_image' => ['nullable', 'string', 'max:255'],
+            'package_value' => ['nullable', 'numeric'],
+            'package_label_ar' => ['nullable', 'string', 'max:80'],
+            'package_label_en' => ['nullable', 'string', 'max:80'],
+            'is_active' => ['nullable', 'in:0,1'],
+        ];
+
+        $data = $request->validate($rules);
+
+        $data['is_active'] = (int) ($data['is_active'] ?? 1);
+        foreach (['brand_id', 'unit_id', 'package_value'] as $nullableKey) {
+            if (($data[$nullableKey] ?? '') === '') {
+                $data[$nullableKey] = null;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Writes every submitted spec row that names an attribute and carries a
+     * value — text OR number, never both — as an upsert (product_id +
+     * attribute_id is the natural key, matching how the seeders/import write
+     * the same table). Blank rows (no attribute picked) are silently
+     * ignored, same as the bulk pickers' own "empty means nothing to do".
+     */
+    private function syncSpecs(int $productId, array $rows): void
+    {
+        foreach ($rows as $row) {
+            $attributeId = (int) ($row['attribute_id'] ?? 0);
+            if ($attributeId <= 0) {
+                continue;
+            }
+
+            $textAr = trim((string) ($row['value_text'] ?? ''));
+            $number = trim((string) ($row['value_number'] ?? ''));
+
+            if ($textAr === '' && $number === '') {
+                continue;
+            }
+
+            DB::table('catalog_product_attribute_values')->updateOrInsert(
+                ['product_id' => $productId, 'attribute_id' => $attributeId],
+                [
+                    'value_text_ar' => $number === '' ? $textAr : null,
+                    'value_number' => $number !== '' ? (float) $number : null,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+    }
+
+    /** «BIM-NEW-YYYYMMDD-####» — never collides with an imported bim_code. */
+    private function generateBimCode(): string
+    {
+        $prefix = 'BIM-NEW-' . now()->format('Ymd') . '-';
+
+        do {
+            $code = $prefix . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        } while (DB::table('catalog_products')->where('bim_code', $code)->exists());
+
+        return $code;
+    }
+
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));

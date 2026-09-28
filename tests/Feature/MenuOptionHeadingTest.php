@@ -28,9 +28,16 @@ class MenuOptionHeadingTest extends TestCase
 {
     use DatabaseTransactions;
 
+    /**
+     * Non-goods-catalog on purpose — see the matching note in
+     * MenuHeadingTest::business(). This whole file is about option_combo
+     * headings, which a goods-catalog business never produces.
+     */
     private function business(): User
     {
-        $b = User::query()->where('type', 'business')->whereNotNull('category_child_id')->first();
+        $b = User::query()->where('type', 'business')->whereNotNull('category_child_id')
+            ->get()
+            ->first(fn (User $u) => ! \App\Support\MarketCatalogChildren::includes($u));
 
         if (! $b) {
             $this->markTestSkipped('No business.');

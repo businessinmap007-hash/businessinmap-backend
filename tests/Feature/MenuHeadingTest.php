@@ -30,9 +30,22 @@ class MenuHeadingTest extends TestCase
 {
     use DatabaseTransactions;
 
+    /**
+     * Any business with a taxonomy child works for «section»/«item_type»
+     * headings, but the option-combo tests specifically need a NON-goods-
+     * catalog one: {@see \App\Models\MenuItem::heading()} takes the
+     * catalog_group branch instead of option_combo the moment
+     * {@see \App\Support\MarketCatalogChildren::includes()} is true, and the
+     * platform now legitimately turns that on for real goods-catalog
+     * businesses (retail-active children, distributed onto menu by
+     * MenuServiceDistributionSeeder — see [[three-catalog-shapes]]). Picking
+     * "the first business in the table" used to be safe only by accident.
+     */
     private function business(): User
     {
-        $business = User::query()->where('type', 'business')->whereNotNull('category_child_id')->first();
+        $business = User::query()->where('type', 'business')->whereNotNull('category_child_id')
+            ->get()
+            ->first(fn (User $b) => ! \App\Support\MarketCatalogChildren::includes($b));
 
         if (! $business) {
             $this->markTestSkipped('No business.');

@@ -282,6 +282,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('catalog-products', [CatalogProductController::class, 'index'])->name('catalog-products.index');
             Route::post('catalog-products/bulk-action', [CatalogProductController::class, 'bulkAction'])->name('catalog-products.bulk-action');
             Route::post('catalog-products/{product}/inline-update', [CatalogProductController::class, 'inlineUpdate'])->whereNumber('product')->name('catalog-products.inline-update');
+            // «ابني شاشة CRUD لإضافة موديلات ومواصفات جديدة» — registered before
+            // the bare {product}... routes above never collide since those are
+            // POST-only; GET create/edit are their own paths.
+            Route::get('catalog-products/create', [CatalogProductController::class, 'create'])->name('catalog-products.create');
+            Route::post('catalog-products', [CatalogProductController::class, 'store'])->name('catalog-products.store');
+            Route::get('catalog-products/{product}/edit', [CatalogProductController::class, 'edit'])->whereNumber('product')->name('catalog-products.edit');
+            Route::put('catalog-products/{product}', [CatalogProductController::class, 'update'])->whereNumber('product')->name('catalog-products.update');
 
             Route::get('product-categories', [ProductCategoryController::class, 'index'])->name('product-categories.index');
             Route::get('product-category-children', [ProductCategoryChildController::class, 'index'])->name('product-category-children.index');
@@ -290,6 +297,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('catalog-manufacturers', [CatalogManufacturerController::class, 'index'])->name('catalog-manufacturers.index');
             Route::get('catalog-units', [CatalogUnitController::class, 'index'])->name('catalog-units.index');
             Route::get('catalog-attributes', [CatalogAttributeController::class, 'index'])->name('catalog-attributes.index');
+            Route::get('catalog-attributes/create', [CatalogAttributeController::class, 'create'])->name('catalog-attributes.create');
+            Route::post('catalog-attributes', [CatalogAttributeController::class, 'store'])->name('catalog-attributes.store');
 
             Route::resource('platform-services', PlatformServiceController::class)->except(['show'])->names('platform-services');
             Route::post('platform-services/{platformService}/toggle-active', [PlatformServiceController::class, 'toggleActive'])->whereNumber('platformService')->name('platform-services.toggle-active');

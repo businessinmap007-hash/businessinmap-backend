@@ -24,7 +24,7 @@
         @method('PUT')
         @include('admin-v2.catalog-products._form', [
             'row' => $row,
-            'categories' => $categories,
+            'productCategories' => $productCategories,
             'children' => $children,
             'brandOptions' => $brandOptions,
             'unitOptions' => $unitOptions,

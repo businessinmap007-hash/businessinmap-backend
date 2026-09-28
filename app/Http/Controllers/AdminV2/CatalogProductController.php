@@ -92,7 +92,7 @@ class CatalogProductController extends Controller
     private function formData(): array
     {
         return [
-            'categories' => DB::table('product_categories')->select('id', 'name_ar', 'name_en')->orderBy('name_ar')->get(),
+            'productCategories' => DB::table('product_categories')->select('id', 'name_ar', 'name_en')->orderBy('name_ar')->get(),
             'children' => DB::table('product_category_children')->select('id', 'name_ar', 'name_en', 'product_category_id')->orderBy('sort_order')->orderBy('id')->get(),
             'brandOptions' => DB::table('catalog_brands')->select('id', 'name_ar', 'name_en')->orderBy('name_ar')->limit(500)->get(),
             'unitOptions' => DB::table('catalog_units')->select('id', 'name_ar', 'name_en', 'code')->orderBy('name_ar')->get(),

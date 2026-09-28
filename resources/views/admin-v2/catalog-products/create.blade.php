@@ -20,7 +20,7 @@
         @csrf
         @include('admin-v2.catalog-products._form', [
             'row' => null,
-            'categories' => $categories,
+            'productCategories' => $productCategories,
             'children' => $children,
             'brandOptions' => $brandOptions,
             'unitOptions' => $unitOptions,

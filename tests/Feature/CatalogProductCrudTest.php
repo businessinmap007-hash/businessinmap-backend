@@ -148,4 +148,29 @@ class CatalogProductCrudTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.catalog-attributes.create'))->assertOk();
     }
+
+    /**
+     * Live-caught, 2026-09-29 (emulator run): `ViewServiceProvider`'s global
+     * `composer('*', ...)` — a leftover from the removed v1 storefront —
+     * calls `$view->with(compact(..., 'categories', ...))` on EVERY view in
+     * the app, unconditionally. Because a composer runs after the controller
+     * hands the view its data, it silently overwrote this screen's own
+     * `$categories` (`product_categories`, ~9 rows) with the legacy
+     * `categories` root table (~21 platform roots) — the root <select>
+     * looked fine in isolation but offered the wrong taxonomy entirely, and
+     * picking one filtered the child list against the wrong ids. Renamed to
+     * `$productCategories` to dodge the collision rather than touch the
+     * shared legacy composer. This asserts a real product_categories name is
+     * present and a platform-root-only name is not, so a same-named
+     * variable anywhere in this screen's data would fail loudly again.
+     */
+    public function test_the_category_select_offers_product_categories_not_the_legacy_platform_roots(): void
+    {
+        $admin = $this->admin();
+
+        $html = $this->actingAs($admin)->get(route('admin.catalog-products.create'))->getContent();
+
+        $this->assertStringContainsString('إلكترونيات وأجهزة', $html, 'a real product_categories row must be offered');
+        $this->assertStringNotContainsString('شحن وتوصيل', $html, 'the legacy platform-root categories() composer var leaked in again');
+    }
 }

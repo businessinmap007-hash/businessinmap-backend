@@ -22,7 +22,7 @@
                  of the cascade on the one event model. --}}
             <select class="a2-select no-ts" name="product_category_id" id="js-category-select" required>
                 <option value="">{{ __('اختر القسم') }}</option>
-                @foreach($categories as $cat)
+                @foreach($productCategories as $cat)
                     <option value="{{ $cat->id }}" @selected($selectedCategoryId === (int) $cat->id)>{{ $cat->name_ar ?: $cat->name_en }}</option>
                 @endforeach
             </select>

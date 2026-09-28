@@ -361,6 +361,14 @@ class DatabaseSeeder extends Seeder
            // earlier seeder above builds up.
            MenuServiceDistributionSeeder::class,
 
+           // «المنجو صنف بحد ذاتها لا يضاف فيه اصناف … واعشاب وورقيات
+           // كلما اضيف صنف يضاف فى قائمة اخرى» — withdraws the generic
+           // fruit catch-alls superseded by named varieties, and the rogue
+           // «أعشاب وورقيات» option duplicating that whole group from
+           // inside «الخضروات». After ProduceAisleSplitSeeder/
+           // FoodRangesExpansionSeeder, which is what it is correcting.
+           ProduceVarietyCleanupSeeder::class,
+
             //  EgyptCountriesSeeder::class,
             //  EgyptGovernoratesSeeder::class,
             //  EgyptCitiesSeeder::class,

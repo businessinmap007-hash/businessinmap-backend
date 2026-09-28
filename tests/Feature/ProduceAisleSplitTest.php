@@ -109,7 +109,15 @@ class ProduceAisleSplitTest extends TestCase
     public function test_no_greengrocer_lost_a_word(): void
     {
         // The split moves `options.group_id` and nothing else. A child that
-        // carried forty-five words still carries forty-five — under two titles.
+        // carried forty-five words still carries forty-five — under two
+        // titles — UNLESS the owner later withdrew one on purpose. He did,
+        // 2026-09-29: eleven of these forty-five («مانجو»، «برتقال»، «عنب»…)
+        // were generic catch-alls that ProduceVarietyCleanupSeeder retired
+        // once every one of them had named varieties covering it («مانجو
+        // عويس، مانجو فص…» — see FoodRangesExpansionSeeder's own comment on
+        // why). A deliberate withdrawal is not a lost word; it is recorded
+        // in the decision ledger precisely so a check like this one can
+        // tell the two apart instead of guessing from the count alone.
         $childId = (int) DB::table('category_children_master')->where('name_ar', 'خضار وفاكهة')->value('id');
 
         if ($childId <= 0) {
@@ -119,14 +127,26 @@ class ProduceAisleSplitTest extends TestCase
         $declared = collect((require base_path('database/seeders/data/produce_aisle_split.php'))['groups'])
             ->pluck('options')->flatten();
 
-        $linked = DB::table('category_child_option as cco')
+        $declaredIds = DB::table('options')->whereIn('name_ar', $declared)->pluck('id', 'name_ar');
+
+        $linkedNames = DB::table('category_child_option as cco')
             ->join('options as o', 'o.id', '=', 'cco.option_id')
             ->where('cco.child_id', $childId)
             ->whereIn('o.name_ar', $declared)
             ->distinct()
-            ->count('o.id');
+            ->pluck('o.name_ar');
 
-        $this->assertSame($declared->count(), $linked, 'Every crop is still linked to the trade that sells it.');
+        $withdrawnIds = DB::table('category_child_option_decisions')
+            ->where('child_id', $childId)->where('kind', 'withdrawn')
+            ->whereIn('option_id', $declaredIds->values())
+            ->pluck('option_id')
+            ->all();
+
+        $missing = $declared
+            ->reject(fn ($name) => $linkedNames->contains($name))
+            ->reject(fn ($name) => in_array((int) ($declaredIds[$name] ?? 0), $withdrawnIds, true));
+
+        $this->assertEmpty($missing->all(), 'lost, not withdrawn: ' . $missing->implode('، '));
     }
 
     public function test_both_stalls_are_priceable_and_stay_priceable(): void

@@ -266,9 +266,13 @@ class GroceryAisleSplitTest extends TestCase
             'دواجن' => ['دواجن', 'أنواع الدواجن والطيور', 'بط'],
             'حبوب وغلال' => ['حبوب وغلال', 'أنواع الحبوب والغلال', 'قمح'],
             // Split in two on 2026-08-24 (ProduceAisleSplitSeeder): the fruit
-            // stall and the vegetable stall. «مانجو» now answers under the
-            // former, and the trade still names its own goods either way.
-            'خضار وفاكهة' => ['خضار وفاكهة', 'الفواكه', 'مانجو'],
+            // stall and the vegetable stall, and the trade still names its
+            // own goods either way. «مانجو» itself answered here until
+            // 2026-09-29, when ProduceVarietyCleanupSeeder withdrew the
+            // generic catch-all in favour of the named varieties it was
+            // meant to replace («مانجو أنواع كتيرة، كل نوع منفرد» — owner) —
+            // «مانجو فص» is one of those and still answers.
+            'خضار وفاكهة' => ['خضار وفاكهة', 'الفواكه', 'مانجو فص'],
             'أعلاف' => ['أعلاف', 'أنواع الأعلاف', 'أعلاف دواجن'],
         ];
     }

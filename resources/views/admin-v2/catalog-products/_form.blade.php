@@ -16,7 +16,11 @@
     <div class="a2-form-grid">
         <div class="a2-form-group">
             <label class="a2-label">{{ __('القسم الرئيسي') }} <span class="a2-danger">*</span></label>
-            <select class="a2-select" name="product_category_id" id="js-category-select" required>
+            {{-- no-ts: this select DRIVES the cascade below, and tom-select's
+                 selection doesn't reliably reach a plain `change` listener on
+                 the original element — plain native select keeps both ends
+                 of the cascade on the one event model. --}}
+            <select class="a2-select no-ts" name="product_category_id" id="js-category-select" required>
                 <option value="">{{ __('اختر القسم') }}</option>
                 @foreach($categories as $cat)
                     <option value="{{ $cat->id }}" @selected($selectedCategoryId === (int) $cat->id)>{{ $cat->name_ar ?: $cat->name_en }}</option>
@@ -27,7 +31,12 @@
 
         <div class="a2-form-group">
             <label class="a2-label">{{ __('القسم الفرعي') }} <span class="a2-danger">*</span></label>
-            <select class="a2-select" name="product_category_child_id" id="js-child-select" required>
+            {{-- no-ts: this select's options are filtered natively by the
+                 cascade script below — tom-select would keep rendering its
+                 own captured copy of the option list and never notice the
+                 `hidden` attribute the filter sets. See admin-v2 layout's
+                 initTomSelects() comment. --}}
+            <select class="a2-select no-ts" name="product_category_child_id" id="js-child-select" required>
                 <option value="">{{ __('اختر القسم الفرعي') }}</option>
                 @foreach($children as $child)
                     <option value="{{ $child->id }}" data-category="{{ $child->product_category_id }}" @selected($selectedChildId === (int) $child->id)>{{ $child->name_ar ?: $child->name_en }}</option>

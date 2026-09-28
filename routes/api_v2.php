@@ -827,6 +827,7 @@ Route::prefix('v2')->group(function () {
             // narrowed to this business's own catalog. Powers the branch
             // picker and the brand/condition fields on the item form.
             Route::get('vocabulary', [BusinessMenuItemController::class, 'vocabulary']);
+            Route::get('catalog-lookup', [BusinessMenuItemController::class, 'catalogLookup']);
 
             // The full `line` catalog for this business's (root, child) —
             // e.g. all 122 vegetable/fruit kinds a greengrocer's child may

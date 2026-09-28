@@ -267,6 +267,11 @@ final class MenuDiscoveryController extends Controller
             // Doubles as the customer-facing "Bestseller" badge — the same
             // flag already used to sort featured items first, above.
             'is_featured' => (bool) $item->is_featured,
+            // Only present when the merchant linked a real catalog master
+            // (a real phone/laptop model…) — see [[three-catalog-shapes]].
+            'specs' => $item->catalog_product_id
+                ? app(\App\Services\Catalog\ProductSpecs::class)->forProducts([(int) $item->catalog_product_id])[(int) $item->catalog_product_id] ?? []
+                : [],
             'variants' => $item->activeVariants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'name' => $this->label($v->name_ar, $v->name_en, __('حجم #') . $v->id),

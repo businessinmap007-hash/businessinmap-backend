@@ -33,6 +33,25 @@ class MenuItemResource extends JsonResource
             'sort_order' => (int) $this->sort_order,
             'is_active' => (bool) $this->is_active,
 
+            // «ربط نظام المواصفات مع المنيو» — the catalog master this item
+            // prices, when the merchant picked one, with its spec table
+            // resolved so the edit screen can preview it without a round trip.
+            'catalog_product_id' => $this->catalog_product_id !== null ? (int) $this->catalog_product_id : null,
+            'catalog_product' => $this->catalog_product_id ? (function () {
+                $product = $this->resource->catalogProduct;
+                if (! $product) {
+                    return null;
+                }
+
+                return [
+                    'id' => (int) $product->id,
+                    'name' => app()->getLocale() === 'en'
+                        ? ($product->name_en ?: $product->name_ar)
+                        : ($product->name_ar ?: $product->name_en),
+                    'specs' => app(\App\Services\Catalog\ProductSpecs::class)->forProducts([(int) $product->id])[(int) $product->id] ?? [],
+                ];
+            })() : null,
+
             // What this item IS (a `line` option, e.g. "ثلاجات") and what
             // qualifies it (brand, condition...) — {@see HasOfferingOptions}.
             // Read fresh rather than gated behind whenLoaded: cheap (at most

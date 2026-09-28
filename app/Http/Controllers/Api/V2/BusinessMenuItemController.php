@@ -336,6 +336,34 @@ final class BusinessMenuItemController extends Controller
         }
     }
 
+    /**
+     * GET /api/v2/business/menu/catalog-lookup — real catalog masters a
+     * merchant may LINK a menu item to (never writes anything), so a mobile
+     * or laptop shop picks a real model instead of retyping its specs. Read
+     * access only; the shared catalog is not scoped per business the way
+     * business_catalog_listings is.
+     */
+    public function catalogLookup(Request $request)
+    {
+        $term = trim((string) $request->get('q', ''));
+
+        $items = \App\Models\CatalogProduct::query()
+            ->active()
+            ->when($term !== '', fn ($q) => $q->search($term))
+            ->leftJoin('catalog_brands as b', 'b.id', '=', 'catalog_products.brand_id')
+            ->orderBy('catalog_products.name_ar')
+            ->limit(20)
+            ->get(['catalog_products.id', 'catalog_products.name_ar', 'catalog_products.name_en', 'catalog_products.main_image', 'b.name_ar as brand_name'])
+            ->map(fn ($p) => [
+                'id' => (int) $p->id,
+                'name' => app()->getLocale() === 'en' ? ($p->name_en ?: $p->name_ar) : ($p->name_ar ?: $p->name_en),
+                'brand' => $p->brand_name,
+                'image' => $p->main_image,
+            ]);
+
+        return response()->json(['success' => true, 'data' => ['items' => $items]]);
+    }
+
     /** DELETE /api/v2/business/menu/items/{item} */
     public function destroy(Request $request, int $item)
     {
@@ -540,6 +568,11 @@ final class BusinessMenuItemController extends Controller
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
             'menu_section_id' => ['nullable', 'integer', Rule::exists('menu_sections', 'id')->where('business_id', $businessId)],
+            // «ربط نظام المواصفات مع المنيو» — an optional link to a real
+            // catalog master (the same one retail's «كتالوج تفصيلي» prices),
+            // so this item's spec table (processor/RAM/model…) comes from
+            // catalog_product_attribute_values instead of being retyped.
+            'catalog_product_id' => ['nullable', 'integer', Rule::exists('catalog_products', 'id')->whereNull('deleted_at')],
             'description_ar' => ['nullable', 'string', 'max:1000'],
             'description_en' => ['nullable', 'string', 'max:1000'],
             'base_price' => ['required', 'numeric', 'min:0'],
@@ -558,6 +591,7 @@ final class BusinessMenuItemController extends Controller
             'name_ar' => trim((string) $data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
             'menu_section_id' => ($data['menu_section_id'] ?? null) ?: null,
+            'catalog_product_id' => ($data['catalog_product_id'] ?? null) ?: null,
             'description_ar' => trim((string) ($data['description_ar'] ?? '')) ?: null,
             'description_en' => trim((string) ($data['description_en'] ?? '')) ?: null,
             'base_price' => round((float) $data['base_price'], 2),

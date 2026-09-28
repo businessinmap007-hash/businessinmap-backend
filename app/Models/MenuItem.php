@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\CatalogProduct;
 use App\Models\Concerns\HasOfferingOptions;
 use App\Models\Concerns\HasOwnedImages;
 use App\Models\Concerns\RecordsPriceHistory;
@@ -76,6 +77,7 @@ class MenuItem extends Model
         'business_id',
         'menu_section_id',
         'medicine_id',
+        'catalog_product_id',
         'item_type',
         'category_id',
         'name_ar',
@@ -97,6 +99,7 @@ class MenuItem extends Model
         'business_id' => 'integer',
         'menu_section_id' => 'integer',
         'medicine_id' => 'integer',
+        'catalog_product_id' => 'integer',
         'category_id' => 'integer',
         'base_price' => 'decimal:2',
         // What the merchant paid, never the customer's business — see the
@@ -134,6 +137,17 @@ class MenuItem extends Model
     public function medicine(): BelongsTo
     {
         return $this->belongsTo(Medicine::class);
+    }
+
+    /**
+     * The shared catalog master this item's spec table comes from, when the
+     * merchant picked one — e.g. a real phone/laptop model, the same
+     * `catalog_products` row retail's «كتالوج تفصيلي» prices. Optional: a
+     * menu item that names its own thing needs none.
+     */
+    public function catalogProduct(): BelongsTo
+    {
+        return $this->belongsTo(CatalogProduct::class, 'catalog_product_id');
     }
 
     public function variants(): HasMany

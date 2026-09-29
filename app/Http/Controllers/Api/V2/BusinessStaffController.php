@@ -13,6 +13,7 @@ use App\Services\Business\StaffAttendanceService;
 use App\Services\DeliveryDispatchService;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Support\BusinessCapability;
+use App\Support\BusinessPanelNav;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -33,10 +34,22 @@ class BusinessStaffController extends Controller
     ) {
     }
 
-    /** GET /api/v2/business/capabilities — ما يستطيع هذا النشاط تفويضه. */
+    /**
+     * GET /api/v2/business/capabilities — ما يستطيع هذا النشاط تفويضه، مع
+     * شكل المنيو الخاص به (menu_food/menu_market/...، فارغ إن لم يكن مهيّأ).
+     *
+     * «نداء الطاولات وباقات المنيو تخص المطاعم فقط فلماذا تظهر عند الحسابات
+     * الاخرى» — المالك، 2026-09-29. الشاشة كانت تُخفى/تُظهر كل تبويب بمفرد
+     * صلاحية عامة («menu»/«orders») لا تفرّق مطعمًا عن سوقٍ أو معرضِ أثاث —
+     * `menu_kinds` هنا هو أول إشارة من جهة العميل بشكل منيو هذا النشاط نفسه،
+     * لتصفية شاشة الإعدادات بها دون طلب شبكي إضافي.
+     */
     public function capabilities(Request $request)
     {
-        return response()->json(['success' => true, 'data' => ['capabilities' => BusinessCapability::catalogFor($request->user())]]);
+        return response()->json(['success' => true, 'data' => [
+            'capabilities' => BusinessCapability::catalogFor($request->user()),
+            'menu_kinds' => BusinessPanelNav::menuKindsOf($request->user()),
+        ]]);
     }
 
     /** GET /api/v2/business/staff — my delegated staff. */

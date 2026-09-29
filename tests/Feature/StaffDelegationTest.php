@@ -37,11 +37,33 @@ class StaffDelegationTest extends TestCase
     {
         Sanctum::actingAs($this->makeUser(User::TYPE_BUSINESS, 'Shop'));
 
-        $keys = collect($this->getJson('/api/v2/business/capabilities')->assertOk()->json('data.capabilities'))
-            ->pluck('key')->all();
+        $data = $this->getJson('/api/v2/business/capabilities')->assertOk()->json('data');
+        $keys = collect($data['capabilities'])->pluck('key')->all();
 
         $this->assertContains(BusinessCapability::WORKING_HOURS, $keys);
         $this->assertContains(BusinessCapability::ORDERS, $keys);
+        // An unconfigured business (no category_child_id at all here) gets
+        // an empty, not missing, menu_kinds — same "empty means
+        // unrestricted" convention BusinessMenuBundleController::
+        // assertFoodMenu() reads it with.
+        $this->assertSame([], $data['menu_kinds']);
+    }
+
+    /**
+     * «نداء الطاولات وباقات المنيو تخص المطاعم فقط فلماذا تظهر عند
+     * الحسابات الاخرى» — المالك، 2026-09-29. `menu_kinds` is the signal
+     * bim_app reads to hide those tiles for a non-food business.
+     */
+    public function test_menu_kinds_reflects_a_market_shaped_business(): void
+    {
+        $market = User::query()->where('type', User::TYPE_BUSINESS)->where('category_child_id', 114)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #114.');
+
+        Sanctum::actingAs($market);
+
+        $kinds = $this->getJson('/api/v2/business/capabilities')->assertOk()->json('data.menu_kinds');
+
+        $this->assertSame(['menu_market'], $kinds);
     }
 
     public function test_owner_grants_staff_who_then_acts_as_the_business(): void

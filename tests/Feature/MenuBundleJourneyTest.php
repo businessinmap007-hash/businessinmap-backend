@@ -203,6 +203,30 @@ class MenuBundleJourneyTest extends TestCase
         );
     }
 
+    /**
+     * «باقات المنيو ستكون ضمن نوع اخر من المنيوهات» — المالك، 2026-09-29:
+     * a bundle is a restaurant idea ("وجبة العيلة") — a market business
+     * (each item priced on its own shelf) is refused one, even with a
+     * technically valid, ≥2-item payload.
+     */
+    public function test_a_market_business_cannot_create_a_bundle(): void
+    {
+        $market = User::query()->where('type', User::TYPE_BUSINESS)->where('category_child_id', 114)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #114.');
+        $items = MenuItem::query()->where('business_id', $market->id)->where('is_active', true)->limit(2)->get();
+
+        if ($items->count() < 2) {
+            $this->markTestSkipped('This market carries fewer than 2 priced items.');
+        }
+
+        $this->actingAs($market, 'sanctum')->postJson('/api/v2/business/menu/bundles', [
+            'name_ar' => 'باقة سوق',
+            'pricing_mode' => 'fixed',
+            'fixed_price' => 50,
+            'items' => $items->map(fn ($i) => ['menu_item_id' => $i->id, 'qty' => 1])->all(),
+        ])->assertStatus(422);
+    }
+
     public function test_a_stranger_cannot_manage_another_businesss_bundle(): void
     {
         $bundle = $this->createFixedBundle();

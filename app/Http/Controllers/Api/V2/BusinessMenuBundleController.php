@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuBundle;
+use App\Support\BusinessContext;
+use App\Support\BusinessPanelNav;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -13,6 +15,14 @@ use Illuminate\Validation\Rule;
  * business's own menu items sold under one name and one price. Every row is
  * scoped to business_id = the authenticated user (or their delegate's
  * employer, via {@see \App\Support\BusinessContext}).
+ *
+ * «باقات المنيو ستكون ضمن نوع اخر من المنيوهات» — المالك، 2026-09-29: a
+ * bundle ("وجبة العيلة") is a restaurant idea — a market business prices
+ * each item on its own shelf, it doesn't combo them. Creating/editing one
+ * is refused unless the business's own menu shape allows `menu_food`
+ * (mirrors {@see \App\Support\MarketCatalogChildren}'s own read of
+ * `BusinessPanelNav::menuKindsOf()`); reading/deleting an existing bundle
+ * stays open, since a shape change should never orphan data already there.
  */
 final class BusinessMenuBundleController extends Controller
 {
@@ -45,6 +55,7 @@ final class BusinessMenuBundleController extends Controller
     /** POST /api/v2/business/menu/bundles */
     public function store(Request $request)
     {
+        $this->assertFoodMenu($request);
         $businessId = $this->businessId($request);
         $data = $this->validatedBundle($request, $businessId);
 
@@ -61,6 +72,7 @@ final class BusinessMenuBundleController extends Controller
     /** PUT/PATCH /api/v2/business/menu/bundles/{bundle} */
     public function update(Request $request, int $bundle)
     {
+        $this->assertFoodMenu($request);
         $model = $this->ownBundle($request, $bundle);
         $data = $this->validatedBundle($request, $this->businessId($request));
 
@@ -89,7 +101,25 @@ final class BusinessMenuBundleController extends Controller
     /** The acting business's id (owner, or a delegate's employer via business.member). */
     private function businessId(Request $request): int
     {
-        return \App\Support\BusinessContext::id($request);
+        return BusinessContext::id($request);
+    }
+
+    /**
+     * Blocks only when the business's own menu shape is EXPLICITLY
+     * configured to something else (market, furniture...) — an
+     * unconfigured business (no `category_service_configs` row, or one
+     * with an empty `allowed_item_types`) is left unrestricted, same "an
+     * empty narrowing is worse than none" rule {@see
+     * \App\Services\MerchantOfferingVocabulary} already applies.
+     */
+    private function assertFoodMenu(Request $request): void
+    {
+        $business = BusinessContext::business($request);
+        $kinds = $business ? BusinessPanelNav::menuKindsOf($business) : [];
+
+        if ($kinds !== [] && ! in_array('menu_food', $kinds, true)) {
+            abort(422, 'باقات المنيو متاحة لقوائم المطاعم فقط.');
+        }
     }
 
     private function ownBundle(Request $request, int $bundleId): MenuBundle

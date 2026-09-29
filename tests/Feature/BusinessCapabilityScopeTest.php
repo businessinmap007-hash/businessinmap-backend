@@ -19,6 +19,7 @@ class BusinessCapabilityScopeTest extends TestCase
     use DatabaseTransactions;
 
     private const MARKETING = 177;
+    private const MARKET = 272;
 
     private function on(int $childId): User
     {
@@ -66,11 +67,31 @@ class BusinessCapabilityScopeTest extends TestCase
         foreach ([
             BusinessCapability::ORDERS,
             BusinessCapability::OFFERS,
-            BusinessCapability::PRICES,
             BusinessCapability::WORKING_HOURS,
         ] as $always) {
             $this->assertContains($always, $keys);
         }
+    }
+
+    /**
+     * «حذف اسعارى وما يتعلق بها لان الخدمات بها لا يوجد لها تسعير» —
+     * المالك، 2026-09-29. خلاف الطلبات/العروض/المواعيد، الأسعارُ لا تبقى
+     * للجميع: سوقٌ يبيع كل صنفٍ بسعره الخاص (MenuItem/RetailListing) لا
+     * شىء فيه «أسعاري» يُسعِّره أصلًا.
+     */
+    public function test_a_market_business_is_not_offered_prices(): void
+    {
+        $keys = array_keys(BusinessCapability::forBusiness($this->on(self::MARKET)));
+
+        $this->assertNotContains(BusinessCapability::PRICES, $keys);
+    }
+
+    /** وتبقى لمن يملك خدمةً حقًّا تُسعَّر بهذه الطريقة — كالحجوزات هنا. */
+    public function test_a_business_with_a_priceable_service_is_offered_prices(): void
+    {
+        $keys = array_keys(BusinessCapability::forBusiness($this->on(self::MARKETING)));
+
+        $this->assertContains(BusinessCapability::PRICES, $keys);
     }
 
     /**

@@ -60,8 +60,9 @@ final class BusinessCapability
      * 2026-08-19. وكان السجلّ يُعرض كاملًا على الجميع، فوكالةُ تسويق تمنح
      * سكرتيرتها «الوصفات الطبية» و«مواعيد العيادة» و«المنيو».
      *
-     * الطلباتُ والعروضُ والأسعارُ ومواعيدُ العمل ليست خدمةً تُباع — هى إدارةُ
-     * الحساب نفسه، فتبقى للجميع.
+     * الطلباتُ والعروضُ ومواعيدُ العمل ليست خدمةً تُباع — هى إدارةُ الحساب
+     * نفسه، فتبقى للجميع. الأسعارُ (PRICES) خرجت من هذه القاعدة 2026-09-29 —
+     * انظر PRICEABLE_SERVICES أدناه.
      *
      * «المشاريع» كانت مستثناةً عمدًا هنا (2026-08-19: لا إشارةَ فى البيانات
      * تفرّق مقاولًا عن وكالة تسويق). عاد المالك عن ذلك 2026-09-04 — الفندقُ
@@ -110,6 +111,21 @@ final class BusinessCapability
     private const HEALTH_ROOT_SLUG = 'health';
 
     /**
+     * Services whose own catalog is priced through a business-wide LIST of
+     * (service, item type) rows — {@see \App\Models\BusinessServicePrice} —
+     * rather than each product/listing carrying its own price. «حذف اسعارى
+     * وما يتعلق بها لان الخدمات بها لا يوجد لها تسعير» — المالك، 2026-09-29:
+     * a pure menu/retail business (goods priced on the item itself —
+     * MenuItem.base_price, RetailListing.price) has nothing "أسعاري" could
+     * ever price, even though PRICES used to be granted to everyone by the
+     * same "account management, not a sold service" reasoning as ORDERS/
+     * OFFERS/WORKING_HOURS above. Health (clinic) stands outside this list
+     * because it is gated by root, not by a `platform_services` key — see
+     * NEEDS_HEALTH_ROOT/standsUnderHealth().
+     */
+    private const PRICEABLE_SERVICES = ['booking', 'schedules', 'training', 'projects'];
+
+    /**
      * السجلّ مقصورًا على ما يستطيع هذا النشاط فعله.
      *
      * @return array<string,array{0:string,1:string}>
@@ -136,6 +152,10 @@ final class BusinessCapability
 
                 if (in_array($key, self::NEEDS_HEALTH_ROOT, true)) {
                     return $isHealth;
+                }
+
+                if ($key === self::PRICES) {
+                    return $isHealth || array_intersect(self::PRICEABLE_SERVICES, $services) !== [];
                 }
 
                 return true;

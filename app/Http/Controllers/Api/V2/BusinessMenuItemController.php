@@ -313,7 +313,11 @@ final class BusinessMenuItemController extends Controller
      *
      * When the merchant did not name a section by hand, the line option's
      * own group becomes one — {@see MenuSectionFromOptionGroup} — so a goods
-     * business never types "أنواع الأجهزة الكهربائية" itself.
+     * business never types "أنواع الأجهزة الكهربائية" itself. A merchant
+     * typing a brand-new item name (no line option of its own) may instead
+     * send `option_group_id` directly — «اضافة صنف» flow — resolved the
+     * same way, gated to this merchant's own vocabulary groups so an
+     * arbitrary id can't grow a section from unrelated data.
      */
     private function applyVocabulary(Request $request, MenuItem $item, bool $explicitSection): void
     {
@@ -331,13 +335,24 @@ final class BusinessMenuItemController extends Controller
 
         $item->syncOfferingOptions($line, $modifiers, $item->currentOfferingAdjustments());
 
-        if ($line && ! $explicitSection) {
+        if ($explicitSection) {
+            return;
+        }
+
+        if ($line) {
             $lineOption = $item->lineOption();
             $section = $lineOption ? $this->sectionFromGroup->resolve($businessId, $lineOption) : null;
+        } else {
+            $groupId = (int) $request->input('option_group_id', 0);
+            $allowedGroupIds = $this->vocabulary->for($businessId, $this->childId(), $this->rootId())['lines']
+                ->flatten(1)->pluck('group_id')->unique();
+            $section = $groupId && $allowedGroupIds->contains($groupId)
+                ? $this->sectionFromGroup->resolveGroupId($businessId, $groupId)
+                : null;
+        }
 
-            if ($section && (int) $item->menu_section_id !== (int) $section->id) {
-                $item->forceFill(['menu_section_id' => $section->id])->saveQuietly();
-            }
+        if ($section && (int) $item->menu_section_id !== (int) $section->id) {
+            $item->forceFill(['menu_section_id' => $section->id])->saveQuietly();
         }
     }
 

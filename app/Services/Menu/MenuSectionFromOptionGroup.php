@@ -4,6 +4,7 @@ namespace App\Services\Menu;
 
 use App\Models\MenuSection;
 use App\Models\Option;
+use App\Models\OptionGroup;
 
 /**
  * A goods business no longer types "أنواع الأجهزة الكهربائية" by hand — the
@@ -20,6 +21,23 @@ class MenuSectionFromOptionGroup
     public function resolve(int $businessId, Option $lineOption): ?MenuSection
     {
         $group = $lineOption->group;
+
+        if (! $group) {
+            return null;
+        }
+
+        return $this->resolveGroupId($businessId, $group->id);
+    }
+
+    /**
+     * Same find-or-create, entered by group id directly — for a merchant
+     * naming a brand-new item that has no vocabulary option of its own to
+     * read the group off of («اضافة صنف» flow: a custom name/price under a
+     * section the merchant picked, not one of the fixed line options).
+     */
+    public function resolveGroupId(int $businessId, int $groupId): ?MenuSection
+    {
+        $group = OptionGroup::find($groupId);
 
         if (! $group) {
             return null;

@@ -365,6 +365,53 @@ class MenuCrudApiTest extends TestCase
         $this->assertNull($item['menu_section_id']);
     }
 
+    /**
+     * «الصنف لابد ان يكون تابع لقسم من الاقسام … سعر التوريد والبيع
+     * والكمية والصورة» — المالك، 2026-09-29. The FAB's «اضافة صنف» flow: a
+     * brand-new name with NO line option of its own, tied to a section via
+     * `option_group_id` instead — same find-or-create as a line option's
+     * own group, entered through the other door.
+     */
+    public function test_a_custom_item_with_option_group_id_grows_its_own_section(): void
+    {
+        [$business, , $groupId] = $this->businessWithLineVocabulary();
+
+        $item = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'نوع جديد لم يكن فى القائمة', 'name_en' => 'A brand new variety',
+                'base_price' => 30, 'option_group_id' => $groupId,
+            ])->assertCreated()->json('data');
+
+        $this->assertNull($item['line_option'], 'a custom item has no fixed line option');
+        $this->assertNotNull($item['menu_section_id'], 'option_group_id must grow a section automatically');
+
+        $this->assertDatabaseHas('menu_sections', [
+            'id' => $item['menu_section_id'],
+            'business_id' => $business->id,
+            'option_group_id' => $groupId,
+        ]);
+
+        // A second custom item in the SAME group must land in the SAME section.
+        $second = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'نوع تاني نفس القسم', 'base_price' => 40, 'option_group_id' => $groupId,
+            ])->assertCreated()->json('data');
+
+        $this->assertSame($item['menu_section_id'], $second['menu_section_id']);
+    }
+
+    public function test_a_foreign_option_group_id_is_ignored_not_rejected(): void
+    {
+        [$business] = $this->businessWithLineVocabulary();
+
+        $item = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'صنف بقسم غريب', 'base_price' => 30, 'option_group_id' => 999999999,
+            ])->assertCreated()->json('data');
+
+        $this->assertNull($item['menu_section_id']);
+    }
+
     public function test_second_default_variant_unsets_the_first(): void
     {
         $item = MenuItem::create([

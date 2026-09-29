@@ -35,7 +35,7 @@ class TechDeviceSpecsSeeder extends Seeder
         'Apple iPad 10.9 inch' => ['Apple A14 Bionic', 4, '64GB', 10.9, 'iPadOS'],
     ];
 
-    /** name_en => [processor, ram_gb, storage, screen_inches, os] */
+    /** name_en => [processor, ram_gb, storage, screen_inches, os, gpu?] */
     private const PHONES = [
         'Samsung Galaxy A15 128GB' => ['MediaTek Helio G99', 4, '128GB', 6.5, 'Android 14'],
         'Samsung Galaxy A54 256GB' => ['Exynos 1380', 8, '256GB', 6.4, 'Android 14'],
@@ -51,6 +51,17 @@ class TechDeviceSpecsSeeder extends Seeder
         'Honor X9b 256GB' => ['Snapdragon 6 Gen 1', 8, '256GB', 6.78, 'Android 13'],
         'Apple iPhone 15 128GB' => ['Apple A16 Bionic', 6, '128GB', 6.1, 'iOS 17'],
         'Apple iPhone 13 128GB' => ['Apple A15 Bionic', 4, '128GB', 6.1, 'iOS 17'],
+
+        // Added by TechDevicePhonesExpansionSeeder's 7 new products — one
+        // current/popular tier-up pick per existing brand, verified against
+        // each model's real published spec sheet (gsmarena/devicespecifications).
+        'Samsung Galaxy S24 Ultra 256GB' => ['Snapdragon 8 Gen 3', 12, '256GB', 6.8, 'Android 14', 'Adreno 750'],
+        'Apple iPhone 15 Pro Max 256GB' => ['Apple A17 Pro', 8, '256GB', 6.7, 'iOS 17'],
+        'Xiaomi Redmi Note 13 Pro 256GB' => ['Snapdragon 7s Gen 2', 8, '256GB', 6.67, 'Android 13'],
+        'Xiaomi Poco X6 Pro 256GB' => ['MediaTek Dimensity 8300', 8, '256GB', 6.67, 'Android 14', 'Mali-G615 MC6'],
+        'Realme 12 128GB' => ['MediaTek Dimensity 6100+', 8, '128GB', 6.67, 'Android 14'],
+        'Infinix Note 40 Pro 256GB' => ['MediaTek Helio G99', 8, '256GB', 6.78, 'Android 14'],
+        'Tecno Camon 20 256GB' => ['MediaTek Helio G85', 8, '256GB', 6.67, 'Android 13', 'Mali-G52 MC2'],
     ];
 
     public function run(): void

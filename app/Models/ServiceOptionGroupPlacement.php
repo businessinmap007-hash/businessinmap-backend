@@ -12,6 +12,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *   section        the group's name is a department («أجهزة كهربائية»,
  *                  «مواد غذائية») and its options are that department's
  *                  branches («ثلاجات», «غسالات»). A child may carry several.
+ *                  When `branches_as_sections` is also set, each OPTION
+ *                  becomes its own section instead — the group itself
+ *                  stops being a department and just bundles siblings that
+ *                  each get their own storefront section («موبايل», «تابلت»,
+ *                  «ساعة ذكية» each standalone rather than all living inside
+ *                  one «أجهزة الموبايل وملحقاتها» section).
  *   descriptive    a plain field on the product (brand, …) — never priced.
  *   price_variant  the SAME product has one price per option («كاش / قسط»,
  *                  «جديد / مستعمل / كسر زيرو»).
@@ -50,12 +56,14 @@ class ServiceOptionGroupPlacement extends Model
         'child_id',
         'item_type_key',
         'usage',
+        'branches_as_sections',
         'is_active',
         'sort_order',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'branches_as_sections' => 'boolean',
         'child_id' => 'integer',
         'sort_order' => 'integer',
     ];

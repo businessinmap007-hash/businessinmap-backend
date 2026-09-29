@@ -120,6 +120,28 @@ class ServiceComponentsTest extends TestCase
         $this->assertSame(0, P::query()->where('platform_service_id', $service)->where('child_id', $child)->count());
     }
 
+    public function test_branches_as_sections_saves_and_defaults_to_false(): void
+    {
+        [$root, $child, $service, $group] = $this->scope();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post(route('admin.service-components.save', [], false), [
+            'root_id' => $root, 'child_id' => $child, 'service_id' => $service,
+            'rows' => [['option_group_id' => $group, 'usage' => P::USAGE_SECTION, 'branches_as_sections' => 1]],
+        ])->assertRedirect();
+
+        $row = P::query()->where('platform_service_id', $service)->where('option_group_id', $group)->where('child_id', $child)->first();
+        $this->assertTrue($row->branches_as_sections);
+
+        // Omitting the checkbox (unchecked, so absent from the POST body) turns it back off.
+        $this->actingAs($admin)->post(route('admin.service-components.save', [], false), [
+            'root_id' => $root, 'child_id' => $child, 'service_id' => $service,
+            'rows' => [['option_group_id' => $group, 'usage' => P::USAGE_SECTION]],
+        ])->assertRedirect();
+
+        $this->assertFalse($row->fresh()->branches_as_sections);
+    }
+
     public function test_a_service_the_child_does_not_offer_is_refused(): void
     {
         [$root, $child, , $group] = $this->scope();

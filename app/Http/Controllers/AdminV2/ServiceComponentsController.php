@@ -75,6 +75,7 @@ class ServiceComponentsController extends Controller
             'rows' => ['nullable', 'array', 'max:300'],
             'rows.*.option_group_id' => ['required', 'integer', 'exists:option_groups,id'],
             'rows.*.usage' => ['nullable', Rule::in(Placement::USAGES)],
+            'rows.*.branches_as_sections' => ['nullable', 'boolean'],
             'rows.*.is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -103,6 +104,7 @@ class ServiceComponentsController extends Controller
                     ],
                     [
                         'usage' => $row['usage'],
+                        'branches_as_sections' => (bool) ($row['branches_as_sections'] ?? false),
                         'is_active' => (bool) ($row['is_active'] ?? true),
                         'sort_order' => ($i + 1) * 10,
                     ]

@@ -86,6 +86,7 @@
                             <tr>
                                 <th>{{ __('البند (مجموعة الخيارات)') }}</th>
                                 <th>{{ __('هو فى الخدمة') }}</th>
+                                <th>{{ __('الفروع داخل المجموعة هى أقسام متعددة') }}</th>
                                 <th>{{ __('مفعّل') }}</th>
                             </tr>
                         </thead>
@@ -109,12 +110,17 @@
                                         </select>
                                     </td>
                                     <td>
+                                        <input type="hidden" name="rows[{{ $i }}][branches_as_sections]" value="0">
+                                        <input type="checkbox" name="rows[{{ $i }}][branches_as_sections]" value="1" @checked($row->branches_as_sections ?? false)
+                                            title="{{ __('عند التفعيل: كل فرع (خيار) داخل هذه المجموعة يصبح قسمًا مستقلًا بذاته، بدل أن تكون المجموعة كلها قسمًا واحدًا وفروعها بنوده. مفيد فقط مع «قسم».') }}">
+                                    </td>
+                                    <td>
                                         <input type="hidden" name="rows[{{ $i }}][is_active]" value="0">
                                         <input type="checkbox" name="rows[{{ $i }}][is_active]" value="1" @checked($row->is_active ?? true)>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="3" class="a2-muted">{{ __('هذا الابن لا يحمل أي مجموعة خيارات. اربطها من «خيارات التصنيفات الفرعية».') }}</td></tr>
+                                <tr><td colspan="4" class="a2-muted">{{ __('هذا الابن لا يحمل أي مجموعة خيارات. اربطها من «خيارات التصنيفات الفرعية».') }}</td></tr>
                             @endforelse
                         </tbody>
                     </table>

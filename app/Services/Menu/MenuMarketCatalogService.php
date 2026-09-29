@@ -56,7 +56,8 @@ class MenuMarketCatalogService
                 'name' => (string) $groupName,
                 'rows' => $rows,
                 'filled' => count(array_filter($rows, fn ($r) => $r['item'] !== null)),
-                'sale_unit_codes' => $groupName === 'أعشاب وورقيات' ? SaleUnits::herbsCodes() : null,
+                'sale_unit_codes' => in_array($groupName, SaleUnits::producePackagingGroupNames(), true)
+                    ? SaleUnits::herbsCodes() : null,
             ];
         }
 
@@ -103,9 +104,10 @@ class MenuMarketCatalogService
                 'total' => count($rows),
                 // null = every unit in `sale_units` is fair game (most
                 // groups: a washing machine could be «قطعة» or «عبوة»…).
-                // «أعشاب وورقيات» narrows to what it's actually sold by —
-                // see SaleUnits::herbsCodes()'s own doc for why.
-                'sale_unit_codes' => $groupName === 'أعشاب وورقيات' ? SaleUnits::herbsCodes() : null,
+                // Produce groups (herbs/fruit/veg) narrow to what they're
+                // actually sold by — see SaleUnits::producePackagingGroupNames().
+                'sale_unit_codes' => in_array($groupName, SaleUnits::producePackagingGroupNames(), true)
+                    ? SaleUnits::herbsCodes() : null,
             ];
         }
 

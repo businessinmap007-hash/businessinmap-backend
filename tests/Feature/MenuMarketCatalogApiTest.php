@@ -118,9 +118,10 @@ class MenuMarketCatalogApiTest extends TestCase
     /**
      * «الورقيات بتكون اما بالرابطة او بالكيلو او جرام مثلها مثل الفواكة
      * والخضروات فلذلك اجعل الوحدات فيها بالثلاثة دول فقط» — المالك،
-     * 2026-09-29.
+     * 2026-09-29, widened the same day to name «الفواكه»/«الخضروات»
+     * explicitly rather than leave them unrestricted.
      */
-    public function test_herbs_group_carries_a_restricted_sale_unit_list(): void
+    public function test_produce_groups_carry_a_restricted_sale_unit_list(): void
     {
         $business = $this->marketBusiness(272);
 
@@ -129,17 +130,26 @@ class MenuMarketCatalogApiTest extends TestCase
             ->assertOk();
 
         $groups = collect($response->json('data.groups'));
-        $herbs = $groups->firstWhere('name_ar', 'أعشاب وورقيات');
+        $produceNames = ['أعشاب وورقيات', 'الفواكه', 'الخضروات'];
 
-        if ($herbs === null) {
-            $this->markTestSkipped('This market carries no أعشاب وورقيات group.');
+        $found = false;
+        foreach ($produceNames as $name) {
+            $group = $groups->firstWhere('name_ar', $name);
+            if ($group === null) {
+                continue;
+            }
+
+            $found = true;
+            $this->assertEqualsCanonicalizing(['bunch', 'kg', 'g'], $group['sale_unit_codes'], "{$name} must be narrowed");
         }
 
-        $this->assertEqualsCanonicalizing(['bunch', 'kg', 'g'], $herbs['sale_unit_codes']);
+        if (! $found) {
+            $this->markTestSkipped('This market carries none of the produce groups.');
+        }
 
-        $other = $groups->first(fn ($g) => $g['name_ar'] !== 'أعشاب وورقيات');
+        $other = $groups->first(fn ($g) => ! in_array($g['name_ar'], $produceNames, true));
         if ($other !== null) {
-            $this->assertNull($other['sale_unit_codes'], 'a non-herbs group must not be narrowed');
+            $this->assertNull($other['sale_unit_codes'], 'a non-produce group must not be narrowed');
         }
     }
 

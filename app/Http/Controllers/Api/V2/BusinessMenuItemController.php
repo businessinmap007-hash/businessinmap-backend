@@ -69,9 +69,10 @@ final class BusinessMenuItemController extends Controller
                 // merchant chooses the brand, not just qualifies with it.
                 'is_brand' => str_contains((string) $groupName, 'ماركات') || str_contains((string) $groupName, 'العلامة التجارية'),
                 // null = every SaleUnits::options() code is fair game; see
-                // MenuMarketCatalogService's identical check for why «أعشاب
-                // وورقيات» alone narrows down (SaleUnits::herbsCodes()).
-                'sale_unit_codes' => $groupName === 'أعشاب وورقيات' ? SaleUnits::herbsCodes() : null,
+                // MenuMarketCatalogService's identical check for why produce
+                // groups narrow down (SaleUnits::producePackagingGroupNames()).
+                'sale_unit_codes' => in_array($groupName, SaleUnits::producePackagingGroupNames(), true)
+                    ? SaleUnits::herbsCodes() : null,
                 'options' => collect($options)->map(fn ($o) => [
                     'id' => (int) $o->id,
                     'name_ar' => $o->name_ar,

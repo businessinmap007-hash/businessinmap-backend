@@ -135,4 +135,17 @@ final class SaleUnits
     {
         return array_keys(self::herbsOptions());
     }
+
+    /**
+     * The option groups narrowed to {@see herbsCodes()} (bunch/kg/g) —
+     * widened the same day from herbs alone to include فواكه/خضروات too,
+     * per the owner's own comparison in the quote above: fruit and
+     * vegetables never sell by the litre or the box either.
+     *
+     * @return array<int,string>
+     */
+    public static function producePackagingGroupNames(): array
+    {
+        return ['أعشاب وورقيات', 'الفواكه', 'الخضروات'];
+    }
 }

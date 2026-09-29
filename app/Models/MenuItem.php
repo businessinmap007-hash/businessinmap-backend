@@ -237,9 +237,14 @@ class MenuItem extends Model
      *        a batch (one business, one lookup); left null it is worked out
      *        here from `$this->business`, a fine cost for the rare one-item
      *        call but a query-per-item N+1 for a whole menu's worth.
+     * @param  array<int,bool>|null  $splitBranchesByGroup  option_group_id =>
+     *        whether «مكونات الخدمة» turned `branches_as_sections` on for
+     *        THIS group under the menu service. Same batching reason as
+     *        `$isGoodsCatalog` — a caller resolves it once per business via
+     *        `ServiceOptionPlacements`, not per item.
      * @return array{key:string,label:string,source:string,option_ids:array<int,int>}|null
      */
-    public function heading(?bool $isGoodsCatalog = null): ?array
+    public function heading(?bool $isGoodsCatalog = null, ?array $splitBranchesByGroup = null): ?array
     {
         $section = $this->section;
 
@@ -287,6 +292,24 @@ class MenuItem extends Model
             $isGoodsCatalog ??= MarketCatalogChildren::includes($this->business);
 
             if ($isGoodsCatalog) {
+                /*
+                 * «موبايل», «تابلت», «ساعة ذكية» … each its OWN section
+                 * instead of every device type sitting under one
+                 * «أجهزة الموبايل وملحقاتها» heading — the split an admin
+                 * declares per group in «مكونات الخدمة»
+                 * (`branches_as_sections`), off by default so every
+                 * existing goods menu (فاكهة/خضروات/بقالة) keeps today's
+                 * one-heading-per-department behaviour untouched.
+                 */
+                if ($splitBranchesByGroup[(int) $line->group_id] ?? false) {
+                    return [
+                        'key' => 'branch:' . (int) $line->id,
+                        'label' => (string) $line->displayName(),
+                        'source' => 'catalog_branch',
+                        'option_ids' => [(int) $line->id],
+                    ];
+                }
+
                 return [
                     'key' => 'group:' . (int) $line->group_id,
                     'label' => (string) $line->group?->displayName(),

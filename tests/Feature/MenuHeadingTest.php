@@ -162,6 +162,58 @@ class MenuHeadingTest extends TestCase
         $this->assertSame($line->name_ar, $payload['line_option']['name_ar']);
     }
 
+    /**
+     * «لا يوجد شاشة التفاصيل ولا حتى اقسام، والاقسام هنا مثل موبيلات يكون
+     * تحتها فروع» — المالك، 2026-09-29. A goods-catalog child whose
+     * «مكونات الخدمة» turned `branches_as_sections` on for its line group
+     * gets one heading PER BRANCH («موبايل», «تابلت», «ساعة ذكية» each on
+     * their own) instead of the ordinary one-heading-per-group behaviour
+     * {@see MenuMarketCatalogTest::test_the_customer_facing_heading_is_the_groups_name()}
+     * still covers for every child that leaves it off.
+     */
+    public function test_branches_as_sections_gives_each_branch_its_own_heading(): void
+    {
+        $business = User::query()->where('type', 'business')->where('category_child_id', 186)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business on child #186 (mobiles_accessories).');
+
+        // Set this child's own item-type config within the transaction rather
+        // than trusting the live row — an admin actively curating «مكونات
+        // الخدمة»/«طاولة العمل» elsewhere can (and did, mid-session) repoint
+        // #186 at a different item type at any moment.
+        $menuService = (int) PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id');
+        DB::table('category_service_configs')->updateOrInsert(
+            ['category_id' => (int) $business->category_id, 'child_id' => 186, 'platform_service_id' => $menuService],
+            ['config' => json_encode(['allowed_item_types' => ['menu_market']]), 'is_active' => 1, 'updated_at' => now()]
+        );
+
+        $this->assertTrue(\App\Support\MarketCatalogChildren::includes($business->fresh()), 'child #186 is expected to be a goods catalog');
+
+        $group = OptionGroup::query()->where('name_ar', 'أجهزة الموبايل وملحقاتها')->firstOrFail();
+        $mobile = Option::query()->where('group_id', $group->id)->where('name_ar', 'موبايل')->firstOrFail();
+        $tablet = Option::query()->where('group_id', $group->id)->where('name_ar', 'تابلت')->firstOrFail();
+
+        $menuService = (int) PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id');
+        \App\Models\ServiceOptionGroupPlacement::updateOrCreate(
+            ['platform_service_id' => $menuService, 'option_group_id' => $group->id, 'child_id' => 186, 'item_type_key' => ''],
+            ['usage' => \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION, 'branches_as_sections' => true, 'is_active' => true, 'sort_order' => 10]
+        );
+
+        $this->item($business, 'آيفون تجريبي')->syncOfferingOptions((int) $mobile->id);
+        $this->item($business, 'تابلت تجريبي')->syncOfferingOptions((int) $tablet->id);
+
+        $sections = $this->menu($business);
+
+        $mobileSection = collect($sections)->firstWhere('name', $mobile->displayName());
+        $tabletSection = collect($sections)->firstWhere('name', $tablet->displayName());
+
+        $this->assertNotNull($mobileSection, 'موبايل did not get its own heading');
+        $this->assertNotNull($tabletSection, 'تابلت did not get its own heading');
+        $this->assertSame('catalog_branch', $mobileSection['source']);
+        $this->assertNotSame($mobileSection['name'], $tabletSection['name']);
+        $this->assertCount(1, $mobileSection['items']);
+        $this->assertCount(1, $tabletSection['items']);
+    }
+
     /** A heading the merchant wrote himself wins over the taxonomy's. */
     public function test_a_hand_written_section_wins(): void
     {

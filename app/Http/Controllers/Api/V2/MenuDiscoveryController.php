@@ -34,6 +34,7 @@ final class MenuDiscoveryController extends Controller
         // Worked out once per business rather than once per item — the same
         // config `heading()` would otherwise re-read on every row.
         $isGoodsCatalog = MarketCatalogChildren::includes($biz);
+        $splitBranchesByGroup = $this->splitBranchesByGroup((int) ($biz->category_child_id ?? 0));
 
         $items = MenuItem::query()
             ->where('business_id', $business)
@@ -86,7 +87,7 @@ final class MenuDiscoveryController extends Controller
             return $sid === 0 || ! in_array($sid, $activeSectionIds, true);
         });
 
-        foreach ($this->headingsOf($ungrouped, $isGoodsCatalog) as $heading) {
+        foreach ($this->headingsOf($ungrouped, $isGoodsCatalog, $splitBranchesByGroup) as $heading) {
             $out[] = $heading;
         }
 
@@ -138,15 +139,16 @@ final class MenuDiscoveryController extends Controller
      * still pulls its heading up the page.
      *
      * @param  \Illuminate\Support\Collection<int,MenuItem>  $items
+     * @param  array<int,bool>  $splitBranchesByGroup
      * @return array<int,array<string,mixed>>
      */
-    private function headingsOf($items, bool $isGoodsCatalog): array
+    private function headingsOf($items, bool $isGoodsCatalog, array $splitBranchesByGroup = []): array
     {
         $groups = [];
         $loose = [];
 
         foreach ($items as $item) {
-            $heading = $item->heading($isGoodsCatalog);
+            $heading = $item->heading($isGoodsCatalog, $splitBranchesByGroup);
 
             if (! $heading) {
                 $loose[] = $item;
@@ -296,6 +298,33 @@ final class MenuDiscoveryController extends Controller
                 'max_qty' => (int) ($e->max_qty ?: 1),
             ])->values(),
         ];
+    }
+
+    /**
+     * option_group_id => true for every group this child's «مكونات الخدمة»
+     * (menu service) turned `branches_as_sections` on for — see
+     * {@see MenuItem::heading()} and [[tech-spec-menu-implementation]].
+     *
+     * @return array<int,bool>
+     */
+    private function splitBranchesByGroup(int $childId): array
+    {
+        if ($childId <= 0) {
+            return [];
+        }
+
+        $menuServiceId = (int) \App\Models\PlatformService::query()
+            ->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
+
+        if ($menuServiceId <= 0) {
+            return [];
+        }
+
+        return app(\App\Services\Catalog\ServiceOptionPlacements::class)
+            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION)
+            ->filter(fn ($p) => $p->branches_as_sections)
+            ->mapWithKeys(fn ($p) => [(int) $p->option_group_id => true])
+            ->all();
     }
 
     private function label($ar, $en, $fallback): string

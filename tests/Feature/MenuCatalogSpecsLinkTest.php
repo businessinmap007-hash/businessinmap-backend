@@ -43,6 +43,24 @@ class MenuCatalogSpecsLinkTest extends TestCase
         $this->assertArrayHasKey('processor', $byCode);
     }
 
+    /**
+     * A merchant picking a product in «التسعير والتفاصيل» sees its spec table
+     * BEFORE saving anything — the search result itself carries `specs`, not
+     * just `id`/`name`/`image`. See [[tech-spec-menu-implementation]].
+     */
+    public function test_the_catalog_lookup_result_carries_the_products_specs(): void
+    {
+        $business = User::query()->where('type', 'business')->orderBy('id')->firstOrFail();
+        Sanctum::actingAs($business);
+
+        $lookup = $this->getJson('/api/v2/business/menu/catalog-lookup?q=' . urlencode('Dell Latitude'))
+            ->assertOk()->json('data.items');
+
+        $this->assertNotEmpty($lookup);
+        $this->assertNotEmpty($lookup[0]['specs'], 'the lookup result must carry the products spec table');
+        $this->assertArrayHasKey('processor', collect($lookup[0]['specs'])->keyBy('code'));
+    }
+
     public function test_the_public_menu_discovery_shows_the_linked_products_specs(): void
     {
         $business = User::query()->where('type', 'business')->orderBy('id')->firstOrFail();

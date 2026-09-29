@@ -50,15 +50,17 @@ final class BusinessMenuItemController extends Controller
     public function vocabulary(Request $request)
     {
         $vocabulary = $this->vocabulary->for($this->businessId($request), $this->childId(), $this->rootId());
+        $detailedGroupIds = $this->detailedGroupIds();
 
         // Grouping keys on the Arabic name (a stable, unique identifier
         // regardless of the request's own locale) — `is_brand` matches
         // against THAT, never the localized label chosen for display below.
-        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) {
+        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($detailedGroupIds) {
+            $groupId = (int) $options->first()->group_id;
             $groupNameEn = $options->first()->group_name_en;
 
             return [
-                'group_id' => (int) $options->first()->group_id,
+                'group_id' => $groupId,
                 'group_name' => app()->getLocale() === 'en' && $groupNameEn
                     ? (string) $groupNameEn
                     : (string) $groupName,
@@ -68,6 +70,12 @@ final class BusinessMenuItemController extends Controller
                 // OWN dropdown instead of just another modifier chip: a
                 // merchant chooses the brand, not just qualifies with it.
                 'is_brand' => str_contains((string) $groupName, 'ماركات') || str_contains((string) $groupName, 'العلامة التجارية'),
+                // true = «مكونات الخدمة» split this group's branches into
+                // their own sections (branches_as_sections) — the signal a
+                // client uses to open the catalog-linked "التسعير
+                // والتفاصيل" flow for this branch instead of the plain
+                // quantity/price dialog. See [[tech-spec-menu-implementation]].
+                'detailed' => in_array($groupId, $detailedGroupIds, true),
                 // null = every SaleUnits::options() code is fair game; see
                 // MenuMarketCatalogService's identical check for why produce
                 // groups narrow down (SaleUnits::producePackagingGroupNames()).
@@ -88,6 +96,30 @@ final class BusinessMenuItemController extends Controller
                 'modifiers' => $shape($vocabulary['modifiers']),
             ],
         ]);
+    }
+
+    /** @return array<int,int> option_group_id of every group branches_as_sections split for this child under the menu service */
+    private function detailedGroupIds(): array
+    {
+        $childId = $this->childId();
+        if ($childId <= 0) {
+            return [];
+        }
+
+        $menuServiceId = (int) \App\Models\PlatformService::query()
+            ->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
+
+        if ($menuServiceId <= 0) {
+            return [];
+        }
+
+        return app(\App\Services\Catalog\ServiceOptionPlacements::class)
+            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION)
+            ->filter(fn ($p) => $p->branches_as_sections)
+            ->pluck('option_group_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
     }
 
     /**
@@ -373,13 +405,22 @@ final class BusinessMenuItemController extends Controller
             ->leftJoin('catalog_brands as b', 'b.id', '=', 'catalog_products.brand_id')
             ->orderBy('catalog_products.name_ar')
             ->limit(20)
-            ->get(['catalog_products.id', 'catalog_products.name_ar', 'catalog_products.name_en', 'catalog_products.main_image', 'b.name_ar as brand_name'])
-            ->map(fn ($p) => [
-                'id' => (int) $p->id,
-                'name' => app()->getLocale() === 'en' ? ($p->name_en ?: $p->name_ar) : ($p->name_ar ?: $p->name_en),
-                'brand' => $p->brand_name,
-                'image' => $p->main_image,
-            ]);
+            ->get(['catalog_products.id', 'catalog_products.name_ar', 'catalog_products.name_en', 'catalog_products.main_image', 'b.name_ar as brand_name']);
+
+        // Batched, not per-row — the same reasoning ProductSpecs's own
+        // docblock gives: one query pair for the whole page of results.
+        $specs = app(\App\Services\Catalog\ProductSpecs::class)->forProducts($items->pluck('id')->all());
+
+        $items = $items->map(fn ($p) => [
+            'id' => (int) $p->id,
+            'name' => app()->getLocale() === 'en' ? ($p->name_en ?: $p->name_ar) : ($p->name_ar ?: $p->name_en),
+            'brand' => $p->brand_name,
+            'image' => $p->main_image,
+            // So the item form can show a spec preview the instant a merchant
+            // picks a result, before saving anything — see
+            // [[tech-spec-menu-implementation]]'s «التسعير والتفاصيل».
+            'specs' => $specs[(int) $p->id] ?? [],
+        ]);
 
         return response()->json(['success' => true, 'data' => ['items' => $items]]);
     }

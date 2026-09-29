@@ -182,6 +182,42 @@ class MenuCrudApiTest extends TestCase
     }
 
     /**
+     * «لا يوجد شاشة التفاصيل ولا حتى اقسام» — المالك، 2026-09-29. A line
+     * group `branches_as_sections` split gets `detailed: true` here — the
+     * signal bim_app uses to open «التسعير والتفاصيل» (catalog-linked)
+     * instead of the plain quantity/price dialog for that branch.
+     * See [[tech-spec-menu-implementation]].
+     */
+    public function test_a_split_group_is_flagged_detailed_in_the_vocabulary(): void
+    {
+        $business = User::query()->where('type', 'business')->where('category_child_id', 186)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #186.');
+
+        $menuService = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
+        $group = \App\Models\OptionGroup::query()->where('name_ar', 'أجهزة الموبايل وملحقاتها')->firstOrFail();
+
+        \App\Models\ServiceOptionGroupPlacement::updateOrCreate(
+            ['platform_service_id' => $menuService, 'option_group_id' => $group->id, 'child_id' => 186, 'item_type_key' => ''],
+            ['usage' => \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION, 'branches_as_sections' => true, 'is_active' => true, 'sort_order' => 10]
+        );
+
+        $lines = collect(
+            $this->actingAs($business, 'sanctum')
+                ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.lines')
+        );
+
+        $mobiles = $lines->firstWhere('group_id', $group->id);
+        $this->assertNotNull($mobiles, 'the mobiles device-type group must be in this businesss line vocabulary');
+        $this->assertTrue($mobiles['detailed']);
+
+        // Any other line group this business carries, if it has one, is untouched.
+        $other = $lines->firstWhere('group_id', '!=', $group->id);
+        if ($other) {
+            $this->assertFalse($other['detailed']);
+        }
+    }
+
+    /**
      * «الورقيات بتكون اما بالرابطة او بالكيلو او جرام … اجعل الوحدات فيها
      * بالثلاثة دول فقط» — المالك، 2026-09-29, widened the same day to
      * name «الفواكه»/«الخضروات» explicitly. Mirrors MenuMarketCatalogApiTest's

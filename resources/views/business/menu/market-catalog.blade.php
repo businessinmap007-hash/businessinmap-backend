@@ -100,7 +100,12 @@
                                     <select class="a2-select" name="rows[{{ $row['option_id'] }}][sale_unit]">
                                         <option value="">{{ __('— بالقطعة —') }}</option>
                                         @foreach($saleUnits as $code => $label)
-                                            <option value="{{ $code }}" @selected((string) old('rows.' . $row['option_id'] . '.sale_unit', $item->sale_unit ?? '') === (string) $code)>{{ $label }}</option>
+                                            {{-- «أعشاب وورقيات» narrows to bunch/kg/g — see
+                                                 SaleUnits::herbsCodes(); every other group still
+                                                 gets the full list, unrestricted. --}}
+                                            @if(is_null($group['sale_unit_codes'] ?? null) || in_array($code, $group['sale_unit_codes'], true))
+                                                <option value="{{ $code }}" @selected((string) old('rows.' . $row['option_id'] . '.sale_unit', $item->sale_unit ?? '') === (string) $code)>{{ $label }}</option>
+                                            @endif
                                         @endforeach
                                     </select>
                                 </td>

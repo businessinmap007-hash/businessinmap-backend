@@ -107,4 +107,32 @@ final class SaleUnits
     {
         return array_keys(self::pharmacyOptions());
     }
+
+    /**
+     * «الورقيات بتكون اما بالرابطة او بالكيلو او جرام مثلها مثل الفواكة
+     * والخضروات فلذلك اجعل الوحدات فيها بالثلاثة دول فقط» — المالك،
+     * 2026-09-29. بقدونس، كزبرة، شبت… never sell by the litre or the box —
+     * a bunch, a kilo or a gram covers every real case. `bunch` is a
+     * 2026-09-29 addition ({@see \Database\Seeders\HerbsBunchUnitSeeder});
+     * a fresh install that has not yet run it still gets كجم/جم rather
+     * than an empty dropdown, same guard as {@see pharmacyOptions()}.
+     *
+     * @return array<string,string> code => Arabic label
+     */
+    public static function herbsOptions(): array
+    {
+        $codes = ['bunch', 'kg', 'g'];
+
+        return array_filter(
+            self::options(),
+            fn ($label, $code) => in_array($code, $codes, true),
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
+
+    /** @return array<int,string> */
+    public static function herbsCodes(): array
+    {
+        return array_keys(self::herbsOptions());
+    }
 }

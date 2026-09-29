@@ -115,6 +115,34 @@ class MenuMarketCatalogApiTest extends TestCase
         $this->assertFalse((bool) $item->fresh()->is_active);
     }
 
+    /**
+     * «الورقيات بتكون اما بالرابطة او بالكيلو او جرام مثلها مثل الفواكة
+     * والخضروات فلذلك اجعل الوحدات فيها بالثلاثة دول فقط» — المالك،
+     * 2026-09-29.
+     */
+    public function test_herbs_group_carries_a_restricted_sale_unit_list(): void
+    {
+        $business = $this->marketBusiness(272);
+
+        $response = $this->actingAs($business, 'sanctum')
+            ->getJson('/api/v2/business/menu/market-catalog')
+            ->assertOk();
+
+        $groups = collect($response->json('data.groups'));
+        $herbs = $groups->firstWhere('name_ar', 'أعشاب وورقيات');
+
+        if ($herbs === null) {
+            $this->markTestSkipped('This market carries no أعشاب وورقيات group.');
+        }
+
+        $this->assertEqualsCanonicalizing(['bunch', 'kg', 'g'], $herbs['sale_unit_codes']);
+
+        $other = $groups->first(fn ($g) => $g['name_ar'] !== 'أعشاب وورقيات');
+        if ($other !== null) {
+            $this->assertNull($other['sale_unit_codes'], 'a non-herbs group must not be narrowed');
+        }
+    }
+
     public function test_save_refuses_an_option_outside_this_merchants_own_vocabulary(): void
     {
         $business = $this->marketBusiness(272);

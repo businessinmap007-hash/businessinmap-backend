@@ -369,6 +369,11 @@ class DatabaseSeeder extends Seeder
            // FoodRangesExpansionSeeder, which is what it is correcting.
            ProduceVarietyCleanupSeeder::class,
 
+           // «الورقيات بتكون اما بالرابطة او بالكيلو او جرام مثلها مثل
+           // الفواكة والخضروات» — adds «رابطة» (bunch) to catalog_units so
+           // SaleUnits::herbsCodes() has all three units available.
+           HerbsBunchUnitSeeder::class,
+
             //  EgyptCountriesSeeder::class,
             //  EgyptGovernoratesSeeder::class,
             //  EgyptCitiesSeeder::class,

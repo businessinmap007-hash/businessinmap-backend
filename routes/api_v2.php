@@ -14,7 +14,6 @@ use App\Http\Controllers\Api\V2\MenuMarketCatalogController;
 use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\BusinessOfferingsController;
 use App\Http\Controllers\Api\V2\BusinessRetailListingController;
-use App\Http\Controllers\Api\V2\BusinessRetailVariantGroupController;
 use App\Http\Controllers\Api\V2\BusinessServicePriceController;
 use App\Http\Controllers\Api\V2\CartController;
 use App\Http\Controllers\Api\V2\CategoryController;
@@ -941,17 +940,6 @@ Route::prefix('v2')->group(function () {
             Route::delete('{listing}', [BusinessRetailListingController::class, 'destroy'])->whereNumber('listing');
             Route::get('{listing}/extras', [BusinessRetailListingController::class, 'extras'])->whereNumber('listing');
             Route::put('{listing}/extras', [BusinessRetailListingController::class, 'syncExtras'])->whereNumber('listing');
-        });
-
-        // Retail variant groups: several of the business's own listings shown to the
-        // customer as one product with a color/size picker. Edited as a whole list,
-        // same convention as menu bundles above.
-        Route::prefix('business/retail/variant-groups')->middleware('business.member:' . BusinessCapability::RETAIL)->group(function () {
-            Route::get('/', [BusinessRetailVariantGroupController::class, 'index']);
-            Route::post('/', [BusinessRetailVariantGroupController::class, 'store']);
-            Route::get('{group}', [BusinessRetailVariantGroupController::class, 'show'])->whereNumber('group');
-            Route::match(['put', 'patch'], '{group}', [BusinessRetailVariantGroupController::class, 'update'])->whereNumber('group');
-            Route::delete('{group}', [BusinessRetailVariantGroupController::class, 'destroy'])->whereNumber('group');
         });
 
         // Order-handover QR (BIM-13.5): issue a ready order's one-time token, and

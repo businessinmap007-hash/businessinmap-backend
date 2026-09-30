@@ -505,7 +505,8 @@ return [
 
         // The five written today for the shops that were answering somebody
         // else's question — see shop_child_vocabularies.php.
-        'أجهزة الموبايل وملحقاتها',
+        'أجهزة الموبايل',
+        'اكسسوارات',
         'خدمات المفاتيح والأقفال',
         'أنواع الستائر والديكور',
         'أصناف العصائر والمشروبات',

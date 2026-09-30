@@ -2319,9 +2319,11 @@ class ChildTradeVocabulariesTest extends TestCase
          */
         $shopLines = array_keys($vocabulary->for(0, 186, 17)['lines']->all());
 
-        $this->assertSame('أجهزة الموبايل وملحقاتها', $shopLines[0], 'the phone shop lost its own list');
+        // Split in two on 2026-09-30: the handsets, and what you buy for them.
+        $this->assertSame('أجهزة الموبايل', $shopLines[0], 'the phone shop lost its own list');
+        $this->assertContains('اكسسوارات', $shopLines, 'the phone shop lost its accessories list');
         $this->assertEmpty(
-            array_diff($shopLines, ['أجهزة الموبايل وملحقاتها', 'ماركات الموبيلات']),
+            array_diff($shopLines, ['أجهزة الموبايل', 'اكسسوارات', 'ماركات الموبيلات']),
             'the phone shop is offered a handbag'
         );
 

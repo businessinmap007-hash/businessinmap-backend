@@ -33,6 +33,12 @@ class TechDeviceSpecsSeeder extends Seeder
         'Acer Aspire Laptop 15.6 inch' => ['Intel Core i3-1215U', 8, '256GB SSD', 15.6, 'Windows 11'],
         'Apple MacBook Air 13 inch' => ['Apple M2', 8, '256GB SSD', 13.3, 'macOS'],
         'Apple iPad 10.9 inch' => ['Apple A14 Bionic', 4, '64GB', 10.9, 'iPadOS'],
+
+        // Added by TechDeviceLaptopsExpansionSeeder — one gaming pick, one
+        // business pick, verified against each model's real published spec
+        // sheet. Starts «منيو مواصفات 2» (computer/laptop).
+        'Lenovo Legion 5 15 inch' => ['AMD Ryzen 7 5800H', 16, '512GB SSD', 15.6, 'Windows 11', 'NVIDIA RTX 3060'],
+        'HP EliteBook 840 G9 14 inch' => ['Intel Core i5-1240P', 16, '512GB SSD', 14, 'Windows 11'],
     ];
 
     /** name_en => [processor, ram_gb, storage, screen_inches, os, gpu?] */

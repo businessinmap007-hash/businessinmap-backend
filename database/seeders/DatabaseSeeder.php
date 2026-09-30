@@ -355,6 +355,10 @@ class DatabaseSeeder extends Seeder
            // finds these products to attach specs to.
            TechDevicePhonesExpansionSeeder::class,
 
+           // 2 more laptops under computers_laptops (gaming + business) —
+           // same reasoning, must run before TechDeviceSpecsSeeder too.
+           TechDeviceLaptopsExpansionSeeder::class,
+
            // Spec table (processor, RAM, storage…) of laptop/phone catalog masters.
            TechDeviceSpecsSeeder::class,
 

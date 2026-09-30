@@ -49,6 +49,15 @@ return [
 
     'name_en_suffix' => 'Shop',
 
+    /*
+    | «أجهزة الموبايل وملحقاتها» split in two, 2026-09-30 — the group keeps its
+    | id (and its «مكونات الخدمة» placements) under the device-only name, and
+    | the accessories leave it through `regroup`.
+    */
+    'rename' => [
+        'أجهزة الموبايل وملحقاتها' => ['أجهزة الموبايل', 'Mobile Devices'],
+    ],
+
     'groups' => [
 
         /*
@@ -126,13 +135,29 @@ return [
         | not enumerated — «آيفون ١٥ برو ماكس» is a catalog product, and a list
         | that must be edited every autumn is a list nobody maintains.
         */
-        'أجهزة الموبايل وملحقاتها' => [
-            'name_en' => 'Mobile Devices & Accessories', 'price_role' => 'line', 'children' => [186],
+        'أجهزة الموبايل' => [
+            'name_en' => 'Mobile Devices', 'price_role' => 'line', 'children' => [186],
             'options' => [
-                'موبايل جديد' => 'New Handset',
-                'موبايل مستعمل' => 'Used Handset',
+                'موبايل' => 'Mobile',
                 'تابلت' => 'Tablet',
                 'ساعة ذكية' => 'Smart Watch',
+            ],
+        ],
+
+        /*
+        | «تقسيم هذه المجموعة أجهزة الموبايل وملحقاتها الى قسمين» — المالك،
+        | 2026-09-30. The handset and what you buy FOR it are two lists: the
+        | device list above, and everything that plugs into, covers or services
+        | it here. Moved by `regroup` below, so every row keeps its id, its
+        | links and its decisions — only the heading changed.
+        |
+        | «شرائح وشحن رصيد» moves with them but is not declared: the owner
+        | withdrew it from #186 on 2026-09-29, and declaring it would mint it
+        | back on a rebuild.
+        */
+        'اكسسوارات' => [
+            'name_en' => 'Mobile Accessories', 'price_role' => 'line', 'children' => [186],
+            'options' => [
                 'سماعات' => 'Headphones & Earbuds',
                 'شواحن وكابلات' => 'Chargers & Cables',
                 'باور بانك' => 'Power Banks',
@@ -141,7 +166,6 @@ return [
                 'كروت ذاكرة' => 'Memory Cards',
                 'إكسسوار موبايل للسيارة' => 'In-car Mobile Accessories',
                 'صيانة وبرمجة' => 'Repair & Software',
-                'شرائح وشحن رصيد' => 'SIM Cards & Top-up',
             ],
         ],
 
@@ -768,6 +792,16 @@ return [
     | the list below finds them in it instead of creating a second «Tilapia».
     */
     'regroup' => [
+        'اكسسوارات' => [
+            'name_en' => 'Mobile Accessories',
+            'price_role' => 'line',
+            'from' => 'أجهزة الموبايل',
+            'options' => [
+                'سماعات', 'شواحن وكابلات', 'باور بانك', 'جرابات وكفرات', 'اسكرين وحماية',
+                'كروت ذاكرة', 'إكسسوار موبايل للسيارة', 'صيانة وبرمجة', 'شرائح وشحن رصيد',
+            ],
+        ],
+
         'أنواع الأسماك والمأكولات البحرية' => [
             'name_en' => 'Fish & Seafood Varieties',
             'price_role' => 'line',

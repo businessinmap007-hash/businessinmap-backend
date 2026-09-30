@@ -194,7 +194,7 @@ class MenuCrudApiTest extends TestCase
             ?: $this->markTestSkipped('No business stands on child #186.');
 
         $menuService = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
-        $group = \App\Models\OptionGroup::query()->where('name_ar', 'أجهزة الموبايل وملحقاتها')->firstOrFail();
+        $group = \App\Models\OptionGroup::query()->where('name_ar', 'أجهزة الموبايل')->firstOrFail();
 
         \App\Models\ServiceOptionGroupPlacement::updateOrCreate(
             ['platform_service_id' => $menuService, 'option_group_id' => $group->id, 'child_id' => 186, 'item_type_key' => ''],
@@ -210,8 +210,10 @@ class MenuCrudApiTest extends TestCase
         $this->assertNotNull($mobiles, 'the mobiles device-type group must be in this businesss line vocabulary');
         $this->assertTrue($mobiles['detailed']);
 
-        // Any other line group this business carries, if it has one, is untouched.
-        $other = $lines->firstWhere('group_id', '!=', $group->id);
+        // Any other line group this business carries, if it has one, is untouched
+        // — except «اكسسوارات», the other half of the same split, placed the same way.
+        $accessories = (int) \App\Models\OptionGroup::query()->where('name_ar', 'اكسسوارات')->value('id');
+        $other = $lines->first(fn ($line) => ! in_array($line['group_id'], [$group->id, $accessories], true));
         if ($other) {
             $this->assertFalse($other['detailed']);
         }
@@ -412,7 +414,7 @@ class MenuCrudApiTest extends TestCase
             ?: $this->markTestSkipped('No business stands on child #186.');
 
         $menuService = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
-        $group = \App\Models\OptionGroup::query()->where('name_ar', 'أجهزة الموبايل وملحقاتها')->firstOrFail();
+        $group = \App\Models\OptionGroup::query()->where('name_ar', 'أجهزة الموبايل')->firstOrFail();
         $mobile = DB::table('options')->where('group_id', $group->id)->where('name_ar', 'موبايل')->value('id');
         $tablet = DB::table('options')->where('group_id', $group->id)->where('name_ar', 'تابلت')->value('id');
 

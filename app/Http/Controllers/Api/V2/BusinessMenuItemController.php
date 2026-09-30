@@ -70,6 +70,11 @@ final class BusinessMenuItemController extends Controller
                 // OWN dropdown instead of just another modifier chip: a
                 // merchant chooses the brand, not just qualifies with it.
                 'is_brand' => str_contains((string) $groupName, 'ماركات') || str_contains((string) $groupName, 'العلامة التجارية'),
+                // «حالة المنتج» (جديد/مستعمل) — singled out the same way
+                // `is_brand` is, so «التسعير والتفاصيل» can single-select it
+                // as its own condition toggle instead of a generic modifier
+                // chip. See [[tech-spec-menu-implementation]].
+                'is_condition' => str_contains((string) $groupName, 'حالة المنتج'),
                 // true = «مكونات الخدمة» split this group's branches into
                 // their own sections (branches_as_sections) — the signal a
                 // client uses to open the catalog-linked "التسعير

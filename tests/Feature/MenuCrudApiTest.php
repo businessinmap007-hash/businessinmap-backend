@@ -314,6 +314,32 @@ class MenuCrudApiTest extends TestCase
     }
 
     /**
+     * «حالة المنتج» (جديد/مستعمل) must come back flagged `is_condition`, the
+     * same way a brand group is flagged `is_brand` — so «التسعير والتفاصيل»
+     * can single it out as its own toggle. See [[tech-spec-menu-implementation]].
+     */
+    public function test_the_condition_group_is_flagged_is_condition(): void
+    {
+        $business = User::query()->where('type', 'business')->where('category_child_id', 186)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #186.');
+
+        $modifiers = collect(
+            $this->actingAs($business, 'sanctum')
+                ->withHeaders(['Accept-Language' => 'ar'])
+                ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.modifiers')
+        );
+
+        $condition = $modifiers->firstWhere('group_name', 'حالة المنتج');
+        $this->assertNotNull($condition, 'child #186 is expected to carry «حالة المنتج»');
+        $this->assertTrue($condition['is_condition']);
+
+        $nonCondition = $modifiers->first(fn ($g) => $g['group_name'] !== 'حالة المنتج');
+        if ($nonCondition) {
+            $this->assertFalse($nonCondition['is_condition']);
+        }
+    }
+
+    /**
      * `group_name` used to be `option_groups.name_ar` unconditionally — a
      * customer on an English screen could see a correctly-localized real
      * section name ("Vegetables") sitting next to this endpoint's own

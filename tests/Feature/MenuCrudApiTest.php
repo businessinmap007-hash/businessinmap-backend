@@ -395,6 +395,53 @@ class MenuCrudApiTest extends TestCase
         $this->assertSame($item['menu_section_id'], $second['menu_section_id']);
     }
 
+    /**
+     * «حالة اختبار على المحاكي» — المالك، 2026-09-30: the actual create flow
+     * grows ONE section per GROUP regardless of `branches_as_sections`, so a
+     * device saved through «التسعير والتفاصيل» still came back under one
+     * "أجهزة الموبايل وملحقاتها" heading — MenuItem::heading()'s own
+     * catalog_branch split never got a chance to run, because the item's
+     * `menu_section_id` (a hand-written section, in `heading()`'s own
+     * precedence) already won. Fixed in MenuSectionFromOptionGroup: a split
+     * group grows one section PER LINE OPTION instead. See
+     * [[tech-spec-menu-implementation]].
+     */
+    public function test_a_split_groups_item_grows_a_section_per_branch_not_per_group(): void
+    {
+        $business = User::query()->where('type', 'business')->where('category_child_id', 186)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #186.');
+
+        $menuService = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
+        $group = \App\Models\OptionGroup::query()->where('name_ar', 'أجهزة الموبايل وملحقاتها')->firstOrFail();
+        $mobile = DB::table('options')->where('group_id', $group->id)->where('name_ar', 'موبايل')->value('id');
+        $tablet = DB::table('options')->where('group_id', $group->id)->where('name_ar', 'تابلت')->value('id');
+
+        \App\Models\ServiceOptionGroupPlacement::updateOrCreate(
+            ['platform_service_id' => $menuService, 'option_group_id' => $group->id, 'child_id' => 186, 'item_type_key' => ''],
+            ['usage' => \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION, 'branches_as_sections' => true, 'is_active' => true, 'sort_order' => 10]
+        );
+
+        $phone = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'آيفون تجريبي', 'base_price' => 62000, 'line_option_id' => $mobile,
+            ])->assertCreated()->json('data');
+
+        $tabletItem = $this->actingAs($business, 'sanctum')
+            ->postJson('/api/v2/business/menu/items', [
+                'name_ar' => 'تابلت تجريبي', 'base_price' => 15000, 'line_option_id' => $tablet,
+            ])->assertCreated()->json('data');
+
+        $this->assertNotSame(
+            $phone['menu_section_id'],
+            $tabletItem['menu_section_id'],
+            'موبايل and تابلت must NOT share one section once the group is split'
+        );
+
+        $phoneSection = MenuSection::find($phone['menu_section_id']);
+        $this->assertSame('موبايل', $phoneSection->name_ar);
+        $this->assertSame((int) $mobile, $phoneSection->option_id);
+    }
+
     public function test_a_hand_picked_section_is_not_overridden_by_the_line_options_group(): void
     {
         [$business, $lineOptionId] = $this->businessWithLineVocabulary();

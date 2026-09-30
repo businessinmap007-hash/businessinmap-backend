@@ -23,6 +23,7 @@ class MenuSection extends Model
     protected $fillable = [
         'business_id',
         'option_group_id',
+        'option_id',
         'name_ar',
         'name_en',
         'sort_order',
@@ -32,6 +33,7 @@ class MenuSection extends Model
     protected $casts = [
         'business_id' => 'integer',
         'option_group_id' => 'integer',
+        'option_id' => 'integer',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
     ];
@@ -44,7 +46,10 @@ class MenuSection extends Model
     /**
      * Null for a section the owner typed by hand (a restaurant's "مقبلات").
      * Set for one grown from a `line` option group — {@see
-     * \App\Services\Menu\MenuSectionFromOptionGroup}.
+     * \App\Services\Menu\MenuSectionFromOptionGroup}. `option_id` on that
+     * same row is 0 for the ordinary "whole group is one section" case, or a
+     * specific option id when `branches_as_sections` split that group into
+     * one section per branch («موبايل», «تابلت», …).
      */
     public function optionGroup(): BelongsTo
     {

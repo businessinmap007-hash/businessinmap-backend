@@ -397,15 +397,28 @@ final class BusinessMenuItemController extends Controller
      * GET /api/v2/business/menu/catalog-lookup — real catalog masters a
      * merchant may LINK a menu item to (never writes anything), so a mobile
      * or laptop shop picks a real model instead of retyping its specs. Read
-     * access only; the shared catalog is not scoped per business the way
-     * business_catalog_listings is.
+     * access only.
+     *
+     * Scoped to the owner's own retail catalog (same `retailScope()` idea
+     * BusinessRetailListingController already uses) — «حالة اختبار على
+     * المحاكي» surfaced a real bug: an unscoped lookup let a mobiles shop's
+     * «التسعير والتفاصيل» search turn up refrigerators and spice jars right
+     * alongside phones, since catalog_products spans the WHOLE platform
+     * catalog. See [[tech-spec-menu-implementation]].
      */
     public function catalogLookup(Request $request)
     {
         $term = trim((string) $request->get('q', ''));
+        // Empty = this business's own retail scope resolved to nothing worth
+        // narrowing by (no retail service, or one configured with no allowed
+        // types) — matching the platform-wide "narrowing to empty is worse
+        // than none" convention, the lookup stays UNSCOPED rather than
+        // returning zero results.
+        $scope = $this->catalogScope();
 
         $items = \App\Models\CatalogProduct::query()
             ->active()
+            ->when(! empty($scope), fn ($q) => $q->whereIn('catalog_products.product_category_child_id', $scope))
             ->when($term !== '', fn ($q) => $q->search($term))
             ->leftJoin('catalog_brands as b', 'b.id', '=', 'catalog_products.brand_id')
             ->orderBy('catalog_products.name_ar')
@@ -428,6 +441,45 @@ final class BusinessMenuItemController extends Controller
         ]);
 
         return response()->json(['success' => true, 'data' => ['items' => $items]]);
+    }
+
+    /**
+     * The product_category_children ids this owner's RETAIL service allows —
+     * the catalog scope a menu item's product picker narrows to, regardless
+     * of whether the sale itself goes through menu or retail. Mirrors
+     * BusinessRetailListingController::retailScope() exactly; kept as its
+     * own copy rather than shared, since the two controllers' `null`
+     * meanings diverge on purpose (that one turns null into "match nothing"
+     * for a write-time validation boundary; this one leaves it unscoped for
+     * a read-only search).
+     *
+     * @return array<int>|null null = no retail service at all, or one with
+     *         no allowed types — nothing to narrow by, so the caller should
+     *         leave the lookup unscoped rather than returning zero results.
+     */
+    private function catalogScope(): ?array
+    {
+        $services = $this->servicesForChild();
+        $retail = $services->firstWhere('key', \App\Models\PlatformService::KEY_RETAIL);
+
+        if (! $retail) {
+            return null;
+        }
+
+        $typeKeys = array_column($this->allowedTypesByService($services)[(int) $retail->id] ?? [], 'key');
+
+        if (empty($typeKeys)) {
+            return null;
+        }
+
+        $ids = DB::table('product_category_children')
+            ->whereIn('slug', $typeKeys)
+            ->whereNull('deleted_at')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return $ids ?: null;
     }
 
     /** DELETE /api/v2/business/menu/items/{item} */

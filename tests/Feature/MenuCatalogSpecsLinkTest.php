@@ -20,9 +20,16 @@ class MenuCatalogSpecsLinkTest extends TestCase
     use DatabaseTransactions;
     use SeedsMenu;
 
+    /** A business whose own retail scope actually carries computers/laptops. */
+    private function laptopShop(): User
+    {
+        return User::query()->where('type', 'business')->where('category_child_id', 69)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #69 (computers/laptops retail scope).');
+    }
+
     public function test_merchant_can_look_up_and_link_a_real_catalog_product(): void
     {
-        $business = User::query()->where('type', 'business')->orderBy('id')->firstOrFail();
+        $business = $this->laptopShop();
         Sanctum::actingAs($business);
 
         $lookup = $this->getJson('/api/v2/business/menu/catalog-lookup?q=' . urlencode('Dell Latitude'))
@@ -50,7 +57,7 @@ class MenuCatalogSpecsLinkTest extends TestCase
      */
     public function test_the_catalog_lookup_result_carries_the_products_specs(): void
     {
-        $business = User::query()->where('type', 'business')->orderBy('id')->firstOrFail();
+        $business = $this->laptopShop();
         Sanctum::actingAs($business);
 
         $lookup = $this->getJson('/api/v2/business/menu/catalog-lookup?q=' . urlencode('Dell Latitude'))
@@ -59,6 +66,34 @@ class MenuCatalogSpecsLinkTest extends TestCase
         $this->assertNotEmpty($lookup);
         $this->assertNotEmpty($lookup[0]['specs'], 'the lookup result must carry the products spec table');
         $this->assertArrayHasKey('processor', collect($lookup[0]['specs'])->keyBy('code'));
+    }
+
+    /**
+     * «حالة اختبار على المحاكي» — المالك، 2026-09-30: an unscoped lookup let
+     * a mobiles shop's product picker turn up refrigerators and spice jars
+     * right alongside phones. Scoped to the owner's own retail catalog
+     * (`catalogScope()`, mirrors BusinessRetailListingController's own
+     * `retailScope()`) — a laptop shop's empty-query lookup must not surface
+     * a phone-only product, and vice versa.
+     */
+    public function test_the_catalog_lookup_is_scoped_to_the_owners_own_retail_catalog(): void
+    {
+        $laptopShop = $this->laptopShop();
+        $mobileShop = User::query()->where('type', 'business')->where('category_child_id', 186)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #186 (mobiles_accessories).');
+
+        $phoneName = (string) DB::table('catalog_products')->where('bim_code', 'BIM-RT-MOBI-020')->value('name_ar');
+        $this->assertNotSame('', $phoneName, 'the seeded phone exists');
+
+        Sanctum::actingAs($laptopShop);
+        $lookup = $this->getJson('/api/v2/business/menu/catalog-lookup?q=' . urlencode($phoneName))
+            ->assertOk()->json('data.items');
+        $this->assertEmpty($lookup, 'a laptop shop must not see a phone-only product in its own lookup');
+
+        Sanctum::actingAs($mobileShop);
+        $lookup = $this->getJson('/api/v2/business/menu/catalog-lookup?q=' . urlencode($phoneName))
+            ->assertOk()->json('data.items');
+        $this->assertNotEmpty($lookup, 'the mobiles shop must still find its own phone');
     }
 
     public function test_the_public_menu_discovery_shows_the_linked_products_specs(): void

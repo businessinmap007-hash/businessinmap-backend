@@ -446,27 +446,52 @@ final class BusinessMenuItemController extends Controller
     /**
      * The product_category_children ids this owner's RETAIL service allows —
      * the catalog scope a menu item's product picker narrows to, regardless
-     * of whether the sale itself goes through menu or retail. Mirrors
-     * BusinessRetailListingController::retailScope() exactly; kept as its
-     * own copy rather than shared, since the two controllers' `null`
-     * meanings diverge on purpose (that one turns null into "match nothing"
-     * for a write-time validation boundary; this one leaves it unscoped for
-     * a read-only search).
+     * of whether the sale itself goes through menu or retail.
      *
-     * @return array<int>|null null = no retail service at all, or one with
-     *         no allowed types — nothing to narrow by, so the caller should
-     *         leave the lookup unscoped rather than returning zero results.
+     * Deliberately NOT read through `servicesForChild()`/`retailScope()`
+     * (which both require the retail LINK to be active) — `allowed_item_types`
+     * on retail's own `CategoryServiceConfig` row just records which catalog
+     * category this business's child deals in (the taxonomy fact
+     * [[retail-service-build]]'s branch↔slug mirror captures), independent of
+     * whether the owner currently SELLS through retail itself. A menu-only
+     * detailed business — retail off, menu on, exactly «منيو مواصفات» 1/2's
+     * own real shape — must still scope its product picker correctly; a real
+     * mobiles shop (child 186) surfaced this live: retail sat inactive for
+     * it (an unrelated config edit), so the old retail-gated lookup silently
+     * fell back to unscoped and a phone search returned spice jars.
+     *
+     * @return array<int>|null null = no allowed types configured at all —
+     *         nothing to narrow by, so the caller should leave the lookup
+     *         unscoped rather than returning zero results.
      */
     private function catalogScope(): ?array
     {
-        $services = $this->servicesForChild();
-        $retail = $services->firstWhere('key', \App\Models\PlatformService::KEY_RETAIL);
+        $childId = $this->childId();
 
-        if (! $retail) {
+        if ($childId <= 0) {
             return null;
         }
 
-        $typeKeys = array_column($this->allowedTypesByService($services)[(int) $retail->id] ?? [], 'key');
+        $retailId = \App\Models\PlatformService::query()
+            ->where('key', \App\Models\PlatformService::KEY_RETAIL)
+            ->value('id');
+
+        if (! $retailId) {
+            return null;
+        }
+
+        $config = \App\Models\CategoryServiceConfig::query()
+            ->where('child_id', $childId)
+            ->where('category_id', $this->rootId())
+            ->where('platform_service_id', $retailId)
+            ->value('config');
+
+        $data = is_array($config) ? $config : (json_decode((string) $config, true) ?: []);
+        $typeKeys = collect($data['allowed_item_types'] ?? [])
+            ->map(fn ($t) => trim((string) $t))
+            ->filter()
+            ->values()
+            ->all();
 
         if (empty($typeKeys)) {
             return null;

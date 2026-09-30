@@ -96,6 +96,43 @@ class MenuCatalogSpecsLinkTest extends TestCase
         $this->assertNotEmpty($lookup, 'the mobiles shop must still find its own phone');
     }
 
+    /**
+     * «بالضغط على اختار منتجا بتفتح منتجات ابو عوف وليس الموبيلات» —
+     * المالك، 2026-09-30: this exact live bug. Retail sat INACTIVE for the
+     * mobiles child (an unrelated config edit elsewhere), and the old
+     * `catalogScope()` read `allowed_item_types` through `servicesForChild()`
+     * — which requires the retail LINK active — so it silently fell back to
+     * unscoped and a phone search surfaced spice jars. `allowed_item_types`
+     * is a taxonomy fact about what this child SELLS, not a live toggle of
+     * whether retail-the-sales-channel happens to be on; a menu-only
+     * detailed business (retail off, menu on) must still scope correctly.
+     */
+    public function test_the_catalog_lookup_stays_scoped_even_when_retail_itself_is_inactive(): void
+    {
+        $mobileShop = User::query()->where('type', 'business')->where('category_child_id', 186)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #186 (mobiles_accessories).');
+
+        $retailId = DB::table('platform_services')->where('key', 'retail')->value('id');
+        DB::table('category_platform_services')
+            ->where('child_id', 186)->where('platform_service_id', $retailId)
+            ->update(['is_active' => 0]);
+        DB::table('category_service_configs')
+            ->where('child_id', 186)->where('platform_service_id', $retailId)
+            ->update(['is_active' => 0]);
+
+        $phoneName = (string) DB::table('catalog_products')->where('bim_code', 'BIM-RT-MOBI-020')->value('name_ar');
+        $this->assertNotSame('', $phoneName, 'the seeded phone exists');
+
+        Sanctum::actingAs($mobileShop);
+        $lookup = $this->getJson('/api/v2/business/menu/catalog-lookup?q=' . urlencode('Abu Auf'))
+            ->assertOk()->json('data.items');
+        $this->assertEmpty($lookup, 'a mobiles shop must not see a grocery product even with retail inactive');
+
+        $lookup = $this->getJson('/api/v2/business/menu/catalog-lookup?q=' . urlencode($phoneName))
+            ->assertOk()->json('data.items');
+        $this->assertNotEmpty($lookup, 'the mobiles shop must still find its own phone with retail inactive');
+    }
+
     public function test_the_public_menu_discovery_shows_the_linked_products_specs(): void
     {
         $business = User::query()->where('type', 'business')->orderBy('id')->firstOrFail();

@@ -188,7 +188,7 @@ class MenuHeadingTest extends TestCase
 
         $this->assertTrue(\App\Support\MarketCatalogChildren::includes($business->fresh()), 'child #186 is expected to be a goods catalog');
 
-        $group = OptionGroup::query()->where('name_ar', 'أجهزة الموبايل وملحقاتها')->firstOrFail();
+        $group = OptionGroup::query()->where('name_ar', 'أجهزة الموبايل')->firstOrFail();
         $mobile = Option::query()->where('group_id', $group->id)->where('name_ar', 'موبايل')->firstOrFail();
         $tablet = Option::query()->where('group_id', $group->id)->where('name_ar', 'تابلت')->firstOrFail();
 

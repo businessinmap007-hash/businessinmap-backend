@@ -81,4 +81,28 @@ class MenuCatalogSpecsLinkTest extends TestCase
         $this->assertNotEmpty($row['specs']);
         $this->assertSame('Intel Core i7-1355U', collect($row['specs'])->firstWhere('code', 'processor')['value']);
     }
+
+    /**
+     * The «جديد»/«مستعمل» badge TechProductDetail shows beside the price
+     * comes from the item's own «حالة المنتج» modifier — matched by group
+     * name, never a hardcoded option id. See [[tech-spec-menu-implementation]].
+     */
+    public function test_the_public_menu_discovery_shows_the_items_condition(): void
+    {
+        $business = User::query()->where('type', 'business')->orderBy('id')->firstOrFail();
+        Sanctum::actingAs($business);
+
+        $used = (int) DB::table('options')->where('group_id', 48)->where('name_ar', 'مستعمل')->value('id');
+        $this->assertNotSame(0, $used, 'the «حالة المنتج» group must carry «مستعمل»');
+
+        $item = $this->seedMenuItem($business->id, null, 15000, 'موبايل مستعمل');
+        $item->syncOfferingOptions(null, [$used], []);
+
+        $data = $this->getJson('/api/v2/discovery/menu/' . $business->id)->assertOk()->json('data');
+
+        $row = collect($data['sections'] ?? [])->flatMap(fn ($s) => $s['items'] ?? [])->firstWhere('id', $item->id);
+        $this->assertNotNull($row, 'the item appears in the public menu');
+        $this->assertNotNull($row['condition'], 'the condition must be exposed to the customer');
+        $this->assertSame($used, $row['condition']['id']);
+    }
 }

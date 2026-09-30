@@ -232,6 +232,17 @@ final class MenuDiscoveryController extends Controller
             // so the option a customer searched by still shows on the result
             'offering_label' => $item->offeringLabel() ?: null,
             'option_ids' => $item->offeringOptions->pluck('option_id')->map(fn ($id) => (int) $id)->values(),
+            // «جديد»/«مستعمل», when the merchant qualified this item with
+            // «حالة المنتج» — the badge TechProductDetail shows beside the
+            // price. Matched by group name the same way `is_condition` is
+            // server-side in BusinessMenuItemController::vocabulary() —
+            // never guessed from a hardcoded option id.
+            'condition' => ($condition = $item->modifierOptions()->first(
+                fn ($o) => $o->group && str_contains((string) $o->group->name_ar, 'حالة المنتج')
+            )) ? [
+                'id' => (int) $condition->id,
+                'name' => $this->label($condition->name_ar, $condition->name_en, ''),
+            ] : null,
             // The branch this item sits under within its section — e.g.
             // "ثلاجات" inside "أنواع الأجهزة الكهربائية" — so the app can
             // group a section's items by branch and let a customer jump to

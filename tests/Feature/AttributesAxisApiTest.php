@@ -161,6 +161,33 @@ class AttributesAxisApiTest extends TestCase
         $this->assertDatabaseMissing('option_user', ['user_id' => $merchant->id]);
     }
 
+    /**
+     * «لماذا حالة المنتج مكررة» — المالك، 2026-10-01. An option linked both
+     * shared (category_id 0) and to the business's own root is two pivot
+     * rows; the screen showed «جديد، جديد، مستعمل، مستعمل». Each option
+     * appears once, here and in the customer's filter list.
+     */
+    public function test_an_option_linked_shared_and_per_root_is_listed_once(): void
+    {
+        $root = (int) DB::table('category_parent_child')->where('child_id', self::CHILD_ID)->value('parent_id')
+            ?: $this->markTestSkipped('child 68 sits under no root');
+
+        DB::table('category_child_option')->insertOrIgnore([
+            ['child_id' => self::CHILD_ID, 'category_id' => 0, 'option_id' => self::OPTION_DELIVERY, 'reorder' => 0],
+            ['child_id' => self::CHILD_ID, 'category_id' => $root, 'option_id' => self::OPTION_DELIVERY, 'reorder' => 0],
+        ]);
+
+        $business = $this->business();
+        $business->forceFill(['category_id' => $root])->save();
+
+        $ids = collect($this->actingAs($business, 'sanctum')->getJson('/api/v2/profile/options')->assertOk()->json('data.groups'))
+            ->flatMap(fn ($g) => array_column($g['options'], 'id'))
+            ->all();
+
+        $this->assertSame(array_values(array_unique($ids)), $ids, 'an option is listed twice');
+        $this->assertContains(self::OPTION_DELIVERY, $ids);
+    }
+
     public function test_a_client_account_has_no_attributes_to_set(): void
     {
         $client = User::query()->where('type', 'client')->first();

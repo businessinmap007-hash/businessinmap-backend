@@ -146,7 +146,9 @@ final class DiscoveryController extends Controller
         // union over every root — right for a search that spans them.
         $rootId = (int) ($data['category_id'] ?? 0);
 
-        $options = CategoryChild::query()->find($childId)?->activeOptionsForParent($rootId)->with('group')->get()
+        // unique(): an option linked both shared (category_id 0) and to this
+        // root is two pivot rows, and the relation returns it twice.
+        $options = CategoryChild::query()->find($childId)?->activeOptionsForParent($rootId)->with('group')->get()->unique('id')->values()
             ?? collect();
 
         $counts = DB::table('option_user as ou')

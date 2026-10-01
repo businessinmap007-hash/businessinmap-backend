@@ -317,7 +317,9 @@ final class ProfileController extends Controller
 
         // `line` groups moved to the catalog item form — see the matching
         // exclusion in updateOptions() above.
-        $options = $options->reject(fn ($o) => $o->group?->price_role === OptionGroup::ROLE_LINE)->values();
+        // unique(): an option linked both shared (category_id 0) and to this
+        // root is two pivot rows — «جديد، جديد، مستعمل، مستعمل» on screen.
+        $options = $options->reject(fn ($o) => $o->group?->price_role === OptionGroup::ROLE_LINE)->unique('id')->values();
 
         $groups = [];
         foreach ($options as $o) {

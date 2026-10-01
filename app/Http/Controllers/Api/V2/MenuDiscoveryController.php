@@ -264,7 +264,9 @@ final class MenuDiscoveryController extends Controller
             // The licence credit that catalog photo must carry (CC BY-SA…);
             // null when the merchant's own photo is shown.
             'image_credit' => $item->image ? null : ($item->catalogProduct?->main_image_credit ?: null),
-            'images' => $item->images->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image])->values(),
+            // `source: camera` = a live shot (required for a second-hand
+            // unit) — the app puts the camera badge on it.
+            'images' => $item->images->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image, 'source' => $i->source])->values(),
             'base_price' => $base,
             // What the price is the price OF. Null is «by the item» — a
             // sandwich — and only a shop that weighs what it sells says

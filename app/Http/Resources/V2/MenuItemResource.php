@@ -72,6 +72,8 @@ class MenuItemResource extends JsonResource
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($i) => [
                 'id' => (int) $i->id,
                 'image' => $i->image,
+                // camera = a live shot — the app badges it.
+                'source' => $i->source,
             ])->values()),
 
             'variants' => $this->whenLoaded('variants', fn () => $this->variants->map(fn ($v) => [

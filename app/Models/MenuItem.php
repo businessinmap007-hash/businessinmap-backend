@@ -140,6 +140,24 @@ class MenuItem extends Model
     }
 
     /**
+     * «اذا كان المنتج مستعمل يتم التصوير من الكاميرا» — المالك، 2026-10-01.
+     *
+     * A second-hand unit («مستعمل», and «كسر زيرو», which is one too) is
+     * sold as THIS unit, scratches and all, so its photos must be live camera
+     * shots — the same camera badge albums and project evidence carry. Read
+     * from the item's own «حالة المنتج» answer, by the option's English name
+     * so a translated Arabic label cannot switch the rule off.
+     */
+    public function isSecondHand(): bool
+    {
+        return $this->modifierOptions()->contains(
+            fn ($o) => $o->group
+                && str_contains((string) $o->group->name_ar, 'حالة المنتج')
+                && in_array((string) $o->name_en, ['Used', 'Nearly New'], true)
+        );
+    }
+
+    /**
      * The shared catalog master this item's spec table comes from, when the
      * merchant picked one — e.g. a real phone/laptop model, the same
      * `catalog_products` row retail's «كتالوج تفصيلي» prices. Optional: a

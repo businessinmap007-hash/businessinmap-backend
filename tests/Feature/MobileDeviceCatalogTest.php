@@ -154,6 +154,41 @@ class MobileDeviceCatalogTest extends TestCase
         $this->assertSame([], array_values(array_diff($devices, $listed)), 'devices missing from mobile_device_camera_battery.php');
     }
 
+    /**
+     * «اذا كان المنتج مستعمل يتم التصوير من الكاميرا» — a second-hand unit
+     * takes live camera shots only; a new one may use any photo.
+     */
+    public function test_a_used_unit_takes_camera_photos_only(): void
+    {
+        $shop = $this->phoneShop();
+        Sanctum::actingAs($shop);
+        $used = (int) DB::table('options')->where('name_en', 'Used')->value('id')
+            ?: $this->markTestSkipped('No «مستعمل» option.');
+
+        $itemId = $this->postJson('/api/v2/business/menu/items', ['name_ar' => 'موبايل مستعمل تجريبي', 'base_price' => 5000])
+            ->assertCreated()->json('data.id');
+        $item = \App\Models\MenuItem::findOrFail($itemId);
+        $item->syncOfferingOptions(null, [$used], []);
+
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+        $file = fn () => \Illuminate\Http\UploadedFile::fake()->createWithContent('unit.png', $png);
+
+        $this->post("/api/v2/business/menu/items/{$itemId}/images", ['images' => [$file()]], ['Accept' => 'application/json'])
+            ->assertUnprocessable();
+
+        $saved = $this->post("/api/v2/business/menu/items/{$itemId}/images", ['images' => [$file()], 'source' => 'camera'], ['Accept' => 'application/json'])
+            ->assertCreated()->json('data.images.0');
+        $this->assertSame('camera', $saved['source']);
+        @unlink(public_path($saved['image']));
+
+        // A new unit may still use a gallery photo.
+        $item->syncOfferingOptions(null, [], []);
+        $gallery = $this->post("/api/v2/business/menu/items/{$itemId}/images", ['images' => [$file()]], ['Accept' => 'application/json'])
+            ->assertCreated()->json('data.images.0');
+        $this->assertSame('upload', $gallery['source']);
+        @unlink(public_path($gallery['image']));
+    }
+
     public function test_the_seeder_is_idempotent(): void
     {
         $before = DB::table('catalog_products')->count();

@@ -841,7 +841,22 @@ final class BusinessMenuItemController extends Controller
         $request->validate([
             'images' => ['required', 'array', 'min:1', 'max:' . self::MAX_IMAGES],
             'images.*' => ImageUploadService::validationRules(),
+            // camera = taken live in the app's camera, never picked from the
+            // gallery — the same claim an album photo makes.
+            'source' => ['sometimes', Rule::in([Image::SOURCE_CAMERA, Image::SOURCE_UPLOAD])],
         ]);
+
+        $source = (string) $request->input('source', Image::SOURCE_UPLOAD);
+
+        // A second-hand unit is sold as itself — its photos are live shots,
+        // or the buyer is looking at a catalogue picture of a phone that is
+        // not the one he will receive. See MenuItem::isSecondHand().
+        if ($source !== Image::SOURCE_CAMERA && $model->isSecondHand()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('صور المنتج المستعمل تُلتقط بالكاميرا مباشرة.'),
+            ], 422);
+        }
 
         $already = $model->images()->count();
         $incoming = count($request->file('images', []));
@@ -859,17 +874,17 @@ final class BusinessMenuItemController extends Controller
         foreach ($request->file('images') as $file) {
             $saved[] = $model->images()->create([
                 'image' => $uploads->store($file),
-                // Not evidence: a menu photo is a picture of the goods, and
-                // requiring a live camera would stop a merchant using the shots
-                // he already has. `camera` stays reserved for proof.
-                'source' => Image::SOURCE_UPLOAD,
+                // A new item's photo is a picture of the goods and may come
+                // from anywhere; `camera` is the merchant's claim of a live
+                // shot, required (above) only for a second-hand unit.
+                'source' => $source,
             ]);
         }
 
         return response()->json([
             'success' => true,
             'data' => ['images' => array_map(
-                fn (Image $image) => ['id' => (int) $image->id, 'image' => $image->image],
+                fn (Image $image) => ['id' => (int) $image->id, 'image' => $image->image, 'source' => $image->source],
                 $saved
             )],
         ], 201);

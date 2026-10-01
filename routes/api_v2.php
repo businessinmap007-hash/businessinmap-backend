@@ -827,6 +827,8 @@ Route::prefix('v2')->group(function () {
             // picker and the brand/condition fields on the item form.
             Route::get('vocabulary', [BusinessMenuItemController::class, 'vocabulary']);
             Route::get('catalog-lookup', [BusinessMenuItemController::class, 'catalogLookup']);
+            // «الموديل مش موجود» — a merchant-proposed catalog model, pending review.
+            Route::post('catalog-products', [BusinessMenuItemController::class, 'proposeProduct']);
 
             // The full `line` catalog for this business's (root, child) —
             // e.g. all 122 vegetable/fruit kinds a greengrocer's child may

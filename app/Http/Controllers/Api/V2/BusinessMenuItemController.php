@@ -408,7 +408,19 @@ final class BusinessMenuItemController extends Controller
      */
     public function catalogLookup(Request $request)
     {
-        $term = trim((string) $request->get('q', ''));
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            // The branch the picker was opened from («موبايل», «تابلت»…).
+            'line_option_id' => ['nullable', 'integer'],
+            'brand_id' => ['nullable', 'integer'],
+            'series' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $term = trim((string) ($data['q'] ?? ''));
+        $brandId = (int) ($data['brand_id'] ?? 0);
+        $series = trim((string) ($data['series'] ?? ''));
+        $businessId = $this->businessId($request);
+
         // Empty = this business's own retail scope resolved to nothing worth
         // narrowing by (no retail service, or one configured with no allowed
         // types) — matching the platform-wide "narrowing to empty is worse
@@ -416,31 +428,280 @@ final class BusinessMenuItemController extends Controller
         // returning zero results.
         $scope = $this->catalogScope();
 
-        $items = \App\Models\CatalogProduct::query()
+        $base = fn () => \App\Models\CatalogProduct::query()
             ->active()
+            ->whereNull('catalog_products.deleted_at')
             ->when(! empty($scope), fn ($q) => $q->whereIn('catalog_products.product_category_child_id', $scope))
+            // Approved masters, plus the models THIS business proposed and an
+            // admin has not reviewed yet — see proposeProduct().
+            ->where(fn ($q) => $q->where('catalog_products.approval_status', 'approved')
+                ->orWhere(fn ($own) => $own->where('catalog_products.approval_status', 'pending')
+                    ->where('catalog_products.created_by', $businessId)));
+
+        /*
+         * «تابلت» shows tablets, not the whole «موبايلات وإكسسوارات» shelf.
+         * Only once the branch has been filed at all: a branch no product
+         * points at yet (every non-device vertical today) keeps the whole
+         * scope instead of opening onto an empty picker.
+         */
+        $branch = (int) ($data['line_option_id'] ?? 0);
+        if ($branch > 0 && ! $base()->where('catalog_products.line_option_id', $branch)->exists()) {
+            $branch = 0;
+        }
+
+        $inBranch = fn () => $base()->when($branch > 0, fn ($q) => $q->where('catalog_products.line_option_id', $branch));
+
+        $items = $inBranch()
+            ->when($brandId > 0, fn ($q) => $q->where('catalog_products.brand_id', $brandId))
+            ->when($series !== '', fn ($q) => $q->where('catalog_products.series', $series))
             ->when($term !== '', fn ($q) => $q->search($term))
             ->leftJoin('catalog_brands as b', 'b.id', '=', 'catalog_products.brand_id')
-            ->orderBy('catalog_products.name_ar')
-            ->limit(20)
-            ->get(['catalog_products.id', 'catalog_products.name_ar', 'catalog_products.name_en', 'catalog_products.main_image', 'b.name_ar as brand_name']);
+            ->orderBy('b.name_en')
+            ->orderBy('catalog_products.series')
+            ->orderBy('catalog_products.name_en')
+            ->limit(60)
+            ->get(self::LOOKUP_COLUMNS);
 
         // Batched, not per-row — the same reasoning ProductSpecs's own
         // docblock gives: one query pair for the whole page of results.
         $specs = app(\App\Services\Catalog\ProductSpecs::class)->forProducts($items->pluck('id')->all());
 
-        $items = $items->map(fn ($p) => [
+        $items = $items->map(fn ($p) => $this->catalogProductPayload($p, $specs[(int) $p->id] ?? []));
+
+        return response()->json(['success' => true, 'data' => [
+            'items' => $items,
+            // The chip rows above the list: brand first, then that brand's
+            // series («أوبو» → A · F · Reno · Find). Counted inside the branch
+            // so a tablet picker never offers a brand that makes no tablets.
+            'facets' => [
+                'brands' => $this->brandFacets($inBranch()),
+                'series' => $brandId > 0 ? $this->seriesFacets($inBranch()->where('catalog_products.brand_id', $brandId)) : [],
+            ],
+        ]]);
+    }
+
+    private const LOOKUP_COLUMNS = [
+        'catalog_products.id', 'catalog_products.name_ar', 'catalog_products.name_en', 'catalog_products.main_image',
+        'catalog_products.brand_id', 'catalog_products.series', 'catalog_products.approval_status', 'b.name_ar as brand_name',
+    ];
+
+    /**
+     * POST /api/v2/business/menu/catalog-products — «الموديل مش موجود».
+     *
+     * The merchant names the brand, the series and the model and types the
+     * specs himself. The row is a real catalog master from the first second
+     * (his menu item links to it like any other), but PENDING: only he sees
+     * it in the picker until an admin approves it in «كتالوج المنتجات», after
+     * which every shop in the branch can pick it. That is how the catalog
+     * grows past the popular models seeded on day one without filling up
+     * with duplicates and typos.
+     */
+    public function proposeProduct(Request $request)
+    {
+        $data = $request->validate([
+            'line_option_id' => ['required', 'integer', Rule::exists('options', 'id')],
+            'brand_id' => ['nullable', 'integer', Rule::exists('catalog_brands', 'id')->whereNull('deleted_at')],
+            'brand_name' => ['nullable', 'required_without:brand_id', 'string', 'max:120'],
+            'series' => ['nullable', 'string', 'max:80'],
+            'model' => ['required', 'string', 'max:160'],
+            'processor' => ['nullable', 'string', 'max:120'],
+            'ram_gb' => ['nullable', 'numeric', 'min:0', 'max:1024'],
+            'storage' => ['nullable', 'string', 'max:40'],
+            'screen_inches' => ['nullable', 'numeric', 'min:0', 'max:40'],
+            'os' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $businessId = $this->businessId($request);
+        $branch = (int) $data['line_option_id'];
+
+        // The shelf the new model lives on: where this branch's products
+        // already are, else the first one this business's catalog allows.
+        $childId = (int) DB::table('catalog_products')->where('line_option_id', $branch)->whereNull('deleted_at')->value('product_category_child_id')
+            ?: (int) (($this->catalogScope() ?? [])[0] ?? 0);
+
+        abort_if($childId <= 0, 422, 'لا يوجد كتالوج مرتبط بهذا الفرع.');
+
+        $child = DB::table('product_category_children')->where('id', $childId)->first(['id', 'product_category_id']);
+
+        $brand = isset($data['brand_id'])
+            ? DB::table('catalog_brands')->where('id', $data['brand_id'])->first(['id', 'name_ar', 'name_en'])
+            : $this->brandByName(trim((string) $data['brand_name']));
+
+        $model = trim((string) $data['model']);
+        $series = trim((string) ($data['series'] ?? '')) ?: null;
+        $nameEn = trim($brand->name_en . ' ' . $model);
+        $nameAr = trim(($brand->name_ar ?: $brand->name_en) . ' ' . $model);
+
+        // The same model twice is one product — his own earlier proposal, or
+        // one the catalog already has.
+        $existing = (int) DB::table('catalog_products')
+            ->where('product_category_child_id', $childId)
+            ->whereNull('deleted_at')
+            ->where(fn ($q) => $q->whereRaw('LOWER(name_en) = ?', [mb_strtolower($nameEn)])->orWhere('name_ar', $nameAr))
+            ->where(fn ($q) => $q->where('approval_status', 'approved')->orWhere('created_by', $businessId))
+            ->value('id');
+
+        $productId = $existing ?: (int) DB::table('catalog_products')->insertGetId([
+            'bim_code' => 'BIM-MR-' . strtoupper(\Illuminate\Support\Str::random(10)),
+            'product_category_id' => $child->product_category_id,
+            'product_category_child_id' => $childId,
+            'brand_id' => $brand->id,
+            'series' => $series,
+            'line_option_id' => $branch,
+            'product_type' => 'simple',
+            'name_ar' => $nameAr,
+            'normalized_name_ar' => mb_strtolower($nameAr),
+            'name_en' => $nameEn,
+            'normalized_name_en' => mb_strtolower($nameEn),
+            'model' => $model,
+            'image_alt_ar' => $nameAr,
+            'image_alt_en' => $nameEn,
+            'market_scope' => 'egypt',
+            'country_code' => 'EG',
+            'is_verified_egypt' => 0,
+            'verification_source' => 'merchant',
+            'duplicate_status' => 'review',
+            'is_active' => 1,
+            'approval_status' => 'pending',
+            'created_by' => $businessId,
+            'updated_by' => $businessId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        if (! $existing) {
+            $this->writeProposedSpecs($productId, $data);
+        }
+
+        $row = \App\Models\CatalogProduct::query()
+            ->leftJoin('catalog_brands as b', 'b.id', '=', 'catalog_products.brand_id')
+            ->where('catalog_products.id', $productId)
+            ->first(self::LOOKUP_COLUMNS);
+
+        $specs = app(\App\Services\Catalog\ProductSpecs::class)->forProducts([$productId]);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['product' => $this->catalogProductPayload($row, $specs[$productId] ?? [])],
+        ], $existing ? 200 : 201);
+    }
+
+    /** @return array<string,mixed> */
+    private function catalogProductPayload(object $p, array $specs): array
+    {
+        return [
             'id' => (int) $p->id,
             'name' => app()->getLocale() === 'en' ? ($p->name_en ?: $p->name_ar) : ($p->name_ar ?: $p->name_en),
             'brand' => $p->brand_name,
+            'brand_id' => $p->brand_id ? (int) $p->brand_id : null,
+            'series' => $p->series,
             'image' => $p->main_image,
+            // true = proposed by this business and not reviewed yet.
+            'pending' => $p->approval_status !== 'approved',
             // So the item form can show a spec preview the instant a merchant
             // picks a result, before saving anything — see
             // [[tech-spec-menu-implementation]]'s «التسعير والتفاصيل».
-            'specs' => $specs[(int) $p->id] ?? [],
+            'specs' => $specs,
+        ];
+    }
+
+    /** @return list<array{id:int,name:string,count:int}> */
+    private function brandFacets($query): array
+    {
+        $english = app()->getLocale() === 'en';
+
+        return $query
+            ->join('catalog_brands as fb', 'fb.id', '=', 'catalog_products.brand_id')
+            ->groupBy('fb.id', 'fb.name_ar', 'fb.name_en')
+            ->orderByRaw('COUNT(*) DESC')
+            ->orderBy('fb.name_en')
+            ->get(['fb.id', 'fb.name_ar', 'fb.name_en', DB::raw('COUNT(*) as n')])
+            ->map(fn ($b) => [
+                'id' => (int) $b->id,
+                'name' => (string) ($english ? ($b->name_en ?: $b->name_ar) : ($b->name_ar ?: $b->name_en)),
+                'count' => (int) $b->n,
+            ])->values()->all();
+    }
+
+    /** @return list<array{name:string,count:int}> */
+    private function seriesFacets($query): array
+    {
+        return $query
+            ->whereNotNull('catalog_products.series')
+            ->where('catalog_products.series', '!=', '')
+            ->groupBy('catalog_products.series')
+            ->orderBy('catalog_products.series')
+            ->get(['catalog_products.series', DB::raw('COUNT(*) as n')])
+            ->map(fn ($s) => ['name' => (string) $s->series, 'count' => (int) $s->n])
+            ->values()->all();
+    }
+
+    /** A brand the merchant typed: matched by either name, else created unverified. */
+    private function brandByName(string $name): object
+    {
+        $found = DB::table('catalog_brands')
+            ->whereNull('deleted_at')
+            ->where(fn ($q) => $q->whereRaw('LOWER(name_en) = ?', [mb_strtolower($name)])->orWhere('name_ar', $name))
+            ->first(['id', 'name_ar', 'name_en']);
+
+        if ($found) {
+            return $found;
+        }
+
+        $slug = \Illuminate\Support\Str::slug($name) ?: 'brand';
+        for ($base = $slug, $n = 2; DB::table('catalog_brands')->where('slug', $slug)->exists(); $n++) {
+            $slug = "{$base}-{$n}";
+        }
+
+        $latin = preg_match('/^[\x20-\x7E]+$/', $name) === 1;
+        $id = DB::table('catalog_brands')->insertGetId([
+            'name_ar' => $latin ? null : $name,
+            'name_en' => $name,
+            'slug' => $slug,
+            'is_active' => 1,
+            'is_verified' => 0,
+            'sort_order' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
-        return response()->json(['success' => true, 'data' => ['items' => $items]]);
+        return (object) ['id' => $id, 'name_ar' => $latin ? null : $name, 'name_en' => $name];
+    }
+
+    /** The spec rows a merchant typed, in the attributes TechDeviceSpecsSeeder owns. */
+    private function writeProposedSpecs(int $productId, array $data): void
+    {
+        $attrs = DB::table('catalog_attributes')
+            ->whereIn('code', ['processor', 'ram_gb', 'storage', 'screen_inches', 'os'])
+            ->pluck('id', 'code');
+        $units = DB::table('catalog_units')->whereIn('code', ['gb', 'inch'])->pluck('id', 'code');
+
+        $values = [
+            'processor' => [null, $data['processor'] ?? null, null],
+            'ram_gb' => [$data['ram_gb'] ?? null, null, $units['gb'] ?? null],
+            'storage' => [null, $data['storage'] ?? null, null],
+            'screen_inches' => [$data['screen_inches'] ?? null, null, $units['inch'] ?? null],
+            'os' => [null, $data['os'] ?? null, null],
+        ];
+
+        foreach ($values as $code => [$number, $text, $unit]) {
+            $text = $text === null ? null : (trim((string) $text) ?: null);
+
+            if ((($number ?? '') === '' && $text === null) || ! isset($attrs[$code])) {
+                continue;
+            }
+
+            DB::table('catalog_product_attribute_values')->insert([
+                'product_id' => $productId,
+                'attribute_id' => (int) $attrs[$code],
+                'value_number' => ($number ?? '') === '' ? null : (float) $number,
+                'value_text_en' => $text,
+                'unit_id' => $unit,
+                'sort_order' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     /**
@@ -715,7 +976,9 @@ final class BusinessMenuItemController extends Controller
             // catalog master (the same one retail's «كتالوج تفصيلي» prices),
             // so this item's spec table (processor/RAM/model…) comes from
             // catalog_product_attribute_values instead of being retyped.
-            'catalog_product_id' => ['nullable', 'integer', Rule::exists('catalog_products', 'id')->whereNull('deleted_at')],
+            // An unreviewed proposal is linkable only by the business that made it.
+            'catalog_product_id' => ['nullable', 'integer', Rule::exists('catalog_products', 'id')->whereNull('deleted_at')
+                ->where(fn ($q) => $q->where('approval_status', 'approved')->orWhere('created_by', $businessId))],
             'description_ar' => ['nullable', 'string', 'max:1000'],
             'description_en' => ['nullable', 'string', 'max:1000'],
             'base_price' => ['required', 'numeric', 'min:0'],

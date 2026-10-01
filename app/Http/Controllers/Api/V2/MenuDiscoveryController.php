@@ -46,6 +46,7 @@ final class MenuDiscoveryController extends Controller
                 'offeringOptions.option.group',
                 'section',
                 'images',
+                'catalogProduct:id,brand_id,series',
             ])
             ->orderByDesc('is_featured')
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
@@ -222,6 +223,9 @@ final class MenuDiscoveryController extends Controller
     private function itemPayload(MenuItem $item): array
     {
         $base = (float) $item->base_price;
+        $specs = $item->catalog_product_id
+            ? app(\App\Services\Catalog\ProductSpecs::class)->forProducts([(int) $item->catalog_product_id])[(int) $item->catalog_product_id] ?? []
+            : [];
 
         return [
             'id' => (int) $item->id,
@@ -282,9 +286,16 @@ final class MenuDiscoveryController extends Controller
             'is_featured' => (bool) $item->is_featured,
             // Only present when the merchant linked a real catalog master
             // (a real phone/laptop model…) — see [[three-catalog-shapes]].
-            'specs' => $item->catalog_product_id
-                ? app(\App\Services\Catalog\ProductSpecs::class)->forProducts([(int) $item->catalog_product_id])[(int) $item->catalog_product_id] ?? []
-                : [],
+            'specs' => $specs,
+            /*
+             * The two filter facets of a catalog-linked device — «سامسونج» →
+             * «Galaxy A». The storefront groups a section's items by these so
+             * a customer narrows أوبو → F instead of scrolling. Null for an
+             * item with no catalog master (a sandwich has no series).
+             */
+            'catalog_brand_id' => $item->catalogProduct?->brand_id ? (int) $item->catalogProduct->brand_id : null,
+            'catalog_brand' => collect($specs)->firstWhere('code', 'brand')['value'] ?? null,
+            'series' => $item->catalogProduct?->series ?: null,
             'variants' => $item->activeVariants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'name' => $this->label($v->name_ar, $v->name_en, __('حجم #') . $v->id),

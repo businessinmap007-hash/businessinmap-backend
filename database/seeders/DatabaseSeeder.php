@@ -361,6 +361,9 @@ class DatabaseSeeder extends Seeder
 
            // Spec table (processor, RAM, storage…) of laptop/phone catalog masters.
            TechDeviceSpecsSeeder::class,
+           // Phones/tablets/watches filed by branch + series; reads the spec
+           // attributes TechDeviceSpecsSeeder creates, so it runs after it.
+           MobileDeviceCatalogSeeder::class,
 
            // «قم بتوزيع الخدمة بناء على ما يناسب كل مجموعة خيارات» — turns
            // menu back on for every retail-active (root,child) and seeds a

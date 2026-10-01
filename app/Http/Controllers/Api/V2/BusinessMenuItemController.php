@@ -509,6 +509,9 @@ final class BusinessMenuItemController extends Controller
             'storage' => ['nullable', 'string', 'max:40'],
             'screen_inches' => ['nullable', 'numeric', 'min:0', 'max:40'],
             'os' => ['nullable', 'string', 'max:60'],
+            'rear_camera_mp' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'front_camera_mp' => ['nullable', 'numeric', 'min:0', 'max:1000'],
+            'battery_mah' => ['nullable', 'integer', 'min:0', 'max:100000'],
         ]);
 
         $businessId = $this->businessId($request);
@@ -668,13 +671,13 @@ final class BusinessMenuItemController extends Controller
         return (object) ['id' => $id, 'name_ar' => $latin ? null : $name, 'name_en' => $name];
     }
 
-    /** The spec rows a merchant typed, in the attributes TechDeviceSpecsSeeder owns. */
+    /** The spec rows a merchant typed — TechDeviceSpecsSeeder's attributes plus MobileDeviceCatalogSeeder's camera/battery. */
     private function writeProposedSpecs(int $productId, array $data): void
     {
         $attrs = DB::table('catalog_attributes')
-            ->whereIn('code', ['processor', 'ram_gb', 'storage', 'screen_inches', 'os'])
+            ->whereIn('code', ['processor', 'ram_gb', 'storage', 'screen_inches', 'os', 'rear_camera_mp', 'front_camera_mp', 'battery_mah'])
             ->pluck('id', 'code');
-        $units = DB::table('catalog_units')->whereIn('code', ['gb', 'inch'])->pluck('id', 'code');
+        $units = DB::table('catalog_units')->whereIn('code', ['gb', 'inch', 'mp', 'mah'])->pluck('id', 'code');
 
         $values = [
             'processor' => [null, $data['processor'] ?? null, null],
@@ -682,6 +685,9 @@ final class BusinessMenuItemController extends Controller
             'storage' => [null, $data['storage'] ?? null, null],
             'screen_inches' => [$data['screen_inches'] ?? null, null, $units['inch'] ?? null],
             'os' => [null, $data['os'] ?? null, null],
+            'rear_camera_mp' => [$data['rear_camera_mp'] ?? null, null, $units['mp'] ?? null],
+            'front_camera_mp' => [$data['front_camera_mp'] ?? null, null, $units['mp'] ?? null],
+            'battery_mah' => [$data['battery_mah'] ?? null, null, $units['mah'] ?? null],
         ];
 
         foreach ($values as $code => [$number, $text, $unit]) {

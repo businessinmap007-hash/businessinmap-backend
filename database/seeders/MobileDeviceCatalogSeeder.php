@@ -96,9 +96,111 @@ class MobileDeviceCatalogSeeder extends Seeder
             }
         });
 
+        $cameraBattery = $this->cameraAndBattery((int) $child->id);
+        $images = $this->images((int) $child->id);
+
         $this->command?->info('Mobile device catalog:');
         $this->command?->line("  - منتجات أُضيفت : {$created}");
         $this->command?->line("  - منتجات صُنّفت (فرع + سلسلة) : {$refiled}");
+        $this->command?->line("  - قيم كاميرا/بطارية كُتبت : {$cameraBattery}");
+        $this->command?->line("  - صور مفتوحة المصدر وُضعت : {$images}");
+    }
+
+    /**
+     * The three attributes this file owns — rear camera, front camera,
+     * battery — created on first run, then filled from
+     * `data/mobile_device_camera_battery.php`. A null in the file is a value
+     * nobody is sure of, and is left unwritten.
+     */
+    public static function ensureCameraBatteryAttributes(): array
+    {
+        $units = [];
+        foreach (['mp' => ['ميجابكسل', 'MP'], 'mah' => ['مللي أمبير', 'mAh']] as $code => [$ar, $en]) {
+            DB::table('catalog_units')->updateOrInsert(
+                ['code' => $code],
+                ['name_ar' => $ar, 'name_en' => $en, 'unit_type' => 'other', 'is_active' => 1, 'sort_order' => 100, 'updated_at' => now()]
+            );
+            $units[$code] = (int) DB::table('catalog_units')->where('code', $code)->value('id');
+        }
+
+        $attrs = [];
+        foreach ([
+            'rear_camera_mp' => ['الكاميرا الخلفية', 'Rear camera', 'mp', 206],
+            'front_camera_mp' => ['الكاميرا الأمامية', 'Front camera', 'mp', 207],
+            'battery_mah' => ['البطارية', 'Battery', 'mah', 208],
+        ] as $code => [$ar, $en, $unit, $sort]) {
+            DB::table('catalog_attributes')->updateOrInsert(
+                ['code' => $code],
+                [
+                    'name_ar' => $ar, 'name_en' => $en, 'data_type' => 'number', 'unit_id' => $units[$unit],
+                    'is_filterable' => 1, 'is_variant_axis' => 0, 'is_required' => 0,
+                    'sort_order' => $sort, 'updated_at' => now(),
+                ]
+            );
+            $attrs[$code] = [(int) DB::table('catalog_attributes')->where('code', $code)->value('id'), $units[$unit]];
+        }
+
+        return $attrs;
+    }
+
+    private function cameraAndBattery(int $childId): int
+    {
+        $attrs = self::ensureCameraBatteryAttributes();
+        $products = DB::table('catalog_products')
+            ->where('product_category_child_id', $childId)
+            ->whereNull('deleted_at')
+            ->pluck('id', 'name_en');
+
+        $written = 0;
+        foreach (require database_path('seeders/data/mobile_device_camera_battery.php') as $nameEn => $values) {
+            $productId = $products[$nameEn] ?? null;
+            if (! $productId) {
+                continue;
+            }
+
+            foreach (array_combine(['rear_camera_mp', 'front_camera_mp', 'battery_mah'], $values) as $code => $number) {
+                if ($number === null) {
+                    continue;
+                }
+
+                [$attributeId, $unitId] = $attrs[$code];
+                DB::table('catalog_product_attribute_values')->updateOrInsert(
+                    ['product_id' => (int) $productId, 'attribute_id' => $attributeId, 'option_id' => null],
+                    ['value_number' => (float) $number, 'value_text_en' => null, 'unit_id' => $unitId, 'sort_order' => 0, 'updated_at' => now()]
+                );
+                $written++;
+            }
+        }
+
+        return $written;
+    }
+
+    /**
+     * The open-licensed photos in `data/mobile_device_images.php`, each with
+     * its licence credit. Only fills an EMPTY image, or replaces one this file
+     * wrote earlier (a Commons URL) — a photo an admin uploaded is never
+     * touched.
+     */
+    private function images(int $childId): int
+    {
+        $path = database_path('seeders/data/mobile_device_images.php');
+        if (! is_file($path)) {
+            return 0;
+        }
+
+        $written = 0;
+        foreach (require $path as $nameEn => [$url, $credit]) {
+            $written += DB::table('catalog_products')
+                ->where('product_category_child_id', $childId)
+                ->where('name_en', $nameEn)
+                ->whereNull('deleted_at')
+                ->where(fn ($q) => $q->whereNull('main_image')->orWhere('main_image', '')
+                    ->orWhere('main_image', 'like', 'https://upload.wikimedia.org/%'))
+                ->where(fn ($q) => $q->whereNull('main_image')->orWhere('main_image', '!=', $url))
+                ->update(['main_image' => $url, 'main_image_credit' => $credit, 'updated_at' => now()]);
+        }
+
+        return $written;
     }
 
     private function brand(string $nameEn, string $nameAr): int

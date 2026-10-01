@@ -46,7 +46,7 @@ final class MenuDiscoveryController extends Controller
                 'offeringOptions.option.group',
                 'section',
                 'images',
-                'catalogProduct:id,brand_id,series',
+                'catalogProduct:id,brand_id,series,main_image,main_image_credit',
             ])
             ->orderByDesc('is_featured')
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
@@ -258,7 +258,12 @@ final class MenuDiscoveryController extends Controller
             ] : null,
             // The legacy single column stays for whatever already reads it;
             // `images` is the gallery, and the one to draw.
-            'image' => $item->image,
+            // The merchant's own photo first; a device he did not photograph
+            // shows its catalog master's open-licensed image instead.
+            'image' => $item->image ?: ($item->catalogProduct?->main_image ?: null),
+            // The licence credit that catalog photo must carry (CC BY-SA…);
+            // null when the merchant's own photo is shown.
+            'image_credit' => $item->image ? null : ($item->catalogProduct?->main_image_credit ?: null),
             'images' => $item->images->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image])->values(),
             'base_price' => $base,
             // What the price is the price OF. Null is «by the item» — a

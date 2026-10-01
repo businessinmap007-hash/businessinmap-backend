@@ -79,11 +79,14 @@ class MobileDeviceCatalogTest extends TestCase
         $product = $this->postJson('/api/v2/business/menu/catalog-products', [
             'line_option_id' => $phones, 'brand_id' => $oppo, 'series' => 'F', 'model' => 'F99 Test Edition',
             'ram_gb' => 8, 'storage' => '256GB', 'screen_inches' => 6.7,
+            'rear_camera_mp' => 64, 'front_camera_mp' => 32, 'battery_mah' => 5000,
         ])->assertCreated()->json('data.product');
 
         $this->assertTrue($product['pending']);
         $this->assertSame('F', $product['series']);
         $this->assertContains('256GB', array_column($product['specs'], 'value'));
+        $this->assertContains('battery_mah', array_column($product['specs'], 'code'));
+        $this->assertContains('rear_camera_mp', array_column($product['specs'], 'code'));
 
         // Proposing it again is the same product, not a duplicate.
         $again = $this->postJson('/api/v2/business/menu/catalog-products', [
@@ -106,6 +109,49 @@ class MobileDeviceCatalogTest extends TestCase
         $this->postJson('/api/v2/business/menu/items', [
             'name_ar' => 'منسوخ', 'base_price' => 1, 'catalog_product_id' => $product['id'],
         ])->assertUnprocessable();
+    }
+
+    public function test_the_storefront_shows_the_catalog_photo_with_its_credit_and_the_filter_facets(): void
+    {
+        $shop = $this->phoneShop();
+        Sanctum::actingAs($shop);
+        $phones = $this->branch('موبايل');
+
+        $productId = (int) DB::table('catalog_products')->where('name_en', 'Oppo F25 Pro 256GB')->value('id')
+            ?: $this->markTestSkipped('The device catalog is not seeded.');
+        DB::table('catalog_products')->where('id', $productId)->update([
+            'main_image' => 'https://upload.wikimedia.org/test.jpg',
+            'main_image_credit' => 'Someone — CC BY-SA 4.0, Wikimedia Commons',
+        ]);
+
+        $itemId = $this->postJson('/api/v2/business/menu/items', [
+            'name_ar' => 'اوبو F25 برو', 'base_price' => 15000, 'catalog_product_id' => $productId, 'line_option_id' => $phones,
+        ])->assertCreated()->json('data.id');
+
+        $items = collect($this->getJson("/api/v2/discovery/menu/{$shop->id}")->assertOk()->json('data.sections'))
+            ->flatMap(fn ($s) => $s['items']);
+        $item = $items->firstWhere('id', $itemId);
+
+        $this->assertSame('https://upload.wikimedia.org/test.jpg', $item['image']);
+        $this->assertSame('Someone — CC BY-SA 4.0, Wikimedia Commons', $item['image_credit']);
+        $this->assertSame('F', $item['series']);
+        $this->assertNotNull($item['catalog_brand']);
+    }
+
+    /**
+     * Every device in the catalog is listed in the camera/battery file — a
+     * model added later cannot silently go without them. A null there is a
+     * value nobody has confirmed yet, which is allowed; an absent name is not.
+     */
+    public function test_every_device_is_listed_in_the_camera_and_battery_file(): void
+    {
+        $listed = array_keys(require database_path('seeders/data/mobile_device_camera_battery.php'));
+        $devices = DB::table('catalog_products')
+            ->whereIn('line_option_id', [$this->branch('موبايل'), $this->branch('تابلت'), $this->branch('ساعة ذكية')])
+            ->where('approval_status', 'approved')->whereNull('deleted_at')
+            ->pluck('name_en')->all();
+
+        $this->assertSame([], array_values(array_diff($devices, $listed)), 'devices missing from mobile_device_camera_battery.php');
     }
 
     public function test_the_seeder_is_idempotent(): void

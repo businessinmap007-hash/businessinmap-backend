@@ -23,3 +23,6 @@ yarn-error.log
 
 # Exercise-library photos are downloaded by `php artisan exercise-library:import-images`
 /public/files/uploads/exercise-library/
+
+# Device catalog photos are downloaded by `php artisan catalog:import-device-images`
+/public/files/uploads/catalog-devices/

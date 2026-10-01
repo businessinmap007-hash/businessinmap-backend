@@ -195,7 +195,7 @@ class MobileDeviceCatalogSeeder extends Seeder
                 ->where('name_en', $nameEn)
                 ->whereNull('deleted_at')
                 ->where(fn ($q) => $q->whereNull('main_image')->orWhere('main_image', '')
-                    ->orWhere('main_image', 'like', 'https://upload.wikimedia.org/%'))
+                    ->orWhere('main_image', 'like', 'https://%.wikimedia.org/%'))
                 ->where(fn ($q) => $q->whereNull('main_image')->orWhere('main_image', '!=', $url))
                 ->update(['main_image' => $url, 'main_image_credit' => $credit, 'updated_at' => now()]);
         }

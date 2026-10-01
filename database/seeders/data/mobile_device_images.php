@@ -61,4 +61,28 @@ return [
     'Xiaomi Redmi 12 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Redmi_12_front.jpg/500px-Redmi_12_front.jpg', 'Maksdroider — CC BY-SA 4.0, Wikimedia Commons'],
     'Xiaomi Redmi 13 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/Redmi_13_Product_photography_05.jpg/500px-Redmi_13_Product_photography_05.jpg', 'Wasiul Bahar — CC BY-SA 4.0, Wikimedia Commons'],
     'Xiaomi Redmi Note 12 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Redmi_Note_12_front.jpg/500px-Redmi_Note_12_front.jpg', 'Maksdroider — CC BY-SA 4.0, Wikimedia Commons'],
+
+    // Found by a Commons file search (not Wikidata), each one checked by eye:
+    // the phone itself, no other store's price tags, not a photo TAKEN with it.
+    'Apple Watch SE (2nd gen) 44mm' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Apple_Watch_SE_2_%28GPS_%2B_Cellular%2C_40mm%2C_Midnight%29_-_Backside.jpg/500px-Apple_Watch_SE_2_%28GPS_%2B_Cellular%2C_40mm%2C_Midnight%29_-_Backside.jpg', 'AzureSaturn — CC0, Wikimedia Commons'],
+    'Apple Watch Ultra 2 49mm' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/Apple_Watch_Ultra_2.jpg/500px-Apple_Watch_Ultra_2.jpg', 'Pangalau — CC BY-SA 4.0, Wikimedia Commons'],
+    'Honor 200 Pro 512GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/About_Honor_200_Pro_Black.jpg/500px-About_Honor_200_Pro_Black.jpg', 'メイド理世 — CC BY-SA 4.0, Wikimedia Commons'],
+    'Honor X9b 256GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Honor_X9b.jpg/500px-Honor_X9b.jpg', 'Ahmetiliyus — CC BY 4.0, Wikimedia Commons'],
+    'Huawei Nova 11i 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/Huawei_Nova_11i_front.jpg/500px-Huawei_Nova_11i_front.jpg', 'Maksdroider — CC BY-SA 4.0, Wikimedia Commons'],
+    'Infinix Hot 50 256GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Infinix_HOT_50_4G.jpg/500px-Infinix_HOT_50_4G.jpg', 'Meniirtjakarintan — CC BY-SA 4.0, Wikimedia Commons'],
+    'OnePlus 13 256GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/OnePlus_13_back.jpg/500px-OnePlus_13_back.jpg', 'Maksdroider — CC BY-SA 4.0, Wikimedia Commons'],
+    'Oppo A18 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Oppo_A18_bagian_depan.jpg/500px-Oppo_A18_bagian_depan.jpg', 'MobilGalantsuper1999PS — CC BY 4.0, Wikimedia Commons'],
+    'Oppo A38 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/OPPO_A38_in_Glowing_Gold.jpg/500px-OPPO_A38_in_Glowing_Gold.jpg', 'Danielrayyan09 — CC BY 4.0, Wikimedia Commons'],
+    'Oppo A78 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Oppo_A78_4G_Bagian_belakang_dengan_bekas_sidik_ragam.jpg/500px-Oppo_A78_4G_Bagian_belakang_dengan_bekas_sidik_ragam.jpg', 'MobilGalantsuper1999PS — CC BY 4.0, Wikimedia Commons'],
+    'Oppo Find X8 256GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Oppo_Find_X8_Star_Grey.jpg/500px-Oppo_Find_X8_Star_Grey.jpg', 'Leongyy02 — CC BY 4.0, Wikimedia Commons'],
+    'Realme 12 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Realme_12_back.jpg/500px-Realme_12_back.jpg', 'Maksdroider — CC BY-SA 4.0, Wikimedia Commons'],
+    'Samsung Galaxy A14 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Samsung_Galaxy_A14_5G.jpg/500px-Samsung_Galaxy_A14_5G.jpg', 'Worm-b0y16 — CC0, Wikimedia Commons'],
+    'Samsung Galaxy S25 Edge 256GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Samsung_Galaxy_S25_Edge.jpg/500px-Samsung_Galaxy_S25_Edge.jpg', 'Miyako Fujimiya — CC BY-SA 4.0, Wikimedia Commons'],
+    'Samsung Galaxy Tab A9+ 64GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Samsung_galaxy_tab_A9%2B_Bagian_depan.jpg/500px-Samsung_galaxy_tab_A9%2B_Bagian_depan.jpg', 'MobilGalantsuper1999PS — CC BY 4.0, Wikimedia Commons'],
+    'Samsung Galaxy Watch6 Classic 47mm' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Samsung_Galaxy_Watch6_Classic_43mm.jpg/500px-Samsung_Galaxy_Watch6_Classic_43mm.jpg', 'Mattmates — CC0, Wikimedia Commons'],
+    'Samsung Galaxy Z Flip5 256GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Comparison_of_Samsung_Galaxy_z_flip5_phone_with_gameboy_advance_SP.jpg/500px-Comparison_of_Samsung_Galaxy_z_flip5_phone_with_gameboy_advance_SP.jpg', 'Steveprutz — CC0, Wikimedia Commons'],
+    'Samsung Galaxy Z Fold6 256GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Samsung_Galaxy_Z_Fold6.png/500px-Samsung_Galaxy_Z_Fold6.png', 'Mandy Harper — CC BY-SA 4.0, Wikimedia Commons'],
+    'Xiaomi 14 256GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Xiaomi_14_%28July_10%2C_2026%29.jpg/500px-Xiaomi_14_%28July_10%2C_2026%29.jpg', '茅野ふたば — CC BY-SA 4.0, Wikimedia Commons'],
+    'Xiaomi 14T Pro 512GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Xiaomi-14T-Pro---RuinDig_095.jpg/500px-Xiaomi-14T-Pro---RuinDig_095.jpg', 'RuinDig/Yuki Uchida — CC BY 4.0, Wikimedia Commons'],
+    'Xiaomi Redmi 14C 128GB' => ['https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Redmi_14C_front.jpg/500px-Redmi_14C_front.jpg', 'Maksdroider — CC BY-SA 4.0, Wikimedia Commons'],
 ];

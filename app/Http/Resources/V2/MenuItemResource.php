@@ -49,6 +49,10 @@ class MenuItemResource extends JsonResource
                         ? ($product->name_en ?: $product->name_ar)
                         : ($product->name_ar ?: $product->name_en),
                     'specs' => app(\App\Services\Catalog\ProductSpecs::class)->forProducts([(int) $product->id])[(int) $product->id] ?? [],
+                    // The catalog's own photo — shown on the merchant's list
+                    // until he adds one of his own.
+                    'image' => $product->main_image ?: null,
+                    'series' => $product->series ?: null,
                 ];
             })() : null,
 

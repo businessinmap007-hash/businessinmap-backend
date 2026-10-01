@@ -80,6 +80,12 @@ class MobileDeviceCatalogSeeder extends Seeder
                             if ($existing) {
                                 $refiled += DB::table('catalog_products')->where('id', $existing)->update($facets);
                                 $productId = (int) $existing;
+
+                                // A name still exactly as the old digit rule wrote it is
+                                // rewritten with the new one; a name an admin edited is not.
+                                if ($spec !== null) {
+                                    $this->renameIfUntouched($productId, (string) $spec[0]);
+                                }
                             } elseif ($spec === null) {
                                 continue; // an accessory row is only ever re-filed, never minted
                             } else {
@@ -260,9 +266,43 @@ class MobileDeviceCatalogSeeder extends Seeder
     /** The catalog's own convention: «A١٥ ١٢٨ جيجا», not «A15 128 جيجا». */
     private function arabicDigits(string $text): string
     {
-        $text = strtr($text, ['0' => '٠', '1' => '١', '2' => '٢', '3' => '٣', '4' => '٤', '5' => '٥', '6' => '٦', '7' => '٧', '8' => '٨', '9' => '٩']);
+        /*
+         * Only a standalone number turns Arabic-Indic («١٢٨ جيجا»). A digit
+         * inside a Latin model code stays Western: «A١٧ Pro» splits into three
+         * bidi runs in an RTL line and rendered as «(Pro A١٧)» on the
+         * emulator, 2026-10-01. «A17», «S24», «M2», «5G» keep their digits.
+         */
+        return preg_replace_callback('/\S+/u', function ($m) {
+            return preg_match('/[A-Za-z]/', $m[0]) ? $m[0] : $this->indic($m[0]);
+        }, $text);
+    }
 
-        return str_replace('٥G', '5G', $text); // a network name, not a number
+    /** The first rule — every digit Arabic-Indic. Kept to recognise names it wrote. */
+    private function legacyArabicDigits(string $text): string
+    {
+        return str_replace('٥G', '5G', $this->indic($text));
+    }
+
+    private function indic(string $text): string
+    {
+        return strtr($text, ['0' => '٠', '1' => '١', '2' => '٢', '3' => '٣', '4' => '٤', '5' => '٥', '6' => '٦', '7' => '٧', '8' => '٨', '9' => '٩']);
+    }
+
+    private function renameIfUntouched(int $productId, string $nameAr): void
+    {
+        $new = $this->arabicDigits($nameAr);
+        $current = (string) DB::table('catalog_products')->where('id', $productId)->value('name_ar');
+
+        if ($current === $new || $current !== $this->legacyArabicDigits($nameAr)) {
+            return;
+        }
+
+        DB::table('catalog_products')->where('id', $productId)->update([
+            'name_ar' => $new,
+            'normalized_name_ar' => mb_strtolower($new),
+            'image_alt_ar' => $new,
+            'updated_at' => now(),
+        ]);
     }
 
     private function nextCode(): string

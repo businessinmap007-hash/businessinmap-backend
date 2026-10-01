@@ -2319,11 +2319,13 @@ class ChildTradeVocabulariesTest extends TestCase
          */
         $shopLines = array_keys($vocabulary->for(0, 186, 17)['lines']->all());
 
-        // Split in two on 2026-09-30: the handsets, and what you buy for them.
+        // Split in two on 2026-09-30, then «اكسسوارات» split again into
+        // products vs. services the same day.
         $this->assertSame('أجهزة الموبايل', $shopLines[0], 'the phone shop lost its own list');
         $this->assertContains('اكسسوارات', $shopLines, 'the phone shop lost its accessories list');
+        $this->assertContains('خدمات الموبايل', $shopLines, 'the phone shop lost its services list');
         $this->assertEmpty(
-            array_diff($shopLines, ['أجهزة الموبايل', 'اكسسوارات', 'ماركات الموبيلات']),
+            array_diff($shopLines, ['أجهزة الموبايل', 'اكسسوارات', 'خدمات الموبايل', 'ماركات الموبيلات']),
             'the phone shop is offered a handbag'
         );
 

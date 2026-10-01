@@ -154,6 +154,14 @@ return [
         | «شرائح وشحن رصيد» moves with them but is not declared: the owner
         | withdrew it from #186 on 2026-09-29, and declaring it would mint it
         | back on a rebuild.
+        |
+        | Split AGAIN, same day: every row left here is a real catalog
+        | PRODUCT (a charger/case/power bank is a `catalog_product` a
+        | merchant can pick, same as a phone) — the one that was not
+        | («صيانة وبرمجة», a service) moved to «خدمات الموبايل» below via
+        | `regroup`, so flagging THIS group `branches_as_sections` never
+        | forces a service branch through «اختر منتجًا حقيقيًا» with
+        | nothing to pick.
         */
         'اكسسوارات' => [
             'name_en' => 'Mobile Accessories', 'price_role' => 'line', 'children' => [186],
@@ -165,6 +173,18 @@ return [
                 'اسكرين وحماية' => 'Screen Protectors',
                 'كروت ذاكرة' => 'Memory Cards',
                 'إكسسوار موبايل للسيارة' => 'In-car Mobile Accessories',
+            ],
+        ],
+
+        /*
+        | «صيانة وبرمجة» and «شرائح وشحن رصيد» (the latter withdrawn, see
+        | above — moved but not declared) are services/vouchers, not
+        | catalog products — they stay on the plain quantity/price flow
+        | forever, never `branches_as_sections`.
+        */
+        'خدمات الموبايل' => [
+            'name_en' => 'Mobile Services', 'price_role' => 'line', 'children' => [186],
+            'options' => [
                 'صيانة وبرمجة' => 'Repair & Software',
             ],
         ],
@@ -800,6 +820,18 @@ return [
                 'سماعات', 'شواحن وكابلات', 'باور بانك', 'جرابات وكفرات', 'اسكرين وحماية',
                 'كروت ذاكرة', 'إكسسوار موبايل للسيارة', 'صيانة وبرمجة', 'شرائح وشحن رصيد',
             ],
+        ],
+
+        /*
+        | «اكسسوارات» split again into products vs. services — see the
+        | note beside «خدمات الموبايل» in `groups` above. Both rows keep
+        | their ids/links; only their heading changes.
+        */
+        'خدمات الموبايل' => [
+            'name_en' => 'Mobile Services',
+            'price_role' => 'line',
+            'from' => 'اكسسوارات',
+            'options' => ['صيانة وبرمجة', 'شرائح وشحن رصيد'],
         ],
 
         'أنواع الأسماك والمأكولات البحرية' => [

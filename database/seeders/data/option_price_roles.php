@@ -507,6 +507,9 @@ return [
         // else's question — see shop_child_vocabularies.php.
         'أجهزة الموبايل',
         'اكسسوارات',
+        // «اكسسوارات» split again the same day — the service row that left
+        // it keeps the same `line` role, same reasoning.
+        'خدمات الموبايل',
         'خدمات المفاتيح والأقفال',
         'أنواع الستائر والديكور',
         'أصناف العصائر والمشروبات',

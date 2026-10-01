@@ -220,6 +220,51 @@ class MenuCrudApiTest extends TestCase
     }
 
     /**
+     * «الكروت عموما فى اضافة صنف يجب تعديلها الى النظام الجديد وليس فى
+     * موبايلات فقط ولكن فى اكسسوارات ايضا» — المالك، 2026-10-01: «اكسسوارات»
+     * #1037 flagged `branches_as_sections` too, generalizing «منيو مواصفات
+     * 1» beyond just the device-type group. But two of its nine original
+     * rows — «صيانة وبرمجة» and «شرائح وشحن رصيد» — are a SERVICE and a
+     * VOUCHER, not catalog products, so they were split into their own
+     * «خدمات الموبايل» group first and left OFF `branches_as_sections` —
+     * flagging them would force «اختر منتجًا حقيقيًا» on a branch with
+     * nothing in the catalog to pick, blocking the merchant from pricing
+     * a repair job at all. See [[tech-spec-menu-implementation]].
+     */
+    public function test_accessories_is_flagged_detailed_but_mobile_services_is_not(): void
+    {
+        $business = User::query()->where('type', 'business')->where('category_child_id', 186)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #186.');
+
+        $accessories = \App\Models\OptionGroup::query()->where('name_ar', 'اكسسوارات')->firstOrFail();
+        $services = \App\Models\OptionGroup::query()->where('name_ar', 'خدمات الموبايل')->firstOrFail();
+
+        $lines = collect(
+            $this->actingAs($business, 'sanctum')
+                ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.lines')
+        );
+
+        $accessoriesLine = $lines->firstWhere('group_id', $accessories->id);
+        $this->assertNotNull($accessoriesLine, 'the accessories group must be in this businesss line vocabulary');
+        $this->assertTrue($accessoriesLine['detailed'], 'a real catalog product (charger/case/power bank) must open التسعير والتفاصيل');
+
+        $servicesLine = $lines->firstWhere('group_id', $services->id);
+        $this->assertNotNull($servicesLine, 'the mobile-services group must be in this businesss line vocabulary');
+        $this->assertFalse($servicesLine['detailed'], 'a repair/top-up service has no catalog product to pick');
+
+        // And the plain quantity/price flow still actually WORKS for the
+        // service branch — the whole point of keeping it undetailed.
+        $repair = \App\Models\Option::query()->where('group_id', $services->id)->where('name_ar', 'صيانة وبرمجة')->firstOrFail();
+        $item = $this->postJson('/api/v2/business/menu/items', [
+            'name_ar' => 'صيانة شاشة',
+            'base_price' => 350,
+            'line_option_id' => $repair->id,
+        ])->assertCreated()->json('data');
+
+        $this->assertNull($item['catalog_product_id'], 'a service item never needs a catalog product');
+    }
+
+    /**
      * «الورقيات بتكون اما بالرابطة او بالكيلو او جرام … اجعل الوحدات فيها
      * بالثلاثة دول فقط» — المالك، 2026-09-29, widened the same day to
      * name «الفواكه»/«الخضروات» explicitly. Mirrors MenuMarketCatalogApiTest's

@@ -746,10 +746,33 @@ final class BusinessMenuItemController extends Controller
                 : max(0, (int) $data['available_quantity']),
             // Empty string and «by the item» are the same answer; both store null.
             'sale_unit' => trim((string) ($data['sale_unit'] ?? '')) ?: null,
-            'brand_name' => trim((string) ($data['brand_name'] ?? '')) ?: null,
+            'brand_name' => trim((string) ($data['brand_name'] ?? '')) ?: $this->catalogBrandName($data['catalog_product_id'] ?? null),
             'sort_order' => max(0, (int) ($data['sort_order'] ?? 0)),
             'is_active' => $request->boolean('is_active', true),
         ];
+    }
+
+    /**
+     * «ماركات الموبايلات هل نقوم بنقل المجموعة الى الكتالوج ايضا كما قمنا
+     * بنقل ماركات السيارات» — المالك، 2026-10-01. A catalog-linked item's
+     * brand is already known — `catalog_products.brand_id` — the moment the
+     * merchant picks a real product in «التسعير والتفاصيل», so it is never
+     * asked for again through a separate «ماركات الموبيلات»/«ماركات
+     * السيارات» modifier pick the way a hand-typed item still is. Only
+     * fills what the merchant left blank — an explicit `brand_name` always
+     * wins, matching the field's own long-standing meaning for every other
+     * (non catalog-linked) item.
+     */
+    private function catalogBrandName(?int $catalogProductId): ?string
+    {
+        if (! $catalogProductId) {
+            return null;
+        }
+
+        return DB::table('catalog_products')
+            ->leftJoin('catalog_brands as b', 'b.id', '=', 'catalog_products.brand_id')
+            ->where('catalog_products.id', $catalogProductId)
+            ->value('b.name_ar');
     }
 
     /** @return array<string,mixed> */

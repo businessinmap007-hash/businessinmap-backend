@@ -51,6 +51,42 @@ class MenuCatalogSpecsLinkTest extends TestCase
     }
 
     /**
+     * «ماركات الموبايلات هل نقوم بنقل المجموعة الى الكتالوج ايضا» —
+     * المالك، 2026-10-01: a catalog-linked item's brand comes from the real
+     * product's own `catalog_brands` row automatically — the merchant is
+     * never asked to ALSO pick a «ماركات الموبايلات»/«ماركات السيارات»
+     * modifier for something whose brand is already known. An explicit
+     * `brand_name` still wins, matching the field's long-standing meaning
+     * for a hand-typed (non catalog-linked) item.
+     */
+    public function test_a_catalog_linked_item_inherits_its_brand_automatically(): void
+    {
+        $business = $this->laptopShop();
+        Sanctum::actingAs($business);
+
+        $laptopId = (int) DB::table('catalog_products')->where('name_en', 'Dell Latitude Laptop 14 inch')->value('id');
+        $this->assertNotSame(0, $laptopId, 'the seeded Dell laptop exists');
+
+        $item = $this->postJson('/api/v2/business/menu/items', [
+            'name_ar' => 'ديل لاتيتيود',
+            'base_price' => 22000,
+            'catalog_product_id' => $laptopId,
+        ])->assertCreated()->json('data');
+
+        $this->assertSame('ديل', $item['brand_name'], 'the brand is inherited from the linked catalog product');
+
+        // An explicit brand_name still wins over the catalog's own.
+        $item2 = $this->postJson('/api/v2/business/menu/items', [
+            'name_ar' => 'ديل لاتيتيود مجدد',
+            'base_price' => 18000,
+            'catalog_product_id' => $laptopId,
+            'brand_name' => 'ديل - مجدد',
+        ])->assertCreated()->json('data');
+
+        $this->assertSame('ديل - مجدد', $item2['brand_name'], 'an explicit brand_name is never overridden');
+    }
+
+    /**
      * A merchant picking a product in «التسعير والتفاصيل» sees its spec table
      * BEFORE saving anything — the search result itself carries `specs`, not
      * just `id`/`name`/`image`. See [[tech-spec-menu-implementation]].

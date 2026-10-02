@@ -120,8 +120,12 @@ final class MenuItemSearchController extends Controller
         $masterSpecs = app(ProductSpecs::class)->forProducts($products);
         $images = DB::table('catalog_products')->whereIn('id', $products)->pluck('main_image', 'id');
 
-        $items = collect($page->items())->map(function ($r) use ($attrs, $masterSpecs, $images, $english) {
+        $cardCodes = collect($fields)->where('show_on_card', true)->pluck('code')->all();
+
+        $items = collect($page->items())->map(function ($r) use ($attrs, $masterSpecs, $images, $english, $cardCodes) {
             $specs = $attrs->mergeIntoSpecs($masterSpecs[(int) $r->catalog_product_id] ?? [], (int) $r->id);
+            $byCode = collect($specs)->keyBy('code');
+            $summary = collect($cardCodes)->map(fn ($c) => $byCode[$c]['value'] ?? null)->filter()->implode(' · ');
 
             return [
                 'id' => (int) $r->id,
@@ -131,6 +135,7 @@ final class MenuItemSearchController extends Controller
                 'catalog_product_id' => $r->catalog_product_id ? (int) $r->catalog_product_id : null,
                 'available_quantity' => $r->available_quantity !== null ? (int) $r->available_quantity : null,
                 'specs' => $specs,
+                'summary' => $summary !== '' ? $summary : null,
                 'business' => [
                     'id' => (int) $r->business_id,
                     'name' => (string) $r->business_name,
@@ -147,14 +152,52 @@ final class MenuItemSearchController extends Controller
                 'items' => $items,
                 'profile' => $profile ? ['code' => $profile->code, 'name' => $profile->label($english), 'fields' => $fields] : null,
                 'facets' => $this->facets($filterable->all(), $facetIds),
-            ],
-            'meta' => [
-                'page' => $page->currentPage(),
-                'per_page' => $page->perPage(),
-                'total' => $page->total(),
-                'last_page' => $page->lastPage(),
+                // Inside `data`, so the app's client — which unwraps it — sees paging.
+                'meta' => [
+                    'page' => $page->currentPage(),
+                    'per_page' => $page->perPage(),
+                    'total' => $page->total(),
+                    'last_page' => $page->lastPage(),
+                ],
             ],
         ]);
+    }
+
+    /**
+     * GET /api/v2/discovery/menu-items/kinds — the detail kinds a customer can
+     * search («سيارات»، «كمبيوتر ولاب توب»…) with only the fields that are
+     * filters for that kind, so the app draws the filter sheet from data.
+     * Only kinds some shop actually sells are listed.
+     */
+    public function kinds()
+    {
+        $english = app()->getLocale() === 'en';
+        $morph = (new MenuItem)->getMorphClass();
+
+        $profiles = MenuDetailProfile::query()->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
+        $fields = MenuDetailProfile::fieldsFor($profiles->pluck('id')->all(), $english);
+
+        $counts = DB::table('menu_items')
+            ->join('offering_options as oo', function ($j) use ($morph) {
+                $j->on('oo.offering_id', '=', 'menu_items.id')->where('oo.offering_type', $morph)->where('oo.role', 'line');
+            })
+            ->join('options as op', 'op.id', '=', 'oo.option_id')
+            ->join('option_groups as og', 'og.id', '=', 'op.group_id')
+            ->where('menu_items.is_active', true)
+            ->whereNotNull('og.menu_detail_profile_id')
+            ->groupBy('og.menu_detail_profile_id')
+            ->selectRaw('og.menu_detail_profile_id as pid, COUNT(DISTINCT menu_items.id) as n')
+            ->pluck('n', 'pid');
+
+        return response()->json(['success' => true, 'data' => ['kinds' => $profiles
+            ->filter(fn ($p) => ($counts[$p->id] ?? 0) > 0)
+            ->map(fn ($p) => [
+                'code' => $p->code,
+                'name' => $p->label($english),
+                'icon' => $p->icon,
+                'count' => (int) $counts[$p->id],
+                'fields' => collect($fields[$p->id] ?? [])->where('is_filterable', true)->values()->all(),
+            ])->values()]]);
     }
 
     /** One field, matched on the unit's own value, else on its catalog master's. */

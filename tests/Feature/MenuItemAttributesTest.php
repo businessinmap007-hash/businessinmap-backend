@@ -208,6 +208,22 @@ class MenuItemAttributesTest extends TestCase
         $this->assertGreaterThanOrEqual(2022, $facets['model_year']['max']);
         $this->assertSame(['أوتوماتيك', 'مانيوال'], collect($facets['transmission']['options'])->pluck('name')->sort()->values()->all());
 
+        // Each result carries the kind's one-line summary, and paging rides inside data.
+        $first = collect($search(['catalog_product_id' => $car])->json('data.items'))->firstWhere('id', $a);
+        $this->assertSame('2022 · أوتوماتيك', $first['summary']);
+        $this->assertGreaterThanOrEqual(2, $search([])->json('data.meta.total'));
+
+        // The kinds a customer can search list only their FILTER fields, and only kinds on sale.
+        DB::table('menu_detail_profile_attributes')
+            ->where('menu_detail_profile_id', MenuDetailProfile::query()->where('code', 'cars')->value('id'))
+            ->where('catalog_attribute_id', $this->attr('color'))->update(['is_filterable' => 0]);
+        $kinds = collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/discovery/menu-items/kinds')->assertOk()->json('data.kinds'));
+        $cars = $kinds->firstWhere('code', 'cars');
+        $this->assertNotNull($cars, 'cars are on sale');
+        $this->assertNotContains('color', array_column($cars['fields'], 'code'), 'an unticked filter is not offered');
+        $this->assertContains('model_year', array_column($cars['fields'], 'code'));
+        $this->assertNull($kinds->firstWhere('code', 'appliances'), 'a kind nobody sells is not listed');
+
         $this->getJson('/api/v2/discovery/menu-items/search?profile=nope')->assertStatus(404);
     }
 

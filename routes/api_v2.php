@@ -212,6 +212,7 @@ Route::prefix('v2')->group(function () {
         // Search across shops by a detail kind's fields (a car's year, a laptop's
         // processor) and compare one product's price between them.
         Route::get('menu-items/search', [\App\Http\Controllers\Api\V2\MenuItemSearchController::class, 'index']);
+        Route::get('menu-items/kinds', [\App\Http\Controllers\Api\V2\MenuItemSearchController::class, 'kinds']);
 
         // Units: the rooms/tables/pitches a customer may actually book, grouped
         // by kind with each kind's price. 21 children refuse a booking without a

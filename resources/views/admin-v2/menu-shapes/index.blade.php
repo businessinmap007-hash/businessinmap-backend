@@ -92,6 +92,8 @@
     .ms-fields-table td, .ms-fields-table th { padding: 6px 6px; font-size: 12.5px; white-space: normal; }
     .ms-fields-table th:not(:first-child), .ms-fields-table td:not(:first-child) { text-align: center; width: 1%; white-space: nowrap; }
     .ms-note { font-size: 12px; opacity: .7; line-height: 1.7; }
+    .ms-row-off td { opacity: .45; }
+    .ms-row-off td:first-child { opacity: .7; }
 </style>
 
 <div class="a2-page">
@@ -322,20 +324,20 @@
                                     <input type="hidden" name="q" value="{{ $search }}">
                                     <input type="hidden" name="shape" value="{{ $shape }}">
                                     <strong>{{ __('حقول «') }}{{ $previewProfile->name_ar }}{{ __('»') }}</strong>
-                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات.') }}</div>
+                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات. الحقول غير المفعّلة لا تظهر لا فى فلتر هذا النوع ولا فى صفحاته — كل نوع له فلاتره هو فقط.') }}</div>
                                     <div style="max-height:420px;overflow:auto">
                                         <table class="a2-table ms-fields-table">
                                             <thead><tr><th>{{ __('الحقل') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('على الكارت') }}</th><th>{{ __('لكل وحدة') }}</th><th>{{ __('فلتر البحث') }}</th></tr></thead>
                                             <tbody>
                                                 @foreach($ordered as $a)
                                                     @php $f = $current->get($a->id); @endphp
-                                                    <tr>
+                                                    <tr class="{{ $f ? '' : 'ms-row-off' }}" data-attr-row>
                                                         <td>{{ $a->name_ar }} <span class="ms-note">{{ $a->code }}{{ $a->unit ? ' · ' . $a->unit : '' }}</span></td>
-                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][enabled]" value="1" @checked($f)></td>
-                                                        <td><input class="a2-input" style="width:58px;min-width:0" type="number" min="0" name="fields[{{ $a->id }}][sort_order]" value="{{ $f ? ($loop->index + 1) * 10 : '' }}"></td>
-                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][show_on_card]" value="1" @checked($f && $f['show_on_card'])></td>
-                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][per_item]" value="1" @checked($f && $f['per_item'])></td>
-                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][is_filterable]" value="1" @checked(! $f || $f['is_filterable'])></td>
+                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][enabled]" value="1" data-enable @checked($f)></td>
+                                                        <td><input class="a2-input" style="width:58px;min-width:0" type="number" min="0" name="fields[{{ $a->id }}][sort_order]" value="{{ $f ? ($loop->index + 1) * 10 : '' }}" data-dep @disabled(! $f)></td>
+                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][show_on_card]" value="1" data-dep @checked($f && $f['show_on_card']) @disabled(! $f)></td>
+                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][per_item]" value="1" data-dep @checked($f && $f['per_item']) @disabled(! $f)></td>
+                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][is_filterable]" value="1" data-dep @checked($f && $f['is_filterable']) @disabled(! $f)></td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
@@ -368,6 +370,20 @@
 </div>
 
 <script>
+    // A field the kind does not use has nothing to put on a card, ask per unit
+    // or filter by — its other boxes stay off until it is enabled.
+    document.querySelectorAll('[data-attr-row]').forEach(function (row) {
+        var enable = row.querySelector('[data-enable]');
+        enable.addEventListener('change', function () {
+            row.classList.toggle('ms-row-off', !enable.checked);
+            row.querySelectorAll('[data-dep]').forEach(function (el) {
+                el.disabled = !enable.checked;
+                if (!enable.checked) { el.checked = false; if (el.type === 'number') el.value = ''; }
+                else if (el.name.indexOf('is_filterable') !== -1) { el.checked = true; }
+            });
+        });
+    });
+
     document.querySelectorAll('.ms-tab').forEach(function (tab) {
         tab.addEventListener('click', function () {
             var screen = tab.getAttribute('data-screen');

@@ -1025,7 +1025,7 @@ paths:
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } } } }
     patch:
       tags: [Profile]
-      summary: "Edit basic fields. A business may change its trade (category_id + category_child_id — the child must stand under the root) on the same account: the first call answers 409 with requires_confirmation and will_delete (menu items, sections, bundles, retail listings, prices, bookable units, tables, vocabulary ticks); resend with confirm_reset=true to delete them and move the account to the new trade. 422 with blockers while an order, booking or frozen deposit is still open. The success body carries trade_switch.deleted."
+      summary: "Edit basic fields. A business may change its trade (category_id + category_child_id — the child must stand under the root) on the same account: the first call answers 409 with requires_confirmation and will_delete (menu items, sections, bundles, retail listings, prices, bookable units, tables, vocabulary ticks); resend with confirm_reset=true to delete them and move the account to the new trade. 422 with cooling_off {days:15, last_activity_at, available_at} until 15 days have passed since the account's last sale or booking (a guarantee against shedding a bad record by changing trade), and with blockers while an order, booking or frozen deposit is still open. The success body carries trade_switch.deleted."
       requestBody:
         content:
           application/json:

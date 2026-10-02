@@ -98,4 +98,15 @@ return [
         'cancelled_ratio' => (float) env('BIM_FRAUD_CANCELLED_RATIO', 0.50),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Changing a business's trade (main + sub category on the same account)
+    |--------------------------------------------------------------------------
+    | «لا يمكن تغيير النشاط الا بعد مرور 15 يوم على اخر عملية بيع او حجز حتى
+    | تكون هذه الفترة ضمانا لعدم بيع منتج غير مطابق للمواصفات او خدمة وهمية».
+    | Without the wait, changing trade is a way to shed a bad record. 0 turns it
+    | off — only ever for a test machine (BIM_TRADE_SWITCH_COOLING_OFF_DAYS=0).
+    */
+    'trade_switch_cooling_off_days' => (int) env('BIM_TRADE_SWITCH_COOLING_OFF_DAYS', 15),
+
 ];

@@ -114,11 +114,23 @@ final class ProfileController extends Controller
                 $childId = (int) ($newChild ?? $user->category_child_id);
                 $switcher->assertValidPair($rootId, $childId);
 
-                if ($blockers = $switcher->blockers($user)) {
+                // «لا يمكن تغيير النشاط الا بعد مرور 15 يوم على اخر عملية بيع او حجز» —
+                // and never while an order, booking or deposit is still open. One
+                // answer carries both, so the app can say everything that stops it.
+                $cooling = $switcher->coolingOff($user);
+                $blockers = $switcher->blockers($user);
+
+                if ($cooling || $blockers) {
                     return response()->json([
                         'success' => false,
-                        'message' => __('لا يمكن تغيير النشاط وعندك طلبات أو حجوزات أو عربون لم تنتهِ بعد — أنهِها أو ألغِها أولًا.'),
-                        'blockers' => $blockers,
+                        'message' => $cooling
+                            ? __('لا يمكن تغيير النشاط قبل مرور :days يومًا على آخر عملية بيع أو حجز — يمكنك التغيير بعد :date.', [
+                                'days' => $cooling['days'],
+                                'date' => \Illuminate\Support\Carbon::parse($cooling['available_at'])->format('Y-m-d'),
+                            ])
+                            : __('لا يمكن تغيير النشاط وعندك طلبات أو حجوزات أو عربون لم تنتهِ بعد — أنهِها أو ألغِها أولًا.'),
+                        'cooling_off' => $cooling,
+                        'blockers' => $blockers ?: null,
                     ], 422);
                 }
 

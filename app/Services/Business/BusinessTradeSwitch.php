@@ -36,6 +36,20 @@ class BusinessTradeSwitch
 
     private const OPEN_BOOKING = ['pending', 'accepted', 'in_progress'];
 
+    /** Orders and bookings that never happened — they are not a sale or a booking. */
+    private const NEVER_HAPPENED_ORDER = ['cart', 'cancelled', 'canceled', 'rejected'];
+    private const NEVER_HAPPENED_BOOKING = ['cancelled', 'rejected'];
+
+    /**
+     * «لا يمكن تغيير النشاط الا بعد مرور 15 يوم على اخر عملية بيع او حجز حتى
+     * تكون هذه الفترة ضمانا لعدم بيع منتج غير مطابق للمواصفات او خدمة وهمية» —
+     * المالك، 2026-10-02. Changing the trade is also a way to shed a bad
+     * record: sell a phone that is not as described, then become a restaurant.
+     * The wait keeps the customer's window to complain, rate or open a dispute
+     * open while the shop still IS what it sold.
+     */
+    public const COOLING_OFF_DAYS = 15;
+
     /** Does the request move the account to a different (root, child)? */
     public function isChange(User $business, ?int $rootId, ?int $childId): bool
     {
@@ -64,6 +78,44 @@ class BusinessTradeSwitch
         if (! $paired) {
             throw ValidationException::withMessages(['category_child_id' => [__('هذا التخصص لا يتبع هذا التصنيف الرئيسي.')]]);
         }
+    }
+
+    /** The last sale or booking the account had, or null when it never had one. */
+    public function lastActivity(User $business): ?\Illuminate\Support\Carbon
+    {
+        // The later of when it was made, last touched, and — for a booking —
+        // when its service ended: a stay that finished yesterday was sold today.
+        $order = DB::table('orders')->where('business_id', $business->id)
+            ->whereNotIn('status', self::NEVER_HAPPENED_ORDER)
+            ->selectRaw('MAX(GREATEST(created_at, COALESCE(updated_at, created_at))) as at')->value('at');
+
+        $booking = DB::table('bookings')->where('business_id', $business->id)
+            ->whereNotIn('status', self::NEVER_HAPPENED_BOOKING)
+            ->selectRaw('MAX(GREATEST(created_at, COALESCE(updated_at, created_at), COALESCE(LEAST(ends_at, NOW()), created_at))) as at')->value('at');
+
+        $latest = collect([$order, $booking])->filter()->map(fn ($t) => \Illuminate\Support\Carbon::parse($t))->max();
+
+        return $latest;
+    }
+
+    /**
+     * The cooling-off the account is still inside, or null when it may switch.
+     *
+     * @return array{days:int,last_activity_at:string,available_at:string}|null
+     */
+    public function coolingOff(User $business): ?array
+    {
+        $last = $this->lastActivity($business);
+        if (! $last) {
+            return null;
+        }
+
+        $days = max(0, (int) config('bim.trade_switch_cooling_off_days', self::COOLING_OFF_DAYS));
+        $available = $last->copy()->addDays($days);
+
+        return $available->isFuture()
+            ? ['days' => $days, 'last_activity_at' => $last->toIso8601String(), 'available_at' => $available->toIso8601String()]
+            : null;
     }
 
     /**

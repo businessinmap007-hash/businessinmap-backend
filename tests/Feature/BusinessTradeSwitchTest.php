@@ -128,7 +128,8 @@ class BusinessTradeSwitchTest extends TestCase
 
         $this->patchJson('/api/v2/profile', ['category_id' => self::FURNITURE[0], 'category_child_id' => self::FURNITURE[1], 'confirm_reset' => true])
             ->assertStatus(422)
-            ->assertJsonPath('blockers.open_orders', 1);
+            ->assertJsonPath('blockers.open_orders', 1)
+            ->assertJsonPath('cooling_off.days', 15);
 
         $this->assertTrue(MenuItem::query()->whereKey($item)->exists());
         $this->assertEquals(self::GROCER[1], $shop->fresh()->category_child_id);
@@ -145,5 +146,77 @@ class BusinessTradeSwitchTest extends TestCase
 
         $this->assertSame(1, DB::table('menu_items')->where('business_id', $shop->id)->count());
         $this->assertSame('اسم جديد', $shop->fresh()->name);
+    }
+
+    private function order(User $shop, string $status, string $when): void
+    {
+        $client = User::query()->where('type', 'client')->orderBy('id')->first() ?: $this->markTestSkipped('No client account.');
+        DB::table('orders')->insert(['user_id' => $client->id, 'business_id' => $shop->id, 'status' => $status, 'total' => 100, 'address' => 'x', 'created_at' => $when, 'updated_at' => $when]);
+    }
+
+    private function trySwitch(User $shop)
+    {
+        Sanctum::actingAs($shop);
+
+        return $this->patchJson('/api/v2/profile', ['category_id' => self::FURNITURE[0], 'category_child_id' => self::FURNITURE[1], 'confirm_reset' => true]);
+    }
+
+    /**
+     * «لا يمكن تغيير النشاط الا بعد مرور 15 يوم على اخر عملية بيع او حجز حتى
+     * تكون هذه الفترة ضمانا لعدم بيع منتج غير مطابق للمواصفات او خدمة وهمية» —
+     * المالك، 2026-10-02.
+     */
+    public function test_a_sale_within_fifteen_days_holds_the_trade_and_says_when_it_opens(): void
+    {
+        $shop = $this->shop();
+        $this->order($shop, 'completed', now()->subDays(3)->toDateTimeString());
+
+        $res = $this->trySwitch($shop)->assertStatus(422);
+
+        $this->assertSame(15, $res->json('cooling_off.days'));
+        $this->assertEqualsWithDelta(12, now()->diffInDays(\Illuminate\Support\Carbon::parse($res->json('cooling_off.available_at'))), 1);
+        $this->assertStringContainsString('15', $res->json('message'));
+        $this->assertEquals(self::GROCER[1], $shop->fresh()->category_child_id, 'still the same trade');
+    }
+
+    public function test_fifteen_days_after_the_last_sale_the_trade_may_change(): void
+    {
+        $shop = $this->shop();
+        $this->order($shop, 'completed', now()->subDays(16)->toDateTimeString());
+
+        $this->trySwitch($shop)->assertOk();
+
+        $this->assertEquals(self::FURNITURE[1], $shop->fresh()->category_child_id);
+    }
+
+    public function test_a_cart_or_a_cancelled_order_is_not_a_sale(): void
+    {
+        $shop = $this->shop();
+        $this->order($shop, 'cart', now()->subDay()->toDateTimeString());
+        $this->order($shop, 'cancelled', now()->subDay()->toDateTimeString());
+
+        $this->trySwitch($shop)->assertOk();
+    }
+
+    public function test_a_recent_booking_holds_the_trade_too(): void
+    {
+        $shop = $this->shop();
+        $client = User::query()->where('type', 'client')->orderBy('id')->first() ?: $this->markTestSkipped('No client account.');
+        DB::table('bookings')->insert([
+            'user_id' => $client->id, 'business_id' => $shop->id, 'status' => 'completed',
+            'date' => now()->subDays(5)->toDateString(), 'time' => '10:00:00',
+            'created_at' => now()->subDays(20)->toDateTimeString(), 'updated_at' => now()->subDays(5)->toDateTimeString(),
+        ]);
+
+        $this->trySwitch($shop)->assertStatus(422)->assertJsonPath('cooling_off.days', 15);
+    }
+
+    public function test_the_wait_is_measured_from_the_latest_of_them(): void
+    {
+        $shop = $this->shop();
+        $this->order($shop, 'completed', now()->subDays(40)->toDateTimeString());
+        $this->order($shop, 'completed', now()->subDays(10)->toDateTimeString());
+
+        $this->trySwitch($shop)->assertStatus(422);
     }
 }

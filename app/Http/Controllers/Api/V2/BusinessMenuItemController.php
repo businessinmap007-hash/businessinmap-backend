@@ -60,7 +60,9 @@ final class BusinessMenuItemController extends Controller
         // Grouping keys on the Arabic name (a stable, unique identifier
         // regardless of the request's own locale) — `is_brand` matches
         // against THAT, never the localized label chosen for display below.
-        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($profiles, $descriptiveIds) {
+        $businessId = $this->businessId($request);
+
+        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($profiles, $descriptiveIds, $businessId) {
             $groupId = (int) $options->first()->group_id;
             $groupNameEn = $options->first()->group_name_en;
 
@@ -93,6 +95,11 @@ final class BusinessMenuItemController extends Controller
                 // photos) instead of the quick name-and-price one.
                 'descriptive' => in_array($groupId, $descriptiveIds, true),
                 'detail_profile' => $profiles[$groupId] ?? null,
+                // true = «مكونات الخدمة» → «فروع المجموعة أقسام» is ticked for this
+                // group: «غرفة نوم»، «سفرة»، «أنتريه» are the merchant's SECTIONS —
+                // each its own heading with its cards and «إضافة منتج» under them.
+                // The one switch that decides it; never guessed from the kind.
+                'branches_as_sections' => $this->sectionFromGroup->isSplit($businessId, $groupId),
                 // null = every SaleUnits::options() code is fair game; see
                 // MenuMarketCatalogService's identical check for why produce
                 // groups narrow down (SaleUnits::producePackagingGroupNames()).

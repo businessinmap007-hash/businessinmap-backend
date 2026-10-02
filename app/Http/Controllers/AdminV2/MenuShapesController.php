@@ -5,6 +5,8 @@ namespace App\Http\Controllers\AdminV2;
 use App\Http\Controllers\Controller;
 use App\Models\MenuDetailProfile;
 use App\Models\OptionGroup;
+use App\Models\PlatformService;
+use App\Models\ServiceOptionGroupPlacement;
 use App\Services\Catalog\ProductSpecs;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,6 +65,23 @@ class MenuShapesController extends Controller
             ? DB::table('options')->where('group_id', $group->id)->orderBy('id')->get(['id', 'name_ar', 'name_en'])
             : collect();
 
+        // The DESCRIPTIVE fields to choose from — option groups «مكونات الخدمة» made
+        // descriptive for some trade under the menu service (طراز، خامة، نظام التصنيع)
+        // — and the ones this kind already offers, in its order.
+        $chosenIds = $previewProfile ? (MenuDetailProfile::describingGroupIds([$previewProfile->id])[$previewProfile->id] ?? []) : [];
+        $menuServiceId = (int) PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id');
+        $candidateIds = ServiceOptionGroupPlacement::query()
+            ->where('platform_service_id', $menuServiceId)
+            ->where('usage', ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->where('is_active', true)
+            ->pluck('option_group_id')->map(fn ($id) => (int) $id)->unique()->all();
+        $describingGroups = OptionGroup::query()
+            ->whereIn('id', array_values(array_unique(array_merge($candidateIds, $chosenIds))))
+            ->withCount('options')
+            ->get(['id', 'name_ar', 'name_en'])
+            ->sortBy(fn ($g) => in_array((int) $g->id, $chosenIds, true) ? array_search((int) $g->id, $chosenIds, true) : 1000 + (int) $g->id)
+            ->values();
+
         return view('admin-v2.menu-shapes.index', [
             'profiles' => $profiles,
             'fields' => $fields,
@@ -71,6 +90,8 @@ class MenuShapesController extends Controller
             'branches' => $branches,
             'preview' => $preview,
             'previewProfile' => $previewProfile,
+            'describingGroups' => $describingGroups,
+            'describingChosen' => $chosenIds,
             'sample' => $previewProfile && $group ? $this->sampleProduct($branches->pluck('id')->all(), $previewProfile) : null,
             'attributes' => DB::table('catalog_attributes as a')
                 ->leftJoin('catalog_units as u', 'u.id', '=', 'a.unit_id')
@@ -111,7 +132,26 @@ class MenuShapesController extends Controller
             'fields.*.per_item' => ['nullable', 'boolean'],
             'fields.*.is_filterable' => ['nullable', 'boolean'],
             'fields.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'describing' => ['nullable', 'array'],
+            'describing.*.enabled' => ['nullable', 'boolean'],
+            'describing.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);
+
+        $knownGroups = DB::table('option_groups')->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $describingRows = [];
+        foreach ($data['describing'] ?? [] as $groupId => $field) {
+            $groupId = (int) $groupId;
+            if (! in_array($groupId, $knownGroups, true) || empty($field['enabled'])) {
+                continue;
+            }
+            $describingRows[] = [
+                'menu_detail_profile_id' => $profile->id,
+                'option_group_id' => $groupId,
+                'sort_order' => (int) ($field['sort_order'] ?? 0),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
 
         $known = DB::table('catalog_attributes')->pluck('id')->map(fn ($id) => (int) $id)->all();
         $now = now();
@@ -134,10 +174,15 @@ class MenuShapesController extends Controller
             ];
         }
 
-        DB::transaction(function () use ($profile, $rows) {
+        DB::transaction(function () use ($profile, $rows, $describingRows) {
             DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $profile->id)->delete();
             if ($rows !== []) {
                 DB::table('menu_detail_profile_attributes')->insert($rows);
+            }
+
+            DB::table('menu_detail_profile_option_groups')->where('menu_detail_profile_id', $profile->id)->delete();
+            if ($describingRows !== []) {
+                DB::table('menu_detail_profile_option_groups')->insert($describingRows);
             }
         });
 

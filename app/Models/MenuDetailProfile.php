@@ -81,6 +81,28 @@ class MenuDetailProfile extends Model
             ->all();
     }
 
+    /**
+     * The descriptive option groups each kind offers, in the admin's order —
+     * profile id => [option_group_id, …]. A kind with none has no entry.
+     *
+     * @param  list<int>  $profileIds
+     * @return array<int, list<int>>
+     */
+    public static function describingGroupIds(array $profileIds): array
+    {
+        if (empty($profileIds)) {
+            return [];
+        }
+
+        return DB::table('menu_detail_profile_option_groups')
+            ->whereIn('menu_detail_profile_id', $profileIds)
+            ->orderBy('menu_detail_profile_id')->orderBy('sort_order')->orderBy('id')
+            ->get(['menu_detail_profile_id', 'option_group_id'])
+            ->groupBy('menu_detail_profile_id')
+            ->map(fn ($rows) => $rows->pluck('option_group_id')->map(fn ($id) => (int) $id)->values()->all())
+            ->all();
+    }
+
     public function label(bool $english = false): string
     {
         return (string) ($english ? ($this->name_en ?: $this->name_ar) : ($this->name_ar ?: $this->name_en));

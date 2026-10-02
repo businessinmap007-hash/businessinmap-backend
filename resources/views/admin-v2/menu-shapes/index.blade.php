@@ -13,6 +13,8 @@
     // A list field nobody gave choices to (the generic «الخامة») is not drawn.
     $previewFields = array_values(array_filter($previewFields, fn ($f) => ! (($f['data_type'] ?? '') === 'select' && empty($f['options']))));
     $noCatalog = $previewProfile && ! $previewProfile->uses_catalog;
+    // The descriptive groups this kind offers (طراز، نظام التصنيع، أنواع الأخشاب), in order.
+    $describingShown = collect($describingChosen ?? [])->map(fn ($id) => $describingGroups->firstWhere('id', $id))->filter()->values();
     if ($noCatalog) {
         $previewFields = array_map(fn ($f) => ['per_item' => true] + $f, $previewFields);
     }
@@ -225,8 +227,8 @@
                                             <span class="ms-hint">‹</span>
                                         </div>
                                         @endif
-                                        @if($previewFields)
-                                            @if(! $noCatalog)
+                                        @if($previewFields || $describingShown->isNotEmpty())
+                                            @if(! $noCatalog && $previewFields)
                                             <div class="ms-label">المواصفات — {{ $previewProfile->name_ar }}</div>
                                             <div class="ms-specs">
                                                 @foreach(collect($previewFields)->where('per_item', false) as $f)
@@ -234,11 +236,14 @@
                                                 @endforeach
                                             </div>
                                             @endif
-                                            @if(collect($previewFields)->where('per_item', true)->isNotEmpty())
+                                            @if(collect($previewFields)->where('per_item', true)->isNotEmpty() || $describingShown->isNotEmpty())
                                                 <div class="ms-label">{{ $noCatalog ? __('تفاصيل الصنف') : 'لهذه الوحدة بالذات' }}</div>
                                                 <div class="ms-row" style="flex-wrap:wrap">
                                                     @foreach(collect($previewFields)->where('per_item', true) as $f)
                                                         <div class="ms-field" style="flex:1 1 44%"><span class="ms-hint">{{ $f['name'] }}@if($f['unit']) ({{ $f['unit'] }})@endif</span></div>
+                                                    @endforeach
+                                                    @foreach($describingShown as $g)
+                                                        <div class="ms-field" style="flex:1 1 44%;display:flex;justify-content:space-between"><span class="ms-hint">{{ $g->name_ar }}</span><span class="ms-hint">▾</span></div>
                                                     @endforeach
                                                 </div>
                                             @endif
@@ -361,6 +366,23 @@
                                             </tbody>
                                         </table>
                                     </div>
+                                    <div style="margin-top:14px"><strong>{{ __('حقول وصفية — من مجموعات الخيارات') }}</strong></div>
+                                    <div class="ms-note a2-mb-16">{{ __('مجموعات يصفها التاجر بالاختيار منها (طراز الأثاث، نظام التصنيع، أنواع الأخشاب) وتظهر له كقوائم منسدلة فى «التسعير والتفاصيل». المعلَّم هنا فقط هو ما يظهر لهذا النوع، بالترتيب المكتوب؛ وإن لم تُعلِّم شيئًا يظهر كل ما جعلته «مكونات الخدمة» وصفيًا للنشاط.') }}</div>
+                                    <table class="a2-table ms-fields-table">
+                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th></tr></thead>
+                                        <tbody>
+                                            @forelse($describingGroups as $g)
+                                                @php $on = in_array((int) $g->id, $describingChosen, true); @endphp
+                                                <tr class="{{ $on ? '' : 'ms-row-off' }}" data-attr-row>
+                                                    <td>{{ $g->name_ar }} <span class="ms-note">{{ $g->options_count }} {{ __('خيار') }}</span></td>
+                                                    <td><input type="checkbox" name="describing[{{ $g->id }}][enabled]" value="1" data-enable @checked($on)></td>
+                                                    <td><input class="a2-input" style="width:58px;min-width:0" type="number" min="0" name="describing[{{ $g->id }}][sort_order]" value="{{ $on ? (array_search((int) $g->id, $describingChosen, true) + 1) * 10 : '' }}" data-dep @disabled(! $on)></td>
+                                                </tr>
+                                            @empty
+                                                <tr><td colspan="3" class="ms-note">{{ __('لا توجد مجموعات وصفية بعد — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
                                     <button class="a2-btn a2-btn-primary" type="submit" style="margin-top:10px">{{ __('حفظ الحقول') }}</button>
                                 </form>
 

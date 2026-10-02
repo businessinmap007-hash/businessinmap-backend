@@ -184,6 +184,7 @@ final class BusinessMenuItemController extends Controller
             ->get(['menu_detail_profiles.*', 'g.id as group_id']);
 
         $fields = \App\Models\MenuDetailProfile::fieldsFor($profiles->pluck('id')->unique()->values()->all(), $english);
+        $describing = \App\Models\MenuDetailProfile::describingGroupIds($profiles->pluck('id')->unique()->values()->all());
 
         return $profiles->mapWithKeys(fn ($p) => [(int) $p->group_id => [
             'id' => (int) $p->id,
@@ -195,6 +196,10 @@ final class BusinessMenuItemController extends Controller
             'uses_catalog' => (bool) $p->uses_catalog,
             'fields' => collect($fields[(int) $p->id] ?? [])
                 ->map(fn ($f) => $p->uses_catalog ? $f : ['per_item' => true] + $f)->all(),
+            // The descriptive option groups the admin ticked for this kind in
+            // «أشكال المنيو», in order. Empty = the kind never chose: the app then
+            // offers every descriptive group «مكونات الخدمة» made for the trade.
+            'descriptive_group_ids' => $describing[(int) $p->id] ?? [],
         ]])->all();
     }
 

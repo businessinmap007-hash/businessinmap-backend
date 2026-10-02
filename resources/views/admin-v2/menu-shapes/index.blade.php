@@ -79,6 +79,9 @@
     .ms-seg { display: flex; background: #fff; border: 1px solid rgba(11, 31, 58, .14); border-radius: 10px; padding: 3px; }
     .ms-seg span { flex: 1; text-align: center; padding: 7px; border-radius: 7px; font-size: 13px; font-weight: 600; }
     .ms-seg span.on { background: #0B1F3A; color: #fff; }
+    /* a label holding a checkbox + words: the global .a2-checkbox is the 18px box itself, not a label */
+    .ms-check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin: 8px 0 4px; }
+    .ms-check input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--a2-primary); }
     .ms-chip { display: inline-block; padding: 4px 12px; border-radius: 999px; background: #D6A94A; color: #0B1F3A; font-size: 12px; font-weight: 700; }
     .ms-bottom { padding: 12px 14px 16px; border-top: 1px solid rgba(11, 31, 58, .08); background: #fff; }
     .ms-btn { height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 800; font-size: 14px; }
@@ -386,7 +389,7 @@
 
                                     <hr style="margin:14px 0;opacity:.2">
                                     <input type="hidden" name="uses_catalog_form" value="1">
-                                    <label class="a2-checkbox"><input type="checkbox" name="uses_catalog" value="1" @checked($previewProfile->uses_catalog)> {{ __('يعتمد على كتالوج منتجات حقيقية (يختار التاجر موديلًا جاهزًا)') }}</label>
+                                    <label class="ms-check"><input type="checkbox" name="uses_catalog" value="1" @checked($previewProfile->uses_catalog)> {{ __('يعتمد على كتالوج منتجات حقيقية (يختار التاجر موديلًا جاهزًا)') }}</label>
                                     <div class="ms-note">{{ $previewProfile->uses_catalog
                                         ? __('التاجر يختار الموديل ويكتب فقط الحقول «لكل وحدة».')
                                         : __('بلا كتالوج: التاجر يسمّى الصنف بنفسه ويدخل كل حقول النوع، ويختار الوصف/الخامة من مجموعات الخيارات، ويرفع الصور والسعر.') }}</div>
@@ -428,7 +431,7 @@
                                     <input class="a2-input" name="name_ar" required placeholder="{{ __('الاسم — مثل: ألواح بديل الخشب') }}">
                                     <input class="a2-input" name="name_en" placeholder="Name (English)">
                                 </div>
-                                <label class="a2-checkbox" style="margin-top:8px;display:block"><input type="checkbox" name="uses_catalog" value="1"> {{ __('يعتمد على كتالوج منتجات حقيقية (موبايلات، سيارات…) — اتركه فارغًا للأثاث والألواح') }}</label>
+                                <label class="ms-check" style="margin-top:8px;display:block"><input type="checkbox" name="uses_catalog" value="1"> {{ __('يعتمد على كتالوج منتجات حقيقية (موبايلات، سيارات…) — اتركه فارغًا للأثاث والألواح') }}</label>
                                 <button class="a2-btn a2-btn-ghost" type="submit" style="margin-top:8px">{{ __('إضافة') }}</button>
                             </form>
                         </details>

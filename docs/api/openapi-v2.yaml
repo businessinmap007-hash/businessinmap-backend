@@ -1025,13 +1025,14 @@ paths:
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } } } }
     patch:
       tags: [Profile]
-      summary: Edit basic fields
+      summary: "Edit basic fields. A business may change its trade (category_id + category_child_id — the child must stand under the root) on the same account: the first call answers 409 with requires_confirmation and will_delete (menu items, sections, bundles, retail listings, prices, bookable units, tables, vocabulary ticks); resend with confirm_reset=true to delete them and move the account to the new trade. 422 with blockers while an order, booking or frozen deposit is still open. The success body carries trade_switch.deleted."
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
+                confirm_reset: { type: boolean }
                 name: { type: string }
                 phone: { type: string }
                 about: { type: string, nullable: true }

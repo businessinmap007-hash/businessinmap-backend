@@ -62,6 +62,10 @@ final class ProfileController extends Controller
             // every profile update carrying a category_child_id answered 500.
             // The same mistake was already found and fixed in AuthController.
             'category_child_id' => ['sometimes', 'nullable', 'integer', 'exists:category_children_master,id'],
+            // A business changing its trade on the SAME account: sent with the
+            // new category_id + category_child_id once the app has shown what
+            // would be deleted (see the 409 below).
+            'confirm_reset' => ['sometimes', 'boolean'],
             // A client can self-upgrade to a business from their own profile
             // screen. `type` is otherwise mass-assignable, so anything else
             // is handled below rather than by this rule: a real business
@@ -92,6 +96,44 @@ final class ProfileController extends Controller
             }
 
             unset($data['type']);
+        }
+
+        $tradeSwitch = null;
+
+        if ($user->isBusiness() && (array_key_exists('category_id', $data) || array_key_exists('category_child_id', $data))) {
+            // A business never has NO trade — a null is the form leaving the
+            // field blank, not a request to clear it.
+            $newRoot = $data['category_id'] ?? null;
+            $newChild = $data['category_child_id'] ?? null;
+            unset($data['category_id'], $data['category_child_id']);
+
+            $switcher = app(\App\Services\Business\BusinessTradeSwitch::class);
+
+            if ($switcher->isChange($user, $newRoot, $newChild)) {
+                $rootId = (int) ($newRoot ?? $user->category_id);
+                $childId = (int) ($newChild ?? $user->category_child_id);
+                $switcher->assertValidPair($rootId, $childId);
+
+                if ($blockers = $switcher->blockers($user)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => __('لا يمكن تغيير النشاط وعندك طلبات أو حجوزات أو عربون لم تنتهِ بعد — أنهِها أو ألغِها أولًا.'),
+                        'blockers' => $blockers,
+                    ], 422);
+                }
+
+                $inventory = $switcher->inventory($user);
+                if ($inventory !== [] && ! $request->boolean('confirm_reset')) {
+                    return response()->json([
+                        'success' => false,
+                        'requires_confirmation' => true,
+                        'message' => __('تغيير النشاط يحذف المنيو والمنتجات الحالية ويحوّل حسابك لما يخص النشاط الجديد. أرسل confirm_reset=1 للمتابعة.'),
+                        'will_delete' => $inventory,
+                    ], 409);
+                }
+
+                $tradeSwitch = [$rootId, $childId];
+            }
         }
 
         $socialKeys = ['facebook', 'instagram', 'twitter', 'youtube', 'linkedin'];
@@ -128,11 +170,16 @@ final class ProfileController extends Controller
             $user->fill($data)->save();
         }
 
+        $deleted = $tradeSwitch ? app(\App\Services\Business\BusinessTradeSwitch::class)->switch($user, ...$tradeSwitch) : null;
+
         if (! empty($socialData)) {
             $user->social()->updateOrCreate([], $socialData);
         }
 
-        return response()->json(['success' => true, 'data' => new AccountResource($user->fresh())]);
+        return response()->json([
+            'success' => true,
+            'data' => new AccountResource($user->fresh()),
+        ] + ($deleted !== null ? ['trade_switch' => ['deleted' => $deleted]] : []));
     }
 
     /**

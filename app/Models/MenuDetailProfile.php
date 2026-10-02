@@ -18,11 +18,12 @@ use Illuminate\Support\Facades\DB;
  */
 class MenuDetailProfile extends Model
 {
-    protected $fillable = ['code', 'name_ar', 'name_en', 'icon', 'sort_order', 'is_active'];
+    protected $fillable = ['code', 'name_ar', 'name_en', 'icon', 'uses_catalog', 'sort_order', 'is_active'];
 
     protected $casts = [
         'sort_order' => 'integer',
         'is_active' => 'boolean',
+        'uses_catalog' => 'boolean',
     ];
 
     public function optionGroups(): HasMany

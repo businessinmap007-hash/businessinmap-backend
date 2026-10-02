@@ -345,6 +345,41 @@
                                     </div>
                                     <button class="a2-btn a2-btn-primary" type="submit" style="margin-top:10px">{{ __('حفظ الحقول') }}</button>
                                 </form>
+
+                                <hr style="margin:14px 0;opacity:.2">
+
+                                <form method="POST" action="{{ route('admin.menu-shapes.profiles.settings', $previewProfile) }}" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                                    @csrf
+                                    <input type="hidden" name="group_id" value="{{ $group->id }}">
+                                    <label class="a2-checkbox"><input type="checkbox" name="uses_catalog" value="1" @checked($previewProfile->uses_catalog)> {{ __('يعتمد على كتالوج منتجات حقيقية (يختار التاجر موديلًا جاهزًا)') }}</label>
+                                    <button class="a2-btn a2-btn-ghost" type="submit">{{ __('حفظ') }}</button>
+                                    <span class="ms-note">{{ $previewProfile->uses_catalog
+                                        ? __('التاجر يختار الموديل ويكتب فقط الحقول «لكل وحدة».')
+                                        : __('بلا كتالوج: التاجر يسمّى الصنف بنفسه ويدخل كل حقول النوع، ويختار الوصف/الخامة من مجموعات الخيارات، ويرفع الصور والسعر.') }}</span>
+                                </form>
+
+                                <details style="margin-top:12px">
+                                    <summary style="cursor:pointer;font-weight:700">{{ __('＋ إضافة حقل جديد لهذا النوع') }}</summary>
+                                    <form method="POST" action="{{ route('admin.menu-shapes.profiles.attributes', $previewProfile) }}" style="margin-top:10px">
+                                        @csrf
+                                        <input type="hidden" name="group_id" value="{{ $group->id }}">
+                                        <div class="ms-row">
+                                            <input class="a2-input" name="name_ar" required placeholder="{{ __('اسم الحقل — مثل: سُمك اللوح') }}">
+                                            <input class="a2-input" name="name_en" placeholder="Field name (English)">
+                                        </div>
+                                        <div class="ms-row" style="margin-top:8px">
+                                            <select class="a2-select" name="data_type" id="ms-new-type">
+                                                <option value="text">{{ __('نص') }}</option>
+                                                <option value="number">{{ __('رقم') }}</option>
+                                                <option value="select">{{ __('اختيار من قائمة') }}</option>
+                                            </select>
+                                            <input class="a2-input" name="unit" placeholder="{{ __('الوحدة (اختياري) — مثل: سم') }}">
+                                        </div>
+                                        <textarea class="a2-input" name="options" rows="3" id="ms-new-options" style="margin-top:8px;display:none" placeholder="{{ __('خيارات القائمة — واحد فى كل سطر') }}"></textarea>
+                                        <div class="ms-note" style="margin-top:6px">{{ __('يُضاف مفعّلًا فى هذا النوع وفى فلتر البحث، ويظهر للتاجر فى شاشة إضافة الصنف.') }}</div>
+                                        <button class="a2-btn a2-btn-primary" type="submit" style="margin-top:8px">{{ __('إضافة الحقل') }}</button>
+                                    </form>
+                                </details>
                             </div>
                         @endif
 
@@ -357,6 +392,7 @@
                                     <input class="a2-input" name="name_ar" required placeholder="{{ __('الاسم — مثل: ألواح بديل الخشب') }}">
                                     <input class="a2-input" name="name_en" placeholder="Name (English)">
                                 </div>
+                                <label class="a2-checkbox" style="margin-top:8px;display:block"><input type="checkbox" name="uses_catalog" value="1"> {{ __('يعتمد على كتالوج منتجات حقيقية (موبايلات، سيارات…) — اتركه فارغًا للأثاث والألواح') }}</label>
                                 <button class="a2-btn a2-btn-ghost" type="submit" style="margin-top:8px">{{ __('إضافة') }}</button>
                             </form>
                         </details>
@@ -383,6 +419,13 @@
             });
         });
     });
+
+    var newType = document.getElementById('ms-new-type');
+    if (newType) {
+        newType.addEventListener('change', function () {
+            document.getElementById('ms-new-options').style.display = newType.value === 'select' ? 'block' : 'none';
+        });
+    }
 
     document.querySelectorAll('.ms-tab').forEach(function (tab) {
         tab.addEventListener('click', function () {

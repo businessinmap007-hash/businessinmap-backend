@@ -183,7 +183,11 @@ final class BusinessMenuItemController extends Controller
             'code' => (string) $p->code,
             'name' => $p->label($english),
             'icon' => $p->icon,
-            'fields' => $fields[(int) $p->id] ?? [],
+            // false = no catalog behind this kind (a bedroom has no «model» to
+            // pick): the merchant names the item and states EVERY field himself.
+            'uses_catalog' => (bool) $p->uses_catalog,
+            'fields' => collect($fields[(int) $p->id] ?? [])
+                ->map(fn ($f) => $p->uses_catalog ? $f : ['per_item' => true] + $f)->all(),
         ]])->all();
     }
 

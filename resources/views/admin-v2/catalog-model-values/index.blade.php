@@ -70,6 +70,8 @@
 
     @if(! $profile)
         <div class="a2-card cmv-note">{{ __('لا توجد أنواع تفاصيل بعد — أنشئها من «أشكال المنيو».') }}</div>
+    @elseif(! $profile->uses_catalog)
+        <div class="a2-card cmv-note">{{ __('«:kind» بلا كتالوج — التاجر يسمّى الصنف بنفسه ويدخل كل حقوله، فلا موديلات هنا. غيّر ذلك من «أشكال المنيو» إن كان له كتالوج.', ['kind' => $profile->name_ar]) }}</div>
     @elseif($fields === [])
         <div class="a2-card cmv-note">
             {{ __('كل حقول «:kind» يدخلها التاجر لكل وحدة', ['kind' => $profile->name_ar]) }}

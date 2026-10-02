@@ -30,7 +30,8 @@ class CatalogModelValuesController extends Controller
         $allFields = MenuDetailProfile::fieldsFor($profiles->pluck('id')->all());
 
         // A kind with every field per-unit (cars) has nothing for a model to say.
-        $answered = fn ($p) => collect($allFields[$p->id] ?? [])->where('per_item', false)->values()->all();
+        // A kind with no catalog has no models at all: the merchant states every field.
+        $answered = fn ($p) => $p->uses_catalog ? collect($allFields[$p->id] ?? [])->where('per_item', false)->values()->all() : [];
 
         $profile = $profiles->firstWhere('code', (string) $request->get('profile'))
             ?: ($profiles->first(fn ($p) => $answered($p) !== []) ?: $profiles->first());

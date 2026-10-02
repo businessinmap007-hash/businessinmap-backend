@@ -153,6 +153,7 @@ class MenuShapesController extends Controller
             'name_ar' => ['required', 'string', 'max:120'],
             'name_en' => ['nullable', 'string', 'max:120'],
             'icon' => ['nullable', 'string', 'max:40'],
+            'uses_catalog' => ['nullable', 'boolean'],
         ]);
 
         $base = Str::slug((string) ($data['name_en'] ?? '')) ?: 'profile';
@@ -166,6 +167,8 @@ class MenuShapesController extends Controller
             'name_ar' => trim($data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,
             'icon' => trim((string) ($data['icon'] ?? '')) ?: null,
+            // A new kind has no catalog behind it unless the admin says so.
+            'uses_catalog' => $request->boolean('uses_catalog'),
             'sort_order' => (int) MenuDetailProfile::query()->max('sort_order') + 10,
             'is_active' => true,
         ]);
@@ -173,6 +176,100 @@ class MenuShapesController extends Controller
         return redirect()
             ->route('admin.menu-shapes.index', $request->only(['q', 'shape', 'group_id']) + ['preview' => $profile->id])
             ->with('success', __('أُضيف نوع التفاصيل «:kind» — اختر حقوله.', ['kind' => $profile->name_ar]));
+    }
+
+    /** POST — does this kind pick a real catalog model, or does the merchant name every item himself? */
+    public function saveSettings(Request $request, MenuDetailProfile $profile): RedirectResponse
+    {
+        $profile->update(['uses_catalog' => $request->boolean('uses_catalog')]);
+
+        return redirect()
+            ->route('admin.menu-shapes.index', $request->only(['q', 'shape', 'group_id']) + ['preview' => $profile->id])
+            ->with('success', $profile->uses_catalog
+                ? __('«:kind» يعتمد الآن على كتالوج منتجات.', ['kind' => $profile->label()])
+                : __('«:kind» بلا كتالوج — التاجر يسمّى الصنف ويدخل كل حقوله.', ['kind' => $profile->label()]));
+    }
+
+    /**
+     * POST — «اريد زر اضافة حقل»: a brand-new field (a number, words, or a
+     * choice from a list) made right here and switched on for this kind, so a
+     * new kind never waits on a developer to invent its attributes.
+     */
+    public function storeAttribute(Request $request, MenuDetailProfile $profile): RedirectResponse
+    {
+        $data = $request->validate([
+            'name_ar' => ['required', 'string', 'max:120'],
+            'name_en' => ['nullable', 'string', 'max:120'],
+            'data_type' => ['required', Rule::in(['text', 'number', 'select'])],
+            'unit' => ['nullable', 'string', 'max:40'],
+            'options' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $options = collect(preg_split('/\R/u', (string) ($data['options'] ?? '')) ?: [])
+            ->map(fn ($o) => trim($o))->filter()->unique()->values();
+
+        if ($data['data_type'] === 'select' && $options->isEmpty()) {
+            return back()->withInput()->withErrors(['options' => __('اكتب خيارًا واحدًا على الأقل لحقل القائمة.')]);
+        }
+
+        $nameAr = trim($data['name_ar']);
+        $nameEn = trim((string) ($data['name_en'] ?? '')) ?: null;
+
+        // The same field twice is one field: switch it on instead of minting a duplicate.
+        $existing = DB::table('catalog_attributes')->where('name_ar', $nameAr)->first();
+        $attributeId = 0;
+
+        DB::transaction(function () use ($profile, $data, $nameAr, $nameEn, $options, $existing, &$attributeId) {
+            $now = now();
+
+            if ($existing) {
+                $attributeId = (int) $existing->id;
+            } else {
+                $unitId = null;
+                $unit = trim((string) ($data['unit'] ?? ''));
+                if ($unit !== '') {
+                    $unitId = DB::table('catalog_units')->where('name_ar', $unit)->orWhere('name_en', $unit)->value('id');
+                    $unitId ??= DB::table('catalog_units')->insertGetId([
+                        'code' => 'u-' . Str::lower(Str::random(8)), 'name_ar' => $unit, 'name_en' => $unit,
+                        'unit_type' => 'other', 'is_active' => 1, 'sort_order' => 100, 'created_at' => $now, 'updated_at' => $now,
+                    ]);
+                }
+
+                $code = Str::slug((string) $nameEn) ?: 'field';
+                $base = $code;
+                for ($i = 2; DB::table('catalog_attributes')->where('code', $code)->exists(); $i++) {
+                    $code = $base . '-' . $i;
+                }
+
+                $attributeId = (int) DB::table('catalog_attributes')->insertGetId([
+                    'code' => $code, 'name_ar' => $nameAr, 'name_en' => $nameEn, 'data_type' => $data['data_type'],
+                    'unit_id' => $unitId, 'is_filterable' => 1, 'is_variant_axis' => 0, 'is_required' => 0,
+                    'sort_order' => (int) DB::table('catalog_attributes')->max('sort_order') + 1,
+                    'created_at' => $now, 'updated_at' => $now,
+                ]);
+
+                foreach ($options as $i => $label) {
+                    DB::table('catalog_attribute_options')->insert([
+                        'attribute_id' => $attributeId, 'slug' => (Str::slug($label) ?: 'o') . '-' . ($i + 1),
+                        'value_ar' => $label, 'value_en' => $label, 'sort_order' => ($i + 1) * 10, 'is_active' => 1,
+                        'created_at' => $now, 'updated_at' => $now,
+                    ]);
+                }
+            }
+
+            DB::table('menu_detail_profile_attributes')->updateOrInsert(
+                ['menu_detail_profile_id' => $profile->id, 'catalog_attribute_id' => $attributeId],
+                [
+                    'sort_order' => (int) DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $profile->id)->max('sort_order') + 10,
+                    'show_on_card' => false, 'per_item' => ! $profile->uses_catalog, 'is_filterable' => true,
+                    'created_at' => $now, 'updated_at' => $now,
+                ]
+            );
+        });
+
+        return redirect()
+            ->route('admin.menu-shapes.index', $request->only(['q', 'shape', 'group_id']) + ['preview' => $profile->id])
+            ->with('success', __('أُضيف الحقل «:name» إلى «:kind».', ['name' => $nameAr, 'kind' => $profile->label()]));
     }
 
     /**

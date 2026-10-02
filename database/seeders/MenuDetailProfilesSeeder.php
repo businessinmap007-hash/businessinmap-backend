@@ -50,16 +50,25 @@ class MenuDetailProfilesSeeder extends Seeder
             'compatible_with' => true, 'connector' => true, 'power_w' => true, 'battery_mah' => false,
             'color' => false, 'material' => false,
         ], ['اكسسوارات']],
-        'computers' => ['أجهزة كمبيوتر', 'Computers', 'desktop', [
-            'processor' => true, 'ram_gb' => true, 'storage' => true, 'gpu' => false, 'os' => false, 'screen_inches' => false,
-        ], ['أنواع أجهزة الكمبيوتر']],
-        'laptops' => ['لاب توب', 'Laptops', 'laptop', [
-            'processor' => true, 'ram_gb' => true, 'storage' => true, 'screen_inches' => false, 'gpu' => false, 'os' => false,
-        ], []],
+        /*
+         * Fields below were picked from the sites the owner pointed at (2026-10-02):
+         * Jumia Egypt's laptop filters — brand · processor · display size ·
+         * storage · operating system — with RAM and graphics card read off
+         * every listing title («Core i7-13620H · 16GB · 512GB SSD · RTX 4050 ·
+         * 15.6 FHD»); and hatla2ee.com's car page — year, mileage, gearbox and
+         * fuel beside the price, then engine size and colour in its details
+         * table (docs/ux-references.md §16). The brand is the product's own,
+         * and a car's body type («سيدان»، «SUV») is the BRANCH, so neither is
+         * a field here.
+         */
+        'computers' => ['كمبيوتر ولاب توب', 'Computers & laptops', 'laptop', [
+            'processor' => true, 'ram_gb' => true, 'storage' => true, 'screen_inches' => false,
+            'gpu' => false, 'os' => false, 'color' => false,
+        ], ['أجهزة الكمبيوتر']],
         'cars' => ['سيارات', 'Cars', 'car', [
-            'model_year' => true, 'mileage_km' => true, 'transmission' => true, 'engine_cc' => false,
-            'fuel_type' => false, 'body_type' => false, 'color' => false,
-        ], []],
+            'model_year' => true, 'mileage_km' => true, 'transmission' => true, 'fuel_type' => true,
+            'engine_cc' => false, 'color' => false,
+        ], ['نوع المركبة']],
         'appliances' => ['أجهزة كهربائية', 'Home appliances', 'appliance', [
             'appliance_type' => true, 'operation_type' => false, 'capacity_cu_ft' => true, 'wash_capacity_kg' => true,
             'capacity_liters' => true, 'power_hp' => true, 'drawers' => false, 'burners' => false,

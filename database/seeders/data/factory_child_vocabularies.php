@@ -62,6 +62,13 @@ return [
 
     'name_en_suffix' => 'Factory',
 
+    // The group keeps its id (and its «مكونات الخدمة» placements, and its
+    // detail kind) under the narrower name; the peripherals leave it by
+    // `regroup` below.
+    'rename' => [
+        'أنواع أجهزة الكمبيوتر' => ['أجهزة الكمبيوتر', 'Computers'],
+    ],
+
     'groups' => [
 
         /*
@@ -164,14 +171,28 @@ return [
             ],
         ],
 
-        'أنواع أجهزة الكمبيوتر' => [
-            'name_en' => 'Computer Hardware', 'price_role' => 'line', 'children' => [69],
+        /*
+        | «اربط السيارات واللاب توب بأنواعها» — المالك، 2026-10-02. One group
+        | holding a laptop AND a printer AND a rack server cannot take one detail
+        | kind: processor/RAM/storage describe the first and ask nothing sensible
+        | of the other two. So the group split — the machines you compute on stay
+        | here (and take the «كمبيوتر ولاب توب» kind), everything you plug into
+        | them or build them from moves to «ملحقات ومعدات الكمبيوتر» below, which
+        | stays a basic menu. Same move as «أجهزة الموبايل» / «اكسسوارات».
+        */
+        'أجهزة الكمبيوتر' => [
+            'name_en' => 'Computers', 'price_role' => 'line', 'children' => [69],
             'options' => [
-                'لابتوب' => 'Laptops', 'كمبيوتر مكتبي' => 'Desktops',
+                'لابتوب' => 'Laptops', 'كمبيوتر مكتبي' => 'Desktops', 'تابلت' => 'Tablets',
+            ],
+        ],
+
+        'ملحقات ومعدات الكمبيوتر' => [
+            'name_en' => 'Computer Peripherals & Equipment', 'price_role' => 'line', 'children' => [69],
+            'options' => [
                 'شاشات' => 'Monitors', 'طابعات وماسحات' => 'Printers & Scanners',
                 'سيرفرات' => 'Servers', 'قطع ومكونات' => 'Components',
-                'أجهزة شبكات' => 'Networking Hardware', 'تابلت' => 'Tablets',
-                'إكسسوارات كمبيوتر' => 'Computer Accessories',
+                'أجهزة شبكات' => 'Networking Hardware', 'إكسسوارات كمبيوتر' => 'Computer Accessories',
             ],
         ],
 
@@ -787,5 +808,18 @@ return [
     */
     'root_links' => [
         17 => ['الدفع والسداد' => ['كاش', 'تقسيط']],   // ألمونتال
+    ],
+
+    /*
+    | Moved, not cloned — every row keeps its id, its links and its decisions.
+    | Runs BEFORE the groups above, so «ملحقات ومعدات الكمبيوتر» finds them in it.
+    */
+    'regroup' => [
+        'ملحقات ومعدات الكمبيوتر' => [
+            'name_en' => 'Computer Peripherals & Equipment',
+            'price_role' => 'line',
+            'from' => 'أجهزة الكمبيوتر',
+            'options' => ['شاشات', 'طابعات وماسحات', 'سيرفرات', 'قطع ومكونات', 'أجهزة شبكات', 'إكسسوارات كمبيوتر'],
+        ],
     ],
 ];

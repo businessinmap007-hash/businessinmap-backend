@@ -58,13 +58,13 @@ class MenuShapesTest extends TestCase
     {
         $admin = $this->admin();
         $group = OptionGroup::query()->where('price_role', OptionGroup::ROLE_LINE)->whereNull('menu_detail_profile_id')->firstOrFail();
-        $laptops = MenuDetailProfile::query()->where('code', 'laptops')->firstOrFail();
+        $computers = MenuDetailProfile::query()->where('code', 'computers')->firstOrFail();
 
         $this->actingAs($admin)->post(route('admin.menu-shapes.assign', [], false), [
             'group_id' => $group->id,
-            'profile_id' => $laptops->id,
+            'profile_id' => $computers->id,
         ])->assertRedirect();
-        $this->assertSame($laptops->id, $group->fresh()->menu_detail_profile_id);
+        $this->assertSame($computers->id, $group->fresh()->menu_detail_profile_id);
 
         $this->actingAs($admin)->post(route('admin.menu-shapes.assign', [], false), [
             'group_id' => $group->id,
@@ -134,5 +134,32 @@ class MenuShapesTest extends TestCase
             DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $mobiles->id)->where('catalog_attribute_id', $battery)->exists(),
             'an unticked field stays unticked'
         );
+    }
+
+    /**
+     * «اربط السيارات واللاب توب بأنواعها» — المالك، 2026-10-02. Cars take the
+     * hatla2ee fields (year, mileage, gearbox, fuel on the card), computers
+     * the laptop-site ones (processor, RAM, storage on the card), and the
+     * peripherals that were in the computers group — a printer asks nothing
+     * of a processor — stay a basic menu.
+     */
+    public function test_cars_and_computers_are_linked_to_their_kinds_and_peripherals_stay_basic(): void
+    {
+        $byGroup = fn (string $name) => OptionGroup::query()->where('name_ar', $name)->firstOrFail();
+
+        $cars = MenuDetailProfile::query()->where('code', 'cars')->firstOrFail();
+        $this->assertSame($cars->id, $byGroup('نوع المركبة')->menu_detail_profile_id);
+        $carFields = MenuDetailProfile::fieldsFor([$cars->id])[$cars->id];
+        $this->assertSame(['model_year', 'mileage_km', 'transmission', 'fuel_type'], array_column(array_filter($carFields, fn ($f) => $f['show_on_card']), 'code'));
+        $this->assertNotContains('body_type', array_column($carFields, 'code'), 'the body type is the branch, not a field');
+
+        $computers = MenuDetailProfile::query()->where('code', 'computers')->firstOrFail();
+        $this->assertSame($computers->id, $byGroup('أجهزة الكمبيوتر')->menu_detail_profile_id);
+        $this->assertSame(
+            ['لابتوب', 'كمبيوتر مكتبي', 'تابلت'],
+            DB::table('options')->where('group_id', $byGroup('أجهزة الكمبيوتر')->id)->orderBy('id')->pluck('name_ar')->all()
+        );
+        $this->assertNull($byGroup('ملحقات ومعدات الكمبيوتر')->menu_detail_profile_id, 'a printer is not described by a processor');
+        $this->assertDatabaseMissing('menu_detail_profiles', ['code' => 'laptops']);
     }
 }

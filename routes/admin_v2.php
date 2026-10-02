@@ -241,6 +241,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('profiles/{profile}/fields', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'saveFields'])->name('profiles.fields');
         });
 
+        // «قيم موديلات الكتالوج»: a detail kind's catalog models as rows, its
+        // fields as columns.
+        Route::prefix('catalog-model-values')->name('catalog-model-values.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
+            Route::get('/', [\App\Http\Controllers\AdminV2\CatalogModelValuesController::class, 'index'])->name('index');
+            Route::post('/', [\App\Http\Controllers\AdminV2\CatalogModelValuesController::class, 'save'])->name('save');
+        });
+
         Route::prefix('category-child-options')->name('category-child-options.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             // Was a closure redirecting to categories.services-bulk, which made the
             // sidebar's «خيارات التصنيفات الفرعية» open «Bulk Services + Fees» — a

@@ -51,6 +51,8 @@ final class BusinessMenuItemController extends Controller
     public function vocabulary(Request $request)
     {
         $vocabulary = $this->vocabulary->for($this->businessId($request), $this->childId(), $this->rootId());
+        $descriptiveIds = $this->descriptiveGroupIds();
+        $vocabulary['lines'] = $this->withoutDescriptiveGroups(collect($vocabulary['lines']), $descriptiveIds);
         $profiles = $this->detailProfilesFor(
             collect($vocabulary['lines'])->map(fn ($options) => (int) $options->first()->group_id)->values()->all()
         );
@@ -58,7 +60,7 @@ final class BusinessMenuItemController extends Controller
         // Grouping keys on the Arabic name (a stable, unique identifier
         // regardless of the request's own locale) — `is_brand` matches
         // against THAT, never the localized label chosen for display below.
-        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($profiles) {
+        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($profiles, $descriptiveIds) {
             $groupId = (int) $options->first()->group_id;
             $groupNameEn = $options->first()->group_name_en;
 
@@ -85,6 +87,11 @@ final class BusinessMenuItemController extends Controller
                 // details, so that screen shows a car's fields for a car and a
                 // phone's for a phone. See [[tech-spec-menu-implementation]].
                 'detailed' => isset($profiles[$groupId]),
+                // true = «مكونات الخدمة» made this group DESCRIBE what the item
+                // is for this trade («مودرن»، «زان» on a bedroom) — a client that
+                // sees any opens the full item form (description, choices,
+                // photos) instead of the quick name-and-price one.
+                'descriptive' => in_array($groupId, $descriptiveIds, true),
                 'detail_profile' => $profiles[$groupId] ?? null,
                 // null = every SaleUnits::options() code is fair game; see
                 // MenuMarketCatalogService's identical check for why produce
@@ -106,6 +113,46 @@ final class BusinessMenuItemController extends Controller
                 'modifiers' => $shape($vocabulary['modifiers']),
             ],
         ]);
+    }
+
+    /**
+     * «اختيار الوصف ونوع الخشب من مجموعات الخيارات» — المالك، 2026-10-02. A
+     * furniture factory sells «غرفة نوم»; «مودرن» and «زان» DESCRIBE it. The
+     * vocabulary offers every ticked option in `lines` too (the role is an
+     * ordering, not a permission), so a group «مكونات الخدمة» made
+     * `descriptive` for this child — «أنواع الأخشاب»، «طراز الأثاث» — sat in
+     * the «what is it» list beside the bedroom, and the app (which keeps
+     * `lines` groups out of the qualifier chips) could never offer it as a
+     * description: the merchant had to choose «غرفة نوم» OR «زان». They stay
+     * in `modifiers`; only `lines` drops them.
+     *
+     * Never empties `lines`: a child whose every group is descriptive keeps
+     * them all, as before.
+     *
+     * @param  \Illuminate\Support\Collection<string,\Illuminate\Support\Collection>  $lines
+     * @param  list<int>  $descriptive
+     * @return \Illuminate\Support\Collection<string,\Illuminate\Support\Collection>
+     */
+    private function withoutDescriptiveGroups($lines, array $descriptive)
+    {
+        $kept = $lines->reject(fn ($options) => in_array((int) $options->first()->group_id, $descriptive, true));
+
+        return $kept->isNotEmpty() ? $kept : $lines;
+    }
+
+    /** @return list<int> the option groups «مكونات الخدمة» made descriptive for this child under the menu service */
+    private function descriptiveGroupIds(): array
+    {
+        $childId = $this->childId();
+        $menuServiceId = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
+
+        if ($childId <= 0 || $menuServiceId <= 0) {
+            return [];
+        }
+
+        return app(\App\Services\Catalog\ServiceOptionPlacements::class)
+            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->pluck('option_group_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 
     /**

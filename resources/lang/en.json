@@ -2848,5 +2848,7 @@
     "اختر عنوان التوصيل (المحافظة والمدينة) أولًا.": "Choose a delivery address (governorate and city) first.",
     "لا يوجد موعد شحن للتأكيد.": "There is no shipping appointment to confirm.",
     "لا يمكن تسعير هذا الطلب في حالته الحالية.": "This request cannot be priced in its current state.",
-    "لا يمكن رفض هذا الطلب في حالته الحالية.": "This request cannot be declined in its current state."
+    "لا يمكن رفض هذا الطلب في حالته الحالية.": "This request cannot be declined in its current state.",
+    "القيمة المختارة لا تخص هذا الحقل.": "The chosen value does not belong to this field.",
+    "«:name» رقم صحيح أو عشري.": "\":name\" must be a number."
 }

@@ -182,24 +182,25 @@ class MenuCrudApiTest extends TestCase
     }
 
     /**
-     * «لا يوجد شاشة التفاصيل ولا حتى اقسام» — المالك، 2026-09-29. A line
-     * group `branches_as_sections` split gets `detailed: true` here — the
-     * signal bim_app uses to open «التسعير والتفاصيل» (catalog-linked)
-     * instead of the plain quantity/price dialog for that branch.
+     * «منيو أساسي» / «منيو تفصيلي» — المالك، 2026-10-02. A line group with a
+     * detail profile (set in «أشكال المنيو») is `detailed: true` and carries
+     * the profile's fields — the signal bim_app uses to open «التسعير
+     * والتفاصيل» with THAT kind's fields instead of the plain quantity/price
+     * dialog. A group with no profile is basic. `branches_as_sections` no
+     * longer decides this: it only splits the storefront's sections.
      * See [[tech-spec-menu-implementation]].
      */
-    public function test_a_split_group_is_flagged_detailed_in_the_vocabulary(): void
+    public function test_a_group_with_a_detail_profile_is_flagged_detailed_with_its_fields(): void
     {
         $business = User::query()->where('type', 'business')->where('category_child_id', 186)->orderBy('id')->first()
             ?: $this->markTestSkipped('No business stands on child #186.');
 
-        $menuService = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
         $group = \App\Models\OptionGroup::query()->where('name_ar', 'أجهزة الموبايل')->firstOrFail();
+        $profile = \App\Models\MenuDetailProfile::query()->where('code', 'mobiles')->firstOrFail();
+        $group->update(['menu_detail_profile_id' => $profile->id]);
 
-        \App\Models\ServiceOptionGroupPlacement::updateOrCreate(
-            ['platform_service_id' => $menuService, 'option_group_id' => $group->id, 'child_id' => 186, 'item_type_key' => ''],
-            ['usage' => \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION, 'branches_as_sections' => true, 'is_active' => true, 'sort_order' => 10]
-        );
+        $services = \App\Models\OptionGroup::query()->where('name_ar', 'خدمات الموبايل')->firstOrFail();
+        $services->update(['menu_detail_profile_id' => null]);
 
         $lines = collect(
             $this->actingAs($business, 'sanctum')
@@ -209,14 +210,16 @@ class MenuCrudApiTest extends TestCase
         $mobiles = $lines->firstWhere('group_id', $group->id);
         $this->assertNotNull($mobiles, 'the mobiles device-type group must be in this businesss line vocabulary');
         $this->assertTrue($mobiles['detailed']);
+        $this->assertSame('mobiles', $mobiles['detail_profile']['code']);
+        $codes = collect($mobiles['detail_profile']['fields'])->pluck('code');
+        $this->assertContains('ram_gb', $codes, 'a phone is described by its RAM');
+        $this->assertContains('battery_mah', $codes, 'and its battery');
+        $this->assertNotContains('mileage_km', $codes, 'never by a car field');
 
-        // Any other line group this business carries, if it has one, is untouched
-        // — except «اكسسوارات», the other half of the same split, placed the same way.
-        $accessories = (int) \App\Models\OptionGroup::query()->where('name_ar', 'اكسسوارات')->value('id');
-        $other = $lines->first(fn ($line) => ! in_array($line['group_id'], [$group->id, $accessories], true));
-        if ($other) {
-            $this->assertFalse($other['detailed']);
-        }
+        $basic = $lines->firstWhere('group_id', $services->id);
+        $this->assertNotNull($basic);
+        $this->assertFalse($basic['detailed'], 'no profile = «منيو أساسي»');
+        $this->assertNull($basic['detail_profile']);
     }
 
     /**

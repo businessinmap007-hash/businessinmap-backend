@@ -365,6 +365,11 @@ class DatabaseSeeder extends Seeder
            // attributes TechDeviceSpecsSeeder creates, so it runs after it.
            MobileDeviceCatalogSeeder::class,
 
+           // «منيو أساسي» / «منيو تفصيلي»: the detail profiles (mobiles,
+           // computers, cars…) and their fields. After the device seeders —
+           // its fields are the attributes they create.
+           MenuDetailProfilesSeeder::class,
+
            // «قم بتوزيع الخدمة بناء على ما يناسب كل مجموعة خيارات» — turns
            // menu back on for every retail-active (root,child) and seeds a
            // starting option-group placement per group, matching «مكونات

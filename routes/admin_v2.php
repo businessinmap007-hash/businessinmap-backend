@@ -232,6 +232,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/', [\App\Http\Controllers\AdminV2\ServiceComponentsController::class, 'save'])->name('save');
         });
 
+        // «أشكال المنيو»: «منيو أساسي» vs «منيو تفصيلي» per priced option
+        // group, tried live on a phone preview — and each detail kind's fields.
+        Route::prefix('menu-shapes')->name('menu-shapes.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
+            Route::get('/', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'index'])->name('index');
+            Route::post('assign', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'assign'])->name('assign');
+            Route::post('profiles', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'storeProfile'])->name('profiles.store');
+            Route::post('profiles/{profile}/fields', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'saveFields'])->name('profiles.fields');
+        });
+
         Route::prefix('category-child-options')->name('category-child-options.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             // Was a closure redirecting to categories.services-bulk, which made the
             // sidebar's «خيارات التصنيفات الفرعية» open «Bulk Services + Fees» — a

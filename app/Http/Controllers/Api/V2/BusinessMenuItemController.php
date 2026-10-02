@@ -50,12 +50,14 @@ final class BusinessMenuItemController extends Controller
     public function vocabulary(Request $request)
     {
         $vocabulary = $this->vocabulary->for($this->businessId($request), $this->childId(), $this->rootId());
-        $detailedGroupIds = $this->detailedGroupIds();
+        $profiles = $this->detailProfilesFor(
+            collect($vocabulary['lines'])->map(fn ($options) => (int) $options->first()->group_id)->values()->all()
+        );
 
         // Grouping keys on the Arabic name (a stable, unique identifier
         // regardless of the request's own locale) — `is_brand` matches
         // against THAT, never the localized label chosen for display below.
-        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($detailedGroupIds) {
+        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($profiles) {
             $groupId = (int) $options->first()->group_id;
             $groupNameEn = $options->first()->group_name_en;
 
@@ -75,12 +77,14 @@ final class BusinessMenuItemController extends Controller
                 // as its own condition toggle instead of a generic modifier
                 // chip. See [[tech-spec-menu-implementation]].
                 'is_condition' => str_contains((string) $groupName, 'حالة المنتج'),
-                // true = «مكونات الخدمة» split this group's branches into
-                // their own sections (branches_as_sections) — the signal a
-                // client uses to open the catalog-linked "التسعير
-                // والتفاصيل" flow for this branch instead of the plain
-                // quantity/price dialog. See [[tech-spec-menu-implementation]].
-                'detailed' => in_array($groupId, $detailedGroupIds, true),
+                // «منيو أساسي» or «منيو تفصيلي» — set per group in «أشكال
+                // المنيو» (MenuDetailProfile). true opens «التسعير والتفاصيل»
+                // (catalog-linked) for this group's branches instead of the
+                // plain quantity/price dialog; `detail_profile` names which
+                // details, so that screen shows a car's fields for a car and a
+                // phone's for a phone. See [[tech-spec-menu-implementation]].
+                'detailed' => isset($profiles[$groupId]),
+                'detail_profile' => $profiles[$groupId] ?? null,
                 // null = every SaleUnits::options() code is fair game; see
                 // MenuMarketCatalogService's identical check for why produce
                 // groups narrow down (SaleUnits::producePackagingGroupNames()).
@@ -103,28 +107,36 @@ final class BusinessMenuItemController extends Controller
         ]);
     }
 
-    /** @return array<int,int> option_group_id of every group branches_as_sections split for this child under the menu service */
-    private function detailedGroupIds(): array
+    /**
+     * option_group_id => its «منيو تفصيلي» profile and fields, for the groups
+     * given that have one. A group missing from the result is «منيو أساسي».
+     *
+     * @param  list<int>  $groupIds
+     * @return array<int, array<string,mixed>>
+     */
+    private function detailProfilesFor(array $groupIds): array
     {
-        $childId = $this->childId();
-        if ($childId <= 0) {
+        if (empty($groupIds)) {
             return [];
         }
 
-        $menuServiceId = (int) \App\Models\PlatformService::query()
-            ->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
+        $english = app()->getLocale() === 'en';
 
-        if ($menuServiceId <= 0) {
-            return [];
-        }
+        $profiles = \App\Models\MenuDetailProfile::query()
+            ->join('option_groups as g', 'g.menu_detail_profile_id', '=', 'menu_detail_profiles.id')
+            ->whereIn('g.id', $groupIds)
+            ->where('menu_detail_profiles.is_active', true)
+            ->get(['menu_detail_profiles.*', 'g.id as group_id']);
 
-        return app(\App\Services\Catalog\ServiceOptionPlacements::class)
-            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION)
-            ->filter(fn ($p) => $p->branches_as_sections)
-            ->pluck('option_group_id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
+        $fields = \App\Models\MenuDetailProfile::fieldsFor($profiles->pluck('id')->unique()->values()->all(), $english);
+
+        return $profiles->mapWithKeys(fn ($p) => [(int) $p->group_id => [
+            'id' => (int) $p->id,
+            'code' => (string) $p->code,
+            'name' => $p->label($english),
+            'icon' => $p->icon,
+            'fields' => $fields[(int) $p->id] ?? [],
+        ]])->all();
     }
 
     /**

@@ -41,12 +41,20 @@ class OptionGroup extends Model
         'reorder',
         'is_active',
         'price_role',
+        'menu_detail_profile_id',
     ];
 
     protected $casts = [
         'reorder'   => 'integer',
         'is_active' => 'boolean',
+        'menu_detail_profile_id' => 'integer',
     ];
+
+    /** NULL = «منيو أساسي»; set = «منيو تفصيلي» of that kind. See MenuDetailProfile. */
+    public function detailProfile(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(MenuDetailProfile::class, 'menu_detail_profile_id');
+    }
 
     /**
      * The one ordering. Applied to a query over `option_groups` directly, or —

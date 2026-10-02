@@ -174,6 +174,12 @@ class MenuShapesController extends Controller
             ];
         }
 
+        // The «يعتمد على كتالوج» switch lives in the same form now — one save for
+        // the whole editor. Only read when the form says it carried the switch.
+        if ($request->has('uses_catalog_form')) {
+            $profile->update(['uses_catalog' => $request->boolean('uses_catalog')]);
+        }
+
         DB::transaction(function () use ($profile, $rows, $describingRows) {
             DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $profile->id)->delete();
             if ($rows !== []) {

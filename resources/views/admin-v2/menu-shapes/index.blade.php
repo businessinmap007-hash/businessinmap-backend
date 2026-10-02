@@ -383,19 +383,15 @@
                                             @endforelse
                                         </tbody>
                                     </table>
-                                    <button class="a2-btn a2-btn-primary" type="submit" style="margin-top:10px">{{ __('حفظ الحقول') }}</button>
-                                </form>
 
-                                <hr style="margin:14px 0;opacity:.2">
-
-                                <form method="POST" action="{{ route('admin.menu-shapes.profiles.settings', $previewProfile) }}" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-                                    @csrf
-                                    <input type="hidden" name="group_id" value="{{ $group->id }}">
+                                    <hr style="margin:14px 0;opacity:.2">
+                                    <input type="hidden" name="uses_catalog_form" value="1">
                                     <label class="a2-checkbox"><input type="checkbox" name="uses_catalog" value="1" @checked($previewProfile->uses_catalog)> {{ __('يعتمد على كتالوج منتجات حقيقية (يختار التاجر موديلًا جاهزًا)') }}</label>
-                                    <button class="a2-btn a2-btn-ghost" type="submit">{{ __('حفظ') }}</button>
-                                    <span class="ms-note">{{ $previewProfile->uses_catalog
+                                    <div class="ms-note">{{ $previewProfile->uses_catalog
                                         ? __('التاجر يختار الموديل ويكتب فقط الحقول «لكل وحدة».')
-                                        : __('بلا كتالوج: التاجر يسمّى الصنف بنفسه ويدخل كل حقول النوع، ويختار الوصف/الخامة من مجموعات الخيارات، ويرفع الصور والسعر.') }}</span>
+                                        : __('بلا كتالوج: التاجر يسمّى الصنف بنفسه ويدخل كل حقول النوع، ويختار الوصف/الخامة من مجموعات الخيارات، ويرفع الصور والسعر.') }}</div>
+                                    <button class="a2-btn a2-btn-primary" type="submit" style="margin-top:12px">{{ __('حفظ') }}</button>
+                                    <span class="ms-note">{{ __('يحفظ الحقول والمجموعات الوصفية وخيار الكتالوج معًا.') }}</span>
                                 </form>
 
                                 <details style="margin-top:12px">

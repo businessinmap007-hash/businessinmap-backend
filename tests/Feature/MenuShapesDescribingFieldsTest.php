@@ -98,4 +98,34 @@ class MenuShapesDescribingFieldsTest extends TestCase
 
         $this->assertSame([], MenuDetailProfile::describingGroupIds([$kind->id]));
     }
+
+    public function test_one_form_one_save_carries_the_fields_the_descriptive_groups_and_the_catalog_switch(): void
+    {
+        [$kind, $line, , $wood] = $this->setUpKind();
+        $admin = $this->admin();
+
+        $page = $this->actingAs($admin)
+            ->get(route('admin.menu-shapes.index', ['group_id' => $line->id, 'preview' => $kind->id], false))
+            ->assertOk()->getContent();
+        $this->assertSame(0, substr_count($page, 'حفظ الحقول</button>'), 'no second save button beside the first');
+
+        // Ticked: the kind uses a catalog; the form carries the marker either way.
+        $this->actingAs($admin)->post(route('admin.menu-shapes.profiles.fields', $kind, false), [
+            'group_id' => $line->id, 'uses_catalog_form' => 1, 'uses_catalog' => 1,
+            'describing' => [$wood->id => ['enabled' => 1, 'sort_order' => 10]],
+        ])->assertRedirect();
+        $this->assertTrue($kind->fresh()->uses_catalog);
+        $this->assertSame([$wood->id], MenuDetailProfile::describingGroupIds([$kind->id])[$kind->id]);
+
+        // Unticked: the same save turns it off.
+        $this->actingAs($admin)->post(route('admin.menu-shapes.profiles.fields', $kind, false), [
+            'group_id' => $line->id, 'uses_catalog_form' => 1,
+        ])->assertRedirect();
+        $this->assertFalse($kind->fresh()->uses_catalog);
+
+        // A post without the marker (an older caller) leaves the switch alone.
+        $kind->update(['uses_catalog' => true]);
+        $this->actingAs($admin)->post(route('admin.menu-shapes.profiles.fields', $kind, false), ['group_id' => $line->id])->assertRedirect();
+        $this->assertTrue($kind->fresh()->uses_catalog);
+    }
 }

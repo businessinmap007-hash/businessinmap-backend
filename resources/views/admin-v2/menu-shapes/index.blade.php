@@ -10,6 +10,12 @@
     $isBasic = $preview === \App\Http\Controllers\AdminV2\MenuShapesController::BASIC;
     $savedProfileId = (int) ($group->menu_detail_profile_id ?? 0);
     $previewFields = $previewProfile ? ($fields[$previewProfile->id] ?? []) : [];
+    // A list field nobody gave choices to (the generic «الخامة») is not drawn.
+    $previewFields = array_values(array_filter($previewFields, fn ($f) => ! (($f['data_type'] ?? '') === 'select' && empty($f['options']))));
+    $noCatalog = $previewProfile && ! $previewProfile->uses_catalog;
+    if ($noCatalog) {
+        $previewFields = array_map(fn ($f) => ['per_item' => true] + $f, $previewFields);
+    }
     // The branch the sample product is filed under, so the chip and the
     // product agree («تابلت» over a tablet) — else the group's first branch.
     $firstBranch = ($sample['branch_id'] ?? null) ? $branches->firstWhere('id', $sample['branch_id']) : $branches->first();
@@ -205,6 +211,10 @@
                                     <div class="ms-appbar"><span class="ms-back">→</span>التسعير والتفاصيل</div>
                                     <div class="ms-body">
                                         @if($firstBranch)<span class="ms-chip">{{ $firstBranch->name_ar }}</span>@endif
+                                        @if($noCatalog)
+                                        <div class="ms-label">{{ __('الاسم (عربي)') }}</div>
+                                        <div class="ms-field"><span class="ms-hint">{{ __('الاسم (عربي)') }}</span></div>
+                                        @else
                                         <div class="ms-label">المنتج</div>
                                         <div class="ms-field ms-product">
                                             <div class="ms-thumb">@if($sample && $sample['image'])<img src="{{ asset($sample['image']) }}" alt="">@else{{ $initial($previewProfile->name_ar) }}@endif</div>
@@ -214,15 +224,18 @@
                                             </div>
                                             <span class="ms-hint">‹</span>
                                         </div>
-                                        <div class="ms-label">المواصفات — {{ $previewProfile->name_ar }}</div>
+                                        @endif
                                         @if($previewFields)
+                                            @if(! $noCatalog)
+                                            <div class="ms-label">المواصفات — {{ $previewProfile->name_ar }}</div>
                                             <div class="ms-specs">
                                                 @foreach(collect($previewFields)->where('per_item', false) as $f)
                                                     <div class="ms-spec"><span>{{ $f['name'] }}</span><span>{{ $value($f) }}</span></div>
                                                 @endforeach
                                             </div>
+                                            @endif
                                             @if(collect($previewFields)->where('per_item', true)->isNotEmpty())
-                                                <div class="ms-label">لهذه الوحدة بالذات</div>
+                                                <div class="ms-label">{{ $noCatalog ? __('تفاصيل الصنف') : 'لهذه الوحدة بالذات' }}</div>
                                                 <div class="ms-row" style="flex-wrap:wrap">
                                                     @foreach(collect($previewFields)->where('per_item', true) as $f)
                                                         <div class="ms-field" style="flex:1 1 44%"><span class="ms-hint">{{ $f['name'] }}@if($f['unit']) ({{ $f['unit'] }})@endif</span></div>
@@ -239,6 +252,11 @@
                                             <div class="ms-field"><span class="ms-hint">الكمية المتاحة (اختياري)</span></div>
                                         </div>
                                         <div class="ms-field" style="margin-top:8px;min-height:54px"><span class="ms-hint">الوصف (عربي، اختياري)</span></div>
+                                        <div class="ms-label">{{ __('صور المنتج') }}</div>
+                                        <div class="ms-row">
+                                            <div class="ms-field" style="text-align:center;font-weight:700">{{ __('التقاط بالكاميرا') }}</div>
+                                            <div class="ms-field" style="text-align:center;font-weight:700">{{ __('من المعرض') }}</div>
+                                        </div>
                                     </div>
                                     <div class="ms-bottom"><div class="ms-btn ms-btn--navy">حفظ</div></div>
                                 @endif

@@ -213,6 +213,8 @@ Route::prefix('v2')->group(function () {
         // processor) and compare one product's price between them.
         Route::get('menu-items/search', [\App\Http\Controllers\Api\V2\MenuItemSearchController::class, 'index']);
         Route::get('menu-items/kinds', [\App\Http\Controllers\Api\V2\MenuItemSearchController::class, 'kinds']);
+        // One item, shaped like a row of the shop's menu — what a search result opens.
+        Route::get('menu-items/{item}', [MenuDiscoveryController::class, 'item'])->whereNumber('item');
 
         // Units: the rooms/tables/pitches a customer may actually book, grouped
         // by kind with each kind's price. 21 children refuse a booking without a

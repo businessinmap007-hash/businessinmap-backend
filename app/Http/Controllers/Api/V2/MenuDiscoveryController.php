@@ -140,6 +140,50 @@ final class MenuDiscoveryController extends Controller
     }
 
     /**
+     * GET /api/v2/discovery/menu-items/{item} — ONE item, shaped exactly like a
+     * row of the shop's menu, so a search result can open the product page
+     * itself instead of dropping the customer at the shop's front door.
+     */
+    public function item(int $item)
+    {
+        $row = MenuItem::query()
+            ->where('is_active', true)
+            ->with([
+                'activeVariants' => fn ($q) => $q->orderByDesc('is_default')->orderBy('id'),
+                'activeExtras' => fn ($q) => $q->orderBy('extra_group_id')->orderBy('id'),
+                'activeExtraGroups',
+                'offeringOptions.option.group',
+                'section',
+                'images',
+                'catalogProduct:id,brand_id,series,main_image,main_image_credit',
+            ])
+            ->find($item);
+
+        $biz = $row
+            ? User::query()->where('type', 'business')->find($row->business_id, ['id', 'name', 'logo'])
+            : null;
+
+        if (! $row || ! $biz) {
+            return response()->json(['success' => false, 'message' => __('الصنف غير موجود.')], 404);
+        }
+
+        ($this->itemAttributes ??= app(\App\Services\Menu\MenuItemAttributes::class))->preload([(int) $row->id]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'item' => $this->itemPayload($row),
+                'business' => [
+                    'id' => (int) $biz->id,
+                    'name' => (string) $biz->name,
+                    'logo' => $biz->logo,
+                    'is_open_now' => app(\App\Services\BusinessHoursService::class)->isOpenNow((int) $biz->id),
+                ],
+            ],
+        ]);
+    }
+
+    /**
      * Group items that carry no hand-written section under their taxonomy
      * heading, keeping the order the items already came in so a featured item
      * still pulls its heading up the page.

@@ -35,7 +35,7 @@ class MenuDetailProfile extends Model
      * the shape the vocabulary endpoint and the admin preview both send.
      *
      * @param  list<int>  $profileIds
-     * @return array<int, list<array{id:int,code:string,name:string,data_type:string,unit:?string,show_on_card:bool,is_filterable:bool}>>
+     * @return array<int, list<array{id:int,code:string,name:string,data_type:string,unit:?string,show_on_card:bool,per_item:bool,is_filterable:bool,options:list<array{id:int,name:string}>}>>
      */
     public static function fieldsFor(array $profileIds, bool $english = false): array
     {
@@ -43,14 +43,25 @@ class MenuDetailProfile extends Model
             return [];
         }
 
-        return DB::table('menu_detail_profile_attributes as pa')
+        $rows = DB::table('menu_detail_profile_attributes as pa')
             ->join('catalog_attributes as a', 'a.id', '=', 'pa.catalog_attribute_id')
             ->leftJoin('catalog_units as u', 'u.id', '=', 'a.unit_id')
             ->whereIn('pa.menu_detail_profile_id', $profileIds)
             ->orderBy('pa.menu_detail_profile_id')
             ->orderBy('pa.sort_order')
             ->orderBy('a.sort_order')
-            ->get(['pa.menu_detail_profile_id', 'a.id', 'a.code', 'a.name_ar', 'a.name_en', 'a.data_type', 'u.name_ar as unit_ar', 'u.name_en as unit_en', 'pa.show_on_card', 'pa.is_filterable'])
+            ->get(['pa.menu_detail_profile_id', 'a.id', 'a.code', 'a.name_ar', 'a.name_en', 'a.data_type', 'u.name_ar as unit_ar', 'u.name_en as unit_en', 'pa.show_on_card', 'pa.per_item', 'pa.is_filterable']);
+
+        // A select field (colour, gearbox, fuel) offers its options — the
+        // merchant picks, search filters by them; nothing is typed.
+        $options = DB::table('catalog_attribute_options')
+            ->whereIn('attribute_id', $rows->where('data_type', 'select')->pluck('id')->unique()->all())
+            ->where('is_active', 1)
+            ->orderBy('sort_order')->orderBy('id')
+            ->get(['id', 'attribute_id', 'value_ar', 'value_en'])
+            ->groupBy('attribute_id');
+
+        return $rows
             ->groupBy('menu_detail_profile_id')
             ->map(fn ($rows) => $rows->map(fn ($r) => [
                 'id' => (int) $r->id,
@@ -59,7 +70,12 @@ class MenuDetailProfile extends Model
                 'data_type' => (string) $r->data_type,
                 'unit' => ($english ? ($r->unit_en ?: $r->unit_ar) : ($r->unit_ar ?: $r->unit_en)) ?: null,
                 'show_on_card' => (bool) $r->show_on_card,
+                'per_item' => (bool) $r->per_item,
                 'is_filterable' => (bool) $r->is_filterable,
+                'options' => ($options[$r->id] ?? collect())->map(fn ($o) => [
+                    'id' => (int) $o->id,
+                    'name' => (string) ($english ? ($o->value_en ?: $o->value_ar) : ($o->value_ar ?: $o->value_en)),
+                ])->values()->all(),
             ])->values()->all())
             ->all();
     }

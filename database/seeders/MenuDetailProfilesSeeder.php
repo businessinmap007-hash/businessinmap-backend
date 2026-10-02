@@ -23,12 +23,41 @@ class MenuDetailProfilesSeeder extends Seeder
         'model_year' => ['سنة الصنع', 'Model year', 'number', null],
         'mileage_km' => ['عدد الكيلومترات', 'Mileage', 'number', 'km'],
         'engine_cc' => ['سعة المحرك', 'Engine size', 'number', 'cc'],
-        'transmission' => ['ناقل الحركة', 'Transmission', 'text', null],
-        'fuel_type' => ['نوع الوقود', 'Fuel', 'text', null],
+        'transmission' => ['ناقل الحركة', 'Transmission', 'select', null],
+        'fuel_type' => ['نوع الوقود', 'Fuel', 'select', null],
         'body_type' => ['شكل الهيكل', 'Body type', 'text', null],
         'compatible_with' => ['متوافق مع', 'Compatible with', 'text', null],
         'connector' => ['نوع المنفذ', 'Connector', 'text', null],
         'power_w' => ['القدرة', 'Power', 'number', 'w'],
+    ];
+
+    /** attribute code => [[slug, ar, en], …] — what a select field offers. */
+    private const OPTIONS = [
+        'transmission' => [['automatic', 'أوتوماتيك', 'Automatic'], ['manual', 'مانيوال', 'Manual']],
+        'fuel_type' => [
+            ['petrol', 'بنزين', 'Petrol'], ['diesel', 'ديزل', 'Diesel'], ['electric', 'كهرباء', 'Electric'],
+            ['hybrid', 'هجين', 'Hybrid'], ['natural-gas', 'غاز طبيعي', 'Natural gas'],
+        ],
+        'color' => [
+            ['white', 'أبيض', 'White'], ['black', 'أسود', 'Black'], ['silver', 'فضي', 'Silver'], ['gray', 'رمادي', 'Gray'],
+            ['blue', 'أزرق', 'Blue'], ['red', 'أحمر', 'Red'], ['green', 'أخضر', 'Green'], ['gold', 'ذهبي', 'Gold'],
+            ['brown', 'بني', 'Brown'], ['beige', 'بيج', 'Beige'], ['orange', 'برتقالي', 'Orange'],
+            ['yellow', 'أصفر', 'Yellow'], ['purple', 'بنفسجي', 'Purple'], ['pink', 'وردي', 'Pink'],
+        ],
+    ];
+
+    /**
+     * Fields the merchant states for EACH unit rather than taking from the
+     * catalog master: the master «Toyota Corolla» has no year, mileage,
+     * gearbox or colour — the same model is sold as 2018 and as 2023, manual
+     * and automatic. profile code => [attribute codes].
+     */
+    private const PER_ITEM = [
+        'cars' => ['model_year', 'mileage_km', 'transmission', 'fuel_type', 'engine_cc', 'color'],
+        'computers' => ['color'],
+        'mobiles' => ['color'],
+        'mobile_accessories' => ['color'],
+        'appliances' => ['color'],
     ];
 
     /** code => [name_ar, name_en] */
@@ -101,7 +130,29 @@ class MenuDetailProfilesSeeder extends Seeder
                 ]);
             }
         }
+        // «ناقل الحركة» and «نوع الوقود» were first written as free text; they
+        // are choices. Only while nothing has been written under them.
+        foreach (['transmission', 'fuel_type'] as $code) {
+            $id = (int) DB::table('catalog_attributes')->where('code', $code)->where('data_type', 'text')->value('id');
+            if ($id && ! DB::table('catalog_product_attribute_values')->where('attribute_id', $id)->exists()) {
+                DB::table('catalog_attributes')->where('id', $id)->update(['data_type' => 'select', 'updated_at' => $now]);
+            }
+        }
+
         $attributeIds = DB::table('catalog_attributes')->pluck('id', 'code')->map(fn ($id) => (int) $id);
+
+        foreach (self::OPTIONS as $code => $options) {
+            $attributeId = $attributeIds[$code] ?? null;
+            if (! $attributeId || DB::table('catalog_attribute_options')->where('attribute_id', $attributeId)->exists()) {
+                continue;
+            }
+            foreach ($options as $i => [$slug, $ar, $en]) {
+                DB::table('catalog_attribute_options')->insert([
+                    'attribute_id' => $attributeId, 'slug' => $slug, 'value_ar' => $ar, 'value_en' => $en,
+                    'sort_order' => ($i + 1) * 10, 'is_active' => 1, 'created_at' => $now, 'updated_at' => $now,
+                ]);
+            }
+        }
 
         $sort = 0;
         foreach (self::PROFILES as $code => [$ar, $en, $icon, $fields, $groups]) {
@@ -126,6 +177,7 @@ class MenuDetailProfilesSeeder extends Seeder
                     'catalog_attribute_id' => $attributeIds[$attribute],
                     'sort_order' => $position += 10,
                     'show_on_card' => $onCard,
+                    'per_item' => in_array($attribute, self::PER_ITEM[$code] ?? [], true),
                     'is_filterable' => 1,
                     'created_at' => $now,
                     'updated_at' => $now,

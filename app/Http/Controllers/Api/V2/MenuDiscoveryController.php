@@ -21,6 +21,8 @@ use App\Support\MarketCatalogChildren;
  */
 final class MenuDiscoveryController extends Controller
 {
+    private ?\App\Services\Menu\MenuItemAttributes $itemAttributes = null;
+
     /** GET /api/v2/discovery/menu/{business} */
     public function show(int $business)
     {
@@ -59,6 +61,9 @@ final class MenuDiscoveryController extends Controller
             ->orderByRaw('COALESCE(sort_order, 999999) ASC')
             ->orderBy('id')
             ->get(['id', 'name_ar', 'name_en']);
+
+        // One query pair for every unit's own values instead of one per item.
+        ($this->itemAttributes ??= app(\App\Services\Menu\MenuItemAttributes::class))->preload($items->pluck('id')->all());
 
         $bySection = $items->groupBy(fn (MenuItem $i) => (int) ($i->menu_section_id ?? 0));
 
@@ -220,12 +225,36 @@ final class MenuDiscoveryController extends Controller
         ];
     }
 
+    /** @var array<int, list<string>> detail kind id => attribute codes on its card, in order */
+    private array $cardCodes = [];
+
+    /** @param  list<array{code:string,name:string,value:string}>  $specs */
+    private function cardSummary(MenuItem $item, array $specs): ?string
+    {
+        $profileId = (int) ($item->lineOption()?->group?->menu_detail_profile_id ?? 0);
+        if ($profileId <= 0) {
+            return null;
+        }
+
+        $this->cardCodes[$profileId] ??= collect(\App\Models\MenuDetailProfile::fieldsFor([$profileId])[$profileId] ?? [])
+            ->where('show_on_card', true)->pluck('code')->all();
+
+        $byCode = collect($specs)->keyBy('code');
+        $line = collect($this->cardCodes[$profileId])
+            ->map(fn ($code) => $byCode[$code]['value'] ?? null)
+            ->filter()->implode(' · ');
+
+        return $line !== '' ? $line : null;
+    }
+
     private function itemPayload(MenuItem $item): array
     {
         $base = (float) $item->base_price;
         $specs = $item->catalog_product_id
             ? app(\App\Services\Catalog\ProductSpecs::class)->forProducts([(int) $item->catalog_product_id])[(int) $item->catalog_product_id] ?? []
             : [];
+        // The unit's own values (a car's year and mileage) over its master's.
+        $specs = ($this->itemAttributes ??= app(\App\Services\Menu\MenuItemAttributes::class))->mergeIntoSpecs($specs, (int) $item->id);
 
         return [
             'id' => (int) $item->id,
@@ -294,6 +323,11 @@ final class MenuDiscoveryController extends Controller
             // Only present when the merchant linked a real catalog master
             // (a real phone/laptop model…) — see [[three-catalog-shapes]].
             'specs' => $specs,
+            // The one line under the name on a card — «٢٠٢١ · ٤٢٬٥٠٠ كم ·
+            // أوتوماتيك · بنزين» — from the fields its detail kind puts on the
+            // card (set in «أشكال المنيو»), in that order. Null under a basic
+            // menu; the app then falls back to the first few specs.
+            'card_summary' => $this->cardSummary($item, $specs),
             /*
              * The two filter facets of a catalog-linked device — «سامسونج» →
              * «Galaxy A». The storefront groups a section's items by these so

@@ -14,6 +14,7 @@ use App\Models\MenuItemVariant;
 use App\Models\OptionGroup;
 use App\Services\CategoryChildOptionScope;
 use App\Services\Media\ImageUploadService;
+use App\Services\Menu\MenuItemAttributes;
 use App\Services\Menu\MenuSectionFromOptionGroup;
 use App\Services\MerchantOfferingVocabulary;
 use App\Support\SaleUnits;
@@ -330,11 +331,19 @@ final class BusinessMenuItemController extends Controller
     {
         $businessId = $this->businessId($request);
         $data = $this->validatedItem($request, $businessId);
-        $item = MenuItem::create($data + ['business_id' => $businessId]);
 
-        if (! $item->medicine_id) {
-            $this->applyVocabulary($request, $item, explicitSection: $data['menu_section_id'] !== null);
-        }
+        // One transaction: a wrong «سنة الصنع» is a 422 and the item is not
+        // left half-saved without it.
+        $item = DB::transaction(function () use ($request, $data, $businessId) {
+            $item = MenuItem::create($data + ['business_id' => $businessId]);
+
+            if (! $item->medicine_id) {
+                $this->applyVocabulary($request, $item, explicitSection: $data['menu_section_id'] !== null);
+                $this->syncDetailAttributes($request, $item);
+            }
+
+            return $item;
+        });
 
         return (new MenuItemResource($item->fresh()))->additional(['success' => true])->response()->setStatusCode(201);
     }
@@ -344,13 +353,36 @@ final class BusinessMenuItemController extends Controller
     {
         $model = $this->ownItem($request, $item);
         $data = $this->validatedItem($request, $this->businessId($request));
-        $model->update($data);
 
-        if (! $model->medicine_id) {
-            $this->applyVocabulary($request, $model, explicitSection: $data['menu_section_id'] !== null);
-        }
+        DB::transaction(function () use ($request, $model, $data) {
+            $model->update($data);
+
+            if (! $model->medicine_id) {
+                $this->applyVocabulary($request, $model, explicitSection: $data['menu_section_id'] !== null);
+                $this->syncDetailAttributes($request, $model);
+            }
+        });
 
         return (new MenuItemResource($model->fresh()))->additional(['success' => true]);
+    }
+
+    /**
+     * The values this UNIT carries — a car's year, mileage, gearbox, colour —
+     * sent as `attributes: {attribute_id: value}`. Only the fields its detail
+     * kind flags `per_item` are accepted ({@see MenuItemAttributes}); an item
+     * under a basic menu has none, so the key is ignored there. Absent key =
+     * untouched, so an edit that only changes the price never wipes them.
+     */
+    private function syncDetailAttributes(Request $request, MenuItem $item): void
+    {
+        if (! $request->has('attributes') || ! is_array($request->input('attributes'))) {
+            return;
+        }
+
+        $groupId = (int) ($item->lineOption()?->group_id ?? 0);
+        $fields = $this->detailProfilesFor($groupId > 0 ? [$groupId] : [])[$groupId]['fields'] ?? [];
+
+        app(MenuItemAttributes::class)->sync($item, $request->input('attributes'), $fields);
     }
 
     /**

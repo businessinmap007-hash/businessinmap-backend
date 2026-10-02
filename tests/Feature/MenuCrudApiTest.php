@@ -242,6 +242,11 @@ class MenuCrudApiTest extends TestCase
         $accessories = \App\Models\OptionGroup::query()->where('name_ar', 'اكسسوارات')->firstOrFail();
         $services = \App\Models\OptionGroup::query()->where('name_ar', 'خدمات الموبايل')->firstOrFail();
 
+        // Set here, not read from live data — an admin re-assigning a group in
+        // «أشكال المنيو» must not be able to fail this.
+        $accessories->update(['menu_detail_profile_id' => \App\Models\MenuDetailProfile::query()->where('code', 'mobile_accessories')->value('id')]);
+        $services->update(['menu_detail_profile_id' => null]);
+
         $lines = collect(
             $this->actingAs($business, 'sanctum')
                 ->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.lines')

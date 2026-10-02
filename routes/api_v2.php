@@ -209,6 +209,9 @@ Route::prefix('v2')->group(function () {
 
         // Menu: browse a business's menu grouped by sections, with variants + extras.
         Route::get('menu/{business}', [MenuDiscoveryController::class, 'show'])->whereNumber('business');
+        // Search across shops by a detail kind's fields (a car's year, a laptop's
+        // processor) and compare one product's price between them.
+        Route::get('menu-items/search', [\App\Http\Controllers\Api\V2\MenuItemSearchController::class, 'index']);
 
         // Units: the rooms/tables/pitches a customer may actually book, grouped
         // by kind with each kind's price. 21 children refuse a booking without a

@@ -56,6 +56,19 @@ class MenuItemResource extends JsonResource
                 ];
             })() : null,
 
+            // What the merchant stated for THIS unit — year, mileage, gearbox,
+            // colour (see MenuItemAttributes) — keyed for the edit form.
+            'attributes' => collect(app(\App\Services\Menu\MenuItemAttributes::class)->forItem((int) $this->id))
+                ->map(fn ($a) => [
+                    'attribute_id' => $a['attribute_id'],
+                    'code' => $a['code'],
+                    'name' => $a['name'],
+                    'value' => $a['value'],
+                    'option_id' => $a['option_id'],
+                    'number' => $a['number'],
+                    'text' => $a['text'],
+                ])->values(),
+
             // What this item IS (a `line` option, e.g. "ثلاجات") and what
             // qualifies it (brand, condition...) — {@see HasOfferingOptions}.
             // Read fresh rather than gated behind whenLoaded: cheap (at most

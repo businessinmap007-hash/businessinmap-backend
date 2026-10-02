@@ -108,6 +108,7 @@ class MenuShapesController extends Controller
             'fields' => ['nullable', 'array'],
             'fields.*.enabled' => ['nullable', 'boolean'],
             'fields.*.show_on_card' => ['nullable', 'boolean'],
+            'fields.*.per_item' => ['nullable', 'boolean'],
             'fields.*.is_filterable' => ['nullable', 'boolean'],
             'fields.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);
@@ -126,6 +127,7 @@ class MenuShapesController extends Controller
                 'catalog_attribute_id' => $attributeId,
                 'sort_order' => (int) ($field['sort_order'] ?? 0),
                 'show_on_card' => ! empty($field['show_on_card']),
+                'per_item' => ! empty($field['per_item']),
                 'is_filterable' => ! empty($field['is_filterable']),
                 'created_at' => $now,
                 'updated_at' => $now,

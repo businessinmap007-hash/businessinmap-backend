@@ -215,10 +215,18 @@
                                         <div class="ms-label">المواصفات — {{ $previewProfile->name_ar }}</div>
                                         @if($previewFields)
                                             <div class="ms-specs">
-                                                @foreach($previewFields as $f)
+                                                @foreach(collect($previewFields)->where('per_item', false) as $f)
                                                     <div class="ms-spec"><span>{{ $f['name'] }}</span><span>{{ $value($f) }}</span></div>
                                                 @endforeach
                                             </div>
+                                            @if(collect($previewFields)->where('per_item', true)->isNotEmpty())
+                                                <div class="ms-label">لهذه الوحدة بالذات</div>
+                                                <div class="ms-row" style="flex-wrap:wrap">
+                                                    @foreach(collect($previewFields)->where('per_item', true) as $f)
+                                                        <div class="ms-field" style="flex:1 1 44%"><span class="ms-hint">{{ $f['name'] }}@if($f['unit']) ({{ $f['unit'] }})@endif</span></div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         @else
                                             <div class="ms-field ms-hint">لا حقول لهذا النوع بعد — اختر حقوله بالأسفل.</div>
                                         @endif
@@ -314,10 +322,10 @@
                                     <input type="hidden" name="q" value="{{ $search }}">
                                     <input type="hidden" name="shape" value="{{ $shape }}">
                                     <strong>{{ __('حقول «') }}{{ $previewProfile->name_ar }}{{ __('»') }}</strong>
-                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات.') }}</div>
+                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات.') }}</div>
                                     <div style="max-height:420px;overflow:auto">
                                         <table class="a2-table ms-fields-table">
-                                            <thead><tr><th>{{ __('الحقل') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('على الكارت') }}</th><th>{{ __('فلتر البحث') }}</th></tr></thead>
+                                            <thead><tr><th>{{ __('الحقل') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('على الكارت') }}</th><th>{{ __('لكل وحدة') }}</th><th>{{ __('فلتر البحث') }}</th></tr></thead>
                                             <tbody>
                                                 @foreach($ordered as $a)
                                                     @php $f = $current->get($a->id); @endphp
@@ -326,6 +334,7 @@
                                                         <td><input type="checkbox" name="fields[{{ $a->id }}][enabled]" value="1" @checked($f)></td>
                                                         <td><input class="a2-input" style="width:58px;min-width:0" type="number" min="0" name="fields[{{ $a->id }}][sort_order]" value="{{ $f ? ($loop->index + 1) * 10 : '' }}"></td>
                                                         <td><input type="checkbox" name="fields[{{ $a->id }}][show_on_card]" value="1" @checked($f && $f['show_on_card'])></td>
+                                                        <td><input type="checkbox" name="fields[{{ $a->id }}][per_item]" value="1" @checked($f && $f['per_item'])></td>
                                                         <td><input type="checkbox" name="fields[{{ $a->id }}][is_filterable]" value="1" @checked(! $f || $f['is_filterable'])></td>
                                                     </tr>
                                                 @endforeach

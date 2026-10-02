@@ -76,9 +76,20 @@ class MenuSectionFromOptionGroup
         );
     }
 
-    /** Whether «مكونات الخدمة» split this group's branches for this business's own child, under the menu service. */
-    private function isSplit(int $businessId, int $groupId): bool
+    /**
+     * Whether this group's branches are the business's SECTIONS: «غرفة نوم»،
+     * «سفرة»، «أنتريه» each standalone. True for every group the admin gave a
+     * «شكل منيو» (the kinds of «قيم موديلات الكتالوج») — a detailed group is
+     * browsed branch by branch, there is no «the whole group» to file under —
+     * and, for any other group, when «مكونات الخدمة» turned `branches_as_sections`
+     * on for this business's own child under the menu service.
+     */
+    public function isSplit(int $businessId, int $groupId): bool
     {
+        if (OptionGroup::query()->whereKey($groupId)->whereNotNull('menu_detail_profile_id')->exists()) {
+            return true;
+        }
+
         $childId = (int) (User::query()->whereKey($businessId)->value('category_child_id') ?? 0);
         if ($childId <= 0) {
             return false;

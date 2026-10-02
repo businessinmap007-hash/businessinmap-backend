@@ -427,9 +427,18 @@ final class MenuDiscoveryController extends Controller
             return [];
         }
 
-        return app(\App\Services\Catalog\ServiceOptionPlacements::class)
-            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION)
-            ->filter(fn ($p) => $p->branches_as_sections)
+        $placed = app(\App\Services\Catalog\ServiceOptionPlacements::class)
+            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_SECTION);
+
+        // A group with a «شكل منيو» is split into its branches whatever the flag
+        // says — the same rule MenuSectionFromOptionGroup::isSplit() applies.
+        $detailed = \App\Models\OptionGroup::query()
+            ->whereIn('id', $placed->pluck('option_group_id')->all())
+            ->whereNotNull('menu_detail_profile_id')
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        return $placed
+            ->filter(fn ($p) => $p->branches_as_sections || in_array((int) $p->option_group_id, $detailed, true))
             ->mapWithKeys(fn ($p) => [(int) $p->option_group_id => true])
             ->all();
     }

@@ -127,6 +127,7 @@ final class BusinessMenuItemController extends Controller
             'data' => [
                 'lines' => $shape($vocabulary['lines']),
                 'modifiers' => $shape($vocabulary['modifiers']),
+                'price_axes' => $this->priceAxes($businessId),
             ],
         ]);
     }
@@ -160,6 +161,47 @@ final class BusinessMenuItemController extends Controller
     /** option_group_id => the trade's DESCRIPTIVE placement of it (menu service), in its order */
     private function descriptivePlacements(): array
     {
+        return $this->placementsFor(\App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE);
+    }
+
+    /**
+     * «طريقة السداد كاش وتقسيط وهم سعرين مختلفين» — المالك، 2026-10-03: the groups
+     * «مكونات الخدمة» made a PRICE AXIS for this trade (usage price_variant), in
+     * its order, each with the options this merchant offers (what he ticked, else
+     * all of them). The item form asks for one price per option; they are kept as
+     * the item's variants and the customer picks among them on the product page.
+     * Not part of `modifiers`: «كاش» is a business-level word, not a product's.
+     *
+     * @return list<array{group_id:int,group_name:string,options:list<array{id:int,name_ar:string,name_en:?string}>}>
+     */
+    private function priceAxes(int $businessId): array
+    {
+        $axes = [];
+        $ticked = DB::table('option_user')->where('user_id', $businessId)->pluck('option_id')->map(fn ($id) => (int) $id)->all();
+
+        foreach ($this->placementsFor(\App\Models\ServiceOptionGroupPlacement::USAGE_PRICE_VARIANT) as $groupId => $placement) {
+            $group = OptionGroup::query()->find($groupId, ['id', 'name_ar', 'name_en']);
+            if (! $group) {
+                continue;
+            }
+
+            $options = DB::table('options')->where('group_id', $groupId)->orderBy('id')->get(['id', 'name_ar', 'name_en']);
+            $mine = $options->filter(fn ($o) => in_array((int) $o->id, $ticked, true));
+            $offered = $mine->isNotEmpty() ? $mine : $options;
+
+            $axes[] = [
+                'group_id' => (int) $groupId,
+                'group_name' => (string) $group->displayName(),
+                'options' => $offered->map(fn ($o) => ['id' => (int) $o->id, 'name_ar' => (string) $o->name_ar, 'name_en' => $o->name_en])->values()->all(),
+            ];
+        }
+
+        return $axes;
+    }
+
+    /** option_group_id => this trade's placement of it for [$usage] under the menu service, in order */
+    private function placementsFor(string $usage): array
+    {
         $childId = $this->childId();
         $menuServiceId = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
 
@@ -168,7 +210,7 @@ final class BusinessMenuItemController extends Controller
         }
 
         return app(\App\Services\Catalog\ServiceOptionPlacements::class)
-            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->for($menuServiceId, $childId, $usage)
             ->keyBy('option_group_id')->all();
     }
 

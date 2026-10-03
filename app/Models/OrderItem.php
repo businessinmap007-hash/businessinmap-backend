@@ -56,24 +56,32 @@ class OrderItem extends Model
     protected static function booted(): void
     {
         static::creating(function (self $line) {
-            if ($line->offering_label !== null || ! $line->offering_id) {
-                return;
+            if ($line->offering_label === null && $line->offering_id) {
+                $offering = $line->offering()->getResults();
+
+                if ($offering && method_exists($offering, 'offeringLabel')) {
+                    // The item's own name first, then what the platform calls it:
+                    // «برجر لحم» / «غرفة نوم — مودرن». Stored in the language the order
+                    // was placed in, which is what the customer actually saw.
+                    $own = method_exists($offering, 'loc')
+                        ? (string) $offering->loc('name')
+                        : (string) ($offering->name_ar ?? '');
+
+                    $line->offering_label = $offering->offeringLabel($own ?: null) ?: null;
+                }
             }
 
-            $offering = $line->offering()->getResults();
+            // «كاش» / «تقسيط»: HOW it is paid is part of what was bought — the
+            // price on the invoice is that option's. Frozen into the label so the
+            // invoice, the merchant's incoming order and the customer's history all
+            // keep saying it, even if the merchant later edits his prices.
+            if ($line->size_id && $line->offering_label !== null) {
+                $variant = MenuItemVariant::query()->find($line->size_id, ['id', 'type', 'name_ar', 'name_en']);
 
-            if (! $offering || ! method_exists($offering, 'offeringLabel')) {
-                return;
+                if ($variant && $variant->type === 'payment') {
+                    $line->offering_label = trim($line->offering_label . ' — ' . $variant->loc('name'));
+                }
             }
-
-            // The item's own name first, then what the platform calls it:
-            // «برجر لحم» / «غرفة نوم — مودرن». Stored in the language the order
-            // was placed in, which is what the customer actually saw.
-            $own = method_exists($offering, 'loc')
-                ? (string) $offering->loc('name')
-                : (string) ($offering->name_ar ?? '');
-
-            $line->offering_label = $offering->offeringLabel($own ?: null) ?: null;
         });
     }
 

@@ -274,7 +274,8 @@ final class CartController extends Controller
             return [];
         }
 
-        return MenuItemVariant::query()->whereIn('id', $sizeIds)->get(['id', 'name_ar', 'name_en'])
+        // A PAYMENT variant («تقسيط») is part of the line's frozen name already.
+        return MenuItemVariant::query()->whereIn('id', $sizeIds)->where('type', '!=', 'payment')->get(['id', 'name_ar', 'name_en'])
             ->mapWithKeys(fn (MenuItemVariant $v) => [$v->id => (string) $v->loc('name')])->all();
     }
 }

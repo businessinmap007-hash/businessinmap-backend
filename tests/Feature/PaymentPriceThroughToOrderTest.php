@@ -111,4 +111,17 @@ class PaymentPriceThroughToOrderTest extends TestCase
         $this->assertSame('30000.00', (string) $line->price);
         $this->assertStringContainsString('كاش', (string) $line->offering_label);
     }
+
+    public function test_an_owner_ordering_from_himself_reads_his_order_back_without_an_empty_list_for_trust(): void
+    {
+        // «فى الصورة اللودر لا يتوقف» — the app reads `trust` as an object; PHP sent an
+        // empty map as `[]`, the detail failed to parse and the sheet spun for ever.
+        Sanctum::actingAs($this->shop);
+        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'size_id' => $this->instalmentId])->assertCreated();
+        $orderId = (int) $this->postJson("/api/v2/cart/{$this->shop->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addDay()->toIso8601String()])->assertCreated()->json('data.order.id');
+
+        $raw = $this->getJson("/api/v2/orders/{$orderId}")->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('"trust":[]', $raw, 'an empty trust map must not be a JSON list');
+    }
 }

@@ -1271,13 +1271,12 @@ class ChildTradeVocabulariesTest extends TestCase
          * all four grocers and both kitchens now say it the same way.
          */
         27, 113, 149, 185,
-        101,                                  // أسماك — narrowed by hand under «المحلات» on
-                                              // 2026-08-12: it had been answering with the whole
-                                              // fresh counter (خضار وفاكهة، ألبان وبيض، أجبان،
-                                              // لحوم ودواجن، مجمدات) and now says فسيخ · رنجة ·
-                                              // أسماك طازجة. «جديد / مستعمل» went with them, which
-                                              // is right — nobody sells second-hand fish. Under
-                                              // «مصانع» it keeps both modifiers.
+        /*
+         * #101 أسماك left this list on 2026-10-04: «ابدأ بمنيو الأسماك» gave the fish shop
+         * its own describing groups (حالة/مصدر/حجم السمك) and a price axis (تجهيز السمك).
+         * It had been narrowed by hand on 2026-08-12 to فسيخ · رنجة · أسماك طازجة with no
+         * second axis — see SeafoodMenuTest for what it says now.
+         */
     ];
 
     /** Nothing may quietly join the list of trades with no price axis. */

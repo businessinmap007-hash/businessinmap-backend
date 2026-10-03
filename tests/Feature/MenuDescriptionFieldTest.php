@@ -136,4 +136,19 @@ class MenuDescriptionFieldTest extends TestCase
 
         $this->assertSame(0, $without);
     }
+
+    public function test_a_kind_without_a_catalog_never_asks_the_description_per_unit_in_the_vocabulary(): void
+    {
+        $shop = User::query()->where('type', 'business')->where('category_child_id', 188)->orderBy('id')->first()
+            ?: $this->markTestSkipped('No business stands on child #188 (معرض سيارات).');
+        [$cars, $group] = $this->carsKind([['model_year', false, true], ['description', false, true]]);
+        $cars->update(['uses_catalog' => false]);
+
+        Sanctum::actingAs($shop);
+        $line = collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.lines'))->firstWhere('group_id', $group->id);
+        $fields = collect($line['detail_profile']['fields'])->keyBy('code');
+
+        $this->assertTrue($fields['model_year']['per_item'], 'a kind with no catalog states every field per unit');
+        $this->assertFalse($fields['description']['per_item'], 'except the description, which is the box below');
+    }
 }

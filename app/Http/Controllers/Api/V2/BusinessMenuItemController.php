@@ -262,7 +262,8 @@ final class BusinessMenuItemController extends Controller
             // pick): the merchant names the item and states EVERY field himself.
             'uses_catalog' => (bool) $p->uses_catalog,
             'fields' => collect($fields[(int) $p->id] ?? [])
-                ->map(fn ($f) => $p->uses_catalog ? $f : ['per_item' => true] + $f)->all(),
+                // «الوصف» is the add-product description box, never one of the unit's own fields.
+                ->map(fn ($f) => $p->uses_catalog || $f['code'] === 'description' ? $f : ['per_item' => true] + $f)->all(),
         ]])->all();
     }
 

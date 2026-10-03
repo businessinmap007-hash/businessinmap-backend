@@ -291,6 +291,65 @@ final class MenuDiscoveryController extends Controller
         return $line !== '' ? $line : null;
     }
 
+    /** @var array<string,mixed> memo for describingSpecs(): kind → chosen groups, child → descriptive groups */
+    private array $describingMemo = [];
+
+    /**
+     * The item's choices from its DESCRIBING groups as spec rows — name = the
+     * group, value = what was chosen. Which groups count: the ones the admin
+     * ticked for the item's kind in «أشكال المنيو» (in that order); a kind that
+     * never chose shows every group «مكونات الخدمة» made descriptive for the
+     * business's own trade.
+     *
+     * @return list<array{code:string,name:string,value:string}>
+     */
+    private function describingSpecs(MenuItem $item): array
+    {
+        $modifiers = $item->modifierOptions()->filter(fn ($o) => $o->group);
+        if ($modifiers->isEmpty()) {
+            return [];
+        }
+
+        $profileId = (int) ($item->lineOption()?->group?->menu_detail_profile_id ?? 0);
+        $allowed = $profileId > 0
+            ? ($this->describingMemo['p' . $profileId] ??= (\App\Models\MenuDetailProfile::describingGroupIds([$profileId])[$profileId] ?? []))
+            : [];
+
+        if ($allowed === []) {
+            $childId = (int) ($this->describingMemo['c' . $item->business_id] ??= (int) User::query()->whereKey($item->business_id)->value('category_child_id'));
+            $allowed = $this->describingMemo['d' . $childId] ??= $this->descriptiveGroupIdsFor($childId);
+        }
+
+        $rows = [];
+        foreach ($allowed as $groupId) {
+            $chosen = $modifiers->filter(fn ($o) => (int) $o->group_id === (int) $groupId);
+            if ($chosen->isEmpty()) {
+                continue;
+            }
+            $rows[] = [
+                'code' => 'group_' . (int) $groupId,
+                'name' => (string) $chosen->first()->group->displayName(),
+                'value' => $chosen->map(fn ($o) => (string) $o->displayName())->implode('، '),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /** @return list<int> the groups «مكونات الخدمة» made descriptive for this child under the menu service */
+    private function descriptiveGroupIdsFor(int $childId): array
+    {
+        $menuServiceId = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
+
+        if ($childId <= 0 || $menuServiceId <= 0) {
+            return [];
+        }
+
+        return app(\App\Services\Catalog\ServiceOptionPlacements::class)
+            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->pluck('option_group_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
     private function itemPayload(MenuItem $item): array
     {
         $base = (float) $item->base_price;
@@ -299,6 +358,10 @@ final class MenuDiscoveryController extends Controller
             : [];
         // The unit's own values (a car's year and mileage) over its master's.
         $specs = ($this->itemAttributes ??= app(\App\Services\Menu\MenuItemAttributes::class))->mergeIntoSpecs($specs, (int) $item->id);
+        // …and what the merchant chose from the groups that DESCRIBE it («طراز
+        // الأثاث: مودرن»، «أنواع الأخشاب: زان») — the descriptive fields picked in
+        // «أشكال المنيو» — so the customer's product page lists them with the rest.
+        $specs = array_merge($specs, $this->describingSpecs($item));
 
         return [
             'id' => (int) $item->id,

@@ -101,6 +101,9 @@
                                         <input type="hidden" name="rows[{{ $i }}][option_group_id]" value="{{ $group->id }}">
                                         <div class="a2-fw-900">{{ $name($group) }}</div>
                                         <div class="a2-muted">{{ __('نوعها الحالي') }}: {{ $roleLabel[$group->price_role] ?? $group->price_role }}@if(! $row) — {{ __('لم يُحفظ بعد') }}@endif</div>
+                                        @if($group->menu_detail_profile_id)
+                                            <div class="a2-muted">{{ __('شكل المنيو') }}: <strong>{{ \App\Models\MenuDetailProfile::query()->whereKey($group->menu_detail_profile_id)->value('name_ar') }}</strong> — <a href="{{ route('admin.menu-shapes.index', ['group_id' => $group->id]) }}">{{ __('حقوله من أشكال المنيو') }}</a></div>
+                                        @endif
                                     </td>
                                     <td>
                                         <select class="a2-select" name="rows[{{ $i }}][usage]">

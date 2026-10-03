@@ -347,6 +347,10 @@
                                 <input type="hidden" name="shape" value="{{ $shape }}">
                                 <div style="margin-bottom:10px">
                                     <strong>{{ $name($group) }}</strong>
+                                    <div class="ms-note" style="margin-bottom:4px">
+                                        {{ __('فى مكونات الخدمة: فروعها أقسام مستقلة فى') }} {{ $splitTrades }} {{ __('نشاط') }}
+                                        — <a href="{{ route('admin.service-components.index') }}">{{ __('تعديل الأقسام والاستخدام من مكونات الخدمة') }}</a>
+                                    </div>
                                     <div class="ms-note">
                                         {{ __('الشكل الحالي:') }}
                                         {{ $savedProfileId ? __('منيو تفصيلي — ') . ($profileById->get($savedProfileId)?->name_ar) : __('منيو أساسي') }}
@@ -395,7 +399,7 @@
                                     <div style="margin-top:14px"><strong>{{ __('حقول وصفية — من مجموعات الخيارات') }}</strong></div>
                                     <div class="ms-note a2-mb-16">{{ __('مجموعات يصفها التاجر بالاختيار منها (طراز الأثاث، نظام التصنيع، أنواع الأخشاب) وتظهر له كقوائم منسدلة فى «التسعير والتفاصيل». المعلَّم هنا فقط هو ما يظهر لهذا النوع، بالترتيب المكتوب؛ وإن لم تُعلِّم شيئًا يظهر كل ما جعلته «مكونات الخدمة» وصفيًا للنشاط.') }}</div>
                                     <table class="a2-table ms-fields-table">
-                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th><th>{{ __('الاختيار') }}</th></tr></thead>
+                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th><th>{{ __('فى مكونات الخدمة') }}</th><th>{{ __('الاختيار') }}</th></tr></thead>
                                         <tbody>
                                             @forelse($describingGroups as $g)
                                                 @php $on = in_array((int) $g->id, $describingChosen, true); @endphp
@@ -405,10 +409,19 @@
                                                     <td><input class="a2-input" style="width:58px;min-width:0" type="number" min="0" name="describing[{{ $g->id }}][sort_order]" value="{{ $on ? (array_search((int) $g->id, $describingChosen, true) + 1) * 10 : '' }}" data-dep @disabled(! $on)></td>
                                                     <td><input type="hidden" name="describing[{{ $g->id }}][show_on_page]" value="0"><input type="checkbox" name="describing[{{ $g->id }}][show_on_page]" value="1" data-dep @checked($on ? ($describingSettings[$g->id]['show_on_page'] ?? true) : true) @disabled(! $on)></td>
                                                     <td><select class="a2-select" style="min-width:92px" name="describing[{{ $g->id }}][display]" data-dep @disabled(! $on)>@foreach(['auto' => 'تلقائى', 'chips' => 'أزرار', 'dropdown' => 'قائمة'] as $k => $l)<option value="{{ $k }}" @selected(($describingSettings[$g->id]['display'] ?? 'auto') === $k)>{{ __($l) }}</option>@endforeach</select></td>
+                                                    <td class="ms-note" style="white-space:normal;min-width:150px">
+                                                        @php
+                                                            $u = $usageByGroup[$g->id] ?? [];
+                                                            $uLabel = ['descriptive' => 'وصفى', 'price_variant' => 'سعر متغير', 'section' => 'قسم', 'store_cart' => 'سلة المتجر', 'store_filter' => 'فلتر المتجر'];
+                                                        @endphp
+                                                        @forelse($u as $usage => $n){{ __($uLabel[$usage] ?? $usage) }} ×{{ $n }}@if(! $loop->last) · @endif
+                                                        @empty{{ __('غير مستخدمة فى أى نشاط') }}@endforelse
+                                                        @if($on && ($u['descriptive'] ?? 0) === 0)<div style="color:#b45309">⚠ {{ __('ليست «وصفية» فى أى نشاط — راجع مكونات الخدمة') }}</div>@endif
+                                                    </td>
                                                     <td><select class="a2-select" style="min-width:92px" name="describing[{{ $g->id }}][multiple]" data-dep @disabled(! $on)>@foreach(['1' => 'متعدد', '0' => 'واحد فقط'] as $k => $l)<option value="{{ $k }}" @selected((string) (int) ($describingSettings[$g->id]['multiple'] ?? true) === (string) $k)>{{ __($l) }}</option>@endforeach</select></td>
                                                 </tr>
                                             @empty
-                                                <tr><td colspan="6" class="ms-note">{{ __('لا توجد مجموعات وصفية بعد — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
+                                                <tr><td colspan="7" class="ms-note">{{ __('لا توجد مجموعات وصفية بعد — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
                                             @endforelse
                                         </tbody>
                                     </table>

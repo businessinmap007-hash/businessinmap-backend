@@ -60,7 +60,9 @@ class MenuShapesDescribingFieldsTest extends TestCase
             ->assertOk()
             ->assertSee('حقول وصفية')
             ->assertSee('طراز الأثاث')
-            ->assertSee('أنواع الأخشاب');
+            ->assertSee('أنواع الأخشاب')
+            ->assertSee('فى مكونات الخدمة')   // what the OTHER screen says of the same group…
+            ->assertSee('وصفى ×');            // …how many trades use it as descriptive
     }
 
     public function test_the_chosen_groups_are_saved_in_order_drawn_in_the_preview_and_sent_to_the_app(): void

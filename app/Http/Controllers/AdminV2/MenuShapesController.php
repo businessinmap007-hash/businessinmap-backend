@@ -83,7 +83,20 @@ class MenuShapesController extends Controller
             ->sortBy(fn ($g) => in_array((int) $g->id, $chosenIds, true) ? array_search((int) $g->id, $chosenIds, true) : 1000 + (int) $g->id)
             ->values();
 
+        // The OTHER screen's word on the same groups — «مكونات الخدمة» — so the two
+        // never disagree out of sight: per group, how many trades use it as what.
+        $placementRows = ServiceOptionGroupPlacement::query()
+            ->where('platform_service_id', $menuServiceId)->where('is_active', true)
+            ->whereIn('option_group_id', array_merge($describingGroups->pluck('id')->all(), $group ? [$group->id] : []))
+            ->get(['option_group_id', 'child_id', 'usage', 'branches_as_sections']);
+        $usageByGroup = $placementRows->groupBy('option_group_id')->map(
+            fn ($rows) => $rows->groupBy('usage')->map(fn ($r) => $r->pluck('child_id')->unique()->count())->all()
+        );
+        $splitTrades = $group ? $placementRows->where('option_group_id', $group->id)->where('usage', ServiceOptionGroupPlacement::USAGE_SECTION)->where('branches_as_sections', true)->pluck('child_id')->unique()->count() : 0;
+
         return view('admin-v2.menu-shapes.index', [
+            'usageByGroup' => $usageByGroup,
+            'splitTrades' => $splitTrades,
             'profiles' => $profiles,
             'fields' => $fields,
             'groups' => $groups,

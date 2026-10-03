@@ -71,8 +71,10 @@ class MenuDetailProfile extends Model
                 'data_type' => (string) $r->data_type,
                 'unit' => ($english ? ($r->unit_en ?: $r->unit_ar) : ($r->unit_ar ?: $r->unit_en)) ?: null,
                 'show_on_card' => (bool) $r->show_on_card,
-                'per_item' => (bool) $r->per_item,
-                'is_filterable' => (bool) $r->is_filterable,
+                // «الوصف» is typed once, in the add-product form's own description box —
+                // never a second per-unit field, never a filter.
+                'per_item' => $r->code !== 'description' && (bool) $r->per_item,
+                'is_filterable' => $r->code !== 'description' && (bool) $r->is_filterable,
                 // On the customer's product page? And how a list field is drawn
                 // for the merchant: auto | chips | dropdown.
                 'show_on_page' => (bool) $r->show_on_page,

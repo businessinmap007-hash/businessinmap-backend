@@ -274,6 +274,28 @@ final class MenuDiscoveryController extends Controller
     /** @var array<int, list<string>> detail kind id => attribute codes on its card, in order */
     private array $cardCodes = [];
 
+    /**
+     * Where the item's own description shows, per the detail kind's «الوصف» field in
+     * «أشكال المنيو»: on the CARD only when the kind ticked it for the card; on the PAGE
+     * unless the kind switched it off there. A kind without the field (or a basic menu)
+     * keeps what it always had: the page, never the card.
+     *
+     * @return array{card:bool,page:bool}
+     */
+    private function descriptionPlaces(MenuItem $item): array
+    {
+        $profileId = (int) ($item->lineOption()?->group?->menu_detail_profile_id ?? 0);
+        if ($profileId <= 0) {
+            return ['card' => false, 'page' => true];
+        }
+
+        return $this->describingMemo['desc' . $profileId] ??= (function () use ($profileId) {
+            $field = collect(\App\Models\MenuDetailProfile::fieldsFor([$profileId])[$profileId] ?? [])->firstWhere('code', 'description');
+
+            return $field ? ['card' => (bool) $field['show_on_card'], 'page' => (bool) $field['show_on_page']] : ['card' => false, 'page' => true];
+        })();
+    }
+
     /** @param  list<array{code:string,name:string,value:string}>  $specs */
     private function cardSummary(MenuItem $item, array $specs): ?string
     {
@@ -286,6 +308,9 @@ final class MenuDiscoveryController extends Controller
             ->where('show_on_card', true)->pluck('code')->all();
 
         $byCode = collect($specs)->keyBy('code');
+        if ($this->descriptionPlaces($item)['card'] && ($text = $this->label($item->description_ar, $item->description_en, '')) !== '') {
+            $byCode['description'] = ['code' => 'description', 'value' => \Illuminate\Support\Str::limit($text, 90)];
+        }
         $line = collect($this->cardCodes[$profileId])
             ->map(fn ($code) => $byCode[$code]['value'] ?? null)
             ->filter()->implode(' · ');
@@ -386,7 +411,7 @@ final class MenuDiscoveryController extends Controller
             'id' => (int) $item->id,
             'kind' => 'menu',
             'name' => $this->label($item->name_ar, $item->name_en, __('صنف #') . $item->id),
-            'description' => $this->label($item->description_ar, $item->description_en, ''),
+            'description' => $this->descriptionPlaces($item)['page'] ? $this->label($item->description_ar, $item->description_en, '') : '',
             // «غرفة نوم — مودرن»: what the item is in the platform's own words,
             // so the option a customer searched by still shows on the result
             'offering_label' => $item->offeringLabel() ?: null,

@@ -108,7 +108,7 @@ final class MenuItemSearchController extends Controller
         $page = $base->paginate(
             (int) ($data['per_page'] ?? 20),
             ['menu_items.id', 'menu_items.business_id', 'menu_items.catalog_product_id', 'menu_items.name_ar', 'menu_items.name_en',
-                'menu_items.base_price', 'menu_items.image', 'menu_items.available_quantity',
+                'menu_items.base_price', 'menu_items.image', 'menu_items.available_quantity', 'menu_items.description_ar', 'menu_items.description_en',
                 'biz.name as business_name', 'biz.logo as business_logo', 'biz.governorate_id', 'biz.city_id']
         );
 
@@ -125,6 +125,11 @@ final class MenuItemSearchController extends Controller
         $items = collect($page->items())->map(function ($r) use ($attrs, $masterSpecs, $images, $english, $cardCodes) {
             $specs = $attrs->mergeIntoSpecs($masterSpecs[(int) $r->catalog_product_id] ?? [], (int) $r->id);
             $byCode = collect($specs)->keyBy('code');
+            // «الوصف» when the kind ticked it for the card.
+            $description = (string) ($english ? ($r->description_en ?: $r->description_ar) : ($r->description_ar ?: $r->description_en));
+            if ($description !== '') {
+                $byCode['description'] = ['code' => 'description', 'value' => \Illuminate\Support\Str::limit($description, 90)];
+            }
             $summary = collect($cardCodes)->map(fn ($c) => $byCode[$c]['value'] ?? null)->filter()->implode(' · ');
 
             return [

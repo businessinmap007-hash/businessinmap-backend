@@ -26,7 +26,8 @@
     $firstBranch = ($sample['branch_id'] ?? null) ? $branches->firstWhere('id', $sample['branch_id']) : $branches->first();
     $link = fn (array $extra) => route('admin.menu-shapes.index', array_filter(['q' => $search, 'shape' => $shape, 'group_id' => $group?->id] + $extra, fn ($v) => $v !== null && $v !== ''));
     $value = function (array $field) use ($sample) {
-        $v = $sample['values'][$field['code']] ?? null;
+        // «الوصف» is typed by the merchant on each item — the phone shows an example of it.
+        $v = $sample['values'][$field['code']] ?? ($field['code'] === 'description' ? __('وصف قصير للمنتج يكتبه التاجر.') : null);
         return $v !== null && $v !== '' ? $v : '—';
     };
     $cardLine = collect($previewFields)->where('show_on_card', true)->map(fn ($f) => $value($f))->reject(fn ($v) => $v === '—')->take(3)->implode(' · ');

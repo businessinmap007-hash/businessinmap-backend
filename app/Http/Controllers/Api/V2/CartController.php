@@ -199,6 +199,9 @@ final class CartController extends Controller
         $plan = app(\App\Services\InstallmentPlan::class)->forOrder($order);
 
         return [
+            // A PLACED order carries its stored schedule (dates fixed at placing).
+            'installments' => $order->status === 'cart' ? [] : \App\Models\OrderInstallment::query()->where('order_id', $order->id)->orderBy('seq')->get()
+                ->map(fn ($p) => ['seq' => (int) $p->seq, 'due_on' => $p->due_on->toDateString(), 'amount' => (float) $p->amount, 'paid_at' => optional($p->paid_at)->toIso8601String()])->values()->all(),
             'installment_plan' => $plan === [] ? null : [
                 'count' => count($plan),
                 // «monthly» is the regular month; the first one is larger when there is a down payment.

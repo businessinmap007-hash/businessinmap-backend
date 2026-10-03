@@ -307,9 +307,10 @@ class AgendaService
         $sent = 0;
         foreach ($due as $item) {
             $isMed = $item->kind === AgendaItem::KIND_MEDICATION;
+            $isInstalment = $item->kind === AgendaItem::KIND_INSTALLMENT;
             $this->notify($isMed ? 'medication_reminder' : 'agenda_reminder', (int) $item->user_id, $item,
-                $isMed ? 'تذكير بالدواء' : 'تذكير بمهمة',
-                $isMed ? 'Medication reminder' : 'Task reminder',
+                $isMed ? 'تذكير بالدواء' : ($isInstalment ? 'تذكير بقسط' : 'تذكير بمهمة'),
+                $isMed ? 'Medication reminder' : ($isInstalment ? 'Instalment reminder' : 'Task reminder'),
                 $item->title, $item->title);
 
             $item->update(['reminded_at' => $now]);

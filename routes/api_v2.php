@@ -720,6 +720,7 @@ Route::prefix('v2')->group(function () {
             // matching as an id.
             Route::get('business/orders/reports', [OrderController::class, 'businessReports']);
             Route::get('business/orders/{order}', [OrderController::class, 'businessShow'])->whereNumber('order');
+            Route::post('business/orders/{order}/installments/{seq}/collect', [OrderController::class, 'collectInstallment'])->whereNumber(['order', 'seq']);
             Route::post('business/orders/{order}/reject', [OrderController::class, 'businessReject'])->whereNumber('order');
             // Prep lifecycle: accept (settles BIM fee from the business wallet) →
             // preparing (order becomes visible to drivers) → ready.

@@ -6,6 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+    protected static function booted(): void
+    {
+        // A cancelled order's instalments leave the customer's agenda.
+        static::updated(function (self $order) {
+            if ($order->wasChanged('status') && $order->status === 'cancelled' && $order->installments()->exists()) {
+                app(\App\Services\InstallmentPlan::class)->syncAgenda($order);
+            }
+        });
+    }
+
     /** How the order is fulfilled. dine_in links to a table booking. */
     public const FULFILLMENT_DELIVERY = 'delivery';
     public const FULFILLMENT_DINE_IN = 'dine_in';

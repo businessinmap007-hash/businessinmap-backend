@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\OrderInstallment;
 use App\Models\OrderItem;
+use App\Models\AgendaItem;
 use Illuminate\Support\Carbon;
 
 /**
@@ -73,6 +74,8 @@ class InstallmentPlan
 
         // Payments already made keep their place; the rest is rewritten.
         $paid = OrderInstallment::query()->where('order_id', $order->id)->whereNotNull('paid_at')->pluck('seq')->all();
+        $stale = OrderInstallment::query()->where('order_id', $order->id)->whereNull('paid_at')->pluck('id')->all();
+        AgendaItem::query()->where('source_type', (new OrderInstallment)->getMorphClass())->whereIn('source_id', $stale)->delete();
         OrderInstallment::query()->where('order_id', $order->id)->whereNull('paid_at')->delete();
 
         foreach ($this->forOrder($order, $from) as $row) {
@@ -80,6 +83,38 @@ class InstallmentPlan
                 continue;
             }
             OrderInstallment::query()->create(['order_id' => $order->id] + $row);
+        }
+
+        $this->syncAgenda($order);
+    }
+
+    /**
+     * The customer's agenda carries each instalment on its due day: a reminder (not
+     * a blocking commitment), done once it is collected, gone when the order is.
+     */
+    public function syncAgenda(Order $order): void
+    {
+        $order->loadMissing('business:id,name');
+        $rows = OrderInstallment::query()->where('order_id', $order->id)->orderBy('seq')->get();
+        $count = $rows->count();
+        $cancelled = $order->status === 'cancelled';
+
+        foreach ($rows as $row) {
+            $status = $cancelled ? AgendaItem::STATUS_CANCELLED : ($row->paid_at ? AgendaItem::STATUS_DONE : AgendaItem::STATUS_ACTIVE);
+
+            AgendaItem::query()->updateOrCreate(
+                ['source_type' => $row->getMorphClass(), 'source_id' => $row->id],
+                [
+                    'user_id' => (int) $order->user_id,
+                    'kind' => AgendaItem::KIND_INSTALLMENT,
+                    'title' => 'قسط ' . $row->seq . ' من ' . $count . ' — ' . ($order->business?->name ?? '') . ': ' . rtrim(rtrim(number_format((float) $row->amount, 2, '.', ''), '0'), '.'),
+                    'starts_at' => $row->due_on->copy()->setTime(10, 0),
+                    'ends_at' => null,
+                    'blocking' => false,
+                    'remind' => true,
+                    'status' => $status,
+                ],
+            );
         }
     }
 }

@@ -2129,6 +2129,19 @@ paths:
       parameters: [{ name: order, in: path, required: true, schema: { type: integer } }]
       requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } } }
       responses: { '200': { description: OK }, '409': { $ref: '#/components/responses/Conflict' } }
+  /business/orders/{order}/installments/{seq}/collect:
+    post:
+      tags: [Orders (Business)]
+      summary: Record an instalment payment the business received (or take it back)
+      description: >-
+        Marks one monthly payment of an order bought on instalments as collected
+        (paid=true, the default) or not (paid=false). The customer's agenda item
+        for that payment is done when collected. Returns the order's schedule.
+      parameters:
+        - { name: order, in: path, required: true, schema: { type: integer } }
+        - { name: seq, in: path, required: true, schema: { type: integer } }
+      requestBody: { content: { application/json: { schema: { type: object, properties: { paid: { type: boolean } } } } } }
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/orders/{order}/confirm-payment:
     post:
       tags: [Orders (Business)]

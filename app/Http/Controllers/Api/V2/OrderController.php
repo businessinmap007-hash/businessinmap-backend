@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V2\OrderResource;
 use App\Models\AppNotification;
 use App\Models\Order;
+use App\Models\OrderInstallment;
 use App\Models\OrderItem;
 use App\Services\Business\StaffActivityLogger;
 use App\Services\MenuOrderService;
@@ -733,6 +734,9 @@ final class OrderController extends Controller
             ->where('status', '!=', 'cart')
             ->whereBetween('created_at', [$from, $to]);
 
+        // «تقسيط»: only a business that sells on instalments gets the second view.
+        $installments = $this->instalmentReport($businessId);
+
         $summary = (clone $base)->selectRaw("
             COUNT(*) as total_orders,
             SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
@@ -777,7 +781,119 @@ final class OrderController extends Controller
                 'pickup' => (int) ($byFulfillmentType['pickup'] ?? 0),
                 'dine_in' => (int) ($byFulfillmentType['dine_in'] ?? 0),
             ],
+            'has_installments' => $installments !== null,
+            // The cash view: what was done through the app OUTSIDE instalments.
+            'cash' => $installments === null ? null : $this->cashReport(clone $base),
+            'installments' => $installments,
         ]);
+    }
+
+    /** Orders paid in one go: counted, summed, by day. Instalment orders are in their own view. */
+    private function cashReport($base): array
+    {
+        $cash = $base->whereDoesntHave('installments');
+
+        $summary = (clone $cash)->selectRaw("
+            COUNT(*) as total_orders,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
+            SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_orders,
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
+            SUM(CASE WHEN status = 'completed' THEN final_total ELSE 0 END) as total_revenue
+        ")->first();
+        $completed = (int) $summary->completed_orders;
+        $revenue = (float) $summary->total_revenue;
+
+        return [
+            'summary' => [
+                'total_orders' => (int) $summary->total_orders,
+                'completed_orders' => $completed,
+                'cancelled_orders' => (int) $summary->cancelled_orders,
+                'pending_orders' => (int) $summary->pending_orders,
+                'total_revenue' => $revenue,
+                'average_order_value' => $completed > 0 ? round($revenue / $completed, 2) : 0,
+            ],
+            'daily' => (clone $cash)
+                ->selectRaw("DATE(created_at) as day, COUNT(*) as orders_count, SUM(CASE WHEN status = 'completed' THEN final_total ELSE 0 END) as revenue")
+                ->groupBy('day')->orderBy('day')->get()
+                ->map(fn ($row) => ['date' => (string) $row->day, 'orders_count' => (int) $row->orders_count, 'revenue' => (float) $row->revenue])->values()->all(),
+        ];
+    }
+
+    /**
+     * The instalment view: what is owed to the business, what is collected, and the
+     * payments still to collect, by date. null when the business sells nothing on
+     * instalments (no priced instalment option, no instalment order).
+     */
+    private function instalmentReport(int $businessId): ?array
+    {
+        $rows = OrderInstallment::query()
+            ->join('orders', 'orders.id', '=', 'order_installments.order_id')
+            ->leftJoin('users', 'users.id', '=', 'orders.user_id')
+            ->where('orders.business_id', $businessId)
+            ->where('orders.status', '!=', 'cancelled')
+            ->orderBy('order_installments.due_on')->orderBy('order_installments.order_id')->orderBy('order_installments.seq')
+            ->get(['order_installments.order_id', 'order_installments.seq', 'order_installments.due_on', 'order_installments.amount', 'order_installments.paid_at', 'users.name as customer']);
+
+        $offersThem = DB::table('menu_item_variants')
+            ->join('menu_items', 'menu_items.id', '=', 'menu_item_variants.menu_item_id')
+            ->where('menu_items.business_id', $businessId)
+            ->where('menu_item_variants.type', 'payment')
+            ->where('menu_item_variants.installment_months', '>', 1)
+            ->exists();
+
+        if ($rows->isEmpty() && ! $offersThem) {
+            return null;
+        }
+
+        $perOrder = $rows->groupBy('order_id')->map->count();
+        $today = now()->toDateString();
+        $open = $rows->whereNull('paid_at');
+        $sum = fn ($c) => round((float) $c->sum(fn ($r) => (float) $r->amount), 2);
+
+        return [
+            'totals' => [
+                'orders_count' => $perOrder->count(),
+                'contract_total' => $sum($rows),
+                'collected' => $sum($rows->whereNotNull('paid_at')),
+                'remaining' => $sum($open),
+                'overdue' => $sum($open->filter(fn ($r) => Carbon::parse($r->due_on)->toDateString() < $today)),
+            ],
+            'by_month' => $open->groupBy(fn ($r) => Carbon::parse($r->due_on)->format('Y-m'))
+                ->map(fn ($g, $month) => ['month' => (string) $month, 'count' => $g->count(), 'amount' => $sum($g)])->values()->all(),
+            'upcoming' => $open->take(200)->map(fn ($r) => [
+                'order_id' => (int) $r->order_id,
+                'seq' => (int) $r->seq,
+                'count' => (int) $perOrder[$r->order_id],
+                'due_on' => Carbon::parse($r->due_on)->toDateString(),
+                'amount' => (float) $r->amount,
+                'customer' => (string) $r->customer,
+                'overdue' => Carbon::parse($r->due_on)->toDateString() < $today,
+            ])->values()->all(),
+        ];
+    }
+
+    /** POST /api/v2/business/orders/{order}/installments/{seq}/collect — the business records a payment it received (or takes it back). */
+    public function collectInstallment(Request $request, int $order, int $seq)
+    {
+        $data = $request->validate(['paid' => ['nullable', 'boolean']]);
+
+        $model = Order::query()
+            ->where('business_id', BusinessContext::id($request))
+            ->whereNull('booking_id')
+            ->where('status', '!=', 'cart')
+            ->findOrFail($order);
+
+        abort_if($model->status === 'cancelled', 422, __('الطلب ملغي.'));
+
+        $row = OrderInstallment::query()->where('order_id', $model->id)->where('seq', $seq)->firstOrFail();
+        $row->update(['paid_at' => ($data['paid'] ?? true) ? now() : null]);
+
+        app(\App\Services\InstallmentPlan::class)->syncAgenda($model);
+
+        return response()->json(['success' => true, 'data' => [
+            'installments' => OrderInstallment::query()->where('order_id', $model->id)->orderBy('seq')->get()
+                ->map(fn ($p) => ['seq' => (int) $p->seq, 'due_on' => $p->due_on->toDateString(), 'amount' => (float) $p->amount, 'paid_at' => optional($p->paid_at)->toIso8601String()])->values(),
+        ]]);
     }
 
     /** @return array<string,mixed> */

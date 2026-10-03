@@ -16,8 +16,10 @@ class AgendaItem extends Model
     public const KIND_BOOKING = 'booking';
     public const KIND_PERSONAL = 'personal';
     public const KIND_MEDICATION = 'medication';
+    /** A monthly payment of an order bought on instalments — see App\Services\InstallmentPlan. */
+    public const KIND_INSTALLMENT = 'installment';
 
-    public const KINDS = [self::KIND_APPOINTMENT, self::KIND_BOOKING, self::KIND_PERSONAL, self::KIND_MEDICATION];
+    public const KINDS = [self::KIND_APPOINTMENT, self::KIND_BOOKING, self::KIND_PERSONAL, self::KIND_MEDICATION, self::KIND_INSTALLMENT];
 
     public const STATUS_ACTIVE = 'active';
     public const STATUS_DONE = 'done';

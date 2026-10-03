@@ -86,6 +86,14 @@ class OrderResource extends JsonResource
             // Cash orders are held to the three-party confirmation (completion
             // of pickup/dine-in, and reviews, wait on it).
             'payment_confirmation_required' => $this->requiresPaymentConfirmation(),
+            // «تقسيط»: the payments by month — date and amount, in order. Empty for an
+            // order paid in one go; only filled where the detail loaded them.
+            'installments' => $this->whenLoaded('installments', fn () => $this->installments->map(fn ($p) => [
+                'seq' => (int) $p->seq,
+                'due_on' => $p->due_on->toDateString(),
+                'amount' => (float) $p->amount,
+                'paid_at' => optional($p->paid_at)->toIso8601String(),
+            ])->values(), []),
             // An order with nobody else to trust (the owner ordering from himself) has an
             // EMPTY map, which PHP would send as `[]` — a list where clients read an object.
             'trust' => $this->relationLoaded('items') ? (($trust = $this->trustFor($request)) ?: null) : null,

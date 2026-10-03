@@ -469,6 +469,8 @@ final class MenuDiscoveryController extends Controller
                 'type' => (string) $v->type,
                 'price' => $v->resolvePrice($base),
                 'is_default' => (bool) $v->is_default,
+                // An instalment option says over how many months it runs.
+                'installment_months' => $v->installment_months !== null ? (int) $v->installment_months : null,
             ])->values(),
             // Groups first (each with its own selection_type — 'single' means
             // the client must render a radio, not a checkbox, and enforce

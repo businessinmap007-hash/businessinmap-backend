@@ -21,6 +21,7 @@ class OrderItem extends Model
         'offering_id',
         'offering_label',
         'size_id',
+        'installment_months',
         'addons',
         'qty',
         'price',
@@ -76,10 +77,12 @@ class OrderItem extends Model
             // invoice, the merchant's incoming order and the customer's history all
             // keep saying it, even if the merchant later edits his prices.
             if ($line->size_id && $line->offering_label !== null) {
-                $variant = MenuItemVariant::query()->find($line->size_id, ['id', 'type', 'name_ar', 'name_en']);
+                $variant = MenuItemVariant::query()->find($line->size_id, ['id', 'type', 'name_ar', 'name_en', 'installment_months']);
 
                 if ($variant && $variant->type === 'payment') {
                     $line->offering_label = trim($line->offering_label . ' — ' . $variant->loc('name'));
+                    // …and over how many months it is paid, when the merchant said.
+                    $line->installment_months = $variant->installment_months > 1 ? (int) $variant->installment_months : null;
                 }
             }
         });

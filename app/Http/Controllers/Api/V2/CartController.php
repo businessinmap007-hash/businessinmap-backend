@@ -196,7 +196,16 @@ final class CartController extends Controller
         $discount = round((float) $order->discount, 2);
         $finalTotal = round($bill['menu_payable'] + $bill['retail_subtotal'] + $deliveryFee - $discount, 2);
 
+        $plan = app(\App\Services\InstallmentPlan::class)->forOrder($order);
+
         return [
+            'installment_plan' => $plan === [] ? null : [
+                'count' => count($plan),
+                'monthly' => $plan[0]['amount'],
+                'first_due_on' => $plan[0]['due_on'],
+                'last_due_on' => $plan[count($plan) - 1]['due_on'],
+                'total' => round(array_sum(array_column($plan, 'amount')), 2),
+            ],
             'id' => (int) $order->id,
             'status' => (string) $order->status,
             'business' => $order->business ? [

@@ -276,6 +276,11 @@ class Order extends Model
         return round((float) ($this->final_total ?? $this->total ?? 0), 2);
     }
 
+    public function installments()
+    {
+        return $this->hasMany(OrderInstallment::class)->orderBy('seq');
+    }
+
     public function items()
     {
         return $this->hasMany(OrderItem::class);

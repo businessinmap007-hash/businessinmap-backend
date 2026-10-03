@@ -1,0 +1,120 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Order;
+use App\Models\OrderInstallment;
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+/**
+ * «خلي طريقة الدفع تقسم دفعات اذا كانت قسط على تواريخ فى النتيجة وحسب عدد الاشهر» —
+ * المالك، 2026-10-03. The merchant says an instalment price runs N months; an order
+ * bought that way carries its payments: one per month, with its date and amount,
+ * adding up to what the instalment lines cost. The cart says it before the order
+ * is placed. Cash lines are not scheduled. Rolls back.
+ */
+class InstallmentPlanTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    private User $shop;
+    private User $customer;
+    private int $itemId;
+    private int $cashId;
+    private int $instalmentId;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->shop = User::query()->where('type', 'business')->where('category_child_id', 116)->where('category_id', 23)->orderBy('id')->firstOrFail();
+        $this->customer = User::query()->where('type', '!=', 'business')->where('id', '!=', $this->shop->id)->orderBy('id')->firstOrFail();
+        DB::table('business_working_hours')->where('business_id', $this->shop->id)->delete();
+
+        $bedroom = (int) DB::table('options')->where('group_id', 3)->where('name_ar', 'غرفة نوم')->value('id');
+        DB::table('option_user')->updateOrInsert(['user_id' => $this->shop->id, 'option_id' => $bedroom], []);
+
+        Sanctum::actingAs($this->shop);
+        $this->itemId = (int) $this->postJson('/api/v2/business/menu/items', ['name_ar' => 'غرفة نوم بالتقسيط', 'base_price' => 30000, 'line_option_id' => $bedroom, 'available_quantity' => 10])->assertCreated()->json('data.id');
+        $this->cashId = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'كاش', 'price' => 30000, 'is_default' => true])->assertCreated()->json('data.id');
+        $this->instalmentId = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط', 'price' => 100000, 'installment_months' => 3])->assertCreated()->json('data.id');
+    }
+
+    private function place(array $lines): int
+    {
+        Sanctum::actingAs($this->customer);
+        foreach ($lines as $line) {
+            $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => $line[1]] + ['size_id' => $line[0]])->assertCreated();
+        }
+
+        return (int) $this->postJson("/api/v2/cart/{$this->shop->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addDay()->toIso8601String()])->assertCreated()->json('data.order.id');
+    }
+
+    public function test_the_months_are_kept_on_the_variant_and_given_to_the_customer(): void
+    {
+        $variants = collect($this->getJson("/api/v2/discovery/menu-items/{$this->itemId}")->assertOk()->json('data.item.variants'))->keyBy('name');
+
+        $this->assertSame(3, $variants['تقسيط']['installment_months']);
+        $this->assertNull($variants['كاش']['installment_months']);
+
+        $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط قصير', 'price' => 50000, 'installment_months' => 1])->assertUnprocessable();
+    }
+
+    public function test_the_cart_says_what_the_plan_will_be_before_the_order_is_placed(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        $cart = $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'size_id' => $this->instalmentId])->assertCreated()->json('data.cart');
+
+        $this->assertSame(3, $cart['installment_plan']['count']);
+        $this->assertSame(33333.33, $cart['installment_plan']['monthly']);
+        $this->assertSame(100000.0, (float) $cart['installment_plan']['total']);
+        $this->assertSame(now()->startOfDay()->addMonthNoOverflow()->toDateString(), $cart['installment_plan']['first_due_on']);
+    }
+
+    public function test_a_placed_order_carries_one_payment_per_month_adding_up_to_the_line(): void
+    {
+        $orderId = $this->place([[$this->instalmentId, 1]]);
+
+        $rows = OrderInstallment::query()->where('order_id', $orderId)->orderBy('seq')->get();
+
+        $this->assertCount(3, $rows);
+        $this->assertSame(['33333.33', '33333.33', '33333.34'], $rows->pluck('amount')->map(fn ($a) => (string) $a)->all(), 'the last month takes the rounding');
+        $this->assertSame(100000.0, round($rows->sum(fn ($r) => (float) $r->amount), 2));
+        $today = now()->startOfDay();
+        $this->assertSame([$today->copy()->addMonthNoOverflow()->toDateString(), $today->copy()->addMonthsNoOverflow(2)->toDateString(), $today->copy()->addMonthsNoOverflow(3)->toDateString()], $rows->map(fn ($r) => $r->due_on->toDateString())->all());
+
+        // The customer and the merchant both read the schedule on the order.
+        $mine = $this->getJson("/api/v2/orders/{$orderId}")->assertOk()->json('data.installments');
+        $this->assertCount(3, $mine);
+        $this->assertSame(33333.33, (float) $mine[0]['amount']);
+        $this->assertNull($mine[0]['paid_at']);
+
+        Sanctum::actingAs($this->shop);
+        $theirs = $this->getJson("/api/v2/business/orders/{$orderId}")->assertOk()->json('data.installments');
+        $this->assertSame($mine, $theirs);
+    }
+
+    public function test_an_order_paid_in_one_go_has_no_schedule(): void
+    {
+        $orderId = $this->place([[$this->cashId, 1]]);
+
+        $this->assertSame(0, OrderInstallment::query()->where('order_id', $orderId)->count());
+        $this->assertSame([], $this->getJson("/api/v2/orders/{$orderId}")->assertOk()->json('data.installments'));
+    }
+
+    public function test_only_the_instalment_lines_are_scheduled_when_cash_and_instalments_are_mixed(): void
+    {
+        $orderId = $this->place([[$this->cashId, 1], [$this->instalmentId, 2]]);
+
+        $rows = OrderInstallment::query()->where('order_id', $orderId)->get();
+
+        $this->assertCount(3, $rows);
+        $this->assertSame(200000.0, round($rows->sum(fn ($r) => (float) $r->amount), 2), 'two instalment units; the cash 30000 is not scheduled');
+        $this->assertSame(230000.0, round((float) Order::query()->findOrFail($orderId)->total, 2));
+    }
+}

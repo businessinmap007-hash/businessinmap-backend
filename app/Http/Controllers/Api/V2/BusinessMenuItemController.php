@@ -1238,9 +1238,12 @@ final class BusinessMenuItemController extends Controller
             'price_delta' => ['nullable', 'numeric'],
             'is_default' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
+            // «على كم شهر؟» — for a payment option that is an instalment plan.
+            'installment_months' => ['nullable', 'integer', 'min:2', 'max:60'],
         ]);
 
         return [
+            'installment_months' => isset($data['installment_months']) ? (int) $data['installment_months'] : null,
             'type' => trim((string) $data['type']),
             'name_ar' => trim((string) $data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,

@@ -798,6 +798,9 @@ class CustomerCartService
         $cart->status = self::STATUS_PENDING;
         $cart->save();
 
+        // Bought on instalments: the order carries its payments by month.
+        app(\App\Services\InstallmentPlan::class)->rebuild($cart);
+
         // total = raw food; then fold in the service fee + tax (+ retail, - discount).
         $this->orders->recalc($cart);
 

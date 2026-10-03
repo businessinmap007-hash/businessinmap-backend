@@ -23,12 +23,14 @@ class MenuItemVariant extends Model
         'price_delta',
         'is_default',
         'is_active',
+        'installment_months',
     ];
 
     protected $casts = [
         'menu_item_id' => 'integer',
         'price' => 'decimal:2',
         'price_delta' => 'decimal:2',
+        'installment_months' => 'integer',
         'is_default' => 'boolean',
         'is_active' => 'boolean',
     ];

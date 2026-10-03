@@ -79,5 +79,8 @@ class MenuOrderService
             'total' => $foodTotal,
             'final_total' => max(round($foodTotal + $deliveryFee - $discount, 2), 0),
         ]);
+
+        // A line removed after the order was placed changes what is owed by month.
+        app(\App\Services\InstallmentPlan::class)->rebuild($order);
     }
 }

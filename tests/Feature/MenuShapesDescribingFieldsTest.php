@@ -138,7 +138,7 @@ class MenuShapesDescribingFieldsTest extends TestCase
         $this->actingAs($this->admin())->post(route('admin.menu-shapes.profiles.fields', $kind, false), [
             'group_id' => $line->id,
             'describing' => [
-                $style->id => ['enabled' => 1, 'sort_order' => 10, 'show_on_page' => 0, 'display' => 'chips'],
+                $style->id => ['enabled' => 1, 'sort_order' => 10, 'show_on_page' => 0, 'display' => 'chips', 'multiple' => 0],
                 $wood->id => ['enabled' => 1, 'sort_order' => 20, 'show_on_page' => 1, 'display' => 'dropdown'],
             ],
         ])->assertRedirect();
@@ -146,6 +146,8 @@ class MenuShapesDescribingFieldsTest extends TestCase
         $groups = collect(MenuDetailProfile::describingGroups([$kind->id])[$kind->id])->keyBy('id');
         $this->assertFalse($groups[$style->id]['show_on_page']);
         $this->assertSame('chips', $groups[$style->id]['display']);
+        $this->assertFalse($groups[$style->id]['multiple'], 'the style allows one choice');
+        $this->assertTrue($groups[$wood->id]['multiple'], 'the wood keeps allowing several');
         $this->assertTrue($groups[$wood->id]['show_on_page']);
         $this->assertSame('dropdown', $groups[$wood->id]['display']);
 
@@ -154,7 +156,7 @@ class MenuShapesDescribingFieldsTest extends TestCase
         Sanctum::actingAs($shop);
         $lines = collect($this->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.lines'));
         $this->assertSame(
-            [['id' => $style->id, 'display' => 'chips'], ['id' => $wood->id, 'display' => 'dropdown']],
+            [['id' => $style->id, 'display' => 'chips', 'multiple' => false], ['id' => $wood->id, 'display' => 'dropdown', 'multiple' => true]],
             $lines->firstWhere('group_id', $line->id)['detail_profile']['descriptive_groups']
         );
 

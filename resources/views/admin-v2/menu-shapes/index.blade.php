@@ -258,7 +258,7 @@
                                                     @endforeach
                                                     @foreach($describingShown as $g)
                                                         @if($drawAsChips($describingSettings[$g->id]['display'] ?? 'auto', (int) $g->options_count))
-                                                            <div style="flex:1 1 100%"><div class="ms-hint" style="font-size:12px;margin-bottom:4px">{{ $g->name_ar }}</div><span class="ms-pill on">{{ $describingSamples[$g->id] ?? '' }}</span> <span class="ms-pill">…</span></div>
+                                                            <div style="flex:1 1 100%"><div class="ms-hint" style="font-size:12px;margin-bottom:4px">{{ $g->name_ar }}</div><span class="ms-pill on">{{ $describingSamples[$g->id] ?? '' }}</span> <span class="ms-pill {{ ($describingSettings[$g->id]['multiple'] ?? true) ? 'on' : '' }}">…</span></div>
                                                         @else
                                                             <div class="ms-field" style="flex:1 1 44%;display:flex;justify-content:space-between"><span class="ms-hint">{{ $g->name_ar }}</span><span class="ms-hint">▾</span></div>
                                                         @endif
@@ -368,7 +368,7 @@
                                     <input type="hidden" name="q" value="{{ $search }}">
                                     <input type="hidden" name="shape" value="{{ $shape }}">
                                     <strong>{{ __('حقول «') }}{{ $previewProfile->name_ar }}{{ __('»') }}</strong>
-                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «فى صفحة المنتج» = يظهر للعميل فى «المواصفات»، «العرض» = يرسم التاجر القائمة أزرارًا (سريعة، كل الخيارات ظاهرة) أو قائمة منسدلة (مدمجة للكثير)، وتلقائى = أزرار حتى ٦ خيارات وقائمة بعدها. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات. الحقول غير المفعّلة لا تظهر لا فى فلتر هذا النوع ولا فى صفحاته — كل نوع له فلاتره هو فقط.') }}</div>
+                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «فى صفحة المنتج» = يظهر للعميل فى «المواصفات»، «الاختيار» (للمجموعات الوصفية) = واحد فقط (الطراز) أو متعدد (أنواع الأخشاب)، وحقول الكتالوج اختيار واحد دائمًا لأن للوحدة قيمة واحدة. «العرض» = يرسم التاجر القائمة أزرارًا (سريعة، كل الخيارات ظاهرة) أو قائمة منسدلة (مدمجة للكثير)، وتلقائى = أزرار حتى ٦ خيارات وقائمة بعدها. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات. الحقول غير المفعّلة لا تظهر لا فى فلتر هذا النوع ولا فى صفحاته — كل نوع له فلاتره هو فقط.') }}</div>
                                     <div style="max-height:420px;overflow:auto">
                                         <table class="a2-table ms-fields-table">
                                             <thead><tr><th>{{ __('الحقل') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('على الكارت') }}</th><th>{{ __('لكل وحدة') }}</th><th>{{ __('فلتر البحث') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th></tr></thead>
@@ -392,7 +392,7 @@
                                     <div style="margin-top:14px"><strong>{{ __('حقول وصفية — من مجموعات الخيارات') }}</strong></div>
                                     <div class="ms-note a2-mb-16">{{ __('مجموعات يصفها التاجر بالاختيار منها (طراز الأثاث، نظام التصنيع، أنواع الأخشاب) وتظهر له كقوائم منسدلة فى «التسعير والتفاصيل». المعلَّم هنا فقط هو ما يظهر لهذا النوع، بالترتيب المكتوب؛ وإن لم تُعلِّم شيئًا يظهر كل ما جعلته «مكونات الخدمة» وصفيًا للنشاط.') }}</div>
                                     <table class="a2-table ms-fields-table">
-                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th></tr></thead>
+                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th><th>{{ __('الاختيار') }}</th></tr></thead>
                                         <tbody>
                                             @forelse($describingGroups as $g)
                                                 @php $on = in_array((int) $g->id, $describingChosen, true); @endphp
@@ -402,9 +402,10 @@
                                                     <td><input class="a2-input" style="width:58px;min-width:0" type="number" min="0" name="describing[{{ $g->id }}][sort_order]" value="{{ $on ? (array_search((int) $g->id, $describingChosen, true) + 1) * 10 : '' }}" data-dep @disabled(! $on)></td>
                                                     <td><input type="hidden" name="describing[{{ $g->id }}][show_on_page]" value="0"><input type="checkbox" name="describing[{{ $g->id }}][show_on_page]" value="1" data-dep @checked($on ? ($describingSettings[$g->id]['show_on_page'] ?? true) : true) @disabled(! $on)></td>
                                                     <td><select class="a2-select" style="min-width:92px" name="describing[{{ $g->id }}][display]" data-dep @disabled(! $on)>@foreach(['auto' => 'تلقائى', 'chips' => 'أزرار', 'dropdown' => 'قائمة'] as $k => $l)<option value="{{ $k }}" @selected(($describingSettings[$g->id]['display'] ?? 'auto') === $k)>{{ __($l) }}</option>@endforeach</select></td>
+                                                    <td><select class="a2-select" style="min-width:92px" name="describing[{{ $g->id }}][multiple]" data-dep @disabled(! $on)>@foreach(['1' => 'متعدد', '0' => 'واحد فقط'] as $k => $l)<option value="{{ $k }}" @selected((string) (int) ($describingSettings[$g->id]['multiple'] ?? true) === (string) $k)>{{ __($l) }}</option>@endforeach</select></td>
                                                 </tr>
                                             @empty
-                                                <tr><td colspan="5" class="ms-note">{{ __('لا توجد مجموعات وصفية بعد — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
+                                                <tr><td colspan="6" class="ms-note">{{ __('لا توجد مجموعات وصفية بعد — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
                                             @endforelse
                                         </tbody>
                                     </table>

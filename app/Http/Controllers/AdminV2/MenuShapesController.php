@@ -144,6 +144,7 @@ class MenuShapesController extends Controller
             'describing.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'describing.*.show_on_page' => ['nullable', 'boolean'],
             'describing.*.display' => ['nullable', Rule::in(['auto', 'chips', 'dropdown'])],
+            'describing.*.multiple' => ['nullable', 'boolean'],
         ]);
 
         $knownGroups = DB::table('option_groups')->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -159,6 +160,8 @@ class MenuShapesController extends Controller
                 'sort_order' => (int) ($field['sort_order'] ?? 0),
                 'show_on_page' => (bool) ($field['show_on_page'] ?? true), // the form posts 0 for an unticked box; a caller that says nothing keeps it on
                 'display' => $field['display'] ?? 'auto',
+                // one choice or several; a caller that says nothing keeps «several»
+                'multiple' => (bool) ($field['multiple'] ?? true),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];

@@ -202,7 +202,7 @@ final class BusinessMenuItemController extends Controller
             'descriptive_group_ids' => array_column($describing[(int) $p->id] ?? [], 'id'),
             // …with how each is drawn in the merchant's form (auto | chips | dropdown).
             'descriptive_groups' => array_map(
-                fn ($g) => ['id' => $g['id'], 'display' => $g['display']],
+                fn ($g) => ['id' => $g['id'], 'display' => $g['display'], 'multiple' => $g['multiple']],
                 $describing[(int) $p->id] ?? []
             ),
         ]])->all();

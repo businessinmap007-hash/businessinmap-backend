@@ -105,7 +105,7 @@ class MenuDetailProfile extends Model
      * customer's product page and how it is drawn for the merchant.
      *
      * @param  list<int>  $profileIds
-     * @return array<int, list<array{id:int,show_on_page:bool,display:string}>>
+     * @return array<int, list<array{id:int,show_on_page:bool,display:string,multiple:bool}>>
      */
     public static function describingGroups(array $profileIds): array
     {
@@ -116,12 +116,13 @@ class MenuDetailProfile extends Model
         return DB::table('menu_detail_profile_option_groups')
             ->whereIn('menu_detail_profile_id', $profileIds)
             ->orderBy('menu_detail_profile_id')->orderBy('sort_order')->orderBy('id')
-            ->get(['menu_detail_profile_id', 'option_group_id', 'show_on_page', 'display'])
+            ->get(['menu_detail_profile_id', 'option_group_id', 'show_on_page', 'display', 'multiple'])
             ->groupBy('menu_detail_profile_id')
             ->map(fn ($rows) => $rows->map(fn ($r) => [
                 'id' => (int) $r->option_group_id,
                 'show_on_page' => (bool) $r->show_on_page,
                 'display' => (string) $r->display,
+                'multiple' => (bool) $r->multiple,
             ])->values()->all())
             ->all();
     }

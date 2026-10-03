@@ -97,7 +97,10 @@
     .ms-avatar { width: 34px; height: 34px; border-radius: 50%; background: #0B1F3A; color: #D6A94A; display: flex; align-items: center; justify-content: center; font-weight: 800; flex: 0 0 auto; }
     .ms-branch-name { flex: 1; font-weight: 600; font-size: 14px; }
     .ms-add { font-size: 12px; font-weight: 700; }
-    .ms-hero { height: 190px; background: linear-gradient(135deg, #16305A, #0B1F3A); display: flex; align-items: center; justify-content: center; color: #D6A94A; font-size: 44px; font-weight: 800; }
+    .ms-hero { position: relative; height: 190px; background: linear-gradient(135deg, #16305A, #0B1F3A); display: flex; align-items: center; justify-content: center; color: #D6A94A; font-size: 44px; font-weight: 800; }
+    .ms-dots { position: absolute; bottom: 8px; left: 0; right: 0; display: flex; justify-content: center; gap: 5px; }
+    .ms-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.6); }
+    .ms-dots i:first-child { width: 16px; border-radius: 4px; background: #D6A94A; }
     .ms-hero img { max-height: 100%; max-width: 100%; object-fit: contain; }
     .ms-price { color: #b8892c; font-weight: 800; font-size: 20px; }
     .ms-badge-ok { background: rgba(46, 158, 91, .14); color: #2E9E5B; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 7px; }
@@ -227,7 +230,7 @@
                                         @else
                                         <div class="ms-label">المنتج</div>
                                         <div class="ms-field ms-product">
-                                            <div class="ms-thumb">@if($sample && $sample['image'])<img src="{{ asset($sample['image']) }}" alt="">@else{{ $initial($previewProfile->name_ar) }}@endif</div>
+                                            <div class="ms-thumb">@if($sample && $sample['image'])<img src="{{ asset($sample['image']) }}" alt="">@else{{ $initial($previewProfile->name_ar) }}@endif<span class="ms-dots" title="{{ __('صور الصنف كلها هنا، تُمرَّر باللمس') }}"><i></i><i></i><i></i></span></div>
                                             <div style="flex:1;min-width:0">
                                                 <div style="font-weight:700">{{ $sample['name'] ?? __('اختر منتجًا حقيقيًا') }}</div>
                                                 @if($sample && $sample['brand'])<div class="ms-hint" style="font-size:12px">{{ $sample['brand'] }}</div>@endif

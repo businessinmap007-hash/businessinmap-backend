@@ -1270,7 +1270,11 @@ class ChildTradeVocabulariesTest extends TestCase
          * «هايبر ماركت» #149 followed minutes later, which completes the set:
          * all four grocers and both kitchens now say it the same way.
          */
-        27, 113, 149, 185,
+        113, 149, 185,
+        /*
+         * #27 مخابز left this list on 2026-10-04: «كمّل على المخبوزات والحلويات» gave the bakery
+         * a price axis (وحدة البيع) and describing groups — see BakeryAndSweetsMenuShapesTest.
+         */
         /*
          * #101 أسماك left this list on 2026-10-04: «ابدأ بمنيو الأسماك» gave the fish shop
          * its own describing groups (حالة/مصدر/حجم السمك) and a price axis (تجهيز السمك).

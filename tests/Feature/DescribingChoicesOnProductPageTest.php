@@ -11,14 +11,16 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
- * «قمت باضافة حقول وصفية فى اشكال المنيو ولم تعرض فى صفحة المنتج للعميل» —
- * المالك، 2026-10-03: what the merchant chose from the describing groups
- * (طراز الأثاث: مودرن، أنواع الأخشاب: زان) is a row of the product page's
- * «المواصفات». Rolls back.
+ * «قمت باضافة حقول وصفية ... ولم تعرض فى صفحة المنتج للعميل» — المالك، 2026-10-03,
+ * and «نقل الحقول الوصفية الى مكونات الخدمة»: what the merchant chose from the
+ * describing groups is a row of the product page's «المواصفات», as the TRADE's
+ * «مكونات الخدمة» placements say (shown or not, in which order). Rolls back.
  */
 class DescribingChoicesOnProductPageTest extends TestCase
 {
     use DatabaseTransactions;
+
+    private int $menu;
 
     private function option(string $group, string $name): int
     {
@@ -26,9 +28,24 @@ class DescribingChoicesOnProductPageTest extends TestCase
             ->where('g.name_ar', $group)->where('o.name_ar', $name)->value('o.id');
     }
 
-    /** A furniture factory with a bedroom that is modern and beech; returns [item id, kind, wood group id]. */
-    private function bedroom(): array
+    private function group(string $name): int
     {
+        return (int) DB::table('option_groups')->where('name_ar', $name)->value('id');
+    }
+
+    /** Makes a group descriptive (or anything else) for the furniture trade, with its settings. */
+    private function place(string $group, array $settings = []): void
+    {
+        DB::table('service_option_group_placements')->updateOrInsert(
+            ['platform_service_id' => $this->menu, 'option_group_id' => $this->group($group), 'child_id' => 116, 'item_type_key' => ''],
+            $settings + ['usage' => 'descriptive', 'branches_as_sections' => 0, 'is_active' => 1, 'sort_order' => 0, 'show_on_page' => 1, 'display' => 'auto', 'multiple' => 1, 'created_at' => now(), 'updated_at' => now()]
+        );
+    }
+
+    /** A furniture factory with a bedroom that is modern and beech; returns the item id. */
+    private function bedroom(): int
+    {
+        $this->menu = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
         $shop = User::query()->where('type', 'business')->where('category_child_id', 116)->where('category_id', 23)->orderBy('id')->firstOrFail();
         $bedroom = $this->option('أثاث وتشطيب منزلي', 'غرفة نوم');
         $modern = $this->option('طراز الأثاث', 'مودرن');
@@ -36,30 +53,18 @@ class DescribingChoicesOnProductPageTest extends TestCase
         foreach ([$bedroom, $modern, $beech] as $id) {
             DB::table('option_user')->updateOrInsert(['user_id' => $shop->id, 'option_id' => $id], []);
         }
-        $menu = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
-        foreach (['أنواع الأخشاب', 'طراز الأثاث'] as $group) {
-            DB::table('service_option_group_placements')->updateOrInsert(
-                ['platform_service_id' => $menu, 'option_group_id' => (int) DB::table('option_groups')->where('name_ar', $group)->value('id'), 'child_id' => 116, 'item_type_key' => ''],
-                ['usage' => 'descriptive', 'branches_as_sections' => 0, 'is_active' => 1, 'sort_order' => 0, 'created_at' => now(), 'updated_at' => now()]
-            );
-        }
+        $this->place('أنواع الأخشاب', ['sort_order' => 10]);
+        $this->place('طراز الأثاث', ['sort_order' => 20]);
 
         Sanctum::actingAs($shop);
-        $id = (int) $this->postJson('/api/v2/business/menu/items', [
+
+        return (int) $this->postJson('/api/v2/business/menu/items', [
             'name_ar' => 'غرفة نوم للاختبار', 'base_price' => 40000,
             'line_option_id' => $bedroom, 'modifier_option_ids' => [$modern, $beech],
         ])->assertCreated()->json('data.id');
-
-        $kind = MenuDetailProfile::query()->firstOrCreate(
-            ['code' => 'dc-test'],
-            ['name_ar' => 'نوع صفحة المنتج', 'uses_catalog' => false, 'sort_order' => 903, 'is_active' => true]
-        );
-        OptionGroup::query()->where('name_ar', 'أثاث وتشطيب منزلي')->update(['menu_detail_profile_id' => $kind->id]);
-        DB::table('menu_detail_profile_option_groups')->where('menu_detail_profile_id', $kind->id)->delete();
-
-        return [$id, $kind, (int) DB::table('option_groups')->where('name_ar', 'أنواع الأخشاب')->value('id')];
     }
 
+    /** @return array<string,string> name => value, in the order the page lists them */
     private function specs(int $itemId): array
     {
         $rows = $this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/discovery/menu-items/' . $itemId)->assertOk()->json('data.item.specs');
@@ -67,45 +72,46 @@ class DescribingChoicesOnProductPageTest extends TestCase
         return collect($rows)->pluck('value', 'name')->all();
     }
 
-    public function test_a_kind_that_never_chose_lists_every_descriptive_group_of_the_trade(): void
+    public function test_every_descriptive_group_of_the_trade_is_listed_in_its_order(): void
     {
-        [$id] = $this->bedroom();
+        $id = $this->bedroom();
 
         $specs = $this->specs($id);
 
         $this->assertSame('مودرن', $specs['طراز الأثاث']);
         $this->assertSame('زان', $specs['أنواع الأخشاب']);
-    }
-
-    public function test_a_kind_that_chose_lists_only_its_groups(): void
-    {
-        [$id, $kind, $wood] = $this->bedroom();
-        DB::table('menu_detail_profile_option_groups')->insert(['menu_detail_profile_id' => $kind->id, 'option_group_id' => $wood, 'sort_order' => 10, 'created_at' => now(), 'updated_at' => now()]);
-
-        $specs = $this->specs($id);
-
-        $this->assertSame('زان', $specs['أنواع الأخشاب']);
-        $this->assertArrayNotHasKey('طراز الأثاث', $specs, 'the style was not ticked for this kind');
+        $names = array_keys($specs);
+        $this->assertLessThan(array_search('طراز الأثاث', $names, true), array_search('أنواع الأخشاب', $names, true), 'the wood is placed first in مكونات الخدمة');
     }
 
     public function test_a_group_switched_off_for_the_product_page_is_not_listed(): void
     {
-        [$id, $kind, $wood] = $this->bedroom();
-        $style = (int) DB::table('option_groups')->where('name_ar', 'طراز الأثاث')->value('id');
-        DB::table('menu_detail_profile_option_groups')->insert([
-            ['menu_detail_profile_id' => $kind->id, 'option_group_id' => $wood, 'sort_order' => 10, 'show_on_page' => 1, 'display' => 'auto', 'created_at' => now(), 'updated_at' => now()],
-            ['menu_detail_profile_id' => $kind->id, 'option_group_id' => $style, 'sort_order' => 20, 'show_on_page' => 0, 'display' => 'auto', 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        $id = $this->bedroom();
+        $this->place('طراز الأثاث', ['show_on_page' => 0]);
 
         $specs = $this->specs($id);
 
         $this->assertArrayHasKey('أنواع الأخشاب', $specs);
-        $this->assertArrayNotHasKey('طراز الأثاث', $specs, 'ticked for the kind, but switched off for the product page');
+        $this->assertArrayNotHasKey('طراز الأثاث', $specs, 'descriptive for the trade, but switched off for the product page');
+    }
+
+    public function test_a_group_that_is_not_descriptive_for_the_trade_is_not_listed(): void
+    {
+        $id = $this->bedroom();
+        $this->place('طراز الأثاث', ['usage' => 'price_variant']);
+
+        $this->assertArrayNotHasKey('طراز الأثاث', $this->specs($id), 'its meaning here is a price, not a description');
     }
 
     public function test_a_catalog_field_switched_off_for_the_product_page_is_not_listed_but_comes_back_when_on(): void
     {
-        [, $kind] = $this->bedroom();
+        $this->bedroom();
+        $kind = MenuDetailProfile::query()->firstOrCreate(
+            ['code' => 'dc-test'],
+            ['name_ar' => 'نوع صفحة المنتج', 'uses_catalog' => false, 'sort_order' => 903, 'is_active' => true]
+        );
+        OptionGroup::query()->where('name_ar', 'أثاث وتشطيب منزلي')->update(['menu_detail_profile_id' => $kind->id]);
+
         $color = (int) DB::table('catalog_attributes')->where('code', 'color')->value('id');
         $brown = (int) DB::table('catalog_attribute_options')->where('attribute_id', $color)->where('slug', 'brown')->value('id');
         $bedroom = $this->option('أثاث وتشطيب منزلي', 'غرفة نوم');

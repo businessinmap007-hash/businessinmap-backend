@@ -61,8 +61,11 @@ final class BusinessMenuItemController extends Controller
         // regardless of the request's own locale) — `is_brand` matches
         // against THAT, never the localized label chosen for display below.
         $businessId = $this->businessId($request);
+        // «مكونات الخدمة» — the ONE place that decides how a descriptive field
+        // behaves for this trade: its order, how it is drawn, one choice or several.
+        $descriptivePlacements = $this->descriptivePlacements();
 
-        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($profiles, $descriptiveIds, $businessId) {
+        $shape = fn ($grouped) => collect($grouped)->map(function ($options, $groupName) use ($profiles, $descriptiveIds, $businessId, $descriptivePlacements) {
             $groupId = (int) $options->first()->group_id;
             $groupNameEn = $options->first()->group_name_en;
 
@@ -94,6 +97,12 @@ final class BusinessMenuItemController extends Controller
                 // sees any opens the full item form (description, choices,
                 // photos) instead of the quick name-and-price one.
                 'descriptive' => in_array($groupId, $descriptiveIds, true),
+                // How this trade's descriptive field is drawn (auto | chips |
+                // dropdown), whether it takes one choice or several, and where it
+                // sits among the others — set in «مكونات الخدمة», never per kind.
+                'display' => $descriptivePlacements[$groupId]->display ?? 'auto',
+                'multiple' => (bool) ($descriptivePlacements[$groupId]->multiple ?? true),
+                'descriptive_sort' => (int) ($descriptivePlacements[$groupId]->sort_order ?? 0),
                 'detail_profile' => $profiles[$groupId] ?? null,
                 // true = «مكونات الخدمة» → «فروع المجموعة أقسام» is ticked for this
                 // group: «غرفة نوم»، «سفرة»، «أنتريه» are the merchant's SECTIONS —
@@ -148,6 +157,21 @@ final class BusinessMenuItemController extends Controller
     }
 
     /** @return list<int> the option groups «مكونات الخدمة» made descriptive for this child under the menu service */
+    /** option_group_id => the trade's DESCRIPTIVE placement of it (menu service), in its order */
+    private function descriptivePlacements(): array
+    {
+        $childId = $this->childId();
+        $menuServiceId = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
+
+        if ($childId <= 0 || $menuServiceId <= 0) {
+            return [];
+        }
+
+        return app(\App\Services\Catalog\ServiceOptionPlacements::class)
+            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->keyBy('option_group_id')->all();
+    }
+
     private function descriptiveGroupIds(): array
     {
         $childId = $this->childId();
@@ -184,7 +208,6 @@ final class BusinessMenuItemController extends Controller
             ->get(['menu_detail_profiles.*', 'g.id as group_id']);
 
         $fields = \App\Models\MenuDetailProfile::fieldsFor($profiles->pluck('id')->unique()->values()->all(), $english);
-        $describing = \App\Models\MenuDetailProfile::describingGroups($profiles->pluck('id')->unique()->values()->all());
 
         return $profiles->mapWithKeys(fn ($p) => [(int) $p->group_id => [
             'id' => (int) $p->id,
@@ -196,15 +219,6 @@ final class BusinessMenuItemController extends Controller
             'uses_catalog' => (bool) $p->uses_catalog,
             'fields' => collect($fields[(int) $p->id] ?? [])
                 ->map(fn ($f) => $p->uses_catalog ? $f : ['per_item' => true] + $f)->all(),
-            // The descriptive option groups the admin ticked for this kind in
-            // «أشكال المنيو», in order. Empty = the kind never chose: the app then
-            // offers every descriptive group «مكونات الخدمة» made for the trade.
-            'descriptive_group_ids' => array_column($describing[(int) $p->id] ?? [], 'id'),
-            // …with how each is drawn in the merchant's form (auto | chips | dropdown).
-            'descriptive_groups' => array_map(
-                fn ($g) => ['id' => $g['id'], 'display' => $g['display'], 'multiple' => $g['multiple']],
-                $describing[(int) $p->id] ?? []
-            ),
         ]])->all();
     }
 

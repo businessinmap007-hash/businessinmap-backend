@@ -59,11 +59,16 @@ class ServiceOptionGroupPlacement extends Model
         'branches_as_sections',
         'is_active',
         'sort_order',
+        'show_on_page',
+        'display',
+        'multiple',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'branches_as_sections' => 'boolean',
+        'show_on_page' => 'boolean',
+        'multiple' => 'boolean',
         'child_id' => 'integer',
         'sort_order' => 'integer',
     ];

@@ -65,37 +65,34 @@ class MenuShapesController extends Controller
             ? DB::table('options')->where('group_id', $group->id)->orderBy('id')->get(['id', 'name_ar', 'name_en'])
             : collect();
 
-        // The DESCRIPTIVE fields to choose from — option groups «مكونات الخدمة» made
-        // descriptive for some trade under the menu service (طراز، خامة، نظام التصنيع)
-        // — and the ones this kind already offers, in its order.
-        $chosenSettings = $previewProfile ? collect(MenuDetailProfile::describingGroups([$previewProfile->id])[$previewProfile->id] ?? [])->keyBy('id') : collect();
-        $chosenIds = $chosenSettings->keys()->map(fn ($id) => (int) $id)->all();
+        // The DESCRIPTIVE fields — decided in «مكونات الخدمة», per trade, never here.
+        // Shown for what the trades that carry this group answered, so the phone
+        // draws what the merchant and the customer will actually see.
         $menuServiceId = (int) PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id');
-        $candidateIds = ServiceOptionGroupPlacement::query()
-            ->where('platform_service_id', $menuServiceId)
-            ->where('usage', ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
-            ->where('is_active', true)
-            ->pluck('option_group_id')->map(fn ($id) => (int) $id)->unique()->all();
-        $describingGroups = OptionGroup::query()
-            ->whereIn('id', array_values(array_unique(array_merge($candidateIds, $chosenIds))))
-            ->withCount('options')
-            ->get(['id', 'name_ar', 'name_en'])
-            ->sortBy(fn ($g) => in_array((int) $g->id, $chosenIds, true) ? array_search((int) $g->id, $chosenIds, true) : 1000 + (int) $g->id)
-            ->values();
+        $groupPlacements = $group
+            ? ServiceOptionGroupPlacement::query()->where('platform_service_id', $menuServiceId)->where('is_active', true)
+                ->where('option_group_id', $group->id)->where('usage', ServiceOptionGroupPlacement::USAGE_SECTION)->get(['child_id', 'branches_as_sections'])
+            : collect();
+        $tradeIds = $groupPlacements->pluck('child_id')->unique()->all();
+        $splitTrades = $groupPlacements->where('branches_as_sections', true)->pluck('child_id')->unique()->count();
 
-        // The OTHER screen's word on the same groups — «مكونات الخدمة» — so the two
-        // never disagree out of sight: per group, how many trades use it as what.
-        $placementRows = ServiceOptionGroupPlacement::query()
-            ->where('platform_service_id', $menuServiceId)->where('is_active', true)
-            ->whereIn('option_group_id', array_merge($describingGroups->pluck('id')->all(), $group ? [$group->id] : []))
-            ->get(['option_group_id', 'child_id', 'usage', 'branches_as_sections']);
-        $usageByGroup = $placementRows->groupBy('option_group_id')->map(
-            fn ($rows) => $rows->groupBy('usage')->map(fn ($r) => $r->pluck('child_id')->unique()->count())->all()
-        );
-        $splitTrades = $group ? $placementRows->where('option_group_id', $group->id)->where('usage', ServiceOptionGroupPlacement::USAGE_SECTION)->where('branches_as_sections', true)->pluck('child_id')->unique()->count() : 0;
+        $descriptive = $group
+            ? ServiceOptionGroupPlacement::query()->where('platform_service_id', $menuServiceId)->where('is_active', true)
+                ->where('usage', ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+                ->when(! in_array(ServiceOptionGroupPlacement::ALL_CHILDREN, $tradeIds, true), fn ($q) => $q->whereIn('child_id', array_merge($tradeIds, [ServiceOptionGroupPlacement::ALL_CHILDREN])))
+                ->orderBy('sort_order')->orderBy('id')->get()
+            : collect();
+        $describingSettings = $descriptive->groupBy('option_group_id')->map(fn ($rows) => [
+            'show_on_page' => (bool) $rows->first()->show_on_page,
+            'display' => (string) $rows->first()->display,
+            'multiple' => (bool) $rows->first()->multiple,
+            'trades' => $rows->pluck('child_id')->unique()->count(),
+        ]);
+        $chosenIds = $describingSettings->keys()->map(fn ($id) => (int) $id)->all();
+        $describingGroups = OptionGroup::query()->whereIn('id', $chosenIds)->withCount('options')->get(['id', 'name_ar', 'name_en'])
+            ->sortBy(fn ($g) => array_search((int) $g->id, $chosenIds, true))->values();
 
         return view('admin-v2.menu-shapes.index', [
-            'usageByGroup' => $usageByGroup,
             'splitTrades' => $splitTrades,
             'profiles' => $profiles,
             'fields' => $fields,
@@ -109,7 +106,7 @@ class MenuShapesController extends Controller
             'describingSamples' => DB::table('options')->whereIn('group_id', $describingGroups->pluck('id')->all())
                 ->orderBy('id')->get(['group_id', 'name_ar'])->groupBy('group_id')->map(fn ($rows) => (string) $rows->first()->name_ar),
             'describingChosen' => $chosenIds,
-            'describingSettings' => $chosenSettings,
+            'describingSettings' => $describingSettings,
             'sample' => $previewProfile && $group ? $this->sampleProduct($branches->pluck('id')->all(), $previewProfile) : null,
             'attributes' => DB::table('catalog_attributes as a')
                 ->leftJoin('catalog_units as u', 'u.id', '=', 'a.unit_id')
@@ -152,33 +149,7 @@ class MenuShapesController extends Controller
             'fields.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'fields.*.show_on_page' => ['nullable', 'boolean'],
             'fields.*.display' => ['nullable', Rule::in(['auto', 'chips', 'dropdown'])],
-            'describing' => ['nullable', 'array'],
-            'describing.*.enabled' => ['nullable', 'boolean'],
-            'describing.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
-            'describing.*.show_on_page' => ['nullable', 'boolean'],
-            'describing.*.display' => ['nullable', Rule::in(['auto', 'chips', 'dropdown'])],
-            'describing.*.multiple' => ['nullable', 'boolean'],
         ]);
-
-        $knownGroups = DB::table('option_groups')->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $describingRows = [];
-        foreach ($data['describing'] ?? [] as $groupId => $field) {
-            $groupId = (int) $groupId;
-            if (! in_array($groupId, $knownGroups, true) || empty($field['enabled'])) {
-                continue;
-            }
-            $describingRows[] = [
-                'menu_detail_profile_id' => $profile->id,
-                'option_group_id' => $groupId,
-                'sort_order' => (int) ($field['sort_order'] ?? 0),
-                'show_on_page' => (bool) ($field['show_on_page'] ?? true), // the form posts 0 for an unticked box; a caller that says nothing keeps it on
-                'display' => $field['display'] ?? 'auto',
-                // one choice or several; a caller that says nothing keeps «several»
-                'multiple' => (bool) ($field['multiple'] ?? true),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
 
         $known = DB::table('catalog_attributes')->pluck('id')->map(fn ($id) => (int) $id)->all();
         $now = now();
@@ -209,16 +180,12 @@ class MenuShapesController extends Controller
             $profile->update(['uses_catalog' => $request->boolean('uses_catalog')]);
         }
 
-        DB::transaction(function () use ($profile, $rows, $describingRows) {
+        DB::transaction(function () use ($profile, $rows) {
             DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $profile->id)->delete();
             if ($rows !== []) {
                 DB::table('menu_detail_profile_attributes')->insert($rows);
             }
 
-            DB::table('menu_detail_profile_option_groups')->where('menu_detail_profile_id', $profile->id)->delete();
-            if ($describingRows !== []) {
-                DB::table('menu_detail_profile_option_groups')->insert($describingRows);
-            }
         });
 
         return redirect()

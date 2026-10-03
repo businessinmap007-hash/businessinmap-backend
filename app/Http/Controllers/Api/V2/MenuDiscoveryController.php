@@ -312,17 +312,10 @@ final class MenuDiscoveryController extends Controller
             return [];
         }
 
-        $profileId = (int) ($item->lineOption()?->group?->menu_detail_profile_id ?? 0);
-        // The kind's chosen groups, minus those switched off for the product page.
-        $allowed = $profileId > 0
-            ? ($this->describingMemo['p' . $profileId] ??= collect(\App\Models\MenuDetailProfile::describingGroups([$profileId])[$profileId] ?? [])
-                ->where('show_on_page', true)->pluck('id')->all())
-            : [];
-
-        if ($allowed === []) {
-            $childId = (int) ($this->describingMemo['c' . $item->business_id] ??= (int) User::query()->whereKey($item->business_id)->value('category_child_id'));
-            $allowed = $this->describingMemo['d' . $childId] ??= $this->descriptiveGroupIdsFor($childId);
-        }
+        // «مكونات الخدمة» decides, per trade: which groups describe an item, in
+        // what order, and whether the customer's product page shows them.
+        $childId = (int) ($this->describingMemo['c' . $item->business_id] ??= (int) User::query()->whereKey($item->business_id)->value('category_child_id'));
+        $allowed = $this->describingMemo['d' . $childId] ??= $this->descriptiveGroupIdsFor($childId);
 
         $rows = [];
         foreach ($allowed as $groupId) {
@@ -360,7 +353,7 @@ final class MenuDiscoveryController extends Controller
         return $hidden === [] ? $specs : array_values(array_filter($specs, fn ($row) => ! in_array($row['code'] ?? '', $hidden, true)));
     }
 
-    /** @return list<int> the groups «مكونات الخدمة» made descriptive for this child under the menu service */
+    /** @return list<int> the groups «مكونات الخدمة» made descriptive for this child under the menu service, shown on the product page, in order */
     private function descriptiveGroupIdsFor(int $childId): array
     {
         $menuServiceId = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
@@ -371,6 +364,7 @@ final class MenuDiscoveryController extends Controller
 
         return app(\App\Services\Catalog\ServiceOptionPlacements::class)
             ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->where('show_on_page', true)
             ->pluck('option_group_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 

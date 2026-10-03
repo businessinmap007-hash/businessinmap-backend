@@ -77,6 +77,11 @@ class ServiceComponentsController extends Controller
             'rows.*.usage' => ['nullable', Rule::in(Placement::USAGES)],
             'rows.*.branches_as_sections' => ['nullable', 'boolean'],
             'rows.*.is_active' => ['nullable', 'boolean'],
+            // The settings of a DESCRIPTIVE field (what the item form and the customer's product page do with it)
+            'rows.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'rows.*.show_on_page' => ['nullable', 'boolean'],
+            'rows.*.display' => ['nullable', Rule::in(['auto', 'chips', 'dropdown'])],
+            'rows.*.multiple' => ['nullable', 'boolean'],
         ]);
 
         $rootId = (int) $data['root_id'];
@@ -106,7 +111,11 @@ class ServiceComponentsController extends Controller
                         'usage' => $row['usage'],
                         'branches_as_sections' => (bool) ($row['branches_as_sections'] ?? false),
                         'is_active' => (bool) ($row['is_active'] ?? true),
-                        'sort_order' => ($i + 1) * 10,
+                        'sort_order' => isset($row['sort_order']) && $row['sort_order'] !== '' ? (int) $row['sort_order'] : ($i + 1) * 10,
+                        // a caller that says nothing keeps «shown» / «auto» / «several»
+                        'show_on_page' => (bool) ($row['show_on_page'] ?? true),
+                        'display' => $row['display'] ?? 'auto',
+                        'multiple' => (bool) ($row['multiple'] ?? true),
                     ]
                 );
 

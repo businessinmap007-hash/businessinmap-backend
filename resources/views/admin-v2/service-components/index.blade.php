@@ -88,6 +88,10 @@
                                 <th>{{ __('هو فى الخدمة') }}</th>
                                 <th>{{ __('الفروع داخل المجموعة هى أقسام متعددة') }}</th>
                                 <th>{{ __('مفعّل') }}</th>
+                                <th title="{{ __('للمجموعات «الوصفية» فقط') }}">{{ __('ترتيب الحقل') }}</th>
+                                <th title="{{ __('للمجموعات «الوصفية» فقط') }}">{{ __('فى صفحة المنتج') }}</th>
+                                <th title="{{ __('للمجموعات «الوصفية» فقط') }}">{{ __('العرض') }}</th>
+                                <th title="{{ __('للمجموعات «الوصفية» فقط') }}">{{ __('الاختيار') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -121,9 +125,16 @@
                                         <input type="hidden" name="rows[{{ $i }}][is_active]" value="0">
                                         <input type="checkbox" name="rows[{{ $i }}][is_active]" value="1" @checked($row->is_active ?? true)>
                                     </td>
+                                    {{-- A DESCRIPTIVE field's own settings — the one home for them: its place among the
+                                         others, whether the customer's product page shows it, buttons or a dropdown in the
+                                         merchant's form, one choice or several. Live only while the usage is «وصفى». --}}
+                                    <td><input class="a2-input" style="width:64px;min-width:0" type="number" min="0" name="rows[{{ $i }}][sort_order]" value="{{ $row->sort_order ?? '' }}" data-desc></td>
+                                    <td><input type="hidden" name="rows[{{ $i }}][show_on_page]" value="0"><input type="checkbox" name="rows[{{ $i }}][show_on_page]" value="1" @checked($row->show_on_page ?? true) data-desc></td>
+                                    <td><select class="a2-select" style="min-width:92px" name="rows[{{ $i }}][display]" data-desc>@foreach(['auto' => 'تلقائى', 'chips' => 'أزرار', 'dropdown' => 'قائمة'] as $k => $l)<option value="{{ $k }}" @selected(($row->display ?? 'auto') === $k)>{{ __($l) }}</option>@endforeach</select></td>
+                                    <td><select class="a2-select" style="min-width:92px" name="rows[{{ $i }}][multiple]" data-desc>@foreach(['1' => 'متعدد', '0' => 'واحد فقط'] as $k => $l)<option value="{{ $k }}" @selected((string) (int) ($row->multiple ?? true) === (string) $k)>{{ __($l) }}</option>@endforeach</select></td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="a2-muted">{{ __('هذا الابن لا يحمل أي مجموعة خيارات. اربطها من «خيارات التصنيفات الفرعية».') }}</td></tr>
+                                <tr><td colspan="8" class="a2-muted">{{ __('هذا الابن لا يحمل أي مجموعة خيارات. اربطها من «خيارات التصنيفات الفرعية».') }}</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -139,4 +150,18 @@
         </form>
     @endif
 </div>
+
+<script>
+    // The field settings are live only for a «وصفى» group — for any other usage they mean nothing.
+    document.querySelectorAll('select[name$="[usage]"]').forEach(function (usage) {
+        var row = usage.closest('tr');
+        function sync() {
+            var on = usage.value === 'descriptive';
+            row.querySelectorAll('[data-desc]').forEach(function (el) { el.disabled = !on; });
+            row.classList.toggle('a2-muted', false);
+        }
+        usage.addEventListener('change', sync);
+        sync();
+    });
+</script>
 @endsection

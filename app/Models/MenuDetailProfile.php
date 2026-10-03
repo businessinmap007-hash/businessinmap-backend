@@ -85,48 +85,6 @@ class MenuDetailProfile extends Model
             ->all();
     }
 
-    /**
-     * The descriptive option groups each kind offers, in the admin's order —
-     * profile id => [option_group_id, …]. A kind with none has no entry.
-     *
-     * @param  list<int>  $profileIds
-     * @return array<int, list<int>>
-     */
-    public static function describingGroupIds(array $profileIds): array
-    {
-        return array_map(
-            fn ($groups) => array_column($groups, 'id'),
-            self::describingGroups($profileIds)
-        );
-    }
-
-    /**
-     * The same groups with what the admin set on each: whether it shows on the
-     * customer's product page and how it is drawn for the merchant.
-     *
-     * @param  list<int>  $profileIds
-     * @return array<int, list<array{id:int,show_on_page:bool,display:string,multiple:bool}>>
-     */
-    public static function describingGroups(array $profileIds): array
-    {
-        if (empty($profileIds)) {
-            return [];
-        }
-
-        return DB::table('menu_detail_profile_option_groups')
-            ->whereIn('menu_detail_profile_id', $profileIds)
-            ->orderBy('menu_detail_profile_id')->orderBy('sort_order')->orderBy('id')
-            ->get(['menu_detail_profile_id', 'option_group_id', 'show_on_page', 'display', 'multiple'])
-            ->groupBy('menu_detail_profile_id')
-            ->map(fn ($rows) => $rows->map(fn ($r) => [
-                'id' => (int) $r->option_group_id,
-                'show_on_page' => (bool) $r->show_on_page,
-                'display' => (string) $r->display,
-                'multiple' => (bool) $r->multiple,
-            ])->values()->all())
-            ->all();
-    }
-
     public function label(bool $english = false): string
     {
         return (string) ($english ? ($this->name_en ?: $this->name_ar) : ($this->name_ar ?: $this->name_en));

@@ -375,7 +375,7 @@
                                     <input type="hidden" name="q" value="{{ $search }}">
                                     <input type="hidden" name="shape" value="{{ $shape }}">
                                     <strong>{{ __('حقول «') }}{{ $previewProfile->name_ar }}{{ __('»') }}</strong>
-                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «فى صفحة المنتج» = يظهر للعميل فى «المواصفات»، «الاختيار» (للمجموعات الوصفية) = واحد فقط (الطراز) أو متعدد (أنواع الأخشاب)، وحقول الكتالوج اختيار واحد دائمًا لأن للوحدة قيمة واحدة. «العرض» = يرسم التاجر القائمة أزرارًا (سريعة، كل الخيارات ظاهرة) أو قائمة منسدلة (مدمجة للكثير)، وتلقائى = أزرار حتى ٦ خيارات وقائمة بعدها. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات. الحقول غير المفعّلة لا تظهر لا فى فلتر هذا النوع ولا فى صفحاته — كل نوع له فلاتره هو فقط.') }}</div>
+                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «فى صفحة المنتج» = يظهر للعميل فى «المواصفات»، حقول الكتالوج اختيار واحد دائمًا لأن للوحدة قيمة واحدة. «العرض» = يرسم التاجر القائمة أزرارًا (سريعة، كل الخيارات ظاهرة) أو قائمة منسدلة (مدمجة للكثير)، وتلقائى = أزرار حتى ٦ خيارات وقائمة بعدها. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات. الحقول غير المفعّلة لا تظهر لا فى فلتر هذا النوع ولا فى صفحاته — كل نوع له فلاتره هو فقط.') }}</div>
                                     <div style="max-height:420px;overflow:auto">
                                         <table class="a2-table ms-fields-table">
                                             <thead><tr><th>{{ __('الحقل') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('على الكارت') }}</th><th>{{ __('لكل وحدة') }}</th><th>{{ __('فلتر البحث') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th></tr></thead>
@@ -397,31 +397,24 @@
                                         </table>
                                     </div>
                                     <div style="margin-top:14px"><strong>{{ __('حقول وصفية — من مجموعات الخيارات') }}</strong></div>
-                                    <div class="ms-note a2-mb-16">{{ __('مجموعات يصفها التاجر بالاختيار منها (طراز الأثاث، نظام التصنيع، أنواع الأخشاب) وتظهر له كقوائم منسدلة فى «التسعير والتفاصيل». المعلَّم هنا فقط هو ما يظهر لهذا النوع، بالترتيب المكتوب؛ وإن لم تُعلِّم شيئًا يظهر كل ما جعلته «مكونات الخدمة» وصفيًا للنشاط.') }}</div>
+                                    <div class="ms-note a2-mb-16">
+                                        {{ __('هذه الحقول (طراز الأثاث، أنواع الأخشاب…) تُحدَّد لكل نشاط فى «مكونات الخدمة» — اجعل المجموعة «وصفية» هناك، ورتّبها، وقرّر هل تظهر للعميل، وأزرار أم قائمة، واختيار واحد أم متعدد. وهنا تراها كما سيراها التاجر والعميل.') }}
+                                        <a href="{{ route('admin.service-components.index') }}">{{ __('فتح مكونات الخدمة') }}</a>
+                                    </div>
                                     <table class="a2-table ms-fields-table">
-                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th><th>{{ __('فى مكونات الخدمة') }}</th><th>{{ __('الاختيار') }}</th></tr></thead>
+                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th><th>{{ __('الاختيار') }}</th><th>{{ __('أنشطة') }}</th></tr></thead>
                                         <tbody>
                                             @forelse($describingGroups as $g)
-                                                @php $on = in_array((int) $g->id, $describingChosen, true); @endphp
-                                                <tr class="{{ $on ? '' : 'ms-row-off' }}" data-attr-row>
+                                                @php $st = $describingSettings[$g->id] ?? []; @endphp
+                                                <tr>
                                                     <td>{{ $g->name_ar }} <span class="ms-note">{{ $g->options_count }} {{ __('خيار') }}</span></td>
-                                                    <td><input type="checkbox" name="describing[{{ $g->id }}][enabled]" value="1" data-enable @checked($on)></td>
-                                                    <td><input class="a2-input" style="width:58px;min-width:0" type="number" min="0" name="describing[{{ $g->id }}][sort_order]" value="{{ $on ? (array_search((int) $g->id, $describingChosen, true) + 1) * 10 : '' }}" data-dep @disabled(! $on)></td>
-                                                    <td><input type="hidden" name="describing[{{ $g->id }}][show_on_page]" value="0"><input type="checkbox" name="describing[{{ $g->id }}][show_on_page]" value="1" data-dep @checked($on ? ($describingSettings[$g->id]['show_on_page'] ?? true) : true) @disabled(! $on)></td>
-                                                    <td><select class="a2-select" style="min-width:92px" name="describing[{{ $g->id }}][display]" data-dep @disabled(! $on)>@foreach(['auto' => 'تلقائى', 'chips' => 'أزرار', 'dropdown' => 'قائمة'] as $k => $l)<option value="{{ $k }}" @selected(($describingSettings[$g->id]['display'] ?? 'auto') === $k)>{{ __($l) }}</option>@endforeach</select></td>
-                                                    <td class="ms-note" style="white-space:normal;min-width:150px">
-                                                        @php
-                                                            $u = $usageByGroup[$g->id] ?? [];
-                                                            $uLabel = ['descriptive' => 'وصفى', 'price_variant' => 'سعر متغير', 'section' => 'قسم', 'store_cart' => 'سلة المتجر', 'store_filter' => 'فلتر المتجر'];
-                                                        @endphp
-                                                        @forelse($u as $usage => $n){{ __($uLabel[$usage] ?? $usage) }} ×{{ $n }}@if(! $loop->last) · @endif
-                                                        @empty{{ __('غير مستخدمة فى أى نشاط') }}@endforelse
-                                                        @if($on && ($u['descriptive'] ?? 0) === 0)<div style="color:#b45309">⚠ {{ __('ليست «وصفية» فى أى نشاط — راجع مكونات الخدمة') }}</div>@endif
-                                                    </td>
-                                                    <td><select class="a2-select" style="min-width:92px" name="describing[{{ $g->id }}][multiple]" data-dep @disabled(! $on)>@foreach(['1' => 'متعدد', '0' => 'واحد فقط'] as $k => $l)<option value="{{ $k }}" @selected((string) (int) ($describingSettings[$g->id]['multiple'] ?? true) === (string) $k)>{{ __($l) }}</option>@endforeach</select></td>
+                                                    <td>{{ ($st['show_on_page'] ?? true) ? __('نعم') : __('لا') }}</td>
+                                                    <td>{{ ['auto' => __('تلقائى'), 'chips' => __('أزرار'), 'dropdown' => __('قائمة')][$st['display'] ?? 'auto'] ?? '' }}</td>
+                                                    <td>{{ ($st['multiple'] ?? true) ? __('متعدد') : __('واحد فقط') }}</td>
+                                                    <td>{{ $st['trades'] ?? 0 }}</td>
                                                 </tr>
                                             @empty
-                                                <tr><td colspan="7" class="ms-note">{{ __('لا توجد مجموعات وصفية بعد — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
+                                                <tr><td colspan="5" class="ms-note">{{ __('لا توجد مجموعات وصفية لأنشطة هذه المجموعة — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
                                             @endforelse
                                         </tbody>
                                     </table>

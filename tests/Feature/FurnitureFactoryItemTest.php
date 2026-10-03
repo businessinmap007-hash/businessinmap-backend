@@ -56,6 +56,13 @@ class FurnitureFactoryItemTest extends TestCase
             );
         }
 
+        // «الوصف» is a field of the kind (2026-10-04): this scenario needs it on the product page, whatever
+        // the admin has tuned the live kind to since.
+        DB::table('menu_detail_profile_attributes')
+            ->whereIn('menu_detail_profile_id', DB::table('option_groups')->where('name_ar', 'أثاث وتشطيب منزلي')->pluck('menu_detail_profile_id'))
+            ->where('catalog_attribute_id', DB::table('catalog_attributes')->where('code', 'description')->value('id'))
+            ->update(['show_on_page' => 1]);
+
         Sanctum::actingAs($shop);
         $vocab = $this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data');
 

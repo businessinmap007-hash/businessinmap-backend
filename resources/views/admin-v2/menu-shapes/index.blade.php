@@ -458,6 +458,35 @@
                             </div>
                         @endif
 
+                        <details class="a2-card" @if(request('common')) open @endif>
+                            <summary style="cursor:pointer;font-weight:700">{{ __('ويدجت الخيارات الوصفية العامة — تُحدَّد مرة واحدة وتظهر فى كل المنيوهات') }}</summary>
+                            <form method="POST" action="{{ route('admin.menu-shapes.common-describing') }}" style="margin-top:10px">
+                                @csrf
+                                <input type="hidden" name="group_id" value="{{ $group->id }}">
+                                <input type="hidden" name="preview" value="{{ $preview }}">
+                                <div class="ms-note a2-mb-16">{{ __('اختر هنا مجموعات الخيارات الوصفية (الدفع والسداد، الاستبدال والإرجاع، الحد الأدنى للطلب…) مرة واحدة: تظهر للتاجر عند إضافة أى صنف، وللعميل فى صفحته، لكل الأنشطة. النشاط الذى أخفى مجموعة بنفسه يبقى مخفيًا عنده.') }}</div>
+                                <table class="a2-table ms-fields-table">
+                                    <thead><tr><th>{{ __('ضمن الويدجت') }}</th><th>{{ __('المجموعة') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th><th>{{ __('الاختيار') }}</th><th>{{ __('نسخ متفرقة') }}</th></tr></thead>
+                                    <tbody>
+                                        @foreach($commonDescribing['candidates'] as $g)
+                                            @php $c = $commonDescribing['rows'][$g->id] ?? null; @endphp
+                                            <tr>
+                                                <td><input type="checkbox" name="groups[{{ $g->id }}][enabled]" value="1" @checked($c)></td>
+                                                <td>{{ $g->name_ar }} <span class="ms-note">{{ $g->options_count }} {{ __('خيار') }}</span></td>
+                                                <td><input class="a2-input" style="width:70px" type="number" min="0" name="groups[{{ $g->id }}][sort_order]" value="{{ $c->sort_order ?? (($loop->index + 1) * 10) }}"></td>
+                                                <td><input type="hidden" name="groups[{{ $g->id }}][show_on_page]" value="0"><input type="checkbox" name="groups[{{ $g->id }}][show_on_page]" value="1" @checked($c ? $c->show_on_page : true)></td>
+                                                <td><select class="a2-select" name="groups[{{ $g->id }}][display]">@foreach(['auto' => 'تلقائى', 'chips' => 'أزرار', 'dropdown' => 'قائمة'] as $k => $l)<option value="{{ $k }}" @selected(($c->display ?? 'auto') === $k)>{{ __($l) }}</option>@endforeach</select></td>
+                                                <td><select class="a2-select" name="groups[{{ $g->id }}][multiple]"><option value="1" @selected(! $c || $c->multiple)>{{ __('متعدد') }}</option><option value="0" @selected($c && ! $c->multiple)>{{ __('واحد فقط') }}</option></select></td>
+                                                <td>{{ $g->trades ?: '—' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                                <label class="ms-check" style="margin-top:10px;display:block"><input type="checkbox" name="unify" value="1" checked> {{ __('ادمج النسخ المتفرقة: احذف نسخ هذه المجموعات من الأنشطة (ما أخفاه نشاط بنفسه يبقى)') }}</label>
+                                <button class="a2-btn a2-btn-primary" type="submit" style="margin-top:10px">{{ __('حفظ الويدجت') }}</button>
+                            </form>
+                        </details>
+
                         <details class="a2-card">
                             <summary style="cursor:pointer;font-weight:700">{{ __('＋ نوع تفاصيل جديد') }}</summary>
                             <form method="POST" action="{{ route('admin.menu-shapes.profiles.store') }}" style="margin-top:10px">

@@ -106,6 +106,7 @@ class MenuShapesController extends Controller
             'describingSamples' => DB::table('options')->whereIn('group_id', $describingGroups->pluck('id')->all())
                 ->orderBy('id')->get(['group_id', 'name_ar'])->groupBy('group_id')->map(fn ($rows) => (string) $rows->first()->name_ar),
             'describingChosen' => $chosenIds,
+            'commonDescribing' => $this->commonDescribing($menuServiceId),
             'describingSettings' => $describingSettings,
             'sample' => $previewProfile && $group ? $this->sampleProduct($branches->pluck('id')->all(), $previewProfile) : null,
             'attributes' => DB::table('catalog_attributes as a')
@@ -115,6 +116,93 @@ class MenuShapesController extends Controller
             'search' => $search,
             'shape' => $shape,
         ]);
+    }
+
+    /**
+     * The «ويدجت» of descriptive option groups every menu carries — chosen once,
+     * by hand, instead of group by group per trade in «مكونات الخدمة».
+     * Stored as the menu service's all-trades descriptive placements (child 0),
+     * which every trade already inherits; a trade's own row still overrides.
+     *
+     * @return array{rows:\Illuminate\Support\Collection,candidates:\Illuminate\Support\Collection}
+     */
+    private function commonDescribing(int $menuServiceId): array
+    {
+        $current = ServiceOptionGroupPlacement::query()
+            ->where('platform_service_id', $menuServiceId)->where('usage', ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->where('child_id', ServiceOptionGroupPlacement::ALL_CHILDREN)->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('id')->get()->keyBy('option_group_id');
+
+        $scattered = ServiceOptionGroupPlacement::query()
+            ->where('platform_service_id', $menuServiceId)->where('usage', ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->where('child_id', '>', 0)->where('is_active', true)
+            ->selectRaw('option_group_id, count(distinct child_id) as trades')->groupBy('option_group_id')->pluck('trades', 'option_group_id');
+
+        $candidates = OptionGroup::query()->where('is_active', true)
+            ->where(fn ($q) => $q->where('price_role', OptionGroup::ROLE_DESCRIPTIVE)->orWhereIn('id', $current->keys()->merge($scattered->keys())->all()))
+            ->withCount('options')->orderBy('name_ar')->get(['id', 'name_ar', 'name_en'])
+            ->each(fn ($g) => $g->trades = (int) ($scattered[$g->id] ?? 0))
+            // chosen ones first, in their saved order
+            ->sortBy(fn ($g) => $current->has($g->id) ? [0, array_search($g->id, $current->keys()->all(), true)] : [1, $g->name_ar])->values();
+
+        return ['rows' => $current, 'candidates' => $candidates];
+    }
+
+    /** POST — save the common descriptive groups; optionally fold the per-trade copies into it. */
+    public function saveCommonDescribing(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'groups' => ['nullable', 'array'],
+            'groups.*.enabled' => ['nullable', 'boolean'],
+            'groups.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'groups.*.show_on_page' => ['nullable', 'boolean'],
+            'groups.*.multiple' => ['nullable', 'boolean'],
+            'groups.*.display' => ['nullable', Rule::in(['auto', 'chips', 'dropdown'])],
+            'unify' => ['nullable', 'boolean'],
+        ]);
+
+        $menuServiceId = (int) PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id');
+        $known = OptionGroup::query()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $now = now();
+        $rows = [];
+
+        foreach ($data['groups'] ?? [] as $groupId => $g) {
+            if (! in_array((int) $groupId, $known, true) || empty($g['enabled'])) {
+                continue;
+            }
+            $rows[] = [
+                'platform_service_id' => $menuServiceId, 'option_group_id' => (int) $groupId,
+                'child_id' => ServiceOptionGroupPlacement::ALL_CHILDREN, 'item_type_key' => '',
+                'usage' => ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE, 'branches_as_sections' => 0, 'is_active' => 1,
+                'sort_order' => (int) ($g['sort_order'] ?? 0),
+                'show_on_page' => (bool) ($g['show_on_page'] ?? true),
+                'display' => $g['display'] ?? 'auto',
+                'multiple' => (bool) ($g['multiple'] ?? true),
+                'created_at' => $now, 'updated_at' => $now,
+            ];
+        }
+
+        $folded = 0;
+        DB::transaction(function () use ($menuServiceId, $rows, $request, &$folded) {
+            DB::table('service_option_group_placements')
+                ->where('platform_service_id', $menuServiceId)->where('usage', ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+                ->where('child_id', ServiceOptionGroupPlacement::ALL_CHILDREN)->delete();
+            if ($rows !== []) {
+                DB::table('service_option_group_placements')->insert($rows);
+            }
+            // A trade's ACTIVE copy of a common group is now redundant. Its inactive row
+            // (the trade hiding the group) is a decision of its own and stays.
+            if ($request->boolean('unify') && $rows !== []) {
+                $folded = DB::table('service_option_group_placements')
+                    ->where('platform_service_id', $menuServiceId)->where('usage', ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+                    ->where('child_id', '>', 0)->where('is_active', 1)
+                    ->whereIn('option_group_id', array_column($rows, 'option_group_id'))->delete();
+            }
+        });
+
+        return redirect()
+            ->route('admin.menu-shapes.index', $request->only(['q', 'shape', 'group_id', 'preview']))
+            ->with('success', __('حُفظت الخيارات الوصفية العامة (:n مجموعة) — تظهر فى كل المنيوهات.', ['n' => count($rows)]) . ($folded ? ' ' . __('ودُمجت :n نسخة متفرقة من الأنشطة.', ['n' => $folded]) : ''));
     }
 
     /** POST — keep the shape being previewed for this group. */

@@ -241,6 +241,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('profiles/{profile}/fields', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'saveFields'])->name('profiles.fields');
             Route::post('profiles/{profile}/settings', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'saveSettings'])->name('profiles.settings');
             Route::post('profiles/{profile}/attributes', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'storeAttribute'])->name('profiles.attributes');
+            Route::post('common-describing', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'saveCommonDescribing'])->name('common-describing');
         });
 
         // «قيم موديلات الكتالوج»: a detail kind's catalog models as rows, its

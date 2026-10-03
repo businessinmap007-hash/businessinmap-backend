@@ -88,11 +88,11 @@ class MenuDescriptionFieldTest extends TestCase
         $this->assertSame('نظيفة جدا وصيانة توكيل', $item['card_summary']);
     }
 
-    public function test_a_kind_that_never_chose_it_keeps_the_page_and_not_the_card(): void
+    public function test_a_kind_that_dropped_the_field_shows_the_description_nowhere(): void
     {
         $item = $this->publicItem([['model_year', false, true]]);
 
-        $this->assertSame('نظيفة جدا وصيانة توكيل', $item['description']);
+        $this->assertSame('', $item['description']);
         $this->assertNull($item['card_summary']);
     }
 
@@ -116,5 +116,24 @@ class MenuDescriptionFieldTest extends TestCase
             ->assertOk()
             ->assertSee('الوصف')
             ->assertSee('وصف قصير للمنتج يكتبه التاجر.');
+    }
+
+    public function test_the_add_product_box_in_the_preview_follows_the_chosen_field(): void
+    {
+        $admin = User::query()->where('type', 'admin')->first() ?: $this->markTestSkipped('No admin account to act as.');
+
+        [$cars, $group] = $this->carsKind([['model_year', false, true], ['description', false, true]]);
+        $url = route('admin.menu-shapes.index', ['group_id' => $group->id, 'preview' => $cars->id], false);
+        $this->actingAs($admin)->get($url)->assertOk()->assertSee('الوصف (عربي، اختياري)');
+
+        DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $cars->id)->where('catalog_attribute_id', $this->attr('description'))->delete();
+        $this->actingAs($admin)->get($url)->assertOk()->assertDontSee('الوصف (عربي، اختياري)');
+    }
+
+    public function test_every_existing_kind_has_the_field_so_no_form_lost_its_box(): void
+    {
+        $without = DB::table('menu_detail_profiles')->whereNotIn('id', DB::table('menu_detail_profile_attributes')->where('catalog_attribute_id', $this->attr('description'))->pluck('menu_detail_profile_id'))->count();
+
+        $this->assertSame(0, $without);
     }
 }

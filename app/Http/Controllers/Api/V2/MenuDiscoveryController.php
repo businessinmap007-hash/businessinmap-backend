@@ -277,8 +277,9 @@ final class MenuDiscoveryController extends Controller
     /**
      * Where the item's own description shows, per the detail kind's «الوصف» field in
      * «أشكال المنيو»: on the CARD only when the kind ticked it for the card; on the PAGE
-     * unless the kind switched it off there. A kind without the field (or a basic menu)
-     * keeps what it always had: the page, never the card.
+     * when the kind ticked it for the page. A kind that dropped the field shows the
+     * description nowhere (the add-product box goes with it); a basic menu has no
+     * kind, so it keeps the page and never the card.
      *
      * @return array{card:bool,page:bool}
      */
@@ -292,7 +293,7 @@ final class MenuDiscoveryController extends Controller
         return $this->describingMemo['desc' . $profileId] ??= (function () use ($profileId) {
             $field = collect(\App\Models\MenuDetailProfile::fieldsFor([$profileId])[$profileId] ?? [])->firstWhere('code', 'description');
 
-            return $field ? ['card' => (bool) $field['show_on_card'], 'page' => (bool) $field['show_on_page']] : ['card' => false, 'page' => true];
+            return $field ? ['card' => (bool) $field['show_on_card'], 'page' => (bool) $field['show_on_page']] : ['card' => false, 'page' => false];
         })();
     }
 

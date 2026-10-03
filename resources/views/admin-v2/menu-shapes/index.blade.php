@@ -13,6 +13,9 @@
     // A list field nobody gave choices to (the generic «الخامة») is not drawn.
     $previewFields = array_values(array_filter($previewFields, fn ($f) => ! (($f['data_type'] ?? '') === 'select' && empty($f['options']))));
     $noCatalog = $previewProfile && ! $previewProfile->uses_catalog;
+    // «الوصف» is the add-product form's description box, not an input among the unit fields:
+    // ticked on the kind, the box shows below; unticked, it is gone.
+    $hasDescription = collect($previewFields)->contains('code', 'description');
     // The descriptive groups this kind offers (طراز، نظام التصنيع، أنواع الأخشاب), in order.
     $describingShown = collect($describingChosen ?? [])->map(fn ($id) => $describingGroups->firstWhere('id', $id))->filter()->values();
     // «buttons» up to six options, a dropdown beyond — unless the admin chose.
@@ -248,10 +251,10 @@
                                                 @endforeach
                                             </div>
                                             @endif
-                                            @if(collect($previewFields)->where('per_item', true)->isNotEmpty() || $describingShown->isNotEmpty())
+                                            @if(collect($previewFields)->where('per_item', true)->where('code', '!=', 'description')->isNotEmpty() || $describingShown->isNotEmpty())
                                                 <div class="ms-label">{{ $noCatalog ? __('تفاصيل الصنف') : 'لهذه الوحدة بالذات' }}</div>
                                                 <div class="ms-row" style="flex-wrap:wrap">
-                                                    @foreach(collect($previewFields)->where('per_item', true) as $f)
+                                                    @foreach(collect($previewFields)->where('per_item', true)->where('code', '!=', 'description') as $f)
                                                         @if(($f['data_type'] ?? '') === 'select' && $drawAsChips($f['display'] ?? 'auto', count($f['options'] ?? [])))
                                                             <div style="flex:1 1 100%"><div class="ms-hint" style="font-size:12px;margin-bottom:4px">{{ $f['name'] }}</div>@foreach(array_slice($f['options'], 0, 4) as $i => $o)<span class="ms-pill {{ $i === 0 ? 'on' : '' }}">{{ $o['name'] }}</span> @endforeach</div>
                                                         @elseif(($f['data_type'] ?? '') === 'select')
@@ -278,7 +281,7 @@
                                             <div class="ms-field ms-field--gold"><span class="ms-hint">السعر</span></div>
                                             <div class="ms-field"><span class="ms-hint">الكمية المتاحة (اختياري)</span></div>
                                         </div>
-                                        <div class="ms-field" style="margin-top:8px;min-height:54px"><span class="ms-hint">الوصف (عربي، اختياري)</span></div>
+                                        @if($hasDescription)<div class="ms-field" style="margin-top:8px;min-height:54px"><span class="ms-hint">الوصف (عربي، اختياري)</span></div>@endif
                                         <div class="ms-label">{{ __('صور المنتج') }}</div>
                                         <div class="ms-row">
                                             <div class="ms-field" style="text-align:center;font-weight:700">{{ __('التقاط بالكاميرا') }}</div>

@@ -51,7 +51,7 @@ class MenuDetailProfile extends Model
             ->orderBy('pa.menu_detail_profile_id')
             ->orderBy('pa.sort_order')
             ->orderBy('a.sort_order')
-            ->get(['pa.menu_detail_profile_id', 'a.id', 'a.code', 'a.name_ar', 'a.name_en', 'a.data_type', 'u.name_ar as unit_ar', 'u.name_en as unit_en', 'pa.show_on_card', 'pa.per_item', 'pa.is_filterable']);
+            ->get(['pa.menu_detail_profile_id', 'a.id', 'a.code', 'a.name_ar', 'a.name_en', 'a.data_type', 'u.name_ar as unit_ar', 'u.name_en as unit_en', 'pa.show_on_card', 'pa.per_item', 'pa.is_filterable', 'pa.show_on_page', 'pa.display']);
 
         // A select field (colour, gearbox, fuel) offers its options — the
         // merchant picks, search filters by them; nothing is typed.
@@ -73,6 +73,10 @@ class MenuDetailProfile extends Model
                 'show_on_card' => (bool) $r->show_on_card,
                 'per_item' => (bool) $r->per_item,
                 'is_filterable' => (bool) $r->is_filterable,
+                // On the customer's product page? And how a list field is drawn
+                // for the merchant: auto | chips | dropdown.
+                'show_on_page' => (bool) $r->show_on_page,
+                'display' => (string) $r->display,
                 'options' => ($options[$r->id] ?? collect())->map(fn ($o) => [
                     'id' => (int) $o->id,
                     'name' => (string) ($english ? ($o->value_en ?: $o->value_ar) : ($o->value_ar ?: $o->value_en)),
@@ -90,6 +94,21 @@ class MenuDetailProfile extends Model
      */
     public static function describingGroupIds(array $profileIds): array
     {
+        return array_map(
+            fn ($groups) => array_column($groups, 'id'),
+            self::describingGroups($profileIds)
+        );
+    }
+
+    /**
+     * The same groups with what the admin set on each: whether it shows on the
+     * customer's product page and how it is drawn for the merchant.
+     *
+     * @param  list<int>  $profileIds
+     * @return array<int, list<array{id:int,show_on_page:bool,display:string}>>
+     */
+    public static function describingGroups(array $profileIds): array
+    {
         if (empty($profileIds)) {
             return [];
         }
@@ -97,9 +116,13 @@ class MenuDetailProfile extends Model
         return DB::table('menu_detail_profile_option_groups')
             ->whereIn('menu_detail_profile_id', $profileIds)
             ->orderBy('menu_detail_profile_id')->orderBy('sort_order')->orderBy('id')
-            ->get(['menu_detail_profile_id', 'option_group_id'])
+            ->get(['menu_detail_profile_id', 'option_group_id', 'show_on_page', 'display'])
             ->groupBy('menu_detail_profile_id')
-            ->map(fn ($rows) => $rows->pluck('option_group_id')->map(fn ($id) => (int) $id)->values()->all())
+            ->map(fn ($rows) => $rows->map(fn ($r) => [
+                'id' => (int) $r->option_group_id,
+                'show_on_page' => (bool) $r->show_on_page,
+                'display' => (string) $r->display,
+            ])->values()->all())
             ->all();
     }
 

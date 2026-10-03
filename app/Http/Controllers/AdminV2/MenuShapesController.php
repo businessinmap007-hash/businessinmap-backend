@@ -68,7 +68,8 @@ class MenuShapesController extends Controller
         // The DESCRIPTIVE fields to choose from — option groups «مكونات الخدمة» made
         // descriptive for some trade under the menu service (طراز، خامة، نظام التصنيع)
         // — and the ones this kind already offers, in its order.
-        $chosenIds = $previewProfile ? (MenuDetailProfile::describingGroupIds([$previewProfile->id])[$previewProfile->id] ?? []) : [];
+        $chosenSettings = $previewProfile ? collect(MenuDetailProfile::describingGroups([$previewProfile->id])[$previewProfile->id] ?? [])->keyBy('id') : collect();
+        $chosenIds = $chosenSettings->keys()->map(fn ($id) => (int) $id)->all();
         $menuServiceId = (int) PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id');
         $candidateIds = ServiceOptionGroupPlacement::query()
             ->where('platform_service_id', $menuServiceId)
@@ -91,7 +92,11 @@ class MenuShapesController extends Controller
             'preview' => $preview,
             'previewProfile' => $previewProfile,
             'describingGroups' => $describingGroups,
+            // A sample value per group for the customer preview («مودرن» under «طراز الأثاث»).
+            'describingSamples' => DB::table('options')->whereIn('group_id', $describingGroups->pluck('id')->all())
+                ->orderBy('id')->get(['group_id', 'name_ar'])->groupBy('group_id')->map(fn ($rows) => (string) $rows->first()->name_ar),
             'describingChosen' => $chosenIds,
+            'describingSettings' => $chosenSettings,
             'sample' => $previewProfile && $group ? $this->sampleProduct($branches->pluck('id')->all(), $previewProfile) : null,
             'attributes' => DB::table('catalog_attributes as a')
                 ->leftJoin('catalog_units as u', 'u.id', '=', 'a.unit_id')
@@ -132,9 +137,13 @@ class MenuShapesController extends Controller
             'fields.*.per_item' => ['nullable', 'boolean'],
             'fields.*.is_filterable' => ['nullable', 'boolean'],
             'fields.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'fields.*.show_on_page' => ['nullable', 'boolean'],
+            'fields.*.display' => ['nullable', Rule::in(['auto', 'chips', 'dropdown'])],
             'describing' => ['nullable', 'array'],
             'describing.*.enabled' => ['nullable', 'boolean'],
             'describing.*.sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'describing.*.show_on_page' => ['nullable', 'boolean'],
+            'describing.*.display' => ['nullable', Rule::in(['auto', 'chips', 'dropdown'])],
         ]);
 
         $knownGroups = DB::table('option_groups')->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -148,6 +157,8 @@ class MenuShapesController extends Controller
                 'menu_detail_profile_id' => $profile->id,
                 'option_group_id' => $groupId,
                 'sort_order' => (int) ($field['sort_order'] ?? 0),
+                'show_on_page' => (bool) ($field['show_on_page'] ?? true), // the form posts 0 for an unticked box; a caller that says nothing keeps it on
+                'display' => $field['display'] ?? 'auto',
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -169,6 +180,8 @@ class MenuShapesController extends Controller
                 'show_on_card' => ! empty($field['show_on_card']),
                 'per_item' => ! empty($field['per_item']),
                 'is_filterable' => ! empty($field['is_filterable']),
+                'show_on_page' => (bool) ($field['show_on_page'] ?? true), // the form posts 0 for an unticked box; a caller that says nothing keeps it on
+                'display' => $field['display'] ?? 'auto',
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

@@ -81,7 +81,9 @@ class MenuShapesDescribingFieldsTest extends TestCase
         $page = $this->actingAs($this->admin())
             ->get(route('admin.menu-shapes.index', ['group_id' => $line->id, 'preview' => $kind->id], false))
             ->assertOk()->getContent();
-        $this->assertLessThan(strpos($page, 'ms-hint">طراز الأثاث'), strpos($page, 'ms-hint">أنواع الأخشاب'), 'the preview follows the chosen order');
+        $from = strpos($page, 'تفاصيل الصنف');
+        $this->assertNotFalse($from);
+        $this->assertLessThan(strpos($page, 'طراز الأثاث', $from), strpos($page, 'أنواع الأخشاب', $from), 'the preview follows the chosen order');
 
         $shop = User::query()->where('type', 'business')->where('category_child_id', 116)->orderBy('id')->firstOrFail();
         Sanctum::actingAs($shop);
@@ -127,5 +129,39 @@ class MenuShapesDescribingFieldsTest extends TestCase
         $kind->update(['uses_catalog' => true]);
         $this->actingAs($admin)->post(route('admin.menu-shapes.profiles.fields', $kind, false), ['group_id' => $line->id])->assertRedirect();
         $this->assertTrue($kind->fresh()->uses_catalog);
+    }
+
+    public function test_a_field_switched_off_for_the_product_page_is_hidden_there_and_the_display_is_saved(): void
+    {
+        [$kind, $line, $style, $wood] = $this->setUpKind();
+
+        $this->actingAs($this->admin())->post(route('admin.menu-shapes.profiles.fields', $kind, false), [
+            'group_id' => $line->id,
+            'describing' => [
+                $style->id => ['enabled' => 1, 'sort_order' => 10, 'show_on_page' => 0, 'display' => 'chips'],
+                $wood->id => ['enabled' => 1, 'sort_order' => 20, 'show_on_page' => 1, 'display' => 'dropdown'],
+            ],
+        ])->assertRedirect();
+
+        $groups = collect(MenuDetailProfile::describingGroups([$kind->id])[$kind->id])->keyBy('id');
+        $this->assertFalse($groups[$style->id]['show_on_page']);
+        $this->assertSame('chips', $groups[$style->id]['display']);
+        $this->assertTrue($groups[$wood->id]['show_on_page']);
+        $this->assertSame('dropdown', $groups[$wood->id]['display']);
+
+        // The merchant's form hears how each is drawn…
+        $shop = User::query()->where('type', 'business')->where('category_child_id', 116)->orderBy('id')->firstOrFail();
+        Sanctum::actingAs($shop);
+        $lines = collect($this->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.lines'));
+        $this->assertSame(
+            [['id' => $style->id, 'display' => 'chips'], ['id' => $wood->id, 'display' => 'dropdown']],
+            $lines->firstWhere('group_id', $line->id)['detail_profile']['descriptive_groups']
+        );
+
+        // …and an unsaid show_on_page stays on (an older caller).
+        $this->actingAs($this->admin())->post(route('admin.menu-shapes.profiles.fields', $kind, false), [
+            'group_id' => $line->id, 'describing' => [$wood->id => ['enabled' => 1, 'sort_order' => 10]],
+        ])->assertRedirect();
+        $this->assertTrue(MenuDetailProfile::describingGroups([$kind->id])[$kind->id][0]['show_on_page']);
     }
 }

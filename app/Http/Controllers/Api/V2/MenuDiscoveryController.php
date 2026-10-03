@@ -26,6 +26,7 @@ final class MenuDiscoveryController extends Controller
     /** GET /api/v2/discovery/menu/{business} */
     public function show(int $business)
     {
+        $this->describingMemo = []; // a controller instance outlives one request under tests and long-lived workers
         $biz = User::query()->where('type', 'business')
             ->find($business, ['id', 'name', 'logo', 'category_child_id', 'category_id']);
 
@@ -146,6 +147,7 @@ final class MenuDiscoveryController extends Controller
      */
     public function item(int $item)
     {
+        $this->describingMemo = [];
         $row = MenuItem::query()
             ->where('is_active', true)
             ->with([
@@ -311,8 +313,10 @@ final class MenuDiscoveryController extends Controller
         }
 
         $profileId = (int) ($item->lineOption()?->group?->menu_detail_profile_id ?? 0);
+        // The kind's chosen groups, minus those switched off for the product page.
         $allowed = $profileId > 0
-            ? ($this->describingMemo['p' . $profileId] ??= (\App\Models\MenuDetailProfile::describingGroupIds([$profileId])[$profileId] ?? []))
+            ? ($this->describingMemo['p' . $profileId] ??= collect(\App\Models\MenuDetailProfile::describingGroups([$profileId])[$profileId] ?? [])
+                ->where('show_on_page', true)->pluck('id')->all())
             : [];
 
         if ($allowed === []) {
@@ -334,6 +338,26 @@ final class MenuDiscoveryController extends Controller
         }
 
         return $rows;
+    }
+
+    /**
+     * Drops the spec rows the admin turned off for the product page («في صفحة
+     * المنتج» in «أشكال المنيو») — catalog fields and the unit's own values alike.
+     *
+     * @param  list<array<string,mixed>>  $specs
+     * @return list<array<string,mixed>>
+     */
+    private function withoutHiddenSpecs(MenuItem $item, array $specs): array
+    {
+        $profileId = (int) ($item->lineOption()?->group?->menu_detail_profile_id ?? 0);
+        if ($profileId <= 0 || $specs === []) {
+            return $specs;
+        }
+
+        $hidden = $this->describingMemo['h' . $profileId] ??= collect(\App\Models\MenuDetailProfile::fieldsFor([$profileId])[$profileId] ?? [])
+            ->where('show_on_page', false)->pluck('code')->all();
+
+        return $hidden === [] ? $specs : array_values(array_filter($specs, fn ($row) => ! in_array($row['code'] ?? '', $hidden, true)));
     }
 
     /** @return list<int> the groups «مكونات الخدمة» made descriptive for this child under the menu service */
@@ -362,6 +386,7 @@ final class MenuDiscoveryController extends Controller
         // الأثاث: مودرن»، «أنواع الأخشاب: زان») — the descriptive fields picked in
         // «أشكال المنيو» — so the customer's product page lists them with the rest.
         $specs = array_merge($specs, $this->describingSpecs($item));
+        $specs = $this->withoutHiddenSpecs($item, $specs);
 
         return [
             'id' => (int) $item->id,

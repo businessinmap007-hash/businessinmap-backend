@@ -87,4 +87,39 @@ class DescribingChoicesOnProductPageTest extends TestCase
         $this->assertSame('زان', $specs['أنواع الأخشاب']);
         $this->assertArrayNotHasKey('طراز الأثاث', $specs, 'the style was not ticked for this kind');
     }
+
+    public function test_a_group_switched_off_for_the_product_page_is_not_listed(): void
+    {
+        [$id, $kind, $wood] = $this->bedroom();
+        $style = (int) DB::table('option_groups')->where('name_ar', 'طراز الأثاث')->value('id');
+        DB::table('menu_detail_profile_option_groups')->insert([
+            ['menu_detail_profile_id' => $kind->id, 'option_group_id' => $wood, 'sort_order' => 10, 'show_on_page' => 1, 'display' => 'auto', 'created_at' => now(), 'updated_at' => now()],
+            ['menu_detail_profile_id' => $kind->id, 'option_group_id' => $style, 'sort_order' => 20, 'show_on_page' => 0, 'display' => 'auto', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $specs = $this->specs($id);
+
+        $this->assertArrayHasKey('أنواع الأخشاب', $specs);
+        $this->assertArrayNotHasKey('طراز الأثاث', $specs, 'ticked for the kind, but switched off for the product page');
+    }
+
+    public function test_a_catalog_field_switched_off_for_the_product_page_is_not_listed_but_comes_back_when_on(): void
+    {
+        [, $kind] = $this->bedroom();
+        $color = (int) DB::table('catalog_attributes')->where('code', 'color')->value('id');
+        $brown = (int) DB::table('catalog_attribute_options')->where('attribute_id', $color)->where('slug', 'brown')->value('id');
+        $bedroom = $this->option('أثاث وتشطيب منزلي', 'غرفة نوم');
+        DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $kind->id)->delete();
+        $row = ['menu_detail_profile_id' => $kind->id, 'catalog_attribute_id' => $color, 'sort_order' => 10, 'show_on_card' => 0, 'per_item' => 1, 'is_filterable' => 1, 'display' => 'auto', 'created_at' => now(), 'updated_at' => now()];
+        DB::table('menu_detail_profile_attributes')->insert($row + ['show_on_page' => 0]);
+
+        $id = (int) $this->postJson('/api/v2/business/menu/items', [
+            'name_ar' => 'غرفة نوم بلون', 'base_price' => 30000, 'line_option_id' => $bedroom, 'attributes' => [$color => $brown],
+        ])->assertCreated()->json('data.id');
+
+        $this->assertArrayNotHasKey('اللون', $this->specs($id), 'switched off for the product page');
+
+        DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $kind->id)->update(['show_on_page' => 1]);
+        $this->assertArrayHasKey('اللون', $this->specs($id));
+    }
 }

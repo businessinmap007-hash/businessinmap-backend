@@ -184,7 +184,7 @@ final class BusinessMenuItemController extends Controller
             ->get(['menu_detail_profiles.*', 'g.id as group_id']);
 
         $fields = \App\Models\MenuDetailProfile::fieldsFor($profiles->pluck('id')->unique()->values()->all(), $english);
-        $describing = \App\Models\MenuDetailProfile::describingGroupIds($profiles->pluck('id')->unique()->values()->all());
+        $describing = \App\Models\MenuDetailProfile::describingGroups($profiles->pluck('id')->unique()->values()->all());
 
         return $profiles->mapWithKeys(fn ($p) => [(int) $p->group_id => [
             'id' => (int) $p->id,
@@ -199,7 +199,12 @@ final class BusinessMenuItemController extends Controller
             // The descriptive option groups the admin ticked for this kind in
             // «أشكال المنيو», in order. Empty = the kind never chose: the app then
             // offers every descriptive group «مكونات الخدمة» made for the trade.
-            'descriptive_group_ids' => $describing[(int) $p->id] ?? [],
+            'descriptive_group_ids' => array_column($describing[(int) $p->id] ?? [], 'id'),
+            // …with how each is drawn in the merchant's form (auto | chips | dropdown).
+            'descriptive_groups' => array_map(
+                fn ($g) => ['id' => $g['id'], 'display' => $g['display']],
+                $describing[(int) $p->id] ?? []
+            ),
         ]])->all();
     }
 

@@ -15,6 +15,9 @@
     $noCatalog = $previewProfile && ! $previewProfile->uses_catalog;
     // The descriptive groups this kind offers (طراز، نظام التصنيع، أنواع الأخشاب), in order.
     $describingShown = collect($describingChosen ?? [])->map(fn ($id) => $describingGroups->firstWhere('id', $id))->filter()->values();
+    // «buttons» up to six options, a dropdown beyond — unless the admin chose.
+    $drawAsChips = fn (string $display, int $count) => $display === 'chips' || ($display === 'auto' && $count <= 6);
+    $onPage = fn ($setting) => (bool) ($setting['show_on_page'] ?? true);
     if ($noCatalog) {
         $previewFields = array_map(fn ($f) => ['per_item' => true] + $f, $previewFields);
     }
@@ -82,6 +85,8 @@
     /* a label holding a checkbox + words: the global .a2-checkbox is the 18px box itself, not a label */
     .ms-check { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin: 8px 0 4px; }
     .ms-check input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--a2-primary); }
+    .ms-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(11, 31, 58, .25); font-size: 12px; background: #fff; }
+    .ms-pill.on { background: #D6A94A; border-color: #D6A94A; font-weight: 700; }
     .ms-chip { display: inline-block; padding: 4px 12px; border-radius: 999px; background: #D6A94A; color: #0B1F3A; font-size: 12px; font-weight: 700; }
     .ms-bottom { padding: 12px 14px 16px; border-top: 1px solid rgba(11, 31, 58, .08); background: #fff; }
     .ms-btn { height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 800; font-size: 14px; }
@@ -243,10 +248,20 @@
                                                 <div class="ms-label">{{ $noCatalog ? __('تفاصيل الصنف') : 'لهذه الوحدة بالذات' }}</div>
                                                 <div class="ms-row" style="flex-wrap:wrap">
                                                     @foreach(collect($previewFields)->where('per_item', true) as $f)
-                                                        <div class="ms-field" style="flex:1 1 44%"><span class="ms-hint">{{ $f['name'] }}@if($f['unit']) ({{ $f['unit'] }})@endif</span></div>
+                                                        @if(($f['data_type'] ?? '') === 'select' && $drawAsChips($f['display'] ?? 'auto', count($f['options'] ?? [])))
+                                                            <div style="flex:1 1 100%"><div class="ms-hint" style="font-size:12px;margin-bottom:4px">{{ $f['name'] }}</div>@foreach(array_slice($f['options'], 0, 4) as $i => $o)<span class="ms-pill {{ $i === 0 ? 'on' : '' }}">{{ $o['name'] }}</span> @endforeach</div>
+                                                        @elseif(($f['data_type'] ?? '') === 'select')
+                                                            <div class="ms-field" style="flex:1 1 44%;display:flex;justify-content:space-between"><span class="ms-hint">{{ $f['name'] }}</span><span class="ms-hint">▾</span></div>
+                                                        @else
+                                                            <div class="ms-field" style="flex:1 1 44%"><span class="ms-hint">{{ $f['name'] }}@if($f['unit']) ({{ $f['unit'] }})@endif</span></div>
+                                                        @endif
                                                     @endforeach
                                                     @foreach($describingShown as $g)
-                                                        <div class="ms-field" style="flex:1 1 44%;display:flex;justify-content:space-between"><span class="ms-hint">{{ $g->name_ar }}</span><span class="ms-hint">▾</span></div>
+                                                        @if($drawAsChips($describingSettings[$g->id]['display'] ?? 'auto', (int) $g->options_count))
+                                                            <div style="flex:1 1 100%"><div class="ms-hint" style="font-size:12px;margin-bottom:4px">{{ $g->name_ar }}</div><span class="ms-pill on">{{ $describingSamples[$g->id] ?? '' }}</span> <span class="ms-pill">…</span></div>
+                                                        @else
+                                                            <div class="ms-field" style="flex:1 1 44%;display:flex;justify-content:space-between"><span class="ms-hint">{{ $g->name_ar }}</span><span class="ms-hint">▾</span></div>
+                                                        @endif
                                                     @endforeach
                                                 </div>
                                             @endif
@@ -298,8 +313,11 @@
                                             @if($cardLine)<div class="ms-hint" style="font-size:12px;margin-top:4px">{{ $cardLine }}</div>@endif
                                             <div class="ms-label">المواصفات</div>
                                             <div class="ms-specs">
-                                                @foreach($previewFields as $f)
+                                                @foreach(collect($previewFields)->filter(fn ($f) => $onPage($f)) as $f)
                                                     <div class="ms-spec"><span>{{ $f['name'] }}</span><span>{{ $value($f) }}</span></div>
+                                                @endforeach
+                                                @foreach($describingShown->filter(fn ($g) => $onPage($describingSettings[$g->id] ?? null)) as $g)
+                                                    <div class="ms-spec"><span>{{ $g->name_ar }}</span><span>{{ $describingSamples[$g->id] ?? '—' }}</span></div>
                                                 @endforeach
                                             </div>
                                         </div>
@@ -350,10 +368,10 @@
                                     <input type="hidden" name="q" value="{{ $search }}">
                                     <input type="hidden" name="shape" value="{{ $shape }}">
                                     <strong>{{ __('حقول «') }}{{ $previewProfile->name_ar }}{{ __('»') }}</strong>
-                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات. الحقول غير المفعّلة لا تظهر لا فى فلتر هذا النوع ولا فى صفحاته — كل نوع له فلاتره هو فقط.') }}</div>
+                                    <div class="ms-note a2-mb-16">{{ __('ما يُعلَّم هنا يظهر للتاجر فى «التسعير والتفاصيل» وللعميل فى صفحة المنتج. «على الكارت» = السطر المختصر تحت اسم المنتج. «فى صفحة المنتج» = يظهر للعميل فى «المواصفات»، «العرض» = يرسم التاجر القائمة أزرارًا (سريعة، كل الخيارات ظاهرة) أو قائمة منسدلة (مدمجة للكثير)، وتلقائى = أزرار حتى ٦ خيارات وقائمة بعدها. «لكل وحدة» = يدخله التاجر لكل صنف بنفسه (سنة سيارة، كيلومتراتها، لونها) لأن موديل الكتالوج الواحد يُباع بقيم مختلفة؛ غير المعلَّم يؤخذ من الكتالوج. «فلتر البحث» = يُبحث ويُقارَن به بين المحلات. الحقول غير المفعّلة لا تظهر لا فى فلتر هذا النوع ولا فى صفحاته — كل نوع له فلاتره هو فقط.') }}</div>
                                     <div style="max-height:420px;overflow:auto">
                                         <table class="a2-table ms-fields-table">
-                                            <thead><tr><th>{{ __('الحقل') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('على الكارت') }}</th><th>{{ __('لكل وحدة') }}</th><th>{{ __('فلتر البحث') }}</th></tr></thead>
+                                            <thead><tr><th>{{ __('الحقل') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('على الكارت') }}</th><th>{{ __('لكل وحدة') }}</th><th>{{ __('فلتر البحث') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th></tr></thead>
                                             <tbody>
                                                 @foreach($ordered as $a)
                                                     @php $f = $current->get($a->id); @endphp
@@ -364,6 +382,8 @@
                                                         <td><input type="checkbox" name="fields[{{ $a->id }}][show_on_card]" value="1" data-dep @checked($f && $f['show_on_card']) @disabled(! $f)></td>
                                                         <td><input type="checkbox" name="fields[{{ $a->id }}][per_item]" value="1" data-dep @checked($f && $f['per_item']) @disabled(! $f)></td>
                                                         <td><input type="checkbox" name="fields[{{ $a->id }}][is_filterable]" value="1" data-dep @checked($f && $f['is_filterable']) @disabled(! $f)></td>
+                                                        <td><input type="hidden" name="fields[{{ $a->id }}][show_on_page]" value="0"><input type="checkbox" name="fields[{{ $a->id }}][show_on_page]" value="1" data-dep @checked($f ? $f['show_on_page'] : true) @disabled(! $f) title="{{ __('يظهر هذا الحقل للعميل فى صفحة المنتج') }}"></td>
+                                                        <td>@if($a->data_type === 'select')<select class="a2-select" style="min-width:92px" name="fields[{{ $a->id }}][display]" data-dep @disabled(! $f)>@foreach(['auto' => 'تلقائى', 'chips' => 'أزرار', 'dropdown' => 'قائمة'] as $k => $l)<option value="{{ $k }}" @selected(($f['display'] ?? 'auto') === $k)>{{ __($l) }}</option>@endforeach</select>@else<span class="ms-note">—</span>@endif</td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
@@ -372,7 +392,7 @@
                                     <div style="margin-top:14px"><strong>{{ __('حقول وصفية — من مجموعات الخيارات') }}</strong></div>
                                     <div class="ms-note a2-mb-16">{{ __('مجموعات يصفها التاجر بالاختيار منها (طراز الأثاث، نظام التصنيع، أنواع الأخشاب) وتظهر له كقوائم منسدلة فى «التسعير والتفاصيل». المعلَّم هنا فقط هو ما يظهر لهذا النوع، بالترتيب المكتوب؛ وإن لم تُعلِّم شيئًا يظهر كل ما جعلته «مكونات الخدمة» وصفيًا للنشاط.') }}</div>
                                     <table class="a2-table ms-fields-table">
-                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th></tr></thead>
+                                        <thead><tr><th>{{ __('المجموعة') }}</th><th>{{ __('مفعّل') }}</th><th>{{ __('الترتيب') }}</th><th>{{ __('فى صفحة المنتج') }}</th><th>{{ __('العرض') }}</th></tr></thead>
                                         <tbody>
                                             @forelse($describingGroups as $g)
                                                 @php $on = in_array((int) $g->id, $describingChosen, true); @endphp
@@ -380,9 +400,11 @@
                                                     <td>{{ $g->name_ar }} <span class="ms-note">{{ $g->options_count }} {{ __('خيار') }}</span></td>
                                                     <td><input type="checkbox" name="describing[{{ $g->id }}][enabled]" value="1" data-enable @checked($on)></td>
                                                     <td><input class="a2-input" style="width:58px;min-width:0" type="number" min="0" name="describing[{{ $g->id }}][sort_order]" value="{{ $on ? (array_search((int) $g->id, $describingChosen, true) + 1) * 10 : '' }}" data-dep @disabled(! $on)></td>
+                                                    <td><input type="hidden" name="describing[{{ $g->id }}][show_on_page]" value="0"><input type="checkbox" name="describing[{{ $g->id }}][show_on_page]" value="1" data-dep @checked($on ? ($describingSettings[$g->id]['show_on_page'] ?? true) : true) @disabled(! $on)></td>
+                                                    <td><select class="a2-select" style="min-width:92px" name="describing[{{ $g->id }}][display]" data-dep @disabled(! $on)>@foreach(['auto' => 'تلقائى', 'chips' => 'أزرار', 'dropdown' => 'قائمة'] as $k => $l)<option value="{{ $k }}" @selected(($describingSettings[$g->id]['display'] ?? 'auto') === $k)>{{ __($l) }}</option>@endforeach</select></td>
                                                 </tr>
                                             @empty
-                                                <tr><td colspan="3" class="ms-note">{{ __('لا توجد مجموعات وصفية بعد — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
+                                                <tr><td colspan="5" class="ms-note">{{ __('لا توجد مجموعات وصفية بعد — اجعل مجموعة «وصفية» من «مكونات الخدمة».') }}</td></tr>
                                             @endforelse
                                         </tbody>
                                     </table>
@@ -454,7 +476,7 @@
             row.querySelectorAll('[data-dep]').forEach(function (el) {
                 el.disabled = !enable.checked;
                 if (!enable.checked) { el.checked = false; if (el.type === 'number') el.value = ''; }
-                else if (el.name.indexOf('is_filterable') !== -1) { el.checked = true; }
+                else if (el.name.indexOf('is_filterable') !== -1 || el.name.indexOf('show_on_page') !== -1) { el.checked = true; }
             });
         });
     });

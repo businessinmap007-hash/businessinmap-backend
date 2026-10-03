@@ -104,6 +104,7 @@ class MenuItemResource extends JsonResource
                 'is_default' => (bool) $v->is_default,
                 'is_active' => (bool) $v->is_active,
                 'installment_months' => $v->installment_months !== null ? (int) $v->installment_months : null,
+                'installment_down' => $v->installment_down !== null ? (float) $v->installment_down : null,
             ])->values()),
 
             'extra_groups' => $this->whenLoaded('extraGroups', fn () => $this->extraGroups->map(fn ($g) => [

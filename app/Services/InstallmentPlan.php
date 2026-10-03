@@ -25,7 +25,7 @@ class InstallmentPlan
         $lines = $order->items()
             ->where('installment_months', '>', 1)
             ->where(fn ($q) => $q->whereNull('resolution')->orWhere('resolution', '!=', OrderItem::RESOLUTION_REMOVED))
-            ->get(['total_price', 'installment_months']);
+            ->get(['total_price', 'installment_months', 'installment_down', 'qty']);
 
         if ($lines->isEmpty()) {
             return [];
@@ -37,11 +37,14 @@ class InstallmentPlan
         foreach ($lines as $line) {
             $m = (int) $line->installment_months;
             $total = round((float) $line->total_price, 2);
-            $each = round($total / $m, 2);
+            // The down payment (per unit) is paid with the first month; what is left
+            // is split evenly over all the months.
+            $down = min(round((float) $line->installment_down * max((int) $line->qty, 1), 2), $total);
+            $each = round(($total - $down) / $m, 2);
             $paid = 0.0;
 
             for ($i = 1; $i <= $m; $i++) {
-                $part = $i < $m ? $each : round($total - $paid, 2);
+                $part = $i < $m ? round($each + ($i === 1 ? $down : 0), 2) : round($total - $paid, 2);
                 $amounts[$i] = round($amounts[$i] + $part, 2);
                 $paid = round($paid + $part, 2);
             }

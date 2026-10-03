@@ -192,7 +192,9 @@ final class BusinessMenuItemController extends Controller
             $axes[] = [
                 'group_id' => (int) $groupId,
                 'group_name' => (string) $group->displayName(),
-                'options' => $offered->map(fn ($o) => ['id' => (int) $o->id, 'name_ar' => (string) $o->name_ar, 'name_en' => $o->name_en])->values()->all(),
+                // Instalments live in this group — the payment & settlement options — and
+                // nowhere else: the option that is one says so, the app never guesses by name.
+                'options' => $offered->map(fn ($o) => ['id' => (int) $o->id, 'name_ar' => (string) $o->name_ar, 'name_en' => $o->name_en, 'is_installment' => str_contains((string) $o->name_ar, 'تقسيط') || stripos((string) $o->name_en, 'install') !== false])->values()->all(),
             ];
         }
 
@@ -1240,10 +1242,16 @@ final class BusinessMenuItemController extends Controller
             'is_active' => ['nullable', 'boolean'],
             // «على كم شهر؟» — for a payment option that is an instalment plan.
             'installment_months' => ['nullable', 'integer', 'min:2', 'max:60'],
+            // «دفعة مقدمة» — per unit, paid with the first month; less than the price.
+            'installment_down' => ['nullable', 'numeric', 'min:0', 'lt:price'],
         ]);
 
+        // Months and a down payment belong to a PAYMENT option (the instalment one) only.
+        $instalment = trim((string) $data['type']) === 'payment' && isset($data['installment_months']);
+
         return [
-            'installment_months' => isset($data['installment_months']) ? (int) $data['installment_months'] : null,
+            'installment_months' => $instalment ? (int) $data['installment_months'] : null,
+            'installment_down' => $instalment && isset($data['installment_down']) && (float) $data['installment_down'] > 0 ? round((float) $data['installment_down'], 2) : null,
             'type' => trim((string) $data['type']),
             'name_ar' => trim((string) $data['name_ar']),
             'name_en' => trim((string) ($data['name_en'] ?? '')) ?: null,

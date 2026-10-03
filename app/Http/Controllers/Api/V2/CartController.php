@@ -201,7 +201,9 @@ final class CartController extends Controller
         return [
             'installment_plan' => $plan === [] ? null : [
                 'count' => count($plan),
-                'monthly' => $plan[0]['amount'],
+                // «monthly» is the regular month; the first one is larger when there is a down payment.
+                'monthly' => $plan[count($plan) > 1 ? 1 : 0]['amount'],
+                'first_amount' => $plan[0]['amount'],
                 'first_due_on' => $plan[0]['due_on'],
                 'last_due_on' => $plan[count($plan) - 1]['due_on'],
                 'total' => round(array_sum(array_column($plan, 'amount')), 2),

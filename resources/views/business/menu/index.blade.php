@@ -14,6 +14,7 @@
     <div class="a2-page-actions">
         <a href="{{ route('business.menu-settings.edit') }}" class="a2-btn a2-btn-ghost">{{ __('إعدادات') }}</a>
         <a href="{{ route('business.menu-sections.index') }}" class="a2-btn a2-btn-ghost">{{ __('الأقسام') }}</a>
+        <a href="{{ route('business.menu.import') }}" class="a2-btn a2-btn-ghost">{{ __('استيراد وتصدير') }}</a>
         <a href="{{ route('business.menu.create') }}" class="a2-btn a2-btn-primary">{{ __('إضافة صنف') }}</a>
     </div>
 </div>

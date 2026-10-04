@@ -1,0 +1,161 @@
+@extends('business.layouts.master')
+
+@section('title', __('استيراد وتصدير المنيو'))
+
+@section('content')
+<div class="a2-page-head">
+    <div>
+        <h1 class="a2-page-title">{{ __('استيراد وتصدير المنيو') }}</h1>
+        <div class="a2-page-subtitle">{{ __('نزّل أصنافك في ملف Excel، عدّلها أو أضف عليها، ثم ارفع الملف. ترى معاينة بما سيحدث قبل أي تغيير.') }}</div>
+    </div>
+    <div class="a2-page-actions">
+        <a href="{{ route('business.menu.index') }}" class="a2-btn a2-btn-ghost">{{ __('رجوع') }}</a>
+    </div>
+</div>
+
+<div class="a2-card a2-mb-16">
+    <h3 style="margin-top:0">{{ __('تصدير') }}</h3>
+    <p class="a2-page-subtitle">{{ __('الملف فيه رقم كل صنف: لو عدّلته ورفعته يتحدث الصنف نفسه. صنف بلا رقم يُضاف جديدًا (أو يتحدث لو عندك صنف بنفس الاسم).') }}</p>
+    <div class="a2-page-actions" style="justify-content:flex-start;flex-wrap:wrap;gap:8px">
+        <button type="button" class="a2-btn a2-btn-primary" data-export="0">{{ __('تحميل أصنافي (Excel)') }}</button>
+        <button type="button" class="a2-btn a2-btn-ghost" data-export="1">{{ __('نموذج فارغ (Excel)') }}</button>
+        <a class="a2-btn a2-btn-ghost" href="{{ route('business.menu.sheet.csv', [], false) }}">{{ __('تحميل أصنافي (CSV)') }}</a>
+    </div>
+</div>
+
+<div class="a2-card a2-mb-16">
+    <h3 style="margin-top:0">{{ __('استيراد') }}</h3>
+    <p class="a2-page-subtitle">{{ __('ملف Excel أو CSV بنفس أعمدة النموذج. «النوع» من أنواع نشاطك (في الورقة الثانية من النموذج)، و«القسم» للأصناف التي ليس لها نوع.') }}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="sheetFile" accept=".xlsx,.xls,.csv" class="a2-input" style="max-width:360px">
+        <button type="button" class="a2-btn a2-btn-primary" id="previewBtn" disabled>{{ __('معاينة') }}</button>
+    </div>
+    <div id="sheetError" class="a2-alert a2-alert-danger" style="display:none;margin-top:12px"></div>
+</div>
+
+<div class="a2-card" id="reportCard" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <h3 style="margin:0" id="reportTitle"></h3>
+        <button type="button" class="a2-btn a2-btn-primary" id="confirmBtn">{{ __('تأكيد الاستيراد') }}</button>
+    </div>
+    <p id="reportSummary" class="a2-page-subtitle"></p>
+    <div class="a2-table-wrap">
+        <table class="a2-table">
+            <thead><tr><th>{{ __('الصف') }}</th><th>{{ __('الاسم') }}</th><th>{{ __('الإجراء') }}</th><th>{{ __('ملاحظات') }}</th></tr></thead>
+            <tbody id="reportRows"></tbody>
+        </table>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+(function () {
+    // route(.., false): a relative URL — an absolute one built from APP_URL can point at another host.
+    const SHEET_URL = @json(route('business.menu.sheet', [], false));
+    const IMPORT_URL = @json(route('business.menu.import.run', [], false));
+    const CSRF = @json(csrf_token());
+    const T = {
+        preview: @json(__('معاينة — لم يتغير شيء بعد')),
+        done: @json(__('تم الاستيراد')),
+        summary: @json(__('جديد: :c — تحديث: :u — أخطاء: :e')),
+        create: @json(__('جديد')), update: @json(__('تحديث')), error: @json(__('خطأ')),
+        empty: @json(__('الملف فارغ أو بلا صفوف مقروءة.')),
+        failed: @json(__('حدث خطأ ما، حاول مرة أخرى.')),
+        typesSheet: @json(__('الأنواع والوحدات')), types: @json(__('النوع')), group: @json(__('المجموعة')), units: @json(__('الوحدات')),
+    };
+    let rows = null;
+
+    const fileInput = document.getElementById('sheetFile');
+    const previewBtn = document.getElementById('previewBtn');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const errorBox = document.getElementById('sheetError');
+
+    function showError(text) { errorBox.textContent = text; errorBox.style.display = text ? 'block' : 'none'; }
+
+    async function getJson(url) {
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+        if (!res.ok) throw new Error(T.failed);
+        return (await res.json()).data;
+    }
+
+    // ── export: the sheet, plus a second sheet listing what «النوع» and «الوحدة» may say ──
+    document.querySelectorAll('[data-export]').forEach(btn => btn.addEventListener('click', async () => {
+        try {
+            const template = btn.dataset.export === '1';
+            const data = await getJson(SHEET_URL + (template ? '?template=1' : ''));
+            const header = data.columns.map(c => c.label);
+            const body = data.rows.map(r => data.columns.map(c => r[c.key] ?? ''));
+            const book = XLSX.utils.book_new();
+            const sheet = XLSX.utils.aoa_to_sheet([header, ...body]);
+            sheet['!cols'] = header.map(() => ({ wch: 18 }));
+            XLSX.utils.book_append_sheet(book, sheet, 'menu');
+            const lists = [[T.types, T.group, T.units]];
+            const n = Math.max(data.vocabulary.lines.length, data.vocabulary.units.length);
+            for (let i = 0; i < n; i++) {
+                const l = data.vocabulary.lines[i];
+                lists.push([l ? l.name : '', l ? l.group : '', data.vocabulary.units[i] ?? '']);
+            }
+            XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(lists), T.typesSheet.substring(0, 31));
+            XLSX.writeFile(book, template ? 'menu-template.xlsx' : 'menu.xlsx');
+        } catch (e) { showError(e.message || T.failed); }
+    }));
+
+    // ── import: read the first sheet in the browser, send its rows ──
+    fileInput.addEventListener('change', () => { previewBtn.disabled = !fileInput.files.length; rows = null; });
+
+    previewBtn.addEventListener('click', async () => {
+        showError('');
+        const file = fileInput.files[0];
+        if (!file) return;
+        try {
+            const buffer = await file.arrayBuffer();
+            const book = XLSX.read(buffer, { type: 'array', codepage: 65001 });
+            const first = book.Sheets[book.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(first, { defval: '', raw: false });
+            if (!rows.length) { showError(T.empty); return; }
+            await run(true);
+        } catch (e) { showError(e.message || T.failed); }
+    });
+
+    confirmBtn.addEventListener('click', () => run(false));
+
+    async function run(dryRun) {
+        previewBtn.disabled = confirmBtn.disabled = true;
+        try {
+            const res = await fetch(IMPORT_URL, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                body: JSON.stringify({ rows, dry_run: dryRun ? 1 : 0 }),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.message || T.failed);
+            render(body.data, dryRun);
+        } catch (e) { showError(e.message || T.failed); }
+        finally { previewBtn.disabled = !fileInput.files.length; confirmBtn.disabled = false; }
+    }
+
+    function render(report, dryRun) {
+        document.getElementById('reportCard').style.display = 'block';
+        document.getElementById('reportTitle').textContent = dryRun ? T.preview : T.done;
+        document.getElementById('reportSummary').textContent = T.summary
+            .replace(':c', report.summary.create).replace(':u', report.summary.update).replace(':e', report.summary.error);
+        confirmBtn.style.display = dryRun && (report.summary.create + report.summary.update) > 0 ? '' : 'none';
+        const colors = { create: '#1e8e3e', update: '#1a73e8', error: '#d93025' };
+        const tbody = document.getElementById('reportRows');
+        tbody.innerHTML = '';
+        report.rows.forEach(r => {
+            const tr = document.createElement('tr');
+            [r.row, r.name, T[r.action] || r.action, (r.errors || []).join(' — ')].forEach((text, i) => {
+                const td = document.createElement('td');
+                td.textContent = text;
+                if (i === 2) { td.style.color = colors[r.action] || ''; td.style.fontWeight = '600'; }
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+})();
+</script>
+@endpush

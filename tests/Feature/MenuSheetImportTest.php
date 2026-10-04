@@ -145,4 +145,19 @@ class MenuSheetImportTest extends TestCase
         $this->assertCount(1, $section, 'one section for both rows');
         $this->assertSame(2, MenuItem::query()->where('business_id', $kitchen->id)->where('menu_section_id', $section[0]->id)->count());
     }
+
+    public function test_the_web_panel_page_previews_and_imports_rows_read_in_the_browser(): void
+    {
+        $this->actingAs($this->factory);
+
+        $this->get('/business/menu/import')->assertOk()->assertSee('xlsx.full.min.js', false);
+        $this->getJson('/business/menu/sheet?template=1')->assertOk()->assertJsonPath('success', true);
+
+        $rows = [['النوع' => $this->bedroom, 'الاسم عربي' => 'غرفة من الويب', 'السعر' => '9000']];
+        $this->postJson('/business/menu/import', ['rows' => $rows, 'dry_run' => 1])->assertOk()->assertJsonPath('data.summary.create', 1);
+        $this->assertSame(0, $this->itemsNamed('غرفة من الويب'));
+
+        $this->postJson('/business/menu/import', ['rows' => $rows, 'dry_run' => 0])->assertOk()->assertJsonPath('data.summary.create', 1);
+        $this->assertSame(1, $this->itemsNamed('غرفة من الويب'));
+    }
 }

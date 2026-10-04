@@ -16,6 +16,7 @@ use App\Http\Controllers\Business\MenuItemController;
 use App\Http\Controllers\Business\MenuMarketCatalogController;
 use App\Http\Controllers\Business\MenuPharmacyCatalogController;
 use App\Http\Controllers\Business\MenuReviewController;
+use App\Http\Controllers\Business\MenuSheetController;
 use App\Http\Controllers\Business\MenuItemExtraController;
 use App\Http\Controllers\Business\MenuItemExtraGroupController;
 use App\Http\Controllers\Business\MenuItemVariantController;
@@ -157,6 +158,12 @@ Route::prefix('business')->name('business.')->group(function () {
         // قبل «menu» لأن الأخيرة تلتقط {id}؛ ولا معرّف في هذا المسار أصلًا،
         // فلا شيء يُوسَّع به إلى منيو غيره.
         Route::get('menu/review', [MenuReviewController::class, 'index'])->name('menu.review');
+
+        // «استيراد وتصدير المنيو» — a sheet out (Excel/CSV, or an empty template), a sheet back in with a preview.
+        Route::get('menu/import', [MenuSheetController::class, 'index'])->name('menu.import');
+        Route::get('menu/sheet', [MenuSheetController::class, 'show'])->name('menu.sheet');
+        Route::get('menu/sheet.csv', [MenuSheetController::class, 'csv'])->name('menu.sheet.csv');
+        Route::post('menu/import', [MenuSheetController::class, 'import'])->name('menu.import.run');
 
         // شاشة تعبئة الرفوف — السوبر ماركت والهايبر والمني ماركت فقط، من
         // مفردات الأصناف الجاهزة بدل الكتابة اليدوية.

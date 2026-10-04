@@ -2850,5 +2850,12 @@
     "لا يمكن تسعير هذا الطلب في حالته الحالية.": "This request cannot be priced in its current state.",
     "لا يمكن رفض هذا الطلب في حالته الحالية.": "This request cannot be declined in its current state.",
     "القيمة المختارة لا تخص هذا الحقل.": "The chosen value does not belong to this field.",
-    "«:name» رقم صحيح أو عشري.": "\":name\" must be a number."
+    "«:name» رقم صحيح أو عشري.": "\":name\" must be a number.",
+    "التصنيف الرئيسي غير صحيح.": "The main category is not valid.",
+    "هذا التخصص لا يتبع هذا التصنيف الرئيسي.": "This specialty does not belong to this main category.",
+    "هذا الصنف يُباع بالقطعة — اطلب عددًا صحيحًا.": "This item is sold by the piece — order a whole number.",
+    "هذا النوع من المنتجات لا يُباع بالتقسيط.": "This kind of product is not sold on instalments.",
+    "سعر التقسيط لا يقل عن السعر كاش.": "The instalment price cannot be lower than the cash price.",
+    "المقدم يجب أن يكون أقل من سعر التقسيط.": "The down payment must be lower than the instalment price.",
+    "خطة الدفع المختارة غير متاحة.": "The chosen payment plan is not available."
 }

@@ -2649,6 +2649,12 @@ paths:
       summary: Search in-scope catalog masters this business hasn't listed yet (picker feed)
       parameters: [{ name: q, in: query, schema: { type: string } }]
       responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /business/retail-listings/variant-options:
+    get: { tags: [Business Retail], summary: 'The variant options (colour, size...) a retail listing of this business can carry', responses: { '200': { description: OK } } }
+  /business/retail-listings/{listing}/extras:
+    parameters: [{ name: listing, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Retail], summary: 'The add-ons offered with one retail listing', responses: { '200': { description: OK } } }
+    put: { tags: [Business Retail], summary: 'Replace the add-ons offered with one retail listing', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/retail-listings/{listing}:
     parameters: [{ name: listing, in: path, required: true, schema: { type: integer } }]
     get: { tags: [Business Retail], summary: Listing detail, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
@@ -2703,6 +2709,10 @@ paths:
     get: { tags: [Business Menu], summary: The sale units this business's menu may use (kg/piece/portion...), responses: { '200': { description: OK } } }
   /business/menu/vocabulary:
     get: { tags: [Business Menu], summary: This menu's line/modifier option vocabulary, resolved for its own category child, responses: { '200': { description: OK } } }
+  /business/menu/catalog-lookup:
+    get: { tags: [Business Menu], summary: 'Search the catalog models the merchant can link an item to (q, line option)', responses: { '200': { description: OK } } }
+  /business/menu/catalog-products:
+    post: { tags: [Business Menu], summary: 'The model is not in the catalog: the merchant proposes one (pending review)', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/menu/items/{item}/addons:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
     put: { tags: [Business Menu], summary: "Switch the shop's per-item services on or off for one item - {group_ids: [..]}", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }

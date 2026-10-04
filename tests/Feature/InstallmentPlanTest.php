@@ -12,10 +12,10 @@ use Tests\TestCase;
 
 /**
  * «خلي طريقة الدفع تقسم دفعات اذا كانت قسط على تواريخ فى النتيجة وحسب عدد الاشهر» —
- * المالك، 2026-10-03. The merchant says an instalment price runs N months; an order
- * bought that way carries its payments: one per month, with its date and amount,
- * adding up to what the instalment lines cost. The cart says it before the order
- * is placed. Cash lines are not scheduled. Rolls back.
+ * المالك، 2026-10-03; payment plans are the ITEM's own (not a variant), 2026-10-04. The merchant says
+ * what an instalment plan costs and over how many months; an order bought that way carries its
+ * payments: one per month, with its date and amount, adding up to what the instalment lines cost.
+ * The cart says it before the order is placed. Cash lines are not scheduled. Rolls back.
  */
 class InstallmentPlanTest extends TestCase
 {
@@ -24,8 +24,7 @@ class InstallmentPlanTest extends TestCase
     private User $shop;
     private User $customer;
     private int $itemId;
-    private int $cashId;
-    private int $instalmentId;
+    private int $planId;
 
     protected function setUp(): void
     {
@@ -40,45 +39,55 @@ class InstallmentPlanTest extends TestCase
 
         Sanctum::actingAs($this->shop);
         $this->itemId = (int) $this->postJson('/api/v2/business/menu/items', ['name_ar' => 'غرفة نوم بالتقسيط', 'base_price' => 30000, 'line_option_id' => $bedroom, 'available_quantity' => 10])->assertCreated()->json('data.id');
-        $this->cashId = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'كاش', 'price' => 30000, 'is_default' => true])->assertCreated()->json('data.id');
-        $this->instalmentId = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط', 'price' => 100000, 'installment_months' => 3])->assertCreated()->json('data.id');
+        $this->planId = $this->plans([['months' => 3, 'total_price' => 100000]])[0]['id'];
     }
 
+    /** @return list<array<string,mixed>> */
+    private function plans(array $plans): array
+    {
+        Sanctum::actingAs($this->shop);
+
+        return $this->putJson("/api/v2/business/menu/items/{$this->itemId}/payment-plans", ['plans' => $plans])->assertOk()->json('data.payment_plans');
+    }
+
+    /** @param  list<array{0:?int,1:int}>  $lines  [plan id or null for cash, qty] */
     private function place(array $lines): int
     {
         Sanctum::actingAs($this->customer);
-        foreach ($lines as $line) {
-            $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => $line[1]] + ['size_id' => $line[0]])->assertCreated();
+        foreach ($lines as [$plan, $qty]) {
+            $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => $qty] + ($plan ? ['plan_id' => $plan] : []))->assertCreated();
         }
 
         return (int) $this->postJson("/api/v2/cart/{$this->shop->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addDay()->toIso8601String()])->assertCreated()->json('data.order.id');
     }
 
-    public function test_the_months_are_kept_on_the_variant_and_given_to_the_customer(): void
+    public function test_the_plan_is_the_items_own_and_the_customer_is_given_its_months(): void
     {
-        $variants = collect($this->getJson("/api/v2/discovery/menu-items/{$this->itemId}")->assertOk()->json('data.item.variants'))->keyBy('name');
+        $plans = $this->getJson("/api/v2/discovery/menu-items/{$this->itemId}")->assertOk()->json('data.item.payment_plans');
 
-        $this->assertSame(3, $variants['تقسيط']['installment_months']);
-        $this->assertNull($variants['كاش']['installment_months']);
+        $this->assertCount(1, $plans);
+        $this->assertSame(3, $plans[0]['months']);
+        $this->assertEquals(100000, $plans[0]['unit_price']);
 
-        $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط قصير', 'price' => 50000, 'installment_months' => 1])->assertUnprocessable();
+        Sanctum::actingAs($this->shop);
+        $this->putJson("/api/v2/business/menu/items/{$this->itemId}/payment-plans", ['plans' => [['months' => 1, 'total_price' => 50000]]])->assertUnprocessable();
     }
 
     public function test_the_cart_says_what_the_plan_will_be_before_the_order_is_placed(): void
     {
         Sanctum::actingAs($this->customer);
 
-        $cart = $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'size_id' => $this->instalmentId])->assertCreated()->json('data.cart');
+        $cart = $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'plan_id' => $this->planId])->assertCreated()->json('data.cart');
 
         $this->assertSame(3, $cart['installment_plan']['count']);
         $this->assertSame(33333.33, $cart['installment_plan']['monthly']);
-        $this->assertSame(100000.0, (float) $cart['installment_plan']['total']);
+        $this->assertEquals(100000, $cart['installment_plan']['total']);
         $this->assertSame(now()->startOfDay()->addMonthNoOverflow()->toDateString(), $cart['installment_plan']['first_due_on']);
     }
 
     public function test_a_placed_order_carries_one_payment_per_month_adding_up_to_the_line(): void
     {
-        $orderId = $this->place([[$this->instalmentId, 1]]);
+        $orderId = $this->place([[$this->planId, 1]]);
 
         $rows = OrderInstallment::query()->where('order_id', $orderId)->orderBy('seq')->get();
 
@@ -101,7 +110,7 @@ class InstallmentPlanTest extends TestCase
 
     public function test_an_order_paid_in_one_go_has_no_schedule(): void
     {
-        $orderId = $this->place([[$this->cashId, 1]]);
+        $orderId = $this->place([[null, 1]]);
 
         $this->assertSame(0, OrderInstallment::query()->where('order_id', $orderId)->count());
         $this->assertSame([], $this->getJson("/api/v2/orders/{$orderId}")->assertOk()->json('data.installments'));
@@ -109,7 +118,7 @@ class InstallmentPlanTest extends TestCase
 
     public function test_only_the_instalment_lines_are_scheduled_when_cash_and_instalments_are_mixed(): void
     {
-        $orderId = $this->place([[$this->cashId, 1], [$this->instalmentId, 2]]);
+        $orderId = $this->place([[null, 1], [$this->planId, 2]]);
 
         $rows = OrderInstallment::query()->where('order_id', $orderId)->get();
 
@@ -120,13 +129,11 @@ class InstallmentPlanTest extends TestCase
 
     public function test_a_down_payment_goes_with_the_first_month_and_the_rest_is_split(): void
     {
-        Sanctum::actingAs($this->shop);
-        $down = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط بمقدم', 'price' => 36000, 'installment_months' => 12, 'installment_down' => 12000])->assertCreated()->json('data.id');
-
-        $this->assertSame(12000.0, (float) $this->getJson("/api/v2/discovery/menu-items/{$this->itemId}")->assertOk()->json('data.item.variants.2.installment_down'));
+        $down = $this->plans([['months' => 12, 'down' => 12000, 'total_price' => 36000]])[0];
+        $this->assertEquals(12000, $this->getJson("/api/v2/discovery/menu-items/{$this->itemId}")->assertOk()->json('data.item.payment_plans.0.down'));
 
         Sanctum::actingAs($this->customer);
-        $cart = $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'size_id' => $down])->assertCreated()->json('data.cart');
+        $cart = $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'plan_id' => $down['id']])->assertCreated()->json('data.cart');
         $this->assertSame(2000.0, (float) $cart['installment_plan']['monthly']);
         $this->assertSame(14000.0, (float) $cart['installment_plan']['first_amount']);
 
@@ -139,20 +146,40 @@ class InstallmentPlanTest extends TestCase
         $this->assertSame(36000.0, round($rows->sum(), 2));
     }
 
-    public function test_months_and_down_payment_are_kept_for_a_payment_option_only(): void
+    public function test_a_plan_follows_the_cash_price_it_is_a_markup_over(): void
     {
+        $this->plans([['months' => 12, 'total_price' => 36000]]); // +20% over 30000
+
         Sanctum::actingAs($this->shop);
+        $bedroom = (int) DB::table('options')->where('group_id', 3)->where('name_ar', 'غرفة نوم')->value('id');
+        $this->putJson("/api/v2/business/menu/items/{$this->itemId}", ['name_ar' => 'غرفة نوم بالتقسيط', 'base_price' => 40000, 'line_option_id' => $bedroom])->assertOk();
 
-        $id = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'size', 'name_ar' => 'كبير', 'price' => 5000, 'installment_months' => 6, 'installment_down' => 1000])->assertCreated()->json('data.id');
-
-        $this->assertNull(\App\Models\MenuItemVariant::query()->findOrFail($id)->installment_months);
-        $this->assertNull(\App\Models\MenuItemVariant::query()->findOrFail($id)->installment_down);
+        $this->assertEquals(48000, $this->getJson("/api/v2/discovery/menu-items/{$this->itemId}")->assertOk()->json('data.item.payment_plans.0.unit_price'), 'the cash price moved, the 20% markup came with it');
     }
 
-    public function test_a_down_payment_must_be_less_than_the_price(): void
+    public function test_a_plan_is_never_cheaper_than_cash_and_the_down_payment_is_less_than_the_plan(): void
     {
         Sanctum::actingAs($this->shop);
 
-        $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط غلط', 'price' => 5000, 'installment_months' => 6, 'installment_down' => 5000])->assertUnprocessable();
+        $this->putJson("/api/v2/business/menu/items/{$this->itemId}/payment-plans", ['plans' => [['months' => 6, 'total_price' => 20000]]])->assertUnprocessable();
+        $this->putJson("/api/v2/business/menu/items/{$this->itemId}/payment-plans", ['plans' => [['months' => 6, 'down' => 36000, 'total_price' => 36000]]])->assertUnprocessable();
+    }
+
+    public function test_food_is_never_sold_on_instalments(): void
+    {
+        $fishShop = User::query()->where('type', 'business')->where('category_child_id', 101)->orderBy('id')->firstOrFail();
+        $shrimp = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')->where('g.name_ar', 'أنواع الأسماك والمأكولات البحرية')->where('o.name_ar', 'جمبري')->value('o.id');
+        Sanctum::actingAs($fishShop);
+        $fish = (int) $this->postJson('/api/v2/business/menu/items', ['name_ar' => 'جمبري', 'base_price' => 300, 'line_option_id' => $shrimp])->assertCreated()->json('data.id');
+
+        $this->putJson("/api/v2/business/menu/items/{$fish}/payment-plans", ['plans' => [['months' => 6, 'total_price' => 400]]])->assertUnprocessable();
+        $this->assertFalse($this->getJson("/api/v2/business/menu/items/{$fish}")->assertOk()->json('data.allows_payment_plans'));
+    }
+
+    public function test_instalment_is_no_longer_a_variant_of_the_item(): void
+    {
+        Sanctum::actingAs($this->shop);
+
+        $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط', 'price' => 36000, 'installment_months' => 12])->assertUnprocessable();
     }
 }

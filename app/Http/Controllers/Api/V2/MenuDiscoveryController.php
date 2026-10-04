@@ -491,6 +491,8 @@ final class MenuDiscoveryController extends Controller
             'catalog_brand_id' => $item->catalogProduct?->brand_id ? (int) $item->catalogProduct->brand_id : null,
             'catalog_brand' => collect($specs)->firstWhere('code', 'brand')['value'] ?? null,
             'series' => $item->catalogProduct?->series ?: null,
+            // «كاش أو أقساط»: the plans a customer may pick on the line (none = cash only).
+            'payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->present($item, $base),
             'variants' => $item->activeVariants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'name' => $this->label($v->name_ar, $v->name_en, __('حجم #') . $v->id),

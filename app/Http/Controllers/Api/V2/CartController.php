@@ -65,6 +65,8 @@ final class CartController extends Controller
             'offering_id' => ['required', 'integer', 'min:1'],
             'qty' => ['nullable', 'integer', 'min:1', 'max:999'],
             'size_id' => ['nullable', 'integer', 'min:1'],
+            // «كاش أو أقساط»: the payment plan picked on the line (none = cash).
+            'plan_id' => ['nullable', 'integer', 'min:1'],
             'extras' => ['nullable', 'array'],
             'extras.*' => ['integer', 'min:1'],
         ], [], ['kind' => __('نوع العرض'), 'offering_id' => __('العرض'), 'qty' => __('الكمية')]);
@@ -76,6 +78,7 @@ final class CartController extends Controller
             (int) ($data['qty'] ?? 1),
             [
                 'size_id' => $data['size_id'] ?? null,
+                'plan_id' => $data['plan_id'] ?? null,
                 'extras' => $data['extras'] ?? [],
             ]
         );

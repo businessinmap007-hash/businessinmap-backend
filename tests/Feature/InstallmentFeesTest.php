@@ -117,13 +117,13 @@ class InstallmentFeesTest extends TestCase
 
         Sanctum::actingAs($this->business);
         $item = (int) $this->postJson('/api/v2/business/menu/items', ['name_ar' => 'غرفة رسوم', 'base_price' => 36000, 'line_option_id' => $bedroom, 'available_quantity' => 10])->assertCreated()->json('data.id');
-        $cash = (int) $this->postJson("/api/v2/business/menu/items/{$item}/variants", ['type' => 'payment', 'name_ar' => 'كاش', 'price' => 36000, 'is_default' => true])->assertCreated()->json('data.id');
-        $instalment = (int) $this->postJson("/api/v2/business/menu/items/{$item}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط', 'price' => 36000, 'installment_months' => 12])->assertCreated()->json('data.id');
+        // Same total on both ways of paying: the fee is the operation's, not the way it is paid.
+        $instalment = (int) $this->putJson("/api/v2/business/menu/items/{$item}/payment-plans", ['plans' => [['months' => 12, 'total_price' => 36000]]])->assertOk()->json('data.payment_plans.0.id');
 
         $fees = [];
-        foreach ([$cash, $instalment] as $variant) {
+        foreach ([null, $instalment] as $plan) {
             Sanctum::actingAs($this->customer);
-            $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1, 'size_id' => $variant])->assertCreated();
+            $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $item, 'qty' => 1] + ($plan ? ['plan_id' => $plan] : []))->assertCreated();
             $orderId = (int) $this->postJson("/api/v2/cart/{$this->business->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addDay()->toIso8601String()])->assertCreated()->json('data.order.id');
             $fees[] = (float) Order::findOrFail($orderId)->service_fee;
         }

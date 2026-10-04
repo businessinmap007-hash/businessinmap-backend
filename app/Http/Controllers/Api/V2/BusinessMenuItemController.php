@@ -974,6 +974,26 @@ final class BusinessMenuItemController extends Controller
         return response()->json(['success' => true]);
     }
 
+    // ─────────────────────────── Payment plans ───────────────────────────
+
+    /**
+     * PUT /api/v2/business/menu/items/{item}/payment-plans — `{"plans": [{"months": 12, "down": 12000,
+     * "total_price": 36000}]}`: what ONE unit costs when paid that way. Replaces the item's plans; an empty
+     * list means cash only. Refused for an item whose kind does not sell on instalments (food).
+     */
+    public function updatePaymentPlans(Request $request, int $item)
+    {
+        $model = $this->ownItem($request, $item);
+        $data = $request->validate([
+            'plans' => ['present', 'array', 'max:12'],
+            'plans.*.months' => ['required', 'integer', 'min:2', 'max:60'],
+            'plans.*.down' => ['nullable', 'numeric', 'min:0'],
+            'plans.*.total_price' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        return response()->json(['success' => true, 'data' => ['payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->replace($model, $data['plans'])]]);
+    }
+
     // ─────────────────────────── Variants ───────────────────────────
 
     /** POST /api/v2/business/menu/items/{item}/variants */
@@ -1255,7 +1275,8 @@ final class BusinessMenuItemController extends Controller
     private function validatedVariant(Request $request): array
     {
         $data = $request->validate([
-            'type' => ['required', 'string', 'max:50'],
+            // «كاش / تقسيط» is not a variant of the item: it is a payment PLAN (updatePaymentPlans).
+            'type' => ['required', 'string', 'max:50', Rule::notIn(['payment'])],
             'name_ar' => ['required', 'string', 'max:191'],
             'name_en' => ['nullable', 'string', 'max:191'],
             'price' => ['nullable', 'numeric', 'min:0'],

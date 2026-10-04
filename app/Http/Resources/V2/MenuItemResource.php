@@ -93,6 +93,10 @@ class MenuItemResource extends JsonResource
                 'source' => $i->source,
             ])->values()),
 
+            // «كاش أو أقساط» — only for the kinds that sell on instalments.
+            'payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->present($this->resource),
+            'allows_payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->allowedFor($this->resource),
+
             'variants' => $this->whenLoaded('variants', fn () => $this->variants->map(fn ($v) => [
                 'id' => (int) $v->id,
                 'type' => $v->type,

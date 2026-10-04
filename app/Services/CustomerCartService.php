@@ -122,6 +122,7 @@ class CustomerCartService
             try {
                 $cart = $this->addItem($userId, (string) $kind, (int) $line->offering_id, (int) $line->qty, [
                     'size_id' => $line->size_id ? (int) $line->size_id : null,
+                    'plan_id' => $line->payment_plan_id ? (int) $line->payment_plan_id : null,
                     'extras' => $extras,
                 ]);
                 $added++;
@@ -1169,13 +1170,13 @@ class CustomerCartService
      */
     private function mergeOrCreateLine(Order $cart, int $offeringId, array $resolved, int $qty, ?int $addedBy): void
     {
-        [$businessId, $offeringType, $price, $menuId, $sizeId, $addons] = $resolved;
+        [$businessId, $offeringType, $price, $menuId, $sizeId, $addons, $planId] = $resolved + [6 => null];
 
         if ((int) $cart->business_id !== (int) $businessId) {
             throw ValidationException::withMessages(['offering_id' => __('هذا العرض لا يخص نشاط هذه السلة.')]);
         }
 
-        $signature = $this->lineSignature($sizeId, $addons, $addedBy);
+        $signature = $this->lineSignature($sizeId, $addons, $addedBy, $planId);
 
         $line = $cart->items()
             ->where('offering_type', $offeringType)
@@ -1183,12 +1184,12 @@ class CustomerCartService
             ->when($addedBy !== null, fn ($q) => $q->where('added_by_user_id', $addedBy))
             ->when($addedBy === null, fn ($q) => $q->whereNull('added_by_user_id'))
             ->get()
-            ->first(fn (OrderItem $l) => $this->lineSignature($l->size_id, $l->addons, $l->added_by_user_id) === $signature);
+            ->first(fn (OrderItem $l) => $this->lineSignature($l->size_id, $l->addons, $l->added_by_user_id, $l->payment_plan_id) === $signature);
 
         if ($line) {
             $this->setQty($line, (int) $line->qty + $qty);
         } else {
-            $this->orders->addOffering($cart, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId, $addons, $addedBy);
+            $this->orders->addOffering($cart, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId, $addons, $addedBy, $planId);
         }
     }
 
@@ -1284,12 +1285,21 @@ class CustomerCartService
             $sizeId = (int) $variant->id;
         }
 
+        // «كاش أو أقساط»: how it is paid is chosen next to the size, and prices the item (not the services
+        // added on top of it): the instalment price is the cash price plus the plan's markup.
+        $planId = null;
+        if (! empty($options['plan_id'])) {
+            $plan = app(\App\Services\Menu\PaymentPlans::class)->resolve($menu, (int) $options['plan_id']);
+            $unit = $plan->unitPrice($unit);
+            $planId = (int) $plan->id;
+        }
+
         $addons = $this->resolveExtras($menu->id, $options['extras'] ?? []);
         foreach ($addons as $addon) {
             $unit += (float) $addon['price'] * (int) $addon['qty'];
         }
 
-        return [(int) $menu->business_id, $type, round($unit, 2), (int) $menu->id, $sizeId, $addons ?: null];
+        return [(int) $menu->business_id, $type, round($unit, 2), (int) $menu->id, $sizeId, $addons ?: null, $planId];
     }
 
     /**
@@ -1369,7 +1379,7 @@ class CustomerCartService
      * pairs + the adder. Including the adder keeps two people's identical items
      * on separate, attributable lines while merging one person's repeats.
      */
-    private function lineSignature(?int $sizeId, $addons, ?int $addedBy = null): string
+    private function lineSignature(?int $sizeId, $addons, ?int $addedBy = null, ?int $planId = null): string
     {
         $pairs = [];
         foreach ((is_array($addons) ? $addons : []) as $a) {
@@ -1377,7 +1387,7 @@ class CustomerCartService
         }
         sort($pairs);
 
-        return md5(json_encode(['s' => (int) $sizeId, 'e' => $pairs, 'u' => (int) $addedBy]));
+        return md5(json_encode(['s' => (int) $sizeId, 'e' => $pairs, 'u' => (int) $addedBy, 'p' => (int) $planId]));
     }
 
     /** A personal-cart line owned by the customer (never a placed order). */

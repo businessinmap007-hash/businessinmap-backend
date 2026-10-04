@@ -25,44 +25,32 @@ class PaymentPricesTest extends TestCase
         foreach ([66, 203] as $optionId) {   // كاش، تقسيط
             DB::table('option_user')->updateOrInsert(['user_id' => $shop->id, 'option_id' => $optionId], []);
         }
-        $menu = (int) DB::table('platform_services')->where('key', 'menu')->value('id');
-        DB::table('service_option_group_placements')->updateOrInsert(
-            ['platform_service_id' => $menu, 'option_group_id' => 50, 'child_id' => 116, 'item_type_key' => ''],
-            ['usage' => 'price_variant', 'branches_as_sections' => 0, 'is_active' => 1, 'sort_order' => 5, 'show_on_page' => 1, 'display' => 'auto', 'multiple' => 1, 'created_at' => now(), 'updated_at' => now()]
-        );
-
         return $shop;
     }
 
-    public function test_the_vocabulary_hands_over_the_payment_group_as_a_price_axis_with_the_options_he_offers(): void
+    public function test_payment_is_no_longer_a_price_axis_the_merchant_prices_by(): void
     {
         Sanctum::actingAs($this->shop());
 
         $axes = $this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data.price_axes');
 
-        $payment = collect($axes)->firstWhere('group_id', 50);
-        $this->assertNotNull($payment, 'a price axis for this trade');
-        $names = array_column($payment['options'], 'name_ar');
-        $this->assertContains('كاش', $names);
-        $this->assertContains('تقسيط', $names);
-        $this->assertNotContains('تقسيط بدون فوائد', $names, 'only what he ticked');
+        $this->assertNull(collect($axes)->firstWhere('group_id', 50), '«كاش / تقسيط» are payment plans of the item, not one more price axis');
     }
 
-    public function test_cash_and_instalment_are_two_prices_the_customer_picks_between(): void
+    public function test_cash_is_the_price_and_an_instalment_plan_is_a_markup_the_customer_picks(): void
     {
         Sanctum::actingAs($this->shop());
         $bedroom = (int) DB::table('options')->where('group_id', 3)->where('name_ar', 'غرفة نوم')->value('id');
         DB::table('option_user')->updateOrInsert(['user_id' => $this->shop()->id, 'option_id' => $bedroom], []);
 
         $id = (int) $this->postJson('/api/v2/business/menu/items', ['name_ar' => 'غرفة نوم بسعرين', 'base_price' => 30000, 'line_option_id' => $bedroom])->assertCreated()->json('data.id');
-        $this->postJson("/api/v2/business/menu/items/{$id}/variants", ['type' => 'payment', 'name_ar' => 'كاش', 'price' => 30000, 'is_default' => true])->assertCreated();
-        $this->postJson("/api/v2/business/menu/items/{$id}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط', 'price' => 36000])->assertCreated();
+        $this->putJson("/api/v2/business/menu/items/{$id}/payment-plans", ['plans' => [['months' => 12, 'total_price' => 36000]]])->assertOk();
 
-        $variants = collect($this->getJson("/api/v2/discovery/menu-items/{$id}")->assertOk()->json('data.item.variants'))->keyBy('name');
+        $item = $this->getJson("/api/v2/discovery/menu-items/{$id}")->assertOk()->json('data.item');
 
-        $this->assertSame(30000.0, (float) $variants['كاش']['price']);
-        $this->assertTrue($variants['كاش']['is_default']);
-        $this->assertSame(36000.0, (float) $variants['تقسيط']['price']);
-        $this->assertSame('payment', $variants['تقسيط']['type'], 'the client labels the picker «طريقة الدفع» from the type');
+        $this->assertEquals(30000, $item['price'] ?? 30000, 'cash is the item price');
+        $this->assertSame([], array_values(array_filter($item['variants'], fn ($v) => $v['type'] === 'payment')), 'no payment variants any more');
+        $this->assertEquals(36000, $item['payment_plans'][0]['unit_price']);
+        $this->assertEquals(20, round($item['payment_plans'][0]['markup_percent'], 4), '36000 over 30000 cash');
     }
 }

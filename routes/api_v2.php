@@ -868,6 +868,8 @@ Route::prefix('v2')->group(function () {
             Route::post('items/{item}/images', [BusinessMenuItemController::class, 'storeImages'])->whereNumber('item');
             Route::delete('items/{item}/images/{image}', [BusinessMenuItemController::class, 'destroyImage'])->whereNumber(['item', 'image']);
 
+            // «كاش أو أقساط» — the payment plans of an item (big-ticket kinds only).
+            Route::put('items/{item}/payment-plans', [BusinessMenuItemController::class, 'updatePaymentPlans'])->whereNumber('item');
             Route::post('items/{item}/variants', [BusinessMenuItemController::class, 'storeVariant'])->whereNumber('item');
             Route::match(['put', 'patch'], 'items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'updateVariant'])->whereNumber(['item', 'variant']);
             Route::delete('items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'destroyVariant'])->whereNumber(['item', 'variant']);

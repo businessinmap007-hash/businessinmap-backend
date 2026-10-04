@@ -24,7 +24,6 @@ class PaymentPriceThroughToOrderTest extends TestCase
     private User $shop;
     private User $customer;
     private int $itemId;
-    private int $cashId;
     private int $instalmentId;
 
     protected function setUp(): void
@@ -44,8 +43,7 @@ class PaymentPriceThroughToOrderTest extends TestCase
         $this->itemId = (int) $this->postJson('/api/v2/business/menu/items', [
             'name_ar' => 'غرفة نوم بسعرين للفاتورة', 'base_price' => 30000, 'line_option_id' => $bedroom, 'available_quantity' => 10,
         ])->assertCreated()->json('data.id');
-        $this->cashId = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'كاش', 'price' => 30000, 'is_default' => true])->assertCreated()->json('data.id');
-        $this->instalmentId = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط', 'price' => 36000])->assertCreated()->json('data.id');
+        $this->instalmentId = (int) $this->putJson("/api/v2/business/menu/items/{$this->itemId}/payment-plans", ['plans' => [['months' => 12, 'total_price' => 36000]]])->assertOk()->json('data.payment_plans.0.id');
     }
 
     public function test_the_instalment_price_goes_from_the_cart_to_the_placed_order(): void
@@ -53,14 +51,14 @@ class PaymentPriceThroughToOrderTest extends TestCase
         Sanctum::actingAs($this->customer);
 
         $cart = $this->withHeaders(['Accept-Language' => 'ar'])
-            ->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 2, 'size_id' => $this->instalmentId, 'price' => 1])
+            ->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 2, 'plan_id' => $this->instalmentId, 'price' => 1])
             ->assertCreated()->json('data.cart');
 
         // The client cannot name a price; the picked variant's price is used.
         $line = Order::query()->where('user_id', $this->customer->id)->where('business_id', $this->shop->id)->where('status', 'cart')->firstOrFail()->items()->firstOrFail();
         $this->assertSame('36000.00', (string) $line->price, 'one unit at the instalment price');
         $this->assertSame('72000.00', (string) $line->total_price);
-        $this->assertSame($this->instalmentId, (int) $line->size_id);
+        $this->assertSame($this->instalmentId, (int) $line->payment_plan_id);
         $this->assertStringContainsString('تقسيط', $cart['items'][0]['name'], 'the cart line says it is an instalment');
         $this->assertSame(72000.0, (float) $cart['final_total']);
 
@@ -71,7 +69,7 @@ class PaymentPriceThroughToOrderTest extends TestCase
         $order = Order::query()->with('items')->findOrFail($orderId);
         $this->assertSame('pending', $order->status);
         $this->assertSame('72000.00', (string) $order->items->first()->total_price);
-        $this->assertSame($this->instalmentId, (int) $order->items->first()->size_id);
+        $this->assertSame($this->instalmentId, (int) $order->items->first()->payment_plan_id);
         $this->assertSame(72000.0, round((float) $order->total, 2), 'the order total is the instalment lines, not the cash 60,000');
 
         // What the customer reads back — the «invoice»: price AND how it is paid.
@@ -101,23 +99,12 @@ class PaymentPriceThroughToOrderTest extends TestCase
         $this->assertStringNotContainsString('تقسيط', (string) $line->offering_label);
     }
 
-    public function test_cash_picked_is_priced_and_named_as_cash(): void
-    {
-        Sanctum::actingAs($this->customer);
-
-        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'size_id' => $this->cashId])->assertCreated();
-
-        $line = Order::query()->where('user_id', $this->customer->id)->where('business_id', $this->shop->id)->where('status', 'cart')->firstOrFail()->items()->firstOrFail();
-        $this->assertSame('30000.00', (string) $line->price);
-        $this->assertStringContainsString('كاش', (string) $line->offering_label);
-    }
-
     public function test_an_owner_ordering_from_himself_reads_his_order_back_without_an_empty_list_for_trust(): void
     {
         // «فى الصورة اللودر لا يتوقف» — the app reads `trust` as an object; PHP sent an
         // empty map as `[]`, the detail failed to parse and the sheet spun for ever.
         Sanctum::actingAs($this->shop);
-        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'size_id' => $this->instalmentId])->assertCreated();
+        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'plan_id' => $this->instalmentId])->assertCreated();
         $orderId = (int) $this->postJson("/api/v2/cart/{$this->shop->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addDay()->toIso8601String()])->assertCreated()->json('data.order.id');
 
         $raw = $this->getJson("/api/v2/orders/{$orderId}")->assertOk()->getContent();

@@ -21,6 +21,7 @@ class OrderItem extends Model
         'offering_id',
         'offering_label',
         'size_id',
+        'payment_plan_id',
         'installment_months',
         'installment_down',
         'addons',
@@ -77,6 +78,17 @@ class OrderItem extends Model
             // price on the invoice is that option's. Frozen into the label so the
             // invoice, the merchant's incoming order and the customer's history all
             // keep saying it, even if the merchant later edits his prices.
+            // «تقسيط على N شهر»: the plan chosen on the line, frozen the same way.
+            if ($line->payment_plan_id && $line->offering_label !== null) {
+                $plan = \App\Models\MenuItemPaymentPlan::query()->find($line->payment_plan_id);
+
+                if ($plan) {
+                    $line->offering_label = trim($line->offering_label . ' — ' . __('تقسيط :months شهر', ['months' => $plan->installment_months]));
+                    $line->installment_months = (int) $plan->installment_months > 1 ? (int) $plan->installment_months : null;
+                    $line->installment_down = $line->installment_months && (float) $plan->installment_down > 0 ? (float) $plan->installment_down : null;
+                }
+            }
+
             if ($line->size_id && $line->offering_label !== null) {
                 $variant = MenuItemVariant::query()->find($line->size_id, ['id', 'type', 'name_ar', 'name_en', 'installment_months', 'installment_down']);
 

@@ -26,7 +26,6 @@ class InstallmentCollectionTest extends TestCase
     private User $shop;
     private User $customer;
     private int $itemId;
-    private int $cashId;
     private int $instalmentId;
 
     protected function setUp(): void
@@ -42,14 +41,14 @@ class InstallmentCollectionTest extends TestCase
 
         Sanctum::actingAs($this->shop);
         $this->itemId = (int) $this->postJson('/api/v2/business/menu/items', ['name_ar' => 'غرفة نوم للتحصيل', 'base_price' => 30000, 'line_option_id' => $bedroom, 'available_quantity' => 10])->assertCreated()->json('data.id');
-        $this->cashId = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'كاش', 'price' => 30000, 'is_default' => true])->assertCreated()->json('data.id');
-        $this->instalmentId = (int) $this->postJson("/api/v2/business/menu/items/{$this->itemId}/variants", ['type' => 'payment', 'name_ar' => 'تقسيط', 'price' => 36000, 'installment_months' => 12, 'installment_down' => 12000])->assertCreated()->json('data.id');
+        $this->instalmentId = (int) $this->putJson("/api/v2/business/menu/items/{$this->itemId}/payment-plans", ['plans' => [['months' => 12, 'down' => 12000, 'total_price' => 36000]]])->assertOk()->json('data.payment_plans.0.id');
     }
 
-    private function place(int $variantId): array
+    /** @param  ?int  $planId  the payment plan picked on the line; null = cash */
+    private function place(?int $planId): array
     {
         Sanctum::actingAs($this->customer);
-        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1, 'size_id' => $variantId])->assertCreated();
+        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->itemId, 'qty' => 1] + ($planId ? ['plan_id' => $planId] : []))->assertCreated();
 
         return $this->postJson("/api/v2/cart/{$this->shop->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addDay()->toIso8601String()])->assertCreated()->json('data.order');
     }
@@ -79,7 +78,7 @@ class InstallmentCollectionTest extends TestCase
 
     public function test_cash_puts_nothing_on_the_agenda(): void
     {
-        $this->place($this->cashId);
+        $this->place(null);
 
         $this->assertSame(0, AgendaItem::query()->where('user_id', $this->customer->id)->where('kind', AgendaItem::KIND_INSTALLMENT)->count());
     }
@@ -122,7 +121,7 @@ class InstallmentCollectionTest extends TestCase
     public function test_the_reports_page_gets_an_instalment_view_with_what_is_still_to_collect(): void
     {
         $this->place($this->instalmentId);
-        $this->place($this->cashId);
+        $this->place(null);
 
         Sanctum::actingAs($this->shop);
         $first = OrderInstallment::query()->join('orders', 'orders.id', '=', 'order_installments.order_id')->where('orders.business_id', $this->shop->id)->orderByDesc('order_installments.order_id')->orderBy('seq')->first(['order_installments.order_id']);

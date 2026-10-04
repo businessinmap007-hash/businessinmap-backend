@@ -97,6 +97,8 @@ class MenuItemResource extends JsonResource
             'payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->present($this->resource),
             // The shop's services this merchant switches on per item (a restaurant's «طريقة الطهي»).
             'addon_choices' => app(\App\Services\Menu\BusinessAddons::class)->choicesFor($this->resource),
+            // The same services as checkboxes — which of the shop's priced services THIS item offers.
+            'addon_services' => app(\App\Services\Menu\BusinessAddons::class)->servicesFor($this->resource),
             'allows_payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->allowedFor($this->resource),
 
             'variants' => $this->whenLoaded('variants', fn () => $this->variants->map(fn ($v) => [
@@ -119,6 +121,8 @@ class MenuItemResource extends JsonResource
                 'name_ar' => $g->name_ar,
                 'name_en' => $g->name_en,
                 'selection_type' => $g->selection_type,
+                // Set when the group comes from the shop's services («طريقة الطهي»): ticked on the item, not edited.
+                'source_group_id' => $g->source_group_id !== null ? (int) $g->source_group_id : null,
                 'reorder' => (int) $g->reorder,
                 'is_active' => (bool) $g->is_active,
             ])->values()),
@@ -130,6 +134,7 @@ class MenuItemResource extends JsonResource
                 'name_ar' => $e->name_ar,
                 'name_en' => $e->name_en,
                 'price' => (float) $e->price,
+                'source_option_id' => $e->source_option_id !== null ? (int) $e->source_option_id : null,
                 'max_qty' => (int) $e->max_qty,
                 'is_active' => (bool) $e->is_active,
             ])->values()),

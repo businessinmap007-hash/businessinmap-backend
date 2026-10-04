@@ -870,6 +870,7 @@ Route::prefix('v2')->group(function () {
 
             // «كاش أو أقساط» — the payment plans of an item (big-ticket kinds only).
             Route::put('items/{item}/addons', [BusinessMenuItemController::class, 'updateAddonChoices'])->whereNumber('item');
+            Route::put('items/{item}/addon-options', [BusinessMenuItemController::class, 'updateAddonOptions'])->whereNumber('item');
             Route::put('items/{item}/payment-plans', [BusinessMenuItemController::class, 'updatePaymentPlans'])->whereNumber('item');
             Route::post('items/{item}/variants', [BusinessMenuItemController::class, 'storeVariant'])->whereNumber('item');
             Route::match(['put', 'patch'], 'items/{item}/variants/{variant}', [BusinessMenuItemController::class, 'updateVariant'])->whereNumber(['item', 'variant']);

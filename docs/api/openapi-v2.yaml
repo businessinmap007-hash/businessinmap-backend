@@ -2706,6 +2706,9 @@ paths:
   /business/menu/items/{item}/addons:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
     put: { tags: [Business Menu], summary: "Switch the shop's per-item services on or off for one item - {group_ids: [..]}", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/menu/items/{item}/addon-options:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    put: { tags: [Business Menu], summary: "Tick the shop's priced services (cooking method, preparation...) this item offers, one by one - {option_ids: [..]}; the item resource lists them as addon_services with enabled flags", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/menu/items/{item}/payment-plans:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
     put: { tags: [Business Menu], summary: "Replace an item's instalment plans - {plans: [{months, down, total_price}]}; refused for kinds that do not sell on instalments", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }

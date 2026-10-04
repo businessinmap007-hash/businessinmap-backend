@@ -120,7 +120,8 @@ class FishCookingAddonsTest extends TestCase
         $this->price([$this->method('مقلي') => 0]);
         $this->assertSame([50.0], MenuItemExtra::query()->where('menu_item_id', $item)->active()->pluck('price')->map(fn ($p) => (float) $p)->all());
 
-        MenuItemExtraGroup::query()->where('menu_item_id', $item)->update(['is_active' => false]);
+        // The merchant unticks every service on this item: a re-priced shop does not bring them back.
+        $this->putJson("/api/v2/business/menu/items/{$item}/addon-options", ['option_ids' => []])->assertOk();
         $this->price([$this->method('مشوي') => 55]);
         $this->assertFalse((bool) MenuItemExtraGroup::query()->where('menu_item_id', $item)->value('is_active'), 'the merchant switched it off for this item');
     }

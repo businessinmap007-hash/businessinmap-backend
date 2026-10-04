@@ -175,6 +175,8 @@ final class BusinessAddons
 
         $scopes = $this->scopes((int) $item->business_id);
         $on = DB::table('menu_item_addon_choices')->where('menu_item_id', $item->id)->pluck('option_group_id')->map(fn ($id) => (int) $id)->all();
+        // The options this item does not offer (unticked on its screen).
+        $excluded = DB::table('menu_item_addon_exclusions')->where('menu_item_id', $item->id)->pluck('option_id')->map(fn ($id) => (int) $id)->all();
 
         foreach ($this->groupIds((int) $item->business_id) as $groupId) {
             $optionIds = DB::table('options')->where('group_id', $groupId)->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -209,7 +211,7 @@ final class BusinessAddons
                 $extra = MenuItemExtra::query()->where('menu_item_id', $item->id)->where('source_option_id', $optionId)->first();
                 $price = $prices[$optionId] ?? null;
 
-                if ($price === null) {
+                if ($price === null || in_array($optionId, $excluded, true)) {
                     $extra?->update(['is_active' => false]);
 
                     continue;
@@ -227,6 +229,78 @@ final class BusinessAddons
                     $extra->forceFill(['source_option_id' => $optionId])->save();
                 }
             }
+
+            // A group with nothing ticked offers nothing: no empty radio list on the customer sheet.
+            $group->update(['is_active' => MenuItemExtra::query()->where('extra_group_id', $group->id)->where('is_active', true)->exists()]);
         }
+    }
+
+    /**
+     * The shop's PRICED services as checkboxes for ONE item — each group with the options the shop prices and
+     * whether THIS item offers it. A service carried on every item starts with everything ticked; a
+     * per-item one (a restaurant's cooking method) starts with nothing.
+     *
+     * @return list<array{group_id:int,group_name:string,scope:string,options:list<array{id:int,name:string,price:float,enabled:bool}>}>
+     */
+    public function servicesFor(MenuItem $item): array
+    {
+        $business = (int) $item->business_id;
+        $prices = DB::table('business_addon_prices')->where('business_id', $business)->where('price', '>', 0)->pluck('price', 'option_id');
+        $scopes = $this->scopes($business);
+        $on = DB::table('menu_item_addon_choices')->where('menu_item_id', $item->id)->pluck('option_group_id')->map(fn ($id) => (int) $id)->all();
+        $excluded = DB::table('menu_item_addon_exclusions')->where('menu_item_id', $item->id)->pluck('option_id')->map(fn ($id) => (int) $id)->all();
+        $groups = OptionGroup::query()->whereIn('id', array_keys($scopes))->get()->keyBy('id');
+
+        $out = [];
+        foreach ($this->groupIds($business) as $groupId) {
+            if (! isset($groups[$groupId])) {
+                continue;
+            }
+            $scope = $scopes[$groupId] ?? 'all';
+            $groupOn = $scope === 'all' || in_array($groupId, $on, true);
+            $options = \App\Models\Option::query()->where('group_id', $groupId)->orderBy('sort_order')->orderBy('id')->get()
+                ->filter(fn ($o) => isset($prices[$o->id]))
+                ->map(fn ($o) => [
+                    'id' => (int) $o->id, 'name' => $o->displayName(), 'price' => (float) $prices[$o->id],
+                    'enabled' => $groupOn && ! in_array((int) $o->id, $excluded, true),
+                ])->values()->all();
+            if ($options !== []) {
+                $out[] = ['group_id' => $groupId, 'group_name' => $groups[$groupId]->displayName(), 'scope' => $scope, 'options' => $options];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Tick the services this item offers — `option ids` (every priced option of the shop's services that is
+     * not in the list is switched off for THIS item). A per-item group is on exactly when one of its options
+     * is ticked.
+     *
+     * @param  list<int>  $optionIds
+     */
+    public function setOptions(MenuItem $item, array $optionIds): array
+    {
+        $ticked = array_map('intval', $optionIds);
+        $scopes = $this->scopes((int) $item->business_id);
+
+        DB::transaction(function () use ($item, $ticked, $scopes) {
+            foreach ($this->servicesFor($item) as $group) {
+                $ids = array_column($group['options'], 'id');
+                DB::table('menu_item_addon_exclusions')->where('menu_item_id', $item->id)->whereIn('option_id', $ids)->delete();
+                foreach (array_diff($ids, $ticked) as $off) {
+                    DB::table('menu_item_addon_exclusions')->insert(['menu_item_id' => $item->id, 'option_id' => $off, 'created_at' => now(), 'updated_at' => now()]);
+                }
+                if (($scopes[$group['group_id']] ?? 'all') === 'chosen') {
+                    DB::table('menu_item_addon_choices')->where('menu_item_id', $item->id)->where('option_group_id', $group['group_id'])->delete();
+                    if (array_intersect($ids, $ticked) !== []) {
+                        DB::table('menu_item_addon_choices')->insert(['menu_item_id' => $item->id, 'option_group_id' => $group['group_id'], 'created_at' => now(), 'updated_at' => now()]);
+                    }
+                }
+            }
+        });
+        $this->syncItem($item);
+
+        return $this->servicesFor($item);
     }
 }

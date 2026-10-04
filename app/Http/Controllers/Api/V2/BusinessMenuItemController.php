@@ -990,6 +990,18 @@ final class BusinessMenuItemController extends Controller
         return response()->json(['success' => true, 'data' => ['addon_choices' => app(\App\Services\Menu\BusinessAddons::class)->setChoices($model, $data['group_ids'])]]);
     }
 
+    /**
+     * PUT /api/v2/business/menu/items/{item}/addon-options — `{"option_ids": [11617, 11618]}`: which of the shop's
+     * priced services (cooking method, preparation…) THIS item offers, ticked one by one.
+     */
+    public function updateAddonOptions(Request $request, int $item)
+    {
+        $model = $this->ownItem($request, $item);
+        $data = $request->validate(['option_ids' => ['present', 'array'], 'option_ids.*' => ['integer']]);
+
+        return response()->json(['success' => true, 'data' => ['addon_services' => app(\App\Services\Menu\BusinessAddons::class)->setOptions($model, $data['option_ids'])]]);
+    }
+
     // ─────────────────────────── Payment plans ───────────────────────────
 
     /**

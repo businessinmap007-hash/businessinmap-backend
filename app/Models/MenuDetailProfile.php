@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
  */
 class MenuDetailProfile extends Model
 {
-    protected $fillable = ['code', 'name_ar', 'name_en', 'icon', 'uses_catalog', 'sort_order', 'is_active'];
+    protected $fillable = ['code', 'name_ar', 'name_en', 'icon', 'uses_catalog', 'sort_order', 'is_active', 'detail_type'];
 
     protected $casts = [
         'sort_order' => 'integer',

@@ -42,6 +42,7 @@ class OptionGroup extends Model
         'is_active',
         'price_role',
         'menu_detail_profile_id',
+        'detail_type',
     ];
 
     protected $casts = [

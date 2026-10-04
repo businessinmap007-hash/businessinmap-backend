@@ -37,6 +37,9 @@ class MenuShapesController extends Controller
 
         $search = trim((string) $request->get('q', ''));
         $shape = (string) $request->get('shape', '');
+        $type = (string) $request->get('type', '');
+        // The ten detail types — a group belongs to ONE; the kinds below are what it adds to its type.
+        $types = DB::table('menu_detail_types')->orderBy('sort_order')->get()->keyBy('code');
 
         $groups = OptionGroup::query()
             ->where('price_role', OptionGroup::ROLE_LINE)
@@ -44,9 +47,10 @@ class MenuShapesController extends Controller
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('name_ar', 'like', "%{$search}%")->orWhere('name_en', 'like', "%{$search}%")))
             ->when($shape === self::BASIC, fn ($q) => $q->whereNull('menu_detail_profile_id'))
             ->when($shape !== '' && $shape !== self::BASIC, fn ($q) => $q->where('menu_detail_profile_id', (int) $shape))
+            ->when($type !== '', fn ($q) => $q->where('detail_type', $type))
             ->withCount('options')
             ->orderBy('name_ar')
-            ->get(['id', 'name_ar', 'name_en', 'menu_detail_profile_id']);
+            ->get(['id', 'name_ar', 'name_en', 'menu_detail_profile_id', 'detail_type']);
 
         $group = $groups->firstWhere('id', (int) $request->get('group_id', 0)) ?: $groups->first();
 
@@ -115,6 +119,8 @@ class MenuShapesController extends Controller
                 ->get(['a.id', 'a.code', 'a.name_ar', 'a.data_type', 'u.name_ar as unit']),
             'search' => $search,
             'shape' => $shape,
+            'type' => $type,
+            'types' => $types,
         ]);
     }
 
@@ -211,10 +217,18 @@ class MenuShapesController extends Controller
         $data = $request->validate([
             'group_id' => ['required', 'integer', Rule::exists('option_groups', 'id')->where('price_role', OptionGroup::ROLE_LINE)],
             'profile_id' => ['nullable', 'integer', Rule::exists('menu_detail_profiles', 'id')],
+            'detail_type' => ['nullable', 'string', Rule::exists('menu_detail_types', 'code')],
         ]);
 
         $group = OptionGroup::query()->findOrFail($data['group_id']);
-        $group->update(['menu_detail_profile_id' => $data['profile_id'] ?? null]);
+        $profile = ! empty($data['profile_id']) ? MenuDetailProfile::query()->find($data['profile_id']) : null;
+
+        // A group has ONE type. The field set it uses belongs to a type, and the group follows it; with no
+        // field set the admin's own choice stands (the group keeps the type it has when none is sent).
+        $group->update([
+            'menu_detail_profile_id' => $profile?->id,
+            'detail_type' => $profile?->detail_type ?: (($data['detail_type'] ?? null) ?: $group->detail_type),
+        ]);
 
         $label = $group->menu_detail_profile_id
             ? __('منيو تفصيلي — :kind', ['kind' => MenuDetailProfile::query()->find($group->menu_detail_profile_id)?->label()])
@@ -289,6 +303,7 @@ class MenuShapesController extends Controller
             'name_en' => ['nullable', 'string', 'max:120'],
             'icon' => ['nullable', 'string', 'max:40'],
             'uses_catalog' => ['nullable', 'boolean'],
+            'detail_type' => ['nullable', 'string', Rule::exists('menu_detail_types', 'code')],
         ]);
 
         $base = Str::slug((string) ($data['name_en'] ?? '')) ?: 'profile';
@@ -304,6 +319,8 @@ class MenuShapesController extends Controller
             'icon' => trim((string) ($data['icon'] ?? '')) ?: null,
             // A new kind has no catalog behind it unless the admin says so.
             'uses_catalog' => $request->boolean('uses_catalog'),
+            // The type this field set belongs to: the admin's choice, else the type of the group it was made for.
+            'detail_type' => ($data['detail_type'] ?? null) ?: ($request->integer('group_id') ? OptionGroup::query()->whereKey($request->integer('group_id'))->value('detail_type') : null) ?: 'basic',
             'sort_order' => (int) MenuDetailProfile::query()->max('sort_order') + 10,
             'is_active' => true,
         ]);

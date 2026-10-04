@@ -141,6 +141,12 @@
         <div class="a2-card">
             <form method="GET" action="{{ route('admin.menu-shapes.index') }}" class="a2-mb-16">
                 <input class="a2-input" type="search" name="q" value="{{ $search }}" placeholder="{{ __('ابحث عن مجموعة خيارات…') }}">
+                <select class="a2-select" name="type" onchange="this.form.submit()" style="margin-top:8px">
+                    <option value="">{{ __('كل أنواع التفاصيل') }}</option>
+                    @foreach($types as $t)
+                        <option value="{{ $t->code }}" @selected($type === $t->code)>{{ $t->name_ar }}</option>
+                    @endforeach
+                </select>
                 <select class="a2-select" name="shape" onchange="this.form.submit()" style="margin-top:8px">
                     <option value="">{{ __('كل الأشكال') }}</option>
                     <option value="basic" @selected($shape === 'basic')>{{ __('منيو أساسي') }}</option>
@@ -159,11 +165,8 @@
                             {{ $name($g) }}
                             <div class="ms-group-meta">فروع: {{ $g->options_count }}</div>
                         </div>
-                        @if($gp)
-                            <span class="ms-badge ms-badge--detail">{{ $gp->name_ar }}</span>
-                        @else
-                            <span class="ms-badge ms-badge--basic">{{ __('أساسي') }}</span>
-                        @endif
+                        <span class="ms-badge {{ $gp ? 'ms-badge--detail' : 'ms-badge--basic' }}">{{ $types[$g->detail_type]->name_ar ?? __('بلا نوع') }}</span>
+                        @if($gp)<span class="ms-note" style="display:block;font-size:11px">{{ $gp->name_ar }}</span>@endif
                     </a>
                 @empty
                     <div class="ms-note">{{ __('لا توجد مجموعات مطابقة.') }}</div>
@@ -174,16 +177,28 @@
         {{-- Left: the detail kinds above a phone. --}}
         <div>
             @if($group)
-                <div class="ms-kinds">
-                    <a class="ms-kind {{ $isBasic ? 'is-active' : '' }}" href="{{ $link(['preview' => 'basic']) }}">
-                        {{ __('منيو أساسي') }}@if(! $savedProfileId)<span class="ms-saved">✓</span>@endif
-                    </a>
-                    @foreach($profiles as $p)
-                        <a class="ms-kind {{ ! $isBasic && $previewProfile && $previewProfile->id === $p->id ? 'is-active' : '' }}" href="{{ $link(['preview' => $p->id]) }}">
-                            {{ $p->name_ar }}@if($savedProfileId === (int) $p->id)<span class="ms-saved">✓</span>@endif
-                        </a>
-                    @endforeach
+                <div class="ms-note" style="margin-bottom:6px">
+                    {{ __('نوع التفاصيل:') }} <strong>{{ $types[$group->detail_type]->name_ar ?? __('بلا نوع') }}</strong>
+                    — {{ __('مجموعة الحقول الإضافية (ما تضيفه هذه المجموعة فوق نوعها) مرتبة تحت أنواعها:') }}
                 </div>
+                <div class="ms-kinds" style="margin-bottom:6px">
+                    <a class="ms-kind {{ $isBasic ? 'is-active' : '' }}" href="{{ $link(['preview' => 'basic']) }}">
+                        {{ __('بلا حقول إضافية') }}@if(! $savedProfileId)<span class="ms-saved">✓</span>@endif
+                    </a>
+                </div>
+                @foreach($types as $t)
+                    @php $kindsOfType = $profiles->where('detail_type', $t->code); @endphp
+                    @if($kindsOfType->isNotEmpty())
+                        <div class="ms-note" style="margin:8px 0 4px">{{ $t->name_ar }}</div>
+                        <div class="ms-kinds" style="margin-bottom:6px">
+                            @foreach($kindsOfType as $p)
+                                <a class="ms-kind {{ ! $isBasic && $previewProfile && $previewProfile->id === $p->id ? 'is-active' : '' }}" href="{{ $link(['preview' => $p->id]) }}">
+                                    {{ $p->name_ar }}@if($savedProfileId === (int) $p->id)<span class="ms-saved">✓</span>@endif
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
+                @endforeach
 
                 <div class="ms-stage">
                     <div>
@@ -347,6 +362,16 @@
                                 @csrf
                                 <input type="hidden" name="group_id" value="{{ $group->id }}">
                                 <input type="hidden" name="profile_id" value="{{ $isBasic ? '' : $previewProfile->id }}">
+                                @if($isBasic)
+                                    <label class="ms-note" style="display:block;margin-bottom:4px">{{ __('نوع التفاصيل لهذه المجموعة') }}</label>
+                                    <select class="a2-select" name="detail_type" style="margin-bottom:10px">
+                                        @foreach($types as $t)
+                                            <option value="{{ $t->code }}" @selected(($group->detail_type ?: 'basic') === $t->code)>{{ $t->name_ar }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <div class="ms-note" style="margin-bottom:8px">{{ __('نوع التفاصيل يتبع مجموعة الحقول:') }} <strong>{{ $types[$previewProfile->detail_type]->name_ar ?? '—' }}</strong></div>
+                                @endif
                                 <input type="hidden" name="q" value="{{ $search }}">
                                 <input type="hidden" name="shape" value="{{ $shape }}">
                                 <div style="margin-bottom:10px">
@@ -360,9 +385,9 @@
                                         {{ $savedProfileId ? __('منيو تفصيلي — ') . ($profileById->get($savedProfileId)?->name_ar) : __('منيو أساسي') }}
                                     </div>
                                 </div>
-                                @php $unchanged = $isBasic ? ! $savedProfileId : ($savedProfileId === (int) $previewProfile->id); @endphp
+                                @php $unchanged = $isBasic ? false : ($savedProfileId === (int) $previewProfile->id); @endphp
                                 <button class="a2-btn a2-btn-primary" type="submit" @disabled($unchanged)>
-                                    {{ __('اعتماد') }} «{{ $isBasic ? __('منيو أساسي') : $previewProfile->name_ar }}» {{ __('لهذه المجموعة') }}
+                                    {{ __('اعتماد') }} «{{ $isBasic ? __('بلا حقول إضافية') : $previewProfile->name_ar }}» {{ __('لهذه المجموعة') }}
                                 </button>
                             </form>
                         </div>
@@ -496,6 +521,11 @@
                                     <input class="a2-input" name="name_ar" required placeholder="{{ __('الاسم — مثل: ألواح بديل الخشب') }}">
                                     <input class="a2-input" name="name_en" placeholder="Name (English)">
                                 </div>
+                                <select class="a2-select" name="detail_type" style="margin-top:8px">
+                                    @foreach($types as $t)
+                                        <option value="{{ $t->code }}" @selected(($group->detail_type ?: 'basic') === $t->code)>{{ __('تابعة لنوع: ') }}{{ $t->name_ar }}</option>
+                                    @endforeach
+                                </select>
                                 <label class="ms-check" style="margin-top:8px;display:block"><input type="checkbox" name="uses_catalog" value="1"> {{ __('يعتمد على كتالوج منتجات حقيقية (موبايلات، سيارات…) — اتركه فارغًا للأثاث والألواح') }}</label>
                                 <button class="a2-btn a2-btn-ghost" type="submit" style="margin-top:8px">{{ __('إضافة') }}</button>
                             </form>

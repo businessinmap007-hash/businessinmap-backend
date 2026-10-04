@@ -46,16 +46,32 @@ class FishCookingAddonsTest extends TestCase
         return $this->putJson('/api/v2/business/menu/addons', ['prices' => $prices])->assertOk()->json('data.addons');
     }
 
+    public function test_raw_is_the_base_price_and_cleaning_and_cutting_are_services_of_fish_and_poultry(): void
+    {
+        $this->assertSame(0, DB::table('options')->where('name_ar', 'نيء (بدون طهي)')->count(), 'raw is the base price, not a service');
+        $this->assertSame(1, DB::table('options')->where('name_ar', 'مشوي جريل')->count());
+        $this->assertSame(1, DB::table('options')->where('name_ar', 'مشوي زيت وليمون')->count());
+
+        Sanctum::actingAs($this->shop());
+        $groups = collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/business/menu/addons')->assertOk()->json('data.addons'));
+        $prep = $groups->firstWhere('group_name', 'التجهيز');
+        $this->assertNotNull($prep, 'the fish shop offers preparation');
+        $this->assertSame(['تنظيف', 'تقطيع', 'تنظيف وتقطيع'], array_column($prep['options'], 'name'));
+
+        $poultry = (int) DB::table('service_option_group_placements')->where('option_group_id', DB::table('option_groups')->where('name_ar', 'التجهيز')->value('id'))->where('child_id', 229)->where('usage', 'addon')->count();
+        $this->assertSame(1, $poultry, 'and so does the poultry shop');
+    }
+
     public function test_the_shop_lists_its_cooking_methods_and_prices_them_once(): void
     {
         Sanctum::actingAs($this->shop());
 
         $first = $this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/business/menu/addons')->assertOk()->json('data.addons');
         $this->assertSame('طريقة الطهي', $first[0]['group_name']);
-        $this->assertSame([null, null, null, null, null, null], array_column($first[0]['options'], 'price'), 'nothing priced yet');
+        $this->assertSame(array_fill(0, 7, null), array_column($first[0]['options'], 'price'), 'nothing priced yet');
 
-        $saved = $this->price([$this->method('مشوي') => 50, $this->method('مقلي') => 80, $this->method('سينية بالفرن') => 100]);
-        $this->assertEquals([null, 50, 80, 100, null, null], array_column($saved[0]['options'], 'price'));
+        $saved = $this->price([$this->method('مشوي') => 50, $this->method('مقلي') => 80, $this->method('صنية بالفرن') => 100]);
+        $this->assertEquals([50, null, null, 80, 100, null, null], array_column($saved[0]['options'], 'price'));
     }
 
     public function test_every_item_of_the_shop_carries_the_priced_methods_as_a_single_choice(): void
@@ -64,7 +80,7 @@ class FishCookingAddonsTest extends TestCase
         Sanctum::actingAs($shop);
         $before = $this->fish();
 
-        $this->price([$this->method('مشوي') => 50, $this->method('مقلي') => 80, $this->method('سينية بالفرن') => 100]);
+        $this->price([$this->method('مشوي') => 50, $this->method('مقلي') => 80, $this->method('صنية بالفرن') => 100]);
         $after = $this->fish(); // an item added AFTER the prices were set
 
         foreach ([$before, $after] as $item) {
@@ -80,8 +96,8 @@ class FishCookingAddonsTest extends TestCase
         $shop = $this->shop();
         Sanctum::actingAs($shop);
         $item = $this->fish();
-        $this->price([$this->method('سينية بالفرن') => 100]);
-        $tray = (int) MenuItemExtra::query()->where('menu_item_id', $item)->where('source_option_id', $this->method('سينية بالفرن'))->value('id');
+        $this->price([$this->method('صنية بالفرن') => 100]);
+        $tray = (int) MenuItemExtra::query()->where('menu_item_id', $item)->where('source_option_id', $this->method('صنية بالفرن'))->value('id');
 
         Sanctum::actingAs(User::query()->where('type', '!=', 'business')->where('id', '!=', $shop->id)->orderBy('id')->firstOrFail());
         $cart = $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $item, 'qty' => 2, 'extras' => [$tray]])->assertCreated()->json('data.cart');

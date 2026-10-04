@@ -53,7 +53,13 @@ class SeafoodMenuTest extends TestCase
 
     public function test_the_fish_shop_describes_and_prices_like_a_fish_shop(): void
     {
-        $vocab = $this->vocabulary($this->fishShop());
+        $shop = $this->fishShop();
+        // The shop's own ticks are live data: state the ones this test is about.
+        foreach (['حالة السمك', 'مصدر السمك', 'حجم السمك'] as $group) {
+            $option = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')->where('g.name_ar', $group)->orderBy('o.id')->value('o.id');
+            DB::table('option_user')->updateOrInsert(['user_id' => $shop->id, 'option_id' => $option], []);
+        }
+        $vocab = $this->vocabulary($shop);
 
         $modifiers = collect($vocab['modifiers'])->pluck('group_name')->all();
         foreach (['حالة السمك', 'مصدر السمك', 'حجم السمك'] as $group) {

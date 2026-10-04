@@ -2703,6 +2703,9 @@ paths:
     get: { tags: [Business Menu], summary: The sale units this business's menu may use (kg/piece/portion...), responses: { '200': { description: OK } } }
   /business/menu/vocabulary:
     get: { tags: [Business Menu], summary: This menu's line/modifier option vocabulary, resolved for its own category child, responses: { '200': { description: OK } } }
+  /business/menu/terms:
+    get: { tags: [Business Menu], summary: "The store's own terms (returns, minimum order, delivery, trade scope), each option flagged selected", responses: { '200': { description: OK } } }
+    put: { tags: [Business Menu], summary: "Answer the store's terms once - {groups: {group_id: [option_id]}}; shown on its page and frozen on each order", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/menu/available-types:
     get: { tags: [Business Menu], summary: Which menu item types this business's menu currently allows, responses: { '200': { description: OK } } }
     put: { tags: [Business Menu], summary: Set which menu item types this business's menu allows, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }

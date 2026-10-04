@@ -10,7 +10,9 @@
     $usageLabels = [
         P::USAGE_SECTION => 'قسم — اسم المجموعة = اسم القسم، وخياراتها = فروعه',
         P::USAGE_PRICE_VARIANT => 'أسعار متعددة — للمنتج نفسه سعر لكل خيار',
-        P::USAGE_DESCRIPTIVE => 'وصفي — حقل وصف للمنتج',
+        P::USAGE_DESCRIPTIVE => 'وصفي — حقل وصف للمنتج (طراز، موسم، نوع بشرة)',
+        P::USAGE_COMPONENT => 'مكوّن — ما يُصنع منه المنتج (خشب، قماش) ويُختار لكل صنف',
+        P::USAGE_STORE_TERMS => 'شرط المتجر — سياسة تُحدَّد مرة فى بروفايل المتجر وتظهر عند الشراء (استبدال، حد أدنى)',
         P::USAGE_STORE_CART => 'إعداد عام للمتجر — يظهر فى عربة المشتريات',
         P::USAGE_STORE_FILTER => 'إعداد عام للمتجر — يظهر فى فلتر البحث',
     ];
@@ -156,7 +158,7 @@
     document.querySelectorAll('select[name$="[usage]"]').forEach(function (usage) {
         var row = usage.closest('tr');
         function sync() {
-            var on = usage.value === 'descriptive';
+            var on = usage.value === 'descriptive' || usage.value === 'component';
             row.querySelectorAll('[data-desc]').forEach(function (el) { el.disabled = !on; });
             row.classList.toggle('a2-muted', false);
         }

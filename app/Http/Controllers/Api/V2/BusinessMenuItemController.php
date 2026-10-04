@@ -161,7 +161,7 @@ final class BusinessMenuItemController extends Controller
     /** option_group_id => the trade's DESCRIPTIVE placement of it (menu service), in its order */
     private function descriptivePlacements(): array
     {
-        return $this->placementsFor(\App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE);
+        return $this->placementsFor(\App\Models\ServiceOptionGroupPlacement::ITEM_DESCRIBING);
     }
 
     /**
@@ -202,7 +202,7 @@ final class BusinessMenuItemController extends Controller
     }
 
     /** option_group_id => this trade's placement of it for [$usage] under the menu service, in order */
-    private function placementsFor(string $usage): array
+    private function placementsFor(string|array $usage): array
     {
         $childId = $this->childId();
         $menuServiceId = (int) \App\Models\PlatformService::query()->where('key', \App\Models\PlatformService::KEY_MENU)->value('id');
@@ -226,7 +226,7 @@ final class BusinessMenuItemController extends Controller
         }
 
         return app(\App\Services\Catalog\ServiceOptionPlacements::class)
-            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::ITEM_DESCRIBING)
             ->pluck('option_group_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 

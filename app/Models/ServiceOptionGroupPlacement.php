@@ -21,6 +21,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *   descriptive    a plain field on the product (brand, …) — never priced.
  *   price_variant  the SAME product has one price per option («كاش / قسط»,
  *                  «جديد / مستعمل / كسر زيرو»).
+ *   component      a part the product is MADE OF («أنواع الأخشاب» at a furniture maker, the fabric of
+ *                  a sheet) — chosen per item like a descriptive field, but a material, not a style.
+ *                  The same group is the product line («section») at the trade that sells it by itself
+ *                  (a timber merchant). The role belongs to the trade, never to the group.
+ *   store_terms    a POLICY of the store — returns, minimum order, delivery, trade scope — chosen once
+ *                  in the store's profile, shown on its page, shown at checkout and frozen on the order.
+ *                  Never asked per item.
  *   store_cart     a general setting of the store itself, shown in the cart
  *                  («التسليم والاستلام», payment methods).
  *   store_filter   a general setting of the store itself, shown in the search
@@ -36,6 +43,15 @@ class ServiceOptionGroupPlacement extends Model
     public const USAGE_DESCRIPTIVE = 'descriptive';
     public const USAGE_PRICE_VARIANT = 'price_variant';
 
+    /** A part the product is made of — described per item like {@see USAGE_DESCRIPTIVE}. */
+    public const USAGE_COMPONENT = 'component';
+
+    /** A policy of the STORE (returns, minimum order, delivery, scope): set once, shown at checkout. */
+    public const USAGE_STORE_TERMS = 'store_terms';
+
+    /** The usages that describe an ITEM, chosen per item. */
+    public const ITEM_DESCRIBING = [self::USAGE_DESCRIPTIVE, self::USAGE_COMPONENT];
+
     /** A general setting of the STORE itself (pickup/delivery, payment methods…), shown in the cart. */
     public const USAGE_STORE_CART = 'store_cart';
 
@@ -46,6 +62,8 @@ class ServiceOptionGroupPlacement extends Model
         self::USAGE_SECTION,
         self::USAGE_DESCRIPTIVE,
         self::USAGE_PRICE_VARIANT,
+        self::USAGE_COMPONENT,
+        self::USAGE_STORE_TERMS,
         self::USAGE_STORE_CART,
         self::USAGE_STORE_FILTER,
     ];

@@ -78,7 +78,7 @@ class MenuShapesController extends Controller
 
         $descriptive = $group
             ? ServiceOptionGroupPlacement::query()->where('platform_service_id', $menuServiceId)->where('is_active', true)
-                ->where('usage', ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+                ->whereIn('usage', ServiceOptionGroupPlacement::ITEM_DESCRIBING)
                 ->when(! in_array(ServiceOptionGroupPlacement::ALL_CHILDREN, $tradeIds, true), fn ($q) => $q->whereIn('child_id', array_merge($tradeIds, [ServiceOptionGroupPlacement::ALL_CHILDREN])))
                 ->orderBy('sort_order')->orderBy('id')->get()
             : collect();

@@ -15,9 +15,10 @@ use Illuminate\Support\Collection;
 final class ServiceOptionPlacements
 {
     /**
+     * @param  string|list<string>|null  $usage  one usage, several, or null for every usage
      * @return Collection<int,Placement> effective, active placements
      */
-    public function for(int $serviceId, int $childId, ?string $usage = null): Collection
+    public function for(int $serviceId, int $childId, string|array|null $usage = null): Collection
     {
         $rows = Placement::query()
             ->where('platform_service_id', $serviceId)
@@ -30,7 +31,7 @@ final class ServiceOptionPlacements
             ->sortBy(fn (Placement $p) => (int) $p->child_id) // default first, override last
             ->keyBy(fn (Placement $p) => $p->option_group_id . '|' . $p->item_type_key)
             ->filter(fn (Placement $p) => $p->is_active)
-            ->when($usage !== null, fn ($c) => $c->filter(fn (Placement $p) => $p->usage === $usage))
+            ->when($usage !== null, fn ($c) => $c->filter(fn (Placement $p) => in_array($p->usage, (array) $usage, true)))
             ->sortBy(fn (Placement $p) => [$p->sort_order, $p->id])
             ->values();
     }

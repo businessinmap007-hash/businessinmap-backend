@@ -61,6 +61,7 @@ class Order extends Model
     // Columns match the orders table: total / delivery_fee / discount /
     // final_total (there is no `subtotal` column).
     protected $fillable = [
+        'terms',
 
         'user_id',
         'business_id',
@@ -102,6 +103,7 @@ class Order extends Model
     ];
 
     protected $casts = [
+        'terms' => 'array',
         'booking_id' => 'integer',
         'business_table_id' => 'integer',
         'delivery_driver_id' => 'integer',

@@ -833,6 +833,9 @@ Route::prefix('v2')->group(function () {
             // narrowed to this business's own catalog. Powers the branch
             // picker and the brand/condition fields on the item form.
             Route::get('vocabulary', [BusinessMenuItemController::class, 'vocabulary']);
+            // «شروط المتجر»: returns, minimum order, delivery, trade scope — answered once by the store.
+            Route::get('terms', [\App\Http\Controllers\Api\V2\BusinessTermsController::class, 'index']);
+            Route::put('terms', [\App\Http\Controllers\Api\V2\BusinessTermsController::class, 'update']);
             Route::get('catalog-lookup', [BusinessMenuItemController::class, 'catalogLookup']);
             // «الموديل مش موجود» — a merchant-proposed catalog model, pending review.
             Route::post('catalog-products', [BusinessMenuItemController::class, 'proposeProduct']);

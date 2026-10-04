@@ -136,6 +136,8 @@ final class MenuDiscoveryController extends Controller
                         ->value('display_mode') ?: \App\Models\BusinessMenuSetting::DISPLAY_LIST,
                 ],
                 'sections' => $out,
+                // What the store promises, answered once in its profile — returns, minimum order…
+                'terms' => app(\App\Services\Menu\StoreTerms::class)->forCustomer((int) $biz->id),
             ],
         ]);
     }
@@ -389,7 +391,7 @@ final class MenuDiscoveryController extends Controller
         }
 
         return app(\App\Services\Catalog\ServiceOptionPlacements::class)
-            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::USAGE_DESCRIPTIVE)
+            ->for($menuServiceId, $childId, \App\Models\ServiceOptionGroupPlacement::ITEM_DESCRIBING)
             ->where('show_on_page', true)
             ->pluck('option_group_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
     }

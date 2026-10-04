@@ -110,11 +110,11 @@ final class MenuShapeCurator
         return (int) $group;
     }
 
-    /** An EXISTING group (or one made with {@see group()}) describes items of these trades. */
-    public function describe(int $groupId, array $trades, int $sort, string $display = 'chips', bool $multiple = false): void
+    /** An EXISTING group (or one made with {@see group()}) describes items of these trades ('component' = what they are made of). */
+    public function describe(int $groupId, array $trades, int $sort, string $display = 'chips', bool $multiple = false, string $usage = 'descriptive'): void
     {
         foreach ($trades as $trade) {
-            $this->place($groupId, $trade, 'descriptive', $sort, $display, $multiple);
+            $this->place($groupId, $trade, $usage, $sort, $display, $multiple);
             // Its options belong to the trade, or the merchant could not pick them.
             foreach (DB::table('options')->where('group_id', $groupId)->orderBy('id')->pluck('id') as $i => $option) {
                 // Linked under the roots the trade already uses is not enough: a merchant standing under another

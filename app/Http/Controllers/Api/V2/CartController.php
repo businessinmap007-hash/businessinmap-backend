@@ -211,6 +211,10 @@ final class CartController extends Controller
                 'last_due_on' => $plan[count($plan) - 1]['due_on'],
                 'total' => round(array_sum(array_column($plan, 'amount')), 2),
             ],
+            // A cart shows the store's terms as they are; a placed order keeps the ones it was placed under.
+            'terms' => $order->status === 'cart'
+                ? app(\App\Services\Menu\StoreTerms::class)->forCustomer((int) $order->business_id)
+                : ($order->terms ?? []),
             'id' => (int) $order->id,
             'status' => (string) $order->status,
             'business' => $order->business ? [

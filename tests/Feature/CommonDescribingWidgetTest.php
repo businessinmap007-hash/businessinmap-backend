@@ -61,8 +61,8 @@ class CommonDescribingWidgetTest extends TestCase
     public function test_saving_makes_the_chosen_groups_apply_to_every_trade(): void
     {
         $pay = $this->group('الدفع والسداد');
-        $swap = $this->group('الاستبدال والإرجاع');
-        $other = $this->group('الحد الأدنى للطلب');
+        $swap = $this->group('مواصفات المنتج الغذائي');
+        $other = $this->group('تجهيزات مساحة العمل');
 
         $this->actingAs($this->admin())->post(route('admin.menu-shapes.common-describing', [], false), [
             'groups' => [

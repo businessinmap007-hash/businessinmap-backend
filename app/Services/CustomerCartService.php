@@ -796,6 +796,8 @@ class CustomerCartService
         $cart->pickup_at = isset($data['pickup_at']) ? Carbon::parse($data['pickup_at']) : $cart->pickup_at;
         $cart->payment_method = (string) ($data['payment_method'] ?? $cart->payment_method ?: 'cash');
         $cart->status = self::STATUS_PENDING;
+        // The store's terms as they stand now — what the customer saw at checkout is what the order keeps.
+        $cart->terms = app(\App\Services\Menu\StoreTerms::class)->forCustomer((int) $cart->business_id);
         $cart->save();
 
         // Bought on instalments: the order carries its payments by month.

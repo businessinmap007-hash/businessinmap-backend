@@ -59,8 +59,8 @@ class SeafoodMenuTest extends TestCase
         foreach (['حالة السمك', 'مصدر السمك', 'حجم السمك'] as $group) {
             $this->assertContains($group, $modifiers, "«{$group}» describes a fish");
         }
-        $this->assertSame(['تجهيز السمك'], array_column($vocab['price_axes'], 'group_name'), 'the price axis is the preparation, not «نظام التصنيع»');
-        $this->assertNotContains('تجهيز السمك', array_column($vocab['lines'], 'group_name'), 'a preparation is not «what is it»');
+        $this->assertSame(['طريقة الطهي'], array_column($vocab['price_axes'], 'group_name'), 'the price axis is how the shop cooks it, not «نظام التصنيع»');
+        $this->assertNotContains('طريقة الطهي', array_column($vocab['lines'], 'group_name'), 'a cooking method is not «what is it»');
     }
 
     public function test_an_item_shows_its_choices_on_the_page_and_its_grading_on_the_card(): void

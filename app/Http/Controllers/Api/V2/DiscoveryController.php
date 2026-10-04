@@ -242,6 +242,11 @@ final class DiscoveryController extends Controller
             // says nothing about which governorate it belongs to without a
             // second lookup, and the app's own picker always sets both.
             'city_id' => ['nullable', 'integer', 'min:1', 'exists:cities,id'],
+            // Where the customer is: ORDERS the list (same city first, then the same governorate, then the
+            // rest) — it never hides anyone. Narrowing is the governorate_id / city_id filter above, which
+            // the customer picks on purpose.
+            'near_governorate_id' => ['nullable', 'integer', 'min:1'],
+            'near_city_id' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
@@ -331,6 +336,12 @@ final class DiscoveryController extends Controller
                         ->whereRaw('COALESCE(p.business_id, m.business_id) = users.id');
                 });
             });
+        }
+
+        $nearCity = (int) ($data['near_city_id'] ?? 0);
+        $nearGovernorate = (int) ($data['near_governorate_id'] ?? 0);
+        if ($nearCity > 0 || $nearGovernorate > 0) {
+            $query->orderByRaw('CASE WHEN city_id = ? THEN 0 WHEN governorate_id = ? THEN 1 ELSE 2 END', [$nearCity, $nearGovernorate]);
         }
 
         $businesses = $query

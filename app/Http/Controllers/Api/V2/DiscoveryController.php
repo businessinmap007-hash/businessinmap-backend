@@ -226,6 +226,10 @@ final class DiscoveryController extends Controller
     {
         $data = $request->validate([
             'child_id' => ['required', 'integer', 'min:1'],
+            // The root the customer came in through. A child can sit under several roots («أجهزة كمبيوتر» under
+            // شركات, مصانع, معارض…), but an ACCOUNT holds exactly one (root, child) pair — so opening it under
+            // another root must not list it.
+            'category_id' => ['nullable', 'integer', 'min:1'],
             'service_id' => ['nullable', 'integer', 'min:1'],
             'item_types' => ['nullable', 'array'],
             'item_types.*' => ['string', 'max:100'],
@@ -271,6 +275,7 @@ final class DiscoveryController extends Controller
         $query = User::query()
             ->where('type', 'business')
             ->where('category_child_id', $childId)
+            ->when((int) ($data['category_id'] ?? 0) > 0, fn (Builder $w) => $w->where('category_id', (int) $data['category_id']))
             // Both names, and only the names: a shop that wrote «panda» must be
             // findable by someone typing «باندا»'s alphabet either way, and a
             // customer browsing shops must not be able to probe phone numbers.

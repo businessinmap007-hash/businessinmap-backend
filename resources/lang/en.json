@@ -2865,5 +2865,20 @@
     "السعر مطلوب ويكون رقمًا.": "The price is required and must be a number.",
     "رقم الصنف :id ليس من أصنافك.": "Item ID :id is not one of your items.",
     "عندك أكثر من صنف بهذا الاسم — اكتب رقم الصنف.": "You have more than one item with this name — write the item ID.",
-    "الملف فارغ أو بلا صفوف مقروءة.": "The file is empty or has no readable rows."
+    "الملف فارغ أو بلا صفوف مقروءة.": "The file is empty or has no readable rows.",
+    "المقاس «:name» بلا سعر — اكتبه هكذا: صغير=50": "The size \":name\" has no price — write it like: Small=50",
+    "مجموعة الإضافات «:name» فارغة.": "The extras group \":name\" is empty.",
+    "تعذّر تحميل الصورة: :url": "Could not download the image: :url",
+    "أول :max صور فقط تُضاف من الصف الواحد.": "Only the first :max images of a row are added.",
+    "تعذّر إضافة الصور.": "Could not add the images.",
+    "«:text» بلا اسم.": "\":text\" has no name.",
+    "سعر «:name» ليس رقمًا.": "The price of \":name\" is not a number.",
+    "المقاسات: صغير=50; وسط=70; كبير=90 — الأول هو الافتراضي.": "Sizes: Small=50; Medium=70; Large=90 — the first is the default.",
+    "الإضافات: جبنة=10; صوص=5": "Extras: Cheese=10; Sauce=5",
+    "مجموعات الإضافات: الصوصات: كاتشب=5, مايو=5 | الخبز (واحد): أبيض=0, أسمر=3 — «(واحد)» يعني يختار العميل واحدًا فقط.": "Extra groups: Sauces: Ketchup=5, Mayo=5 | Bread (one): White=0, Brown=3 — \"(one)\" means the customer picks only one.",
+    "الصور: روابط الصور، رابط في كل سطر. تُضاف للصنف ولا تحذف صوره الموجودة.": "Images: image links, one per line. They are added to the item; its existing photos stay.",
+    "الباركود: من كتالوج المنصة — يربط الصنف بالمنتج (الاسم والصورة).": "Barcode: from the platform catalog — links the item to that product (name and photo).",
+    "خانة المقاسات أو الإضافات الفارغة تحذف ما كان على الصنف؛ احذف العمود كله لتتركها كما هي.": "An empty Sizes or Extras cell removes them from the item; delete the whole column to leave them as they are.",
+    "الباركود :code ليس في كتالوج المنصة — أُضيف الصنف بدون ربط.": "Barcode :code is not in the platform catalog — the item was added without a link.",
+    "«:text» ليس رابط صورة.": "\":text\" is not an image link."
 }

@@ -34,6 +34,7 @@ final class MenuSheet
         'id' => ['رقم الصنف', 'Item ID'],
         'line' => ['النوع', 'Type'],
         'section' => ['القسم', 'Section'],
+        'barcode' => ['الباركود', 'Barcode'],
         'name_ar' => ['الاسم عربي', 'Name (Arabic)'],
         'name_en' => ['الاسم إنجليزي', 'Name (English)'],
         'price' => ['السعر', 'Price'],
@@ -43,13 +44,18 @@ final class MenuSheet
         'brand' => ['الماركة', 'Brand'],
         'description_ar' => ['الوصف عربي', 'Description (Arabic)'],
         'description_en' => ['الوصف إنجليزي', 'Description (English)'],
+        'variants' => ['المقاسات', 'Sizes'],
+        'extras' => ['الإضافات', 'Extras'],
+        'images' => ['الصور', 'Images'],
         'active' => ['نشط', 'Active'],
     ];
 
     public const MAX_ROWS = 2000;
 
-    public function __construct(private readonly MerchantOfferingVocabulary $vocabulary)
-    {
+    public function __construct(
+        private readonly MerchantOfferingVocabulary $vocabulary,
+        private readonly MenuSheetDetails $details,
+    ) {
     }
 
     /** @return list<array{key:string,label:string}> headers in the current locale */
@@ -63,7 +69,7 @@ final class MenuSheet
     /**
      * What the merchant may write in «النوع» and «الوحدة», and the sections he already has.
      *
-     * @return array{lines:list<array{name:string,group:string}>,units:list<string>,sections:list<string>}
+     * @return array{lines:list<array{name:string,group:string}>,units:list<string>,sections:list<string>,help:list<string>}
      */
     public function vocabulary(User $business): array
     {
@@ -71,6 +77,15 @@ final class MenuSheet
             'lines' => $this->lines($business)->map(fn ($l) => ['name' => (string) $l->name_ar, 'group' => (string) $l->group_name])->values()->all(),
             'units' => array_values($this->unitLabels()),
             'sections' => MenuSection::query()->where('business_id', $business->id)->orderBy('sort_order')->pluck('name_ar')->all(),
+            // How the cells that hold more than one thing are written — printed beside the lists in the template.
+            'help' => [
+                __('المقاسات: صغير=50; وسط=70; كبير=90 — الأول هو الافتراضي.'),
+                __('الإضافات: جبنة=10; صوص=5'),
+                __('مجموعات الإضافات: الصوصات: كاتشب=5, مايو=5 | الخبز (واحد): أبيض=0, أسمر=3 — «(واحد)» يعني يختار العميل واحدًا فقط.'),
+                __('الصور: روابط الصور، رابط في كل سطر. تُضاف للصنف ولا تحذف صوره الموجودة.'),
+                __('الباركود: من كتالوج المنصة — يربط الصنف بالمنتج (الاسم والصورة).'),
+                __('خانة المقاسات أو الإضافات الفارغة تحذف ما كان على الصنف؛ احذف العمود كله لتتركها كما هي.'),
+            ],
         ];
     }
 
@@ -88,6 +103,7 @@ final class MenuSheet
                 'id' => (int) $m->id,
                 'line' => (string) ($lineNames[$m->id] ?? ''),
                 'section' => (string) ($sections[$m->menu_section_id] ?? ''),
+                'barcode' => $this->details->barcodeOf($m),
                 'name_ar' => (string) $m->name_ar,
                 'name_en' => (string) ($m->name_en ?? ''),
                 'price' => (float) $m->base_price,
@@ -97,6 +113,9 @@ final class MenuSheet
                 'brand' => (string) ($m->brand_name ?? ''),
                 'description_ar' => (string) ($m->description_ar ?? ''),
                 'description_en' => (string) ($m->description_en ?? ''),
+                'variants' => $this->details->formatVariants($m),
+                'extras' => $this->details->formatExtras($m),
+                'images' => implode("\n", $this->details->imageUrls($m)),
                 'active' => $m->is_active ? 'نعم' : 'لا',
             ])->values()->all();
     }
@@ -169,7 +188,7 @@ final class MenuSheet
      * Run the rows. `dryRun`: everything happens and is rolled back — the report is what an import would do.
      *
      * @param  list<array<string,mixed>>  $rows  keyed by column key (or header — see keyOf())
-     * @return array{summary:array{create:int,update:int,error:int},rows:list<array{row:int,action:string,name:string,id:?int,errors:list<string>}>}
+     * @return array{summary:array{create:int,update:int,error:int},rows:list<array{row:int,action:string,name:string,id:?int,errors:list<string>,warnings:list<string>}>}
      */
     public function import(Request $outer, User $business, array $rows, bool $dryRun): array
     {
@@ -190,8 +209,37 @@ final class MenuSheet
             foreach (array_values($rows) as $i => $raw) {
                 $row = $this->normaliseKeys((array) $raw);
                 $number = $i + 2; // the sheet's own row number: the header is row 1
-                $name = trim((string) ($row['name_ar'] ?? ''));
                 $errors = [];
+                $warnings = [];
+
+                // A barcode from the shared catalog links the item to that product — and names it when the
+                // sheet left the name empty.
+                $product = null;
+                if (($row['barcode'] ?? '') !== '') {
+                    $product = $this->details->productForBarcode((string) $row['barcode']);
+                    if (! $product) {
+                        $warnings[] = __('الباركود :code ليس في كتالوج المنصة — أُضيف الصنف بدون ربط.', ['code' => $row['barcode']]);
+                    }
+                }
+                $name = trim((string) ($row['name_ar'] ?? '')) ?: (string) ($product->name_ar ?? '');
+
+                $variants = null;
+                $extras = null;
+                try {
+                    if (array_key_exists('variants', $row)) {
+                        $variants = $this->details->parseVariants((string) $row['variants']);
+                    }
+                    if (array_key_exists('extras', $row)) {
+                        $extras = $this->details->parseExtras((string) $row['extras']);
+                    }
+                } catch (\InvalidArgumentException $e) {
+                    $errors[] = $e->getMessage();
+                }
+
+                $images = $this->details->parseImageUrls((string) ($row['images'] ?? ''));
+                foreach ($images['bad'] as $bad) {
+                    $warnings[] = __('«:text» ليس رابط صورة.', ['text' => $bad]);
+                }
 
                 $line = null;
                 if (($row['line'] ?? '') !== '') {
@@ -233,7 +281,7 @@ final class MenuSheet
                 }
 
                 if ($errors !== []) {
-                    $report[] = ['row' => $number, 'action' => 'error', 'name' => $name, 'id' => $id, 'errors' => $errors];
+                    $report[] = ['row' => $number, 'action' => 'error', 'name' => $name, 'id' => $id, 'errors' => $errors, 'warnings' => $warnings];
 
                     continue;
                 }
@@ -249,6 +297,7 @@ final class MenuSheet
                     'description_ar' => (string) ($row['description_ar'] ?? ''),
                     'description_en' => (string) ($row['description_en'] ?? ''),
                     'line_option_id' => $line ? (int) $line->id : null,
+                    'catalog_product_id' => $product ? (int) $product->id : null,
                     'menu_section_id' => ! $line && ($row['section'] ?? '') !== '' ? $this->sectionId($business, (string) $row['section']) : null,
                 ], fn ($v) => $v !== null && $v !== '');
                 $payload['is_active'] = $this->yes($row['active'] ?? '') ? 1 : 0;
@@ -256,11 +305,22 @@ final class MenuSheet
                 $isUpdate = $id !== null;
                 try {
                     $id = $this->write($outer, $business, $payload, $id);
-                    $report[] = ['row' => $number, 'action' => $isUpdate ? 'update' : 'create', 'name' => $name, 'id' => $id, 'errors' => []];
+                    $item = MenuItem::query()->findOrFail($id);
+                    if ($variants !== null) {
+                        $this->details->writeVariants($item, $variants);
+                    }
+                    if ($extras !== null) {
+                        $this->details->writeExtras($item, $extras);
+                    }
+                    // Photos are fetched only on the real import: a preview downloads nothing.
+                    if (! $dryRun && $images['urls'] !== []) {
+                        $warnings = array_merge($warnings, $this->details->attachImages($outer, $item, $images['urls']));
+                    }
+                    $report[] = ['row' => $number, 'action' => $isUpdate ? 'update' : 'create', 'name' => $name, 'id' => $id, 'errors' => [], 'warnings' => $warnings];
                     // A second row with the same name further down updates this one, it does not add a twin.
                     $existing[$this->norm($name)] ??= collect([(object) ['id' => $id, 'name_ar' => $name]]);
                 } catch (ValidationException $e) {
-                    $report[] = ['row' => $number, 'action' => 'error', 'name' => $name, 'id' => $id, 'errors' => collect($e->errors())->flatten()->values()->all()];
+                    $report[] = ['row' => $number, 'action' => 'error', 'name' => $name, 'id' => $id, 'errors' => collect($e->errors())->flatten()->values()->all(), 'warnings' => $warnings];
                 }
             }
         } catch (\Throwable $e) {

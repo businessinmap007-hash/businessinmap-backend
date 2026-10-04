@@ -25,7 +25,7 @@
 
 <div class="a2-card a2-mb-16">
     <h3 style="margin-top:0">{{ __('استيراد') }}</h3>
-    <p class="a2-page-subtitle">{{ __('ملف Excel أو CSV بنفس أعمدة النموذج. «النوع» من أنواع نشاطك (في الورقة الثانية من النموذج)، و«القسم» للأصناف التي ليس لها نوع.') }}</p>
+    <p class="a2-page-subtitle">{{ __('ملف Excel أو CSV بنفس أعمدة النموذج. «النوع» من أنواع نشاطك (في الورقة الثانية من النموذج)، و«القسم» للأصناف التي ليس لها نوع. المقاسات والإضافات والصور والباركود اختيارية — طريقة كتابتها في الورقة الثانية.') }}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input type="file" id="sheetFile" accept=".xlsx,.xls,.csv" class="a2-input" style="max-width:360px">
         <button type="button" class="a2-btn a2-btn-primary" id="previewBtn" disabled>{{ __('معاينة') }}</button>
@@ -64,6 +64,7 @@
         empty: @json(__('الملف فارغ أو بلا صفوف مقروءة.')),
         failed: @json(__('حدث خطأ ما، حاول مرة أخرى.')),
         typesSheet: @json(__('الأنواع والوحدات')), types: @json(__('النوع')), group: @json(__('المجموعة')), units: @json(__('الوحدات')),
+        howTo: @json(__('طريقة الكتابة')),
     };
     let rows = null;
 
@@ -91,11 +92,12 @@
             const sheet = XLSX.utils.aoa_to_sheet([header, ...body]);
             sheet['!cols'] = header.map(() => ({ wch: 18 }));
             XLSX.utils.book_append_sheet(book, sheet, 'menu');
-            const lists = [[T.types, T.group, T.units]];
-            const n = Math.max(data.vocabulary.lines.length, data.vocabulary.units.length);
+            const help = data.vocabulary.help || [];
+            const lists = [[T.types, T.group, T.units, T.howTo]];
+            const n = Math.max(data.vocabulary.lines.length, data.vocabulary.units.length, help.length);
             for (let i = 0; i < n; i++) {
                 const l = data.vocabulary.lines[i];
-                lists.push([l ? l.name : '', l ? l.group : '', data.vocabulary.units[i] ?? '']);
+                lists.push([l ? l.name : '', l ? l.group : '', data.vocabulary.units[i] ?? '', help[i] ?? '']);
             }
             XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(lists), T.typesSheet.substring(0, 31));
             XLSX.writeFile(book, template ? 'menu-template.xlsx' : 'menu.xlsx');
@@ -147,7 +149,7 @@
         tbody.innerHTML = '';
         report.rows.forEach(r => {
             const tr = document.createElement('tr');
-            [r.row, r.name, T[r.action] || r.action, (r.errors || []).join(' — ')].forEach((text, i) => {
+            [r.row, r.name, T[r.action] || r.action, [...(r.errors || []), ...(r.warnings || [])].join(' — ')].forEach((text, i) => {
                 const td = document.createElement('td');
                 td.textContent = text;
                 if (i === 2) { td.style.color = colors[r.action] || ''; td.style.fontWeight = '600'; }

@@ -109,7 +109,7 @@ final class SharedCartController extends Controller
         $data = $request->validate([
             'kind' => ['required', 'in:retail,menu,bundle'],
             'offering_id' => ['required', 'integer', 'min:1'],
-            'qty' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'qty' => ['nullable', 'numeric', 'min:0.05', 'max:999'],
             'size_id' => ['nullable', 'integer', 'min:1'],
             'extras' => ['nullable', 'array'],
             'extras.*' => ['integer', 'min:1'],
@@ -121,7 +121,7 @@ final class SharedCartController extends Controller
             $order,
             (string) $data['kind'],
             (int) $data['offering_id'],
-            (int) ($data['qty'] ?? 1),
+            (float) ($data['qty'] ?? 1),
             ['size_id' => $data['size_id'] ?? null, 'extras' => $data['extras'] ?? []]
         );
 
@@ -131,10 +131,10 @@ final class SharedCartController extends Controller
     /** Change a shared-cart line's quantity (adder or host). 0 removes. */
     public function updateItem(Request $request, int $order, int $item)
     {
-        $data = $request->validate(['qty' => ['required', 'integer', 'min:0', 'max:999']], [], ['qty' => __('الكمية')]);
+        $data = $request->validate(['qty' => ['required', 'numeric', 'min:0', 'max:999']], [], ['qty' => __('الكمية')]);
 
         $userId = (int) $request->user()->id;
-        $cart = $this->cart->updateSharedLine($userId, $order, $item, (int) $data['qty']);
+        $cart = $this->cart->updateSharedLine($userId, $order, $item, (float) $data['qty']);
 
         return response()->json(['success' => true, 'data' => ['cart' => $this->present($cart, $userId)]]);
     }
@@ -225,7 +225,7 @@ final class SharedCartController extends Controller
                 'id' => (int) $line->added_by_user_id,
                 'name' => (string) ($line->addedBy->name ?? ''),
             ],
-            'qty' => (int) $line->qty,
+            'qty' => $line->qty,
             'price' => (float) $line->price,
             'total_price' => (float) $line->total_price,
         ])->values();

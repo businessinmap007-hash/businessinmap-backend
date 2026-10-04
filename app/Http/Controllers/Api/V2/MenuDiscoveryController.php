@@ -457,6 +457,8 @@ final class MenuDiscoveryController extends Controller
             // «٤٥ ج / كجم» without carrying its own unit table.
             'sale_unit' => $item->sale_unit ?: null,
             'sale_unit_label' => $item->priceUnitLabel(),
+            // «كيلو وربع ونص»: may a part of the unit be ordered?
+            'fractional' => \App\Support\SaleUnits::isFractional($item->sale_unit),
             // The maker, when the merchant said one — «هل يوجد اسم الشركة
             // المنتجة او الماركة». Never `supply_price`: that is what the
             // merchant paid, and this endpoint is the public one.

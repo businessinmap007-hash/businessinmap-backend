@@ -35,7 +35,6 @@ class OrderItem extends Model
 
     protected $casts = [
         'addons' => 'array',
-        'qty' => 'integer',
         'price' => 'decimal:2',
         'total_price' => 'decimal:2',
         'unavailable_marked_at' => 'datetime',
@@ -100,6 +99,17 @@ class OrderItem extends Model
                 }
             }
         });
+    }
+
+    /**
+     * 2 for two pieces, 1.5 for a kilo and a half: a whole quantity stays an integer so every client that
+     * counts pieces reads it as before.
+     */
+    public function getQtyAttribute($value): int|float
+    {
+        $number = (float) $value;
+
+        return $number == floor($number) ? (int) $number : round($number, 3);
     }
 
     public function order()

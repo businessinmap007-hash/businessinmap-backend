@@ -104,6 +104,15 @@ final class SaleUnits
         return is_array($codes) ? array_values(array_intersect($codes, self::codes())) : null;
     }
 
+    /** The units a customer may order a PART of: the kilo and the litre («كيلو وربع ونص»). */
+    public const FRACTIONAL = ['kg', 'l', 'liter'];
+
+    /** Is an item sold in [$code] ordered by weight or volume, in fractions? */
+    public static function isFractional(?string $code): bool
+    {
+        return in_array(trim((string) $code), self::FRACTIONAL, true);
+    }
+
     /** @return array<int,string> */
     public static function codes(): array
     {

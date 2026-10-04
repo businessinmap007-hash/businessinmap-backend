@@ -71,10 +71,10 @@ class CustomerCartService
      * Add an offering to the customer's personal cart. $options may carry menu
      * customisation: ['size_id' => int, 'extras' => [id, ...]].
      */
-    public function addItem(int $userId, string $kind, int $offeringId, int $qty, array $options = []): Order
+    public function addItem(int $userId, string $kind, int $offeringId, float|int $qty, array $options = []): Order
     {
-        $qty = max(1, $qty);
         $resolved = $this->resolveOffering($kind, $offeringId, $options, $userId);
+        $qty = $this->wholeOrFraction($qty, $resolved[3] ?? null);
         $businessId = $resolved[0];
 
         return DB::transaction(function () use ($userId, $businessId, $offeringId, $resolved, $qty) {
@@ -120,7 +120,7 @@ class CustomerCartService
                 ->all();
 
             try {
-                $cart = $this->addItem($userId, (string) $kind, (int) $line->offering_id, (int) $line->qty, [
+                $cart = $this->addItem($userId, (string) $kind, (int) $line->offering_id, (float) $line->qty, [
                     'size_id' => $line->size_id ? (int) $line->size_id : null,
                     'plan_id' => $line->payment_plan_id ? (int) $line->payment_plan_id : null,
                     'extras' => $extras,
@@ -136,7 +136,7 @@ class CustomerCartService
     }
 
     /** Change a personal-cart line's quantity. qty<=0 removes the line. */
-    public function updateItemQty(int $userId, int $itemId, int $qty): Order
+    public function updateItemQty(int $userId, int $itemId, float|int $qty): Order
     {
         $line = $this->scopedItem($userId, $itemId);
         $cart = $line->order;
@@ -144,7 +144,7 @@ class CustomerCartService
         if ($qty <= 0) {
             $line->delete();
         } else {
-            $this->setQty($line, $qty);
+            $this->setQty($line, $this->wholeOrFraction($qty, $line->menu_id ? (int) $line->menu_id : null));
         }
 
         $this->orders->recalc($cart);
@@ -493,11 +493,11 @@ class CustomerCartService
     }
 
     /** Add an offering to a shared cart, attributed to the adder. */
-    public function addToShared(int $userId, int $orderId, string $kind, int $offeringId, int $qty, array $options = []): Order
+    public function addToShared(int $userId, int $orderId, string $kind, int $offeringId, float|int $qty, array $options = []): Order
     {
         $this->participantOrFail($userId, $orderId);
-        $qty = max(1, $qty);
         $resolved = $this->resolveOffering($kind, $offeringId, $options, $userId);
+        $qty = $this->wholeOrFraction($qty, $resolved[3] ?? null);
 
         DB::transaction(function () use ($orderId, $offeringId, $resolved, $qty, $userId) {
             $cart = Order::query()
@@ -514,7 +514,7 @@ class CustomerCartService
     }
 
     /** Change a shared-cart line's quantity (adder or host only). qty<=0 removes. */
-    public function updateSharedLine(int $userId, int $orderId, int $itemId, int $qty): Order
+    public function updateSharedLine(int $userId, int $orderId, int $itemId, float|int $qty): Order
     {
         $line = $this->editableSharedLine($userId, $orderId, $itemId);
         $cart = $line->order;
@@ -522,7 +522,7 @@ class CustomerCartService
         if ($qty <= 0) {
             $line->delete();
         } else {
-            $this->setQty($line, $qty);
+            $this->setQty($line, $this->wholeOrFraction($qty, $line->menu_id ? (int) $line->menu_id : null));
         }
 
         $this->orders->recalc($cart);
@@ -1168,7 +1168,7 @@ class CustomerCartService
      * Merge into an existing identical line (same offering + size + extras +
      * adder) or create a new one on the given cart.
      */
-    private function mergeOrCreateLine(Order $cart, int $offeringId, array $resolved, int $qty, ?int $addedBy): void
+    private function mergeOrCreateLine(Order $cart, int $offeringId, array $resolved, float|int $qty, ?int $addedBy): void
     {
         [$businessId, $offeringType, $price, $menuId, $sizeId, $addons, $planId] = $resolved + [6 => null];
 
@@ -1187,7 +1187,7 @@ class CustomerCartService
             ->first(fn (OrderItem $l) => $this->lineSignature($l->size_id, $l->addons, $l->added_by_user_id, $l->payment_plan_id) === $signature);
 
         if ($line) {
-            $this->setQty($line, (int) $line->qty + $qty);
+            $this->setQty($line, round((float) $line->qty + (float) $qty, 3));
         } else {
             $this->orders->addOffering($cart, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId, $addons, $addedBy, $planId);
         }
@@ -1433,9 +1433,31 @@ class CustomerCartService
         return $line;
     }
 
-    private function setQty(OrderItem $line, int $qty): void
+    /**
+     * A whole number of pieces, or — for an item sold by the kilo or the litre — a part of one («كيلو ونص»,
+     * «ربع كيلو»): in steps of 50 g, never below 50 g. Anything else about a piece is refused, not rounded.
+     */
+    private function wholeOrFraction(float|int $qty, ?int $menuId): float|int
     {
-        $qty = max(1, $qty);
+        $qty = round((float) $qty, 3);
+        $unit = $menuId ? \App\Models\MenuItem::query()->whereKey($menuId)->value('sale_unit') : null;
+
+        if (\App\Support\SaleUnits::isFractional($unit)) {
+            $qty = max(0.05, round($qty * 20) / 20);
+
+            return $qty == floor($qty) ? (int) $qty : $qty;
+        }
+
+        if ($qty != floor($qty)) {
+            throw ValidationException::withMessages(['qty' => __('هذا الصنف يُباع بالقطعة — اطلب عددًا صحيحًا.')]);
+        }
+
+        return max(1, (int) $qty);
+    }
+
+    private function setQty(OrderItem $line, float|int $qty): void
+    {
+        $qty = max(0.05, (float) $qty);
         $line->qty = $qty;
         $line->total_price = round((float) $line->price * $qty, 2);
         $line->save();

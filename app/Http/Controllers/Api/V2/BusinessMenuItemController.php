@@ -478,6 +478,8 @@ final class BusinessMenuItemController extends Controller
     {
         $businessId = $this->businessId($request);
         $data = $this->validatedItem($request, $businessId);
+        // «كيلو وربع ونص»: a food sold by weight starts out sold by the kilo, unless the merchant said otherwise.
+        $data['sale_unit'] ??= $this->defaultSaleUnit($request->integer('line_option_id'));
 
         // One transaction: a wrong «سنة الصنع» is a 422 and the item is not
         // left half-saved without it.
@@ -1203,6 +1205,17 @@ final class BusinessMenuItemController extends Controller
     private function businessId(Request $request): int
     {
         return \App\Support\BusinessContext::id($request);
+    }
+
+    /** The unit a new item of this kind is sold in when nobody chose: the kilo for food sold by weight. */
+    private function defaultSaleUnit(int $lineOptionId): ?string
+    {
+        if ($lineOptionId <= 0) {
+            return null;
+        }
+        $type = DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')->where('o.id', $lineOptionId)->value('g.detail_type');
+
+        return in_array($type, ['fresh_produce', 'weighed'], true) && in_array('kg', SaleUnits::codes(), true) ? 'kg' : null;
     }
 
     private function ownItem(Request $request, int $itemId): MenuItem

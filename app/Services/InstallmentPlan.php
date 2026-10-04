@@ -40,7 +40,7 @@ class InstallmentPlan
             $total = round((float) $line->total_price, 2);
             // The down payment (per unit) is paid with the first month; what is left
             // is split evenly over all the months.
-            $down = min(round((float) $line->installment_down * max((int) $line->qty, 1), 2), $total);
+            $down = min(round((float) $line->installment_down * max((float) $line->qty, 1), 2), $total);
             $each = round(($total - $down) / $m, 2);
             $paid = 0.0;
 

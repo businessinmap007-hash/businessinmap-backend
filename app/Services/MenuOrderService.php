@@ -21,7 +21,7 @@ class MenuOrderService
         Order $order,
         string $offeringType,
         int $offeringId,
-        int $qty,
+        float|int $qty,
         float $price,
         ?int $menuId = null,
         ?int $sizeId = null,
@@ -30,7 +30,7 @@ class MenuOrderService
         ?int $paymentPlanId = null
     ): void {
         DB::transaction(function () use ($order, $offeringType, $offeringId, $qty, $price, $menuId, $sizeId, $addons, $addedBy, $paymentPlanId) {
-            $qty = max(1, $qty);
+            $qty = max(0.05, round((float) $qty, 3));
             $price = round($price, 2);
 
             $order->items()->create([
@@ -51,7 +51,7 @@ class MenuOrderService
     }
 
     /** Convenience: add a bespoke menu item line. */
-    public function addLine(Order $order, int $menuId, int $qty, float $price, ?int $sizeId = null): void
+    public function addLine(Order $order, int $menuId, float|int $qty, float $price, ?int $sizeId = null): void
     {
         $this->addOffering($order, \App\Models\MenuItem::class, $menuId, $qty, $price, $menuId, $sizeId);
     }

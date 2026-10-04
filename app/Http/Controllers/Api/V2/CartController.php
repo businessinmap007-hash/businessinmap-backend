@@ -63,7 +63,8 @@ final class CartController extends Controller
         $data = $request->validate([
             'kind' => ['required', 'in:retail,menu,bundle'],
             'offering_id' => ['required', 'integer', 'min:1'],
-            'qty' => ['nullable', 'integer', 'min:1', 'max:999'],
+            // A whole number of pieces; a kilo-priced item also takes a part («1.5» = كيلو ونص).
+            'qty' => ['nullable', 'numeric', 'min:0.05', 'max:999'],
             'size_id' => ['nullable', 'integer', 'min:1'],
             // «كاش أو أقساط»: the payment plan picked on the line (none = cash).
             'plan_id' => ['nullable', 'integer', 'min:1'],
@@ -75,7 +76,7 @@ final class CartController extends Controller
             (int) $request->user()->id,
             (string) $data['kind'],
             (int) $data['offering_id'],
-            (int) ($data['qty'] ?? 1),
+            (float) ($data['qty'] ?? 1),
             [
                 'size_id' => $data['size_id'] ?? null,
                 'plan_id' => $data['plan_id'] ?? null,
@@ -90,10 +91,10 @@ final class CartController extends Controller
     public function updateItem(Request $request, int $item)
     {
         $data = $request->validate([
-            'qty' => ['required', 'integer', 'min:0', 'max:999'],
+            'qty' => ['required', 'numeric', 'min:0', 'max:999'],
         ], [], ['qty' => __('الكمية')]);
 
-        $order = $this->cart->updateItemQty((int) $request->user()->id, $item, (int) $data['qty']);
+        $order = $this->cart->updateItemQty((int) $request->user()->id, $item, (float) $data['qty']);
 
         return response()->json(['success' => true, 'data' => ['cart' => $this->presentCart($order)]]);
     }
@@ -186,13 +187,16 @@ final class CartController extends Controller
                 'extras' => collect(is_array($line->addons) ? $line->addons : [])
                     ->map(fn ($a) => (string) ($a['name'] ?? ''))->filter()->values()->all(),
             ],
-            'qty' => (int) $line->qty,
+            'qty' => $line->qty,
+            // «كيلو وربع ونص»: the unit this line is measured in, and whether a part of it may be ordered.
+            'unit' => \App\Support\SaleUnits::label($this->lineSaleUnit($line)),
+            'fractional' => \App\Support\SaleUnits::isFractional($this->lineSaleUnit($line)),
             // What the line costs per unit and, apart, what its extras add per unit — an invoice reads
             // «سمك 450» and «صينية 150» as two lines, not one line of 400.
             'base_price' => round((float) $line->price - collect(is_array($line->addons) ? $line->addons : [])->sum(fn ($a) => (float) ($a['price'] ?? 0) * (int) ($a['qty'] ?? 1)), 2),
             'extras_detail' => collect(is_array($line->addons) ? $line->addons : [])->map(fn ($a) => [
                 'name' => (string) ($a['name'] ?? ''), 'unit_price' => round((float) ($a['price'] ?? 0), 2), 'qty' => (int) ($a['qty'] ?? 1),
-                'total' => round((float) ($a['price'] ?? 0) * (int) ($a['qty'] ?? 1) * (int) $line->qty, 2),
+                'total' => round((float) ($a['price'] ?? 0) * (int) ($a['qty'] ?? 1) * (float) $line->qty, 2),
             ])->values()->all(),
             'price' => (float) $line->price,
             'total_price' => (float) $line->total_price,
@@ -291,6 +295,14 @@ final class CartController extends Controller
         }
 
         return $names;
+    }
+
+    private function lineSaleUnit($line): ?string
+    {
+        static $units = [];
+        $menuId = (int) ($line->menu_id ?: ($line->offering_type === MenuItem::class ? $line->offering_id : 0));
+
+        return $menuId > 0 ? ($units[$menuId] ??= MenuItem::query()->whereKey($menuId)->value('sale_unit')) : null;
     }
 
     /** [size_id => variant name] for the order's menu lines that carry a size. */

@@ -120,7 +120,7 @@ class OrderHandoverService
         $source = $order->ledgerSource();
 
         foreach ($order->items()->get() as $item) {
-            $qty = (int) ($item->qty ?: 1);
+            $qty = (float) ($item->qty ?: 1);
 
             if ((string) $item->offering_type === BusinessCatalogListing::class) {
                 $listing = BusinessCatalogListing::find($item->offering_id);

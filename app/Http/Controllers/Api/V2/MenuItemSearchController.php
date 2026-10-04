@@ -37,6 +37,8 @@ final class MenuItemSearchController extends Controller
             'governorate_id' => ['nullable', 'integer', 'min:1'],
             'city_id' => ['nullable', 'integer', 'min:1'],
             'attr' => ['nullable', 'array'],
+            // «غرف نوم — قسط»: only what can be bought on instalments.
+            'installments' => ['nullable', 'boolean'],
             'sort' => ['nullable', 'in:price_asc,price_desc,newest'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
@@ -67,6 +69,16 @@ final class MenuItemSearchController extends Controller
                 $like = '%' . trim($data['q']) . '%';
                 $q->where(fn ($w) => $w->where('menu_items.name_ar', 'like', $like)->orWhere('menu_items.name_en', 'like', $like));
             });
+
+        if ($request->boolean('installments')) {
+            $base->whereExists(fn ($sub) => $sub->select(DB::raw(1))->from('menu_item_payment_plans as pp')
+                ->whereColumn('pp.menu_item_id', 'menu_items.id')->where('pp.is_active', 1)
+                ->whereExists(fn ($kind) => $kind->select(DB::raw(1))->from('offering_options as oo')
+                    ->join('options as o', 'o.id', '=', 'oo.option_id')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+                    ->join('menu_detail_types as t', 't.code', '=', 'g.detail_type')
+                    ->whereColumn('oo.offering_id', 'menu_items.id')->where('oo.offering_type', $morph)->where('oo.role', 'line')
+                    ->where('t.allows_payment_plans', 1)));
+        }
 
         // The kind: items filed under a branch of a group that has it.
         if ($profile || ! empty($data['line_option_id'])) {
@@ -121,8 +133,9 @@ final class MenuItemSearchController extends Controller
         $images = DB::table('catalog_products')->whereIn('id', $products)->pluck('main_image', 'id');
 
         $cardCodes = collect($fields)->where('show_on_card', true)->pluck('code')->all();
+        $installments = app(\App\Services\Menu\PaymentPlans::class)->cardLines(collect($page->items())->mapWithKeys(fn ($r) => [(int) $r->id => (float) $r->base_price])->all());
 
-        $items = collect($page->items())->map(function ($r) use ($attrs, $masterSpecs, $images, $english, $cardCodes) {
+        $items = collect($page->items())->map(function ($r) use ($attrs, $masterSpecs, $images, $english, $cardCodes, $installments) {
             $specs = $attrs->mergeIntoSpecs($masterSpecs[(int) $r->catalog_product_id] ?? [], (int) $r->id);
             $byCode = collect($specs)->keyBy('code');
             // «الوصف» when the kind ticked it for the card.
@@ -136,6 +149,8 @@ final class MenuItemSearchController extends Controller
                 'id' => (int) $r->id,
                 'name' => (string) ($english ? ($r->name_en ?: $r->name_ar) : ($r->name_ar ?: $r->name_en)),
                 'price' => (float) $r->base_price,
+                // «تقسيط من … شهريًا» when it can be bought on instalments.
+                'installment' => $installments[(int) $r->id] ?? null,
                 'image' => $r->image ?: ($images[$r->catalog_product_id] ?? null),
                 'catalog_product_id' => $r->catalog_product_id ? (int) $r->catalog_product_id : null,
                 'available_quantity' => $r->available_quantity !== null ? (int) $r->available_quantity : null,

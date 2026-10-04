@@ -52,6 +52,56 @@ final class PaymentPlans
     }
 
     /**
+     * The one line a CARD says about instalments — «تقسيط من 3000 شهريًا على 12 شهر»: the plan with the lowest
+     * month. null when the item is cash only.
+     *
+     * @param  list<array{months:int,monthly:float,unit_price:float}>  $plans  {@see present()}
+     * @return array{months:int,monthly:float,unit_price:float}|null
+     */
+    public function cardLine(array $plans): ?array
+    {
+        $best = collect($plans)->sortBy('monthly')->first();
+
+        return $best ? ['months' => (int) $best['months'], 'monthly' => (float) $best['monthly'], 'unit_price' => (float) $best['unit_price']] : null;
+    }
+
+    /**
+     * {@see cardLine()} for a page of items at once (search results): item id => the card line.
+     *
+     * @param  array<int,float>  $cashByItem  item id => cash price
+     * @return array<int,array{months:int,monthly:float,unit_price:float}>
+     */
+    public function cardLines(array $cashByItem): array
+    {
+        if ($cashByItem === []) {
+            return [];
+        }
+        $morph = (new MenuItem)->getMorphClass();
+
+        // Only items whose kind sells on instalments: the line option's group has a type that allows plans.
+        $allowed = DB::table('offering_options as oo')
+            ->join('options as o', 'o.id', '=', 'oo.option_id')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->join('menu_detail_types as t', 't.code', '=', 'g.detail_type')
+            ->where('oo.offering_type', $morph)->where('oo.role', 'line')->where('t.allows_payment_plans', 1)
+            ->whereIn('oo.offering_id', array_keys($cashByItem))->pluck('oo.offering_id')->map(fn ($id) => (int) $id)->all();
+
+        $out = [];
+        foreach (MenuItemPaymentPlan::query()->active()->whereIn('menu_item_id', $allowed)->get()->groupBy('menu_item_id') as $itemId => $plans) {
+            $cash = (float) ($cashByItem[$itemId] ?? 0);
+            $line = $this->cardLine($plans->map(function (MenuItemPaymentPlan $p) use ($cash) {
+                $unit = $p->unitPrice($cash);
+
+                return ['months' => (int) $p->installment_months, 'unit_price' => $unit, 'monthly' => round(($unit - (float) $p->installment_down) / max(1, (int) $p->installment_months), 2)];
+            })->all());
+            if ($line) {
+                $out[(int) $itemId] = $line;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Replace the item's plans. Each `{months, down?, total_price}`: what ONE unit costs when paid that way.
      *
      * @param  list<array<string,mixed>>  $plans

@@ -59,6 +59,12 @@ class Kernel extends ConsoleKernel
             ->dailyAt('03:30')
             ->withoutOverlapping();
 
+        // «احذف الحقول الحساسة فقط وابقِ الأصناف» — a finished prescription's diagnosis/condition/notes leave the
+        // server 90 days after it ends, but only once the patient's phone confirmed it holds the exact copy.
+        $schedule->command('prescriptions:purge-sensitive')
+            ->dailyAt('04:10')
+            ->withoutOverlapping();
+
         // Suspected-fraud flags from the rating graph. Daily and off-peak: the
         // signal moves on the scale of many operations, and it only suggests —
         // an admin still reviews every flag before anyone is fined or banned.

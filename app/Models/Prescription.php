@@ -108,6 +108,8 @@ class Prescription extends Model
         'dispensed_at' => 'datetime',
         'medicine_total' => 'decimal:2',
         'priced_at' => 'datetime',
+        'archived_by_patient_at' => 'datetime',
+        'content_purged_at' => 'datetime',
         'delivery_driver_id' => 'integer',
     ];
 

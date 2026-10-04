@@ -10,6 +10,7 @@ use App\Models\PrescriptionItem;
 use App\Models\User;
 use App\Services\Agenda\MedicationScheduleService;
 use App\Services\Media\ImageUploadService;
+use App\Services\Prescriptions\PrescriptionContent;
 use App\Services\Prescriptions\PrescriptionService;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
@@ -53,6 +54,36 @@ class PrescriptionController extends Controller
             'message' => __('تم إرسال طلبك إلى الصيدلية.'),
             'data' => ['prescription' => $this->serialize($prescription->fresh(['pharmacy:id,name']))],
         ], 201);
+    }
+
+    /**
+     * POST /api/v2/prescriptions/archived — `{id, content}`: the patient's phone says «I hold this prescription».
+     * The content it sends is fingerprinted here and must equal what the doctor wrote; only then is the prescription
+     * marked as held by the patient — which is what lets `prescriptions:purge-sensitive` later remove the diagnosis,
+     * condition and notes from the server. The content itself is never stored.
+     */
+    public function archived(Request $request)
+    {
+        $data = $request->validate([
+            'id' => ['required', 'integer'],
+            'content' => ['required', 'array'],
+        ]);
+
+        $row = Prescription::query()->where('patient_id', $request->user()->id)->findOrFail((int) $data['id']);
+        $content = app(PrescriptionContent::class);
+
+        abort_unless($row->content_hash, 422, __('هذه الوصفة ليس لها بصمة، فلا يمكن اعتماد نسخة الهاتف.'));
+        abort_unless(hash_equals((string) $row->content_hash, $content->hash($data['content'])), 422, __('النسخة المرسلة لا تطابق ما كتبه الطبيب.'));
+
+        if (! $row->archived_by_patient_at) {
+            $row->forceFill(['archived_by_patient_at' => now()])->saveQuietly();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم اعتماد نسخة الهاتف.'),
+            'data' => ['id' => (int) $row->id, 'archived' => true],
+        ]);
     }
 
     /**
@@ -455,9 +486,12 @@ class PrescriptionController extends Controller
             'dispensed_at' => optional($p->dispensed_at)->toIso8601String(),
             // What the doctor wrote, in the canonical form its fingerprint covers — the patient's phone keeps
             // it, and the pharmacy checks a shown copy against the server's fingerprint (never the other way).
-            'verifiable' => $p->content_hash && $p->relationLoaded('items')
-                ? ['content' => app(\App\Services\Prescriptions\PrescriptionContent::class)->of($p), 'hash' => (string) $p->content_hash]
+            // After the purge the server no longer holds the content, so it cannot hand it back: the patient's
+            // phone is the copy (`content_purged` tells the app not to overwrite its own with this one).
+            'verifiable' => $p->content_hash && ! $p->content_purged_at && $p->relationLoaded('items')
+                ? ['content' => app(PrescriptionContent::class)->of($p), 'hash' => (string) $p->content_hash]
                 : null,
+            'content_purged' => (bool) $p->content_purged_at,
         ];
     }
 

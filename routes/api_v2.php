@@ -455,6 +455,8 @@ Route::prefix('v2')->group(function () {
         Route::get('prescriptions', [PrescriptionController::class, 'index']);
         // Direct customer -> pharmacy request, no doctor involved (photo/free text).
         Route::post('prescriptions/request', [PrescriptionController::class, 'requestFromPharmacy']);
+        // The patient's phone confirms it holds the exact copy — what allows the server to drop the sensitive fields.
+        Route::post('prescriptions/archived', [PrescriptionController::class, 'archived'])->middleware('throttle:60,1');
         // The doctor-only actions (issue/list-issued/revise): a secretary with
         // the `prescriptions` capability was grantable but could never actually
         // use it — these sat outside any business.member gate, so

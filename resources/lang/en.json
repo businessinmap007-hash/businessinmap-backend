@@ -2887,5 +2887,8 @@
     "هذه الوصفة صُرفت من قبل.": "This prescription was already dispensed.",
     "لا يمكن صرف هذه الوصفة في حالتها الحالية.": "This prescription cannot be dispensed in its current state.",
     "هذه الوصفة غير موثّقة — لا تطابق ما كتبه الطبيب.": "This prescription is not verified — it does not match what the doctor wrote.",
-    "تم تسجيل صرف الوصفة.": "The prescription was recorded as dispensed."
+    "تم تسجيل صرف الوصفة.": "The prescription was recorded as dispensed.",
+    "هذه الوصفة ليس لها بصمة، فلا يمكن اعتماد نسخة الهاتف.": "This prescription has no fingerprint, so a phone copy cannot be accepted.",
+    "النسخة المرسلة لا تطابق ما كتبه الطبيب.": "The copy sent does not match what the doctor wrote.",
+    "تم اعتماد نسخة الهاتف.": "The phone copy was accepted."
 }

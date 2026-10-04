@@ -5029,6 +5029,8 @@ paths:
       summary: Read a prescription (doctor, patient, or pharmacy only)
       parameters: [{ name: prescription, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { description: 'Not found, or you are not a party' } }
+  /prescriptions/archived:
+    post: { tags: [Prescriptions], summary: 'The patient phone confirms it holds this prescription ({id, content}). The content is fingerprinted and must equal what the doctor wrote; only then is the prescription marked as held by the patient, which allows the scheduled purge to remove its diagnosis, condition and notes from the server (the medicine lines and the fingerprint stay). The content is never stored', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /prescriptions/request:
     post:
       tags: [Prescriptions]

@@ -810,6 +810,11 @@ Route::prefix('v2')->group(function () {
         // Staff invitations: the invited person hasn't been accepted yet, so
         // these sit on plain auth — business.member would refuse them before
         // they can ever accept.
+        // «الملف الطبي على الموبايل»: a few minutes of ciphertext only — the key is in the patient's QR code.
+        Route::post('medical-shares', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'store'])->middleware('throttle:30,1');
+        Route::get('medical-shares/{id}', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'show'])->whereUuid('id')->middleware('throttle:30,1');
+        Route::delete('medical-shares/{id}', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'destroy'])->whereUuid('id');
+
         Route::get('staff/invitations', [BusinessStaffController::class, 'invitations']);
         Route::post('staff/invitations/{business}/accept', [BusinessStaffController::class, 'accept'])->whereNumber('business');
         Route::post('staff/invitations/{business}/decline', [BusinessStaffController::class, 'decline'])->whereNumber('business');

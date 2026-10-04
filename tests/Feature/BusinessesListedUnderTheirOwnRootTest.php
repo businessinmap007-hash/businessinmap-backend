@@ -49,4 +49,20 @@ class BusinessesListedUnderTheirOwnRootTest extends TestCase
 
         $this->assertContains($a->id, $this->ids(['child_id' => $child]));
     }
+
+    public function test_the_specialties_of_a_root_count_the_accounts_filed_under_that_root(): void
+    {
+        $child = (int) DB::table('category_parent_child')->select('child_id')->groupBy('child_id')->havingRaw('count(*) > 1')->orderBy('child_id')->value('child_id');
+        $roots = DB::table('category_parent_child')->where('child_id', $child)->orderBy('parent_id')->pluck('parent_id')->all();
+        $a = User::query()->where('type', 'business')->orderByDesc('id')->firstOrFail();
+        DB::table('users')->where('id', $a->id)->update(['category_id' => $roots[0], 'category_child_id' => $child]);
+        // A shop with no priced service is still an activity: the count is of accounts, not of priced rows.
+        DB::table('business_service_prices')->where('business_id', $a->id)->delete();
+
+        $count = fn (int $root) => collect($this->getJson("/api/v2/categories/{$root}/specialties")->assertOk()->json('data.specialties'))->firstWhere('id', $child)['businesses'];
+        $before = $count($roots[1]);
+
+        $this->assertGreaterThanOrEqual(1, $count($roots[0]));
+        $this->assertSame($before, $count($roots[1]), 'the other root does not gain it');
+    }
 }

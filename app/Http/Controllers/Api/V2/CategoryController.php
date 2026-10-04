@@ -69,16 +69,18 @@ final class CategoryController extends Controller
             return response()->json(['success' => false, 'message' => __('التصنيف غير موجود.')], 404);
         }
 
-        // The count mirrors what DiscoveryController actually searches:
-        // active business_service_prices for this child.
+        // The count mirrors what DiscoveryController::businesses() lists: the business accounts filed under
+        // THIS root and this child (an account holds exactly one pair). It used to count priced service
+        // rows, so every shop that sells from a menu or has not priced a service read «لا يوجد نشاط».
         $specialties = DB::table('category_parent_child as l')
             ->join('category_children_master as m', 'm.id', '=', 'l.child_id')
-            ->leftJoin('business_service_prices as p', function ($join) {
-                $join->on('p.child_id', '=', 'm.id')->where('p.is_active', '=', 1);
+            ->leftJoin('users as u', function ($join) {
+                $join->on('u.category_child_id', '=', 'm.id')->on('u.category_id', '=', 'l.parent_id')
+                    ->where('u.type', '=', 'business')->whereNull('u.deleted_at');
             })
             ->where('l.parent_id', $category)
             ->groupBy('m.id', 'm.name_ar', 'm.name_en', 'm.reorder')
-            ->selectRaw('m.id, m.name_ar, m.name_en, m.reorder, COUNT(DISTINCT p.business_id) as businesses')
+            ->selectRaw('m.id, m.name_ar, m.name_en, m.reorder, COUNT(DISTINCT u.id) as businesses')
             ->orderByRaw('COALESCE(m.reorder, 999999) ASC')
             ->orderBy('m.id')
             ->get();

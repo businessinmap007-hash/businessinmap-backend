@@ -52,10 +52,10 @@ class FishCookingAddonsTest extends TestCase
 
         $first = $this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/business/menu/addons')->assertOk()->json('data.addons');
         $this->assertSame('طريقة الطهي', $first[0]['group_name']);
-        $this->assertSame([null, null, null, null, null], array_column($first[0]['options'], 'price'), 'nothing priced yet');
+        $this->assertSame([null, null, null, null, null, null], array_column($first[0]['options'], 'price'), 'nothing priced yet');
 
         $saved = $this->price([$this->method('مشوي') => 50, $this->method('مقلي') => 80, $this->method('سينية بالفرن') => 100]);
-        $this->assertEquals([null, 50, 80, 100, null], array_column($saved[0]['options'], 'price'));
+        $this->assertEquals([null, 50, 80, 100, null, null], array_column($saved[0]['options'], 'price'));
     }
 
     public function test_every_item_of_the_shop_carries_the_priced_methods_as_a_single_choice(): void

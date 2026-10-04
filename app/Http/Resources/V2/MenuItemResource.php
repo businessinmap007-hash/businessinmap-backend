@@ -95,6 +95,8 @@ class MenuItemResource extends JsonResource
 
             // «كاش أو أقساط» — only for the kinds that sell on instalments.
             'payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->present($this->resource),
+            // The shop's services this merchant switches on per item (a restaurant's «طريقة الطهي»).
+            'addon_choices' => app(\App\Services\Menu\BusinessAddons::class)->choicesFor($this->resource),
             'allows_payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->allowedFor($this->resource),
 
             'variants' => $this->whenLoaded('variants', fn () => $this->variants->map(fn ($v) => [

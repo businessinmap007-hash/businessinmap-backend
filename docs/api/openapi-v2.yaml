@@ -2703,6 +2703,9 @@ paths:
     get: { tags: [Business Menu], summary: The sale units this business's menu may use (kg/piece/portion...), responses: { '200': { description: OK } } }
   /business/menu/vocabulary:
     get: { tags: [Business Menu], summary: This menu's line/modifier option vocabulary, resolved for its own category child, responses: { '200': { description: OK } } }
+  /business/menu/items/{item}/addons:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    put: { tags: [Business Menu], summary: "Switch the shop's per-item services on or off for one item - {group_ids: [..]}", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/menu/items/{item}/payment-plans:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
     put: { tags: [Business Menu], summary: "Replace an item's instalment plans - {plans: [{months, down, total_price}]}; refused for kinds that do not sell on instalments", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }

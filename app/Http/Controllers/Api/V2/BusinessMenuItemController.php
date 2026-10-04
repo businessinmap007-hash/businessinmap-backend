@@ -200,7 +200,8 @@ final class BusinessMenuItemController extends Controller
 
         foreach ($this->placementsFor(\App\Models\ServiceOptionGroupPlacement::USAGE_PRICE_VARIANT) as $groupId => $placement) {
             $group = OptionGroup::query()->find($groupId, ['id', 'name_ar', 'name_en']);
-            if (! $group) {
+            // «كاش / تقسيط» is the item's payment PLAN, never a price axis — however a trade's «مكونات الخدمة» says.
+            if (! $group || $group->name_ar === 'الدفع والسداد') {
                 continue;
             }
 
@@ -972,6 +973,19 @@ final class BusinessMenuItemController extends Controller
         $this->ownItem($request, $item)->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * PUT /api/v2/business/menu/items/{item}/addons — `{"group_ids": [12]}`: which of the shop's services a
+     * restaurant offers on THIS item («طريقة الطهي» on the grill, not on the salad). Services a shop carries on
+     * every item are not a choice and are ignored.
+     */
+    public function updateAddonChoices(Request $request, int $item)
+    {
+        $model = $this->ownItem($request, $item);
+        $data = $request->validate(['group_ids' => ['present', 'array'], 'group_ids.*' => ['integer']]);
+
+        return response()->json(['success' => true, 'data' => ['addon_choices' => app(\App\Services\Menu\BusinessAddons::class)->setChoices($model, $data['group_ids'])]]);
     }
 
     // ─────────────────────────── Payment plans ───────────────────────────

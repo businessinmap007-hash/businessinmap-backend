@@ -40,6 +40,61 @@ final class BusinessAddons
     }
 
     /**
+     * Which of the shop's services ride on EVERY item (`all`: a fish shop cooks what it sells) and which only
+     * on the items the merchant chooses (`chosen`: a restaurant's grilled dishes, not its salads).
+     *
+     * @return array<int,string> group id => 'all' | 'chosen'
+     */
+    public function scopes(int $businessId): array
+    {
+        $child = (int) User::query()->whereKey($businessId)->value('category_child_id');
+        $menu = (int) PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id');
+
+        return $child > 0 && $menu > 0
+            ? $this->placements->for($menu, $child, Placement::USAGE_ADDON)->mapWithKeys(fn ($p) => [(int) $p->option_group_id => (string) ($p->item_scope ?: 'all')])->all()
+            : [];
+    }
+
+    /**
+     * The services this item may offer, for the item screen: only the `chosen` ones are a switch.
+     *
+     * @return list<array{group_id:int,group_name:string,enabled:bool}>
+     */
+    public function choicesFor(MenuItem $item): array
+    {
+        $chosen = array_keys(array_filter($this->scopes((int) $item->business_id), fn ($scope) => $scope === 'chosen'));
+        if ($chosen === []) {
+            return [];
+        }
+        $on = DB::table('menu_item_addon_choices')->where('menu_item_id', $item->id)->pluck('option_group_id')->map(fn ($id) => (int) $id)->all();
+
+        return OptionGroup::query()->whereIn('id', $chosen)->get()
+            ->map(fn (OptionGroup $g) => ['group_id' => (int) $g->id, 'group_name' => $g->displayName(), 'enabled' => in_array((int) $g->id, $on, true)])->values()->all();
+    }
+
+    /**
+     * Switch the `chosen` services of ONE item on or off.
+     *
+     * @param  list<int>  $groupIds  the groups to offer on this item; every other chosen group is off
+     * @return list<array{group_id:int,group_name:string,enabled:bool}>
+     */
+    public function setChoices(MenuItem $item, array $groupIds): array
+    {
+        $chosen = array_keys(array_filter($this->scopes((int) $item->business_id), fn ($scope) => $scope === 'chosen'));
+        $wanted = array_values(array_intersect($chosen, array_map('intval', $groupIds)));
+
+        DB::transaction(function () use ($item, $chosen, $wanted) {
+            DB::table('menu_item_addon_choices')->where('menu_item_id', $item->id)->whereIn('option_group_id', $chosen)->delete();
+            foreach ($wanted as $groupId) {
+                DB::table('menu_item_addon_choices')->insert(['menu_item_id' => $item->id, 'option_group_id' => $groupId, 'created_at' => now(), 'updated_at' => now()]);
+            }
+        });
+        $this->syncItem($item);
+
+        return $this->choicesFor($item);
+    }
+
+    /**
      * Every service with its options and the shop's price for each (null = not offered).
      *
      * @return list<array{group_id:int,group_name:string,options:list<array{id:int,name:string,price:?float}>}>
@@ -118,11 +173,25 @@ final class BusinessAddons
     {
         $prices = DB::table('business_addon_prices')->where('business_id', $item->business_id)->where('price', '>', 0)->pluck('price', 'option_id');
 
+        $scopes = $this->scopes((int) $item->business_id);
+        $on = DB::table('menu_item_addon_choices')->where('menu_item_id', $item->id)->pluck('option_group_id')->map(fn ($id) => (int) $id)->all();
+
         foreach ($this->groupIds((int) $item->business_id) as $groupId) {
             $optionIds = DB::table('options')->where('group_id', $groupId)->pluck('id')->map(fn ($id) => (int) $id)->all();
             $priced = collect($optionIds)->filter(fn ($id) => isset($prices[$id]))->values();
 
             $group = MenuItemExtraGroup::query()->where('menu_item_id', $item->id)->where('source_group_id', $groupId)->first();
+
+            // A service the merchant chooses per item is offered only where he ticked it: the tick IS the
+            // switch (a restaurant's grilled dish carries it, its salad does not).
+            if (($scopes[$groupId] ?? 'all') === 'chosen') {
+                if (! in_array($groupId, $on, true)) {
+                    $group?->update(['is_active' => false]);
+
+                    continue;
+                }
+                $group?->update(['is_active' => true]);
+            }
 
             if (! $group) {
                 if ($priced->isEmpty()) {

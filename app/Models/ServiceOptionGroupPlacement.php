@@ -87,6 +87,7 @@ class ServiceOptionGroupPlacement extends Model
         'show_on_page',
         'display',
         'multiple',
+        'item_scope',
     ];
 
     protected $casts = [

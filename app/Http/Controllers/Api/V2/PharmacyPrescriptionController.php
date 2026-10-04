@@ -36,6 +36,64 @@ class PharmacyPrescriptionController extends Controller
     }
 
     /**
+     * POST /api/v2/pharmacy/prescriptions/verify — `{id, content}`: a prescription the patient SHOWED on his phone.
+     * The server recomputes the fingerprint of the content it was handed and compares it with the one it stored
+     * when the doctor issued it: «this is exactly what Dr. X wrote», and whether it can still be dispensed.
+     * It reveals nothing about the prescription beyond that.
+     */
+    public function verify(Request $request)
+    {
+        return response()->json(['success' => true, 'data' => $this->verification($request)]);
+    }
+
+    /**
+     * POST /api/v2/pharmacy/prescriptions/dispense-in-person — `{id, content}`: hand the medicine over against a
+     * shown prescription. Re-verified here (never trusted from the earlier call), then dispensed exactly once.
+     */
+    public function dispenseInPerson(Request $request)
+    {
+        $check = $this->verification($request);
+        if (! $check['authentic']) {
+            return response()->json(['success' => false, 'message' => __('هذه الوصفة غير موثّقة — لا تطابق ما كتبه الطبيب.')], 422);
+        }
+
+        $prescription = Prescription::query()->findOrFail((int) $request->input('id'));
+        $row = $this->service->dispenseInPerson($prescription, BusinessContext::business($request));
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تسجيل صرف الوصفة.'),
+            'data' => ['id' => (int) $row->id, 'status' => (string) $row->status, 'dispensed_at' => optional($row->dispensed_at)->toIso8601String()],
+        ]);
+    }
+
+    /** @return array<string,mixed> */
+    private function verification(Request $request): array
+    {
+        $data = $request->validate(['id' => ['required', 'integer', 'min:1'], 'content' => ['required', 'array']]);
+
+        $row = Prescription::query()->with('doctor:id,name,name_en,medical_title')->find((int) $data['id']);
+        $contents = app(\App\Services\Prescriptions\PrescriptionContent::class);
+        $authentic = $row && $row->content_hash && hash_equals((string) $row->content_hash, $contents->hash($data['content']))
+            && (string) ($data['content']['id'] ?? '') === (string) $row->id;
+
+        if (! $authentic) {
+            return ['authentic' => false];
+        }
+
+        return [
+            'authentic' => true,
+            'status' => (string) $row->status,
+            // issued = may be dispensed; sent/preparing/ready = another pharmacy already has it; dispensed/cancelled = no.
+            'can_dispense' => $row->status === Prescription::STATUS_ISSUED,
+            'superseded' => (bool) ($row->status === Prescription::STATUS_CANCELLED && $row->revisedBy()->exists()),
+            'doctor' => $row->doctor ? ['id' => (int) $row->doctor->id, 'name' => $row->doctor->displayName()] : null,
+            'issued_at' => optional($row->issued_at)->toIso8601String(),
+            'dispensed_at' => optional($row->dispensed_at)->toIso8601String(),
+        ];
+    }
+
+    /**
      * POST /api/v2/pharmacy/prescriptions/{prescription}/quote — reply to a
      * customer's direct request with real, dictionary-bound, priced items in
      * one shot. Nothing is prepared yet — the customer must accept first.

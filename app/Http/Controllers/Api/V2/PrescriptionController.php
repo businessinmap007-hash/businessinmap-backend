@@ -453,6 +453,11 @@ class PrescriptionController extends Controller
                 : [],
             'issued_at' => optional($p->issued_at)->toIso8601String(),
             'dispensed_at' => optional($p->dispensed_at)->toIso8601String(),
+            // What the doctor wrote, in the canonical form its fingerprint covers — the patient's phone keeps
+            // it, and the pharmacy checks a shown copy against the server's fingerprint (never the other way).
+            'verifiable' => $p->content_hash && $p->relationLoaded('items')
+                ? ['content' => app(\App\Services\Prescriptions\PrescriptionContent::class)->of($p), 'hash' => (string) $p->content_hash]
+                : null,
         ];
     }
 

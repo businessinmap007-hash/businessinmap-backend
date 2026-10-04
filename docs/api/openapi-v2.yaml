@@ -5317,6 +5317,10 @@ paths:
         - { name: status, in: query, schema: { type: string, enum: [sent_to_pharmacy, preparing, ready, dispensed] } }
         - { $ref: '#/components/parameters/PerPage' }
       responses: { '200': { description: OK } }
+  /pharmacy/prescriptions/verify:
+    post: { tags: [Prescriptions], summary: 'A prescription the patient showed on his phone ({id, content}): the server recomputes the fingerprint of the content and compares it with the one stored when the doctor issued it. Returns authentic, and when authentic: status, can_dispense, superseded, the doctor and dates', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /pharmacy/prescriptions/dispense-in-person:
+    post: { tags: [Prescriptions], summary: 'Hand the medicine over against a shown prescription ({id, content}). Re-verified, then dispensed exactly once (row locked); only a prescription still in the issued state can be taken this way', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /pharmacy/prescriptions/{prescription}/price:
     post:
       tags: [Prescriptions]

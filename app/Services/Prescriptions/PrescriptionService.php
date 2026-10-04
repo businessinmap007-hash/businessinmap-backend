@@ -151,6 +151,8 @@ class PrescriptionService
             ]);
 
             $this->createItems($prescription, $items);
+            // The fingerprint of what was written: a copy on the patient's phone is checked against it.
+            app(PrescriptionContent::class)->stamp($prescription);
 
             $this->notify('prescription_issued', (int) $patient->id, $prescription,
                 'وصفة طبية جديدة', 'New prescription',
@@ -254,6 +256,7 @@ class PrescriptionService
             ]);
 
             $this->createItems($revision, $items);
+            app(PrescriptionContent::class)->stamp($revision);
 
             $prescription->update(['status' => Prescription::STATUS_CANCELLED]);
 
@@ -414,6 +417,41 @@ class PrescriptionService
         $prescription->update(['dispensed_at' => now()]);
 
         return $prescription;
+    }
+
+    /**
+     * A pharmacy hands the medicine over across the counter against a prescription the patient SHOWED (a copy kept
+     * on his phone) — no «send to pharmacy» first. Only a prescription that is still `issued` (never sent
+     * elsewhere, never dispensed, cancelled or replaced) can be taken this way, and only once: the row is locked,
+     * so two pharmacies scanning the same code cannot both dispense it. It is cash at the counter — nothing is
+     * priced here, and the invoice rule that guards `dispense()` is about the in-app flow.
+     */
+    public function dispenseInPerson(Prescription $prescription, User $pharmacy): Prescription
+    {
+        return DB::transaction(function () use ($prescription, $pharmacy) {
+            $locked = Prescription::query()->whereKey($prescription->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== Prescription::STATUS_ISSUED) {
+                throw ValidationException::withMessages([
+                    'status' => $locked->status === Prescription::STATUS_DISPENSED
+                        ? __('هذه الوصفة صُرفت من قبل.')
+                        : __('لا يمكن صرف هذه الوصفة في حالتها الحالية.'),
+                ]);
+            }
+
+            $locked->update([
+                'pharmacy_id' => (int) $pharmacy->id,
+                'fulfillment_type' => Prescription::FULFILLMENT_PICKUP,
+                'status' => Prescription::STATUS_DISPENSED,
+                'dispensed_at' => now(),
+            ]);
+
+            $this->notify('prescription_ready', (int) $locked->patient_id, $locked,
+                'صُرفت وصفتك', 'Your prescription was dispensed',
+                'صرفت لك ' . $pharmacy->displayName() . ' وصفتك الطبية.', $pharmacy->displayName() . ' dispensed your prescription.');
+
+            return $locked;
+        });
     }
 
     /**

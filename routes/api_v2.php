@@ -529,6 +529,9 @@ Route::prefix('v2')->group(function () {
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
         Route::prefix('pharmacy/prescriptions')->middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
             Route::get('/', [PharmacyPrescriptionController::class, 'incoming']);
+            // A prescription the patient SHOWED on his phone: checked against the doctor's fingerprint, then dispensed once.
+            Route::post('verify', [PharmacyPrescriptionController::class, 'verify'])->middleware('throttle:60,1');
+            Route::post('dispense-in-person', [PharmacyPrescriptionController::class, 'dispenseInPerson'])->middleware('throttle:30,1');
             Route::post('{prescription}/price', [PharmacyPrescriptionController::class, 'price'])->whereNumber('prescription');
             Route::post('{prescription}/prepare', [PharmacyPrescriptionController::class, 'prepare'])->whereNumber('prescription');
             Route::post('{prescription}/ready', [PharmacyPrescriptionController::class, 'ready'])->whereNumber('prescription');

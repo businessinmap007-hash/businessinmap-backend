@@ -2883,5 +2883,9 @@
     "«:text» ليس رابط صورة.": "\":text\" is not an image link.",
     "انتهت صلاحية المشاركة أو أُلغيت.": "The share has expired or was ended.",
     "لا توجد نسخة احتياطية.": "There is no backup.",
-    "هذه ليست نسخة احتياطية صالحة.": "This is not a valid backup."
+    "هذه ليست نسخة احتياطية صالحة.": "This is not a valid backup.",
+    "هذه الوصفة صُرفت من قبل.": "This prescription was already dispensed.",
+    "لا يمكن صرف هذه الوصفة في حالتها الحالية.": "This prescription cannot be dispensed in its current state.",
+    "هذه الوصفة غير موثّقة — لا تطابق ما كتبه الطبيب.": "This prescription is not verified — it does not match what the doctor wrote.",
+    "تم تسجيل صرف الوصفة.": "The prescription was recorded as dispensed."
 }

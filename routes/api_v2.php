@@ -839,6 +839,10 @@ Route::prefix('v2')->group(function () {
             Route::put('addons', [\App\Http\Controllers\Api\V2\BusinessAddonsController::class, 'update']);
             Route::get('terms', [\App\Http\Controllers\Api\V2\BusinessTermsController::class, 'index']);
             Route::put('terms', [\App\Http\Controllers\Api\V2\BusinessTermsController::class, 'update']);
+            // «استيراد وتصدير المنيو»: the menu as a sheet (JSON or CSV), and an import with a preview.
+            Route::get('sheet', [\App\Http\Controllers\Api\V2\BusinessMenuSheetController::class, 'show']);
+            Route::get('sheet.csv', [\App\Http\Controllers\Api\V2\BusinessMenuSheetController::class, 'csv']);
+            Route::post('import', [\App\Http\Controllers\Api\V2\BusinessMenuSheetController::class, 'import']);
             Route::get('catalog-lookup', [BusinessMenuItemController::class, 'catalogLookup']);
             // «الموديل مش موجود» — a merchant-proposed catalog model, pending review.
             Route::post('catalog-products', [BusinessMenuItemController::class, 'proposeProduct']);

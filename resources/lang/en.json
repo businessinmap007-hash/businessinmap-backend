@@ -2857,5 +2857,13 @@
     "هذا النوع من المنتجات لا يُباع بالتقسيط.": "This kind of product is not sold on instalments.",
     "سعر التقسيط لا يقل عن السعر كاش.": "The instalment price cannot be lower than the cash price.",
     "المقدم يجب أن يكون أقل من سعر التقسيط.": "The down payment must be lower than the instalment price.",
-    "خطة الدفع المختارة غير متاحة.": "The chosen payment plan is not available."
+    "خطة الدفع المختارة غير متاحة.": "The chosen payment plan is not available.",
+    "الملف أكبر من :max صف — قسّمه على أكثر من ملف.": "The file has more than :max rows — split it into several files.",
+    "النوع «:name» ليس من أنواع نشاطك.": "The type \":name\" is not one of your trade's types.",
+    "الوحدة «:name» غير معروفة.": "The unit \":name\" is not known.",
+    "الاسم عربي مطلوب.": "The Arabic name is required.",
+    "السعر مطلوب ويكون رقمًا.": "The price is required and must be a number.",
+    "رقم الصنف :id ليس من أصنافك.": "Item ID :id is not one of your items.",
+    "عندك أكثر من صنف بهذا الاسم — اكتب رقم الصنف.": "You have more than one item with this name — write the item ID.",
+    "الملف فارغ أو بلا صفوف مقروءة.": "The file is empty or has no readable rows."
 }

@@ -2709,6 +2709,12 @@ paths:
     get: { tags: [Business Menu], summary: The sale units this business's menu may use (kg/piece/portion...), responses: { '200': { description: OK } } }
   /business/menu/vocabulary:
     get: { tags: [Business Menu], summary: This menu's line/modifier option vocabulary, resolved for its own category child, responses: { '200': { description: OK } } }
+  /business/menu/sheet:
+    get: { tags: [Business Menu], summary: 'The menu as a sheet: columns, the items as rows (or two example rows with template=1), and what the Type/Unit columns may say', parameters: [{ name: template, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
+  /business/menu/sheet.csv:
+    get: { tags: [Business Menu], summary: 'The same sheet as a CSV file (UTF-8 with BOM so Excel shows Arabic); template=1 for an empty template', parameters: [{ name: template, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
+  /business/menu/import:
+    post: { tags: [Business Menu], summary: 'Import the sheet - a CSV file or rows (JSON, e.g. read from an Excel file on the phone). dry_run (default true) previews: every row is run and rolled back; the report lists create/update/error per row', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/menu/catalog-lookup:
     get: { tags: [Business Menu], summary: 'Search the catalog models the merchant can link an item to (q, line option)', responses: { '200': { description: OK } } }
   /business/menu/catalog-products:

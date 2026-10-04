@@ -33,15 +33,39 @@ class OfferingDiscovery
      * @param  array<int,int>  $optionIds  every one must be carried — a filter narrows
      * @param  array<int,string>  $itemTypes
      */
+    /** The root the customer came in through: an account holds ONE (root, child) pair, so only it is listed. */
+    private int $rootId = 0;
+
+    public function forRoot(int $rootId): static
+    {
+        $copy = clone $this;
+        $copy->rootId = max(0, $rootId);
+
+        return $copy;
+    }
+
     public function search(
         int $childId,
         array $optionIds = [],
         int $serviceId = 0,
         array $itemTypes = [],
         int $perPage = 20,
-        int $businessId = 0
+        int $businessId = 0,
+        bool $installmentsOnly = false
     ): LengthAwarePaginator {
         $query = $this->base($childId, $serviceId, $itemTypes, $businessId);
+
+        // «غرف نوم — قسط»: only what can be bought on instalments (a menu item with a live plan whose kind
+        // sells on instalments).
+        if ($installmentsOnly) {
+            $query->whereNotNull('m.id')
+                ->whereExists(fn ($sub) => $sub->select(DB::raw(1))->from('menu_item_payment_plans as pp')
+                    ->whereColumn('pp.menu_item_id', 'm.id')->where('pp.is_active', 1))
+                ->whereExists(fn ($sub) => $sub->select(DB::raw(1))->from('options as lo')
+                    ->join('option_groups as lg', 'lg.id', '=', 'lo.group_id')
+                    ->join('menu_detail_types as lt', 'lt.code', '=', 'lg.detail_type')
+                    ->whereColumn('lo.id', 'oo.option_id')->where('lt.allows_payment_plans', 1));
+        }
 
         // Narrowing, not widening: the offering must satisfy EVERY axis asked
         // about — the thing sold AND what qualifies it.
@@ -368,6 +392,7 @@ class OfferingDiscovery
             })
             ->where('u.type', 'business')
             ->when($childId > 0, fn ($q) => $q->where('u.category_child_id', $childId))
+            ->when($this->rootId > 0, fn ($q) => $q->where('u.category_id', $this->rootId))
             ->when($businessId > 0, fn ($q) => $q->where('u.id', $businessId))
             // an offering nobody switched on is not for sale
             ->whereRaw('COALESCE(p.is_active, m.is_active, 0) = 1')

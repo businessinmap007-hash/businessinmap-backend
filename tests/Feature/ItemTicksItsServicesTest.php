@@ -89,4 +89,16 @@ class ItemTicksItsServicesTest extends TestCase
         $this->assertSame([], $this->activeExtras());
         $this->assertSame(0, DB::table('menu_item_extra_groups')->where('menu_item_id', $this->item)->where('is_active', 1)->count());
     }
+
+    public function test_a_customer_cannot_order_a_service_the_item_does_not_offer(): void
+    {
+        $fry = (int) MenuItemExtra::query()->where('menu_item_id', $this->item)->where('source_option_id', $this->fry)->value('id');
+        $grill = (int) MenuItemExtra::query()->where('menu_item_id', $this->item)->where('source_option_id', $this->grill)->value('id');
+        $this->putJson("/api/v2/business/menu/items/{$this->item}/addon-options", ['option_ids' => [$this->grill]])->assertOk();
+
+        Sanctum::actingAs(User::query()->where('type', '!=', 'business')->where('id', '!=', $this->shop->id)->orderBy('id')->firstOrFail());
+
+        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->item, 'qty' => 1, 'extras' => [$fry]])->assertUnprocessable();
+        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->item, 'qty' => 1, 'extras' => [$grill]])->assertCreated();
+    }
 }

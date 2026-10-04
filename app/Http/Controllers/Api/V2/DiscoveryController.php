@@ -551,6 +551,9 @@ final class DiscoveryController extends Controller
     {
         $data = $request->validate([
             'child_id' => ['required', 'integer', 'min:1'],
+            // The root the customer came in through, and «بالتقسيط» — see businesses().
+            'category_id' => ['nullable', 'integer', 'min:1'],
+            'installments' => ['nullable', 'boolean'],
             'service_id' => ['nullable', 'integer', 'min:1'],
             'item_types' => ['nullable', 'array'],
             'item_types.*' => ['string', 'max:100'],
@@ -562,16 +565,23 @@ final class DiscoveryController extends Controller
         $optionIds = $this->cleanIds($data['option_ids'] ?? []);
         $itemTypes = array_values(array_filter((array) ($data['item_types'] ?? []), fn ($t) => trim((string) $t) !== ''));
 
-        $results = $offerings->search(
+        $results = $offerings->forRoot((int) ($data['category_id'] ?? 0))->search(
             (int) $data['child_id'],
             $optionIds,
             (int) ($data['service_id'] ?? 0),
             $itemTypes,
-            (int) ($data['per_page'] ?? 20)
+            (int) ($data['per_page'] ?? 20),
+            0,
+            $request->boolean('installments')
         );
 
-        $results->setCollection($results->getCollection()->map(fn ($row) => $this->offeringPayload($row)));
+        // «تقسيط من … شهريًا» for the rows that can be bought on instalments.
+        $cash = $results->getCollection()->where('source', 'menu')->mapWithKeys(fn ($r) => [(int) $r->offering_id => (float) $r->price])->all();
+        $instalments = app(\App\Services\Menu\PaymentPlans::class)->cardLines($cash);
 
+        $results->setCollection($results->getCollection()->map(
+            fn ($row) => $this->offeringPayload($row) + ['installment' => $row->source === 'menu' ? ($instalments[(int) $row->offering_id] ?? null) : null]
+        ));
         return response()->json([
             'success' => true,
             'data' => [
@@ -602,12 +612,14 @@ final class DiscoveryController extends Controller
     {
         $data = $request->validate([
             'child_id' => ['required', 'integer', 'min:1'],
+            'category_id' => ['nullable', 'integer', 'min:1'],
             'service_id' => ['nullable', 'integer', 'min:1'],
             'item_types' => ['nullable', 'array'],
             'item_types.*' => ['string', 'max:100'],
         ]);
 
         $itemTypes = array_values(array_filter((array) ($data['item_types'] ?? []), fn ($t) => trim((string) $t) !== ''));
+        $offerings = $offerings->forRoot((int) ($data['category_id'] ?? 0));
 
         return response()->json([
             'success' => true,

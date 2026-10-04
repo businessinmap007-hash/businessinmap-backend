@@ -70,4 +70,23 @@ class InstalmentOnTheCardTest extends TestCase
         $this->assertSame([$this->withPlan], $items->pluck('id')->all(), 'غرف نوم — قسط');
         $this->assertEquals(2500, $items[0]['installment']['monthly']);
     }
+
+    public function test_the_offerings_of_a_specialty_can_be_narrowed_to_instalments_and_say_the_monthly(): void
+    {
+        $base = '/api/v2/discovery/offerings?child_id=116&category_id=23&per_page=50';
+        $all = collect($this->getJson($base)->assertOk()->json('data.offerings.data'));
+        $this->assertTrue($all->pluck('id')->contains($this->cashOnly));
+
+        $on = collect($this->getJson($base . '&installments=1')->assertOk()->json('data.offerings.data'));
+        $this->assertTrue($on->pluck('id')->contains($this->withPlan));
+        $this->assertFalse($on->pluck('id')->contains($this->cashOnly), 'cash only is not on instalments');
+        $this->assertEquals(2500, $on->firstWhere('id', $this->withPlan)['installment']['monthly']);
+    }
+
+    public function test_the_offerings_list_is_the_root_opened_not_every_root_of_the_child(): void
+    {
+        // The factory is filed under مصانع (23): opened through شركات (22) it is not there.
+        $other = collect($this->getJson('/api/v2/discovery/offerings?child_id=116&category_id=22&per_page=50')->assertOk()->json('data.offerings.data'));
+        $this->assertFalse($other->pluck('id')->contains($this->withPlan));
+    }
 }

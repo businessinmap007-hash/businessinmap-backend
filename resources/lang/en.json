@@ -2881,5 +2881,7 @@
     "خانة المقاسات أو الإضافات الفارغة تحذف ما كان على الصنف؛ احذف العمود كله لتتركها كما هي.": "An empty Sizes or Extras cell removes them from the item; delete the whole column to leave them as they are.",
     "الباركود :code ليس في كتالوج المنصة — أُضيف الصنف بدون ربط.": "Barcode :code is not in the platform catalog — the item was added without a link.",
     "«:text» ليس رابط صورة.": "\":text\" is not an image link.",
-    "انتهت صلاحية المشاركة أو أُلغيت.": "The share has expired or was ended."
+    "انتهت صلاحية المشاركة أو أُلغيت.": "The share has expired or was ended.",
+    "لا توجد نسخة احتياطية.": "There is no backup.",
+    "هذه ليست نسخة احتياطية صالحة.": "This is not a valid backup."
 }

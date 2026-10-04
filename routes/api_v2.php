@@ -811,6 +811,10 @@ Route::prefix('v2')->group(function () {
         // these sit on plain auth — business.member would refuse them before
         // they can ever accept.
         // «الملف الطبي على الموبايل»: a few minutes of ciphertext only — the key is in the patient's QR code.
+        // The encrypted backup of the medical file: one opaque blob per account (the passphrase never leaves the phone).
+        Route::get('medical-backup', [\App\Http\Controllers\Api\V2\MedicalBackupController::class, 'show'])->middleware('throttle:10,1');
+        Route::put('medical-backup', [\App\Http\Controllers\Api\V2\MedicalBackupController::class, 'update'])->middleware('throttle:10,1');
+        Route::delete('medical-backup', [\App\Http\Controllers\Api\V2\MedicalBackupController::class, 'destroy']);
         Route::post('medical-shares', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'store'])->middleware('throttle:30,1');
         Route::get('medical-shares/{id}', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'show'])->whereUuid('id')->middleware('throttle:30,1');
         Route::delete('medical-shares/{id}', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'destroy'])->whereUuid('id');

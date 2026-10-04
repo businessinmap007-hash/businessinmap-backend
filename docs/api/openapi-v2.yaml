@@ -2700,6 +2700,10 @@ paths:
     post: { tags: [Staff], summary: A staff member checks out, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /staff/attendance/today:
     get: { tags: [Staff], summary: The acting staff member's own attendance record for today, responses: { '200': { description: OK } } }
+  /medical-backup:
+    get: { tags: [Medical], summary: 'The encrypted backup of the medical file kept on the phone (an opaque blob the app wrote); 404 when none', responses: { '200': { description: OK }, '404': { description: No backup } } }
+    put: { tags: [Medical], summary: 'Replace the account backup. The blob is JSON {v, kdf, iterations, salt, data} the phone encrypted with a passphrase-derived key; the server cannot open it', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Medical], summary: 'Delete the account backup', responses: { '200': { description: OK } } }
   /medical-shares:
     post: { tags: [Medical], summary: 'Share part of the medical file kept on the phone: the phone sends only AES-GCM ciphertext (base64) and keeps the key for the QR code; minutes 1-60 (default 15). Returns the share id and expiry', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
   /medical-shares/{id}:

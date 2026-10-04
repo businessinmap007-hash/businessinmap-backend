@@ -107,25 +107,25 @@ class MenuCrudApiTest extends TestCase
             ->deleteJson("/api/v2/business/menu/items/{$item->id}")->assertNotFound();
     }
 
-    public function test_display_mode_defaults_to_list_and_can_be_switched_to_grid(): void
+    public function test_display_mode_defaults_to_grid_and_can_be_switched_to_list(): void
     {
         $default = $this->actingAs($this->business, 'sanctum')
             ->getJson('/api/v2/business/menu/display-mode')->assertOk()->json('data.display_mode');
-        $this->assertSame('list', $default);
+        $this->assertSame('grid', $default);
 
         $this->actingAs($this->business, 'sanctum')
-            ->putJson('/api/v2/business/menu/display-mode', ['display_mode' => 'grid'])
+            ->putJson('/api/v2/business/menu/display-mode', ['display_mode' => 'list'])
             ->assertOk()
-            ->assertJsonPath('data.display_mode', 'grid');
+            ->assertJsonPath('data.display_mode', 'list');
 
         $this->assertDatabaseHas('business_menu_settings', [
             'business_id' => $this->business->id,
-            'display_mode' => 'grid',
+            'display_mode' => 'list',
         ]);
 
         $read = $this->actingAs($this->business, 'sanctum')
             ->getJson('/api/v2/business/menu/display-mode')->assertOk()->json('data.display_mode');
-        $this->assertSame('grid', $read);
+        $this->assertSame('list', $read);
     }
 
     public function test_display_mode_rejects_an_unknown_value(): void

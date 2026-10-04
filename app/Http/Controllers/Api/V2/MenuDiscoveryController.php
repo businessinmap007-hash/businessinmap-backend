@@ -133,7 +133,7 @@ final class MenuDiscoveryController extends Controller
                     // for how their menu renders; see BusinessMenuSetting.
                     'menu_display_mode' => \App\Models\BusinessMenuSetting::query()
                         ->where('business_id', $biz->id)
-                        ->value('display_mode') ?: \App\Models\BusinessMenuSetting::DISPLAY_LIST,
+                        ->value('display_mode') ?: \App\Models\BusinessMenuSetting::DISPLAY_GRID,
                 ],
                 'sections' => $out,
                 // What the store promises, answered once in its profile — returns, minimum order…

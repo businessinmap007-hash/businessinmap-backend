@@ -394,7 +394,7 @@ final class BusinessMenuItemController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => ['display_mode' => $mode ?: BusinessMenuSetting::DISPLAY_LIST],
+            'data' => ['display_mode' => $mode ?: BusinessMenuSetting::DISPLAY_GRID],
         ]);
     }
 

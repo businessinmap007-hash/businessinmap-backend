@@ -39,7 +39,10 @@ final class SaleUnits
 
         $rows = DB::table('catalog_units')
             ->where('is_active', 1)
-            ->orderByRaw("FIELD(unit_type, 'count', 'weight', 'volume')")
+            // Units of a SALE only: حصان، بوصة، شعلة، جيجا، وات describe a specification and were
+            // being offered to a greengrocer beside الكيلو (2026-10-04).
+            ->where('is_sale_unit', 1)
+            ->orderByRaw("FIELD(unit_type, 'count', 'weight', 'volume', 'length')")
             ->orderBy('sort_order')
             ->orderByRaw('CHAR_LENGTH(code)')
             ->get(['code', 'name_ar', 'name_en', 'unit_type']);
@@ -75,6 +78,32 @@ final class SaleUnits
         return $code === '' ? null : (self::options()[$code] ?? null);
     }
 
+    /**
+     * The sale units a line GROUP is sold in — decided by its detail type («أنواع التفاصيل»), never by a
+     * list of names kept in code. null = every sale unit (a group with no type, or the basic one).
+     *
+     * @param  int|string  $group  the option group's id, or its Arabic name
+     * @return list<string>|null
+     */
+    public static function codesForGroup(int|string $group): ?array
+    {
+        $type = DB::table('option_groups')
+            ->when(is_int($group), fn ($q) => $q->where('id', $group), fn ($q) => $q->where('name_ar', $group))
+            ->value('detail_type');
+
+        return $type ? self::codesForType((string) $type) : null;
+    }
+
+    /** @return list<string>|null null = every sale unit */
+    public static function codesForType(string $type): ?array
+    {
+        $json = DB::table('menu_detail_types')->where('code', $type)->value('sale_unit_codes');
+        $codes = $json ? json_decode((string) $json, true) : null;
+
+        // Only codes that exist as sale units today — a fresh install without a newer unit still gets the rest.
+        return is_array($codes) ? array_values(array_intersect($codes, self::codes())) : null;
+    }
+
     /** @return array<int,string> */
     public static function codes(): array
     {
@@ -93,7 +122,7 @@ final class SaleUnits
      */
     public static function pharmacyOptions(): array
     {
-        $codes = ['pack', 'strip', 'pcs'];
+        $codes = self::codesForType('pharmacy') ?? ['pack', 'strip', 'pcs'];
 
         return array_filter(
             self::options(),
@@ -121,7 +150,7 @@ final class SaleUnits
      */
     public static function herbsOptions(): array
     {
-        $codes = ['bunch', 'kg', 'g'];
+        $codes = self::codesForType('fresh_produce') ?? ['bunch', 'kg', 'g'];
 
         return array_filter(
             self::options(),

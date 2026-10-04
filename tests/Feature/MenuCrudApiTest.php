@@ -309,7 +309,8 @@ class MenuCrudApiTest extends TestCase
 
         $other = $lines->first(fn ($g) => ! in_array($g['group_name'], $produceNames, true));
         if ($other !== null) {
-            $this->assertNull($other['sale_unit_codes'], 'a non-produce group must not be narrowed');
+            $this->assertSame(\App\Support\SaleUnits::codesForGroup((int) $other['group_id']), $other['sale_unit_codes'], 'a non-produce group is narrowed by its OWN detail type, never by the produce list');
+            $this->assertNotSame(\App\Support\SaleUnits::herbsCodes(), $other['sale_unit_codes']);
         }
     }
 

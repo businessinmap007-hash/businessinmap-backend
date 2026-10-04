@@ -112,8 +112,10 @@ final class BusinessMenuItemController extends Controller
                 // null = every SaleUnits::options() code is fair game; see
                 // MenuMarketCatalogService's identical check for why produce
                 // groups narrow down (SaleUnits::producePackagingGroupNames()).
-                'sale_unit_codes' => in_array($groupName, SaleUnits::producePackagingGroupNames(), true)
-                    ? SaleUnits::herbsCodes() : null,
+                'sale_unit_codes' => SaleUnits::codesForGroup($groupId),
+                // What kind of product this group sells — the type decides the screen's shape, the units
+                // and whether payment plans exist («أنواع التفاصيل»).
+                'detail_type' => $this->detailTypeOf($groupId),
                 'options' => collect($options)->map(fn ($o) => [
                     'id' => (int) $o->id,
                     'name_ar' => $o->name_ar,
@@ -156,6 +158,23 @@ final class BusinessMenuItemController extends Controller
 
         return $kept->isNotEmpty() ? $kept : $lines;
     }
+
+    /** @return array{code:string,name:string,allows_payment_plans:bool}|null */
+    private function detailTypeOf(int $groupId): ?array
+    {
+        $this->detailTypes ??= DB::table('menu_detail_types')->get()->keyBy('code');
+        $code = DB::table('option_groups')->where('id', $groupId)->value('detail_type');
+        $type = $code ? ($this->detailTypes[$code] ?? null) : null;
+
+        return $type ? [
+            'code' => (string) $type->code,
+            'name' => app()->getLocale() === 'en' && $type->name_en ? (string) $type->name_en : (string) $type->name_ar,
+            'allows_payment_plans' => (bool) $type->allows_payment_plans,
+        ] : null;
+    }
+
+    /** @var \Illuminate\Support\Collection<string,object>|null */
+    private $detailTypes = null;
 
     /** @return list<int> the option groups «مكونات الخدمة» made descriptive for this child under the menu service */
     /** option_group_id => the trade's DESCRIPTIVE placement of it (menu service), in its order */

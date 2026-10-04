@@ -492,6 +492,7 @@ class PrescriptionController extends Controller
                 ? ['content' => app(PrescriptionContent::class)->of($p), 'hash' => (string) $p->content_hash]
                 : null,
             'content_purged' => (bool) $p->content_purged_at,
+            'archived_by_patient' => (bool) $p->archived_by_patient_at,
         ];
     }
 

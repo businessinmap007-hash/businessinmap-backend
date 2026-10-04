@@ -86,6 +86,7 @@ class PrescriptionPurgeTest extends TestCase
 
         $this->postJson('/api/v2/prescriptions/archived', ['id' => $this->id, 'content' => $copy['content']])->assertOk()->assertJsonPath('data.archived', true);
         $this->assertNotNull($this->row()->archived_by_patient_at);
+        $this->getJson("/api/v2/prescriptions/{$this->id}")->assertJsonPath('data.prescription.archived_by_patient', true);
     }
 
     public function test_only_the_patient_can_confirm_it(): void

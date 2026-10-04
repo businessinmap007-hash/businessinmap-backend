@@ -277,7 +277,10 @@ final class MenuSheetDetails
             throw new \RuntimeException('blocked host');
         }
 
-        $response = Http::timeout(10)->withOptions(['allow_redirects' => false])->get($url);
+        // A named client: image hosts (Wikimedia among them) refuse a request that does not say who it is.
+        $response = Http::timeout(10)->withOptions(['allow_redirects' => false])
+            ->withHeaders(['User-Agent' => 'BIM-MenuImport/1.0 (+' . config('app.url') . ')', 'Accept' => 'image/*'])
+            ->get($url);
         $type = strtolower((string) $response->header('Content-Type'));
         $body = $response->body();
         if (! $response->successful() || ! str_starts_with($type, 'image/') || strlen($body) === 0 || strlen($body) > self::MAX_IMAGE_BYTES) {

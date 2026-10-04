@@ -482,6 +482,8 @@ final class BusinessMenuItemController extends Controller
         // left half-saved without it.
         $item = DB::transaction(function () use ($request, $data, $businessId) {
             $item = MenuItem::create($data + ['business_id' => $businessId]);
+            // The shop's priced services (cooking method…) ride on every item it adds.
+            app(\App\Services\Menu\BusinessAddons::class)->syncItem($item);
 
             if (! $item->medicine_id) {
                 $this->applyVocabulary($request, $item, explicitSection: $data['menu_section_id'] !== null);

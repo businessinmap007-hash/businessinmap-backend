@@ -834,6 +834,9 @@ Route::prefix('v2')->group(function () {
             // picker and the brand/condition fields on the item form.
             Route::get('vocabulary', [BusinessMenuItemController::class, 'vocabulary']);
             // «شروط المتجر»: returns, minimum order, delivery, trade scope — answered once by the store.
+            // «خدمات المحل»: a shop's priced services (cooking method) — priced once, per unit bought.
+            Route::get('addons', [\App\Http\Controllers\Api\V2\BusinessAddonsController::class, 'index']);
+            Route::put('addons', [\App\Http\Controllers\Api\V2\BusinessAddonsController::class, 'update']);
             Route::get('terms', [\App\Http\Controllers\Api\V2\BusinessTermsController::class, 'index']);
             Route::put('terms', [\App\Http\Controllers\Api\V2\BusinessTermsController::class, 'update']);
             Route::get('catalog-lookup', [BusinessMenuItemController::class, 'catalogLookup']);

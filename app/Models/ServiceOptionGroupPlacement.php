@@ -25,6 +25,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *                  a sheet) — chosen per item like a descriptive field, but a material, not a style.
  *                  The same group is the product line («section») at the trade that sells it by itself
  *                  (a timber merchant). The role belongs to the trade, never to the group.
+ *   addon          a SERVICE of the shop priced once for the whole shop and per unit of what is bought,
+ *                  added on top of the item («طريقة الطهي»: مشوى 50 / مقلى 80 / صينية 100 للكيلو) — the
+ *                  customer picks one, the invoice lists it as its own line.
  *   store_terms    a POLICY of the store — returns, minimum order, delivery, trade scope — chosen once
  *                  in the store's profile, shown on its page, shown at checkout and frozen on the order.
  *                  Never asked per item.
@@ -46,6 +49,9 @@ class ServiceOptionGroupPlacement extends Model
     /** A part the product is made of — described per item like {@see USAGE_DESCRIPTIVE}. */
     public const USAGE_COMPONENT = 'component';
 
+    /** A priced service of the shop, added on top of the item — see {@see \App\Services\Menu\BusinessAddons}. */
+    public const USAGE_ADDON = 'addon';
+
     /** A policy of the STORE (returns, minimum order, delivery, scope): set once, shown at checkout. */
     public const USAGE_STORE_TERMS = 'store_terms';
 
@@ -63,6 +69,7 @@ class ServiceOptionGroupPlacement extends Model
         self::USAGE_DESCRIPTIVE,
         self::USAGE_PRICE_VARIANT,
         self::USAGE_COMPONENT,
+        self::USAGE_ADDON,
         self::USAGE_STORE_TERMS,
         self::USAGE_STORE_CART,
         self::USAGE_STORE_FILTER,

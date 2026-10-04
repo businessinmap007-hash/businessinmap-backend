@@ -184,6 +184,13 @@ final class CartController extends Controller
                     ->map(fn ($a) => (string) ($a['name'] ?? ''))->filter()->values()->all(),
             ],
             'qty' => (int) $line->qty,
+            // What the line costs per unit and, apart, what its extras add per unit — an invoice reads
+            // «سمك 450» and «صينية 150» as two lines, not one line of 400.
+            'base_price' => round((float) $line->price - collect(is_array($line->addons) ? $line->addons : [])->sum(fn ($a) => (float) ($a['price'] ?? 0) * (int) ($a['qty'] ?? 1)), 2),
+            'extras_detail' => collect(is_array($line->addons) ? $line->addons : [])->map(fn ($a) => [
+                'name' => (string) ($a['name'] ?? ''), 'unit_price' => round((float) ($a['price'] ?? 0), 2), 'qty' => (int) ($a['qty'] ?? 1),
+                'total' => round((float) ($a['price'] ?? 0) * (int) ($a['qty'] ?? 1) * (int) $line->qty, 2),
+            ])->values()->all(),
             'price' => (float) $line->price,
             'total_price' => (float) $line->total_price,
         ])->values();

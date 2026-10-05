@@ -20,7 +20,7 @@
 <div>
 <label class="a2-label">Business</label>
 <select class="a2-input" name="business_id"
-        data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="All — search by name or #id">
+        data-remote-url="{{ panel_route('admin.business-lookup', []) }}" data-placeholder="All — search by name or #id">
 <option value="">All</option>
 </select>
 </div>

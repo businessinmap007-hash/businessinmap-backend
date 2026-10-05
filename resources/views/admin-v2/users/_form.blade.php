@@ -417,7 +417,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * route(.., false): an absolute URL from APP_URL points at a host the panel
      * may not be served from, and the fetch dies cross-origin in silence.
      */
-    const CATALOG_URL = @json(route('admin.users.catalog', [], false));
+    const CATALOG_URL = @json(panel_route('admin.users.catalog', []));
 
     const catalog = @json($catalogSeed);
 

@@ -76,14 +76,14 @@
 @push('scripts')
 <script>
 (function () {
-    // route(.., false): relative URLs — an absolute one built from APP_URL can point at another host.
+    // panel_route(): the path with the app base path (never the APP_URL host, which can differ from the served one).
     const URLS = {
-        issued: @json(route('business.prescriptions.issued', [], false)),
-        medicines: @json(route('business.prescriptions.medicines', [], false)),
-        appointments: @json(route('business.prescriptions.appointments', [], false)),
-        store: @json(route('business.prescriptions.store', [], false)),
-        archived: @json(route('business.prescriptions.archived', [], false)),
-        revise: @json(route('business.prescriptions.revise', ['id' => '__ID__'], false)),
+        issued: @json(panel_route('business.prescriptions.issued', [])),
+        medicines: @json(panel_route('business.prescriptions.medicines', [])),
+        appointments: @json(panel_route('business.prescriptions.appointments', [])),
+        store: @json(panel_route('business.prescriptions.store', [])),
+        archived: @json(panel_route('business.prescriptions.archived', [])),
+        revise: @json(panel_route('business.prescriptions.revise', ['id' => '__ID__'])),
     };
     const CSRF = @json(csrf_token());
     const ME = @json((int) auth()->id());

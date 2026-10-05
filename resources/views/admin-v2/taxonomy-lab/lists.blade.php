@@ -55,7 +55,7 @@
 <script>
 (function () {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    const base = @json(route('admin.taxonomy-lab.lists.index', [], false));
+    const base = @json(panel_route('admin.taxonomy-lab.lists.index', []));
 
     async function req(url, method, body) {
         const res = await fetch(url, {

@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const url = `{{ route('admin.bookings.bookableItemsLookup', [], false) }}?business_id=${encodeURIComponent(businessId)}&service_id=${encodeURIComponent(serviceId)}`;
+            const url = `{{ panel_route('admin.bookings.bookableItemsLookup', []) }}?business_id=${encodeURIComponent(businessId)}&service_id=${encodeURIComponent(serviceId)}`;
             const res = await fetch(url);
             const data = await res.json();
 
@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const url = new URL(`{{ route('admin.bookings.pricingPreview', [], false) }}`, window.location.origin);
+            const url = new URL(`{{ panel_route('admin.bookings.pricingPreview', []) }}`, window.location.origin);
             url.searchParams.set('business_id', businessId);
             url.searchParams.set('service_id', serviceId);
             url.searchParams.set('quantity', qty);

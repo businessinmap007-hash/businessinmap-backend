@@ -30,7 +30,7 @@
         <form method="GET" action="{{ route('admin.offer-performance.index') }}" class="a2-filterbar">
             @php $selBizId = (int) ($filters['business_id'] ?? 0); $selBiz = $selBizId ? $businesses->firstWhere('id', $selBizId) : null; @endphp
             <select class="a2-select a2-filter-sm" name="business_id"
-                    data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="{{ __('كل البزنس — ابحث') }}">
+                    data-remote-url="{{ panel_route('admin.business-lookup', []) }}" data-placeholder="{{ __('كل البزنس — ابحث') }}">
                 <option value="">{{ __('كل البزنس') }}</option>
                 @if($selBizId)
                     <option value="{{ $selBizId }}" selected>#{{ $selBizId }}@if($selBiz) — {{ $selBiz->name }}@endif</option>

@@ -1435,7 +1435,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * submitted — the last one is what actually saves an edit that began
      * before the last beat.
      */
-    const PING_URL = @json(route('admin.session.ping', [], false));
+    const PING_URL = @json(panel_route('admin.session.ping', []));
 
     function keepSessionAlive() {
         return fetch(PING_URL, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })

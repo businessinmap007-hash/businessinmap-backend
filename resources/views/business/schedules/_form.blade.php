@@ -246,7 +246,7 @@
                     <label class="a2-label">{{ __('نشاط تجاري مسجّل (اختياري)') }}</label>
                     <select class="a2-select js-stop-business"
                             name="stops[{{ $i }}][business_id]"
-                            data-remote-url="{{ route('business.schedules.business-lookup', [], false) }}"
+                            data-remote-url="{{ panel_route('business.schedules.business-lookup', []) }}"
                             data-current-value="{{ $stop['business_id'] ?? '' }}"
                             data-current-label="{{ $stop['business_name'] ?? '' }}">
                         <option value="">{{ __('بدون — أدخل العنوان يدويًا') }}</option>
@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', function () {
         namePh: @json(__('فرع المهندسين')), addrPh: @json(__('15 شارع جامعة الدول العربية، المهندسين، الجيزة')),
         remove: @json(__('حذف')),
     };
-    const stopBusinessLookupUrl = @json(route('business.schedules.business-lookup', [], false));
+    const stopBusinessLookupUrl = @json(panel_route('business.schedules.business-lookup', []));
 
     function reindexStops() {
         if (!stopsList) return;

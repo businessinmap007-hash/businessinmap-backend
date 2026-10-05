@@ -77,7 +77,7 @@
             </select>
 
             <select class="a2-select a2-filter-sm" name="seller_business_id"
-                    data-remote-url="{{ route('admin.business-lookup', [], false) }}" data-placeholder="{{ __('كل البزنس — ابحث') }}">
+                    data-remote-url="{{ panel_route('admin.business-lookup', []) }}" data-placeholder="{{ __('كل البزنس — ابحث') }}">
                 <option value="0">{{ __('كل البزنس') }}</option>
                 @php $selSeller = $sellerId ? $businesses->firstWhere('id', (int) $sellerId) : null; @endphp
                 @if($sellerId)

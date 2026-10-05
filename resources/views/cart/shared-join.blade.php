@@ -344,7 +344,7 @@
         if (!bizId) return;
         show('menu-loading');
         let json = null;
-        try { json = await (await fetch('/api/v2/discovery/menu/' + bizId, { headers: { 'Accept': 'application/json' } })).json(); }
+        try { json = await (await fetch(@json(request()->getBasePath()) + '/api/v2/discovery/menu/' + bizId, { headers: { 'Accept': 'application/json' } })).json(); }
         catch (e) { hide('menu-loading'); fail('تعذّر تحميل المنيو.'); return; }
         hide('menu-loading');
         const sections = (json && json.data && json.data.sections) || [];
@@ -418,7 +418,7 @@
             state.pin = { lat, lng };
             $('loc-status').textContent = '📍 تم تحديد موقعك. جارٍ التعرّف على المدينة…';
             try {
-                const r = await fetch(`/api/v2/locations/nearest?lat=${lat}&lng=${lng}`, { headers: { 'Accept': 'application/json' } });
+                const r = await fetch(`${@json(request()->getBasePath())}/api/v2/locations/nearest?lat=${lat}&lng=${lng}`, { headers: { 'Accept': 'application/json' } });
                 const j = await r.json();
                 const m = j && j.data && j.data.match;
                 const city = m && m.city ? (m.city.name_ar || m.city.name_en) : null;

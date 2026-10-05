@@ -56,7 +56,7 @@
         @include('admin-v2.taxonomy-lab._transfer', [
             'ttAll' => $allTypes,
             'ttSelected' => $selectedTypes,
-            'ttSaveUrl' => route('admin.taxonomy-lab.lists.items.sync', $list->id, false),
+            'ttSaveUrl' => panel_route('admin.taxonomy-lab.lists.items.sync', [$list->id]),
             'ttIdsKey' => 'ids',
             'ttExtra' => ['source' => 'item_type'],
             'ttSourceLabel' => __('كل الخدمات'),
@@ -111,7 +111,7 @@
 (function () {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const listId = document.getElementById('tls-root').dataset.listId;
-    const listsBase = @json(route('admin.taxonomy-lab.lists.index', [], false));
+    const listsBase = @json(panel_route('admin.taxonomy-lab.lists.index', []));
 
     window.tlsAddSubList = async function () {
         const name = prompt(@json(__('اسم القسم الفرعي')));

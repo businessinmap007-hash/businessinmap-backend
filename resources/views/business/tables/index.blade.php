@@ -58,8 +58,8 @@
                         <td class="a2-fw-900">{{ $row->label }}</td>
                         <td>
                             <div style="display:flex;align-items:center;gap:10px;">
-                                <img src="{{ route('table.qr', $row->token, false) }}" alt="QR" width="56" height="56" style="border:1px solid var(--a2-line,#e6e9ef);border-radius:8px;background:#fff;">
-                                <a href="{{ route('table.scan.web', $row->token, false) }}" target="_blank" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('فتح الرابط') }}</a>
+                                <img src="{{ panel_route('table.qr', [$row->token]) }}" alt="QR" width="56" height="56" style="border:1px solid var(--a2-line,#e6e9ef);border-radius:8px;background:#fff;">
+                                <a href="{{ panel_route('table.scan.web', [$row->token]) }}" target="_blank" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('فتح الرابط') }}</a>
                             </div>
                         </td>
                         <td>

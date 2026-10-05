@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * panel may not be served from, and the fetch dies cross-origin with
      * nothing on screen to say why.
      */
-    const CATALOG_URL = @json(route('admin.users.catalog', [], false));
+    const CATALOG_URL = @json(panel_route('admin.users.catalog', []));
 
     // Seeded with the child already selected, whose rows the server rendered
     // with the page — so arriving on a filtered screen costs no request, and

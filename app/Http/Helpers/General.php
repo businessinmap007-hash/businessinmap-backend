@@ -498,4 +498,17 @@ function currencyConverter($from, $to, $amount)
 
 }
 
-?>
+if (! function_exists('panel_route')) {
+    /**
+     * A route's URL for the BROWSER: the path only (never the APP_URL host, which can differ from the one the page is
+     * served on) but WITH the app's base path — `/testing/public` when XAMPP serves the project from a sub-folder,
+     * empty when the site owns the host. `route($name, $parameters, false)` drops that base path, so a page's own
+     * fetch() calls missed their routes from a sub-folder.
+     *
+     * @param  mixed  $parameters  whatever route() takes: an array, a model, a scalar
+     */
+    function panel_route(string $name, $parameters = []): string
+    {
+        return request()->getBasePath() . route($name, $parameters, false);
+    }
+}

@@ -19,7 +19,7 @@
     <div class="a2-page-actions" style="justify-content:flex-start;flex-wrap:wrap;gap:8px">
         <button type="button" class="a2-btn a2-btn-primary" data-export="0">{{ __('تحميل أصنافي (Excel)') }}</button>
         <button type="button" class="a2-btn a2-btn-ghost" data-export="1">{{ __('نموذج فارغ (Excel)') }}</button>
-        <a class="a2-btn a2-btn-ghost" href="{{ route('business.menu.sheet.csv', [], false) }}">{{ __('تحميل أصنافي (CSV)') }}</a>
+        <a class="a2-btn a2-btn-ghost" href="{{ panel_route('business.menu.sheet.csv', []) }}">{{ __('تحميل أصنافي (CSV)') }}</a>
     </div>
 </div>
 
@@ -75,10 +75,10 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (function () {
-    // route(.., false): a relative URL — an absolute one built from APP_URL can point at another host.
-    const SHEET_URL = @json(route('business.menu.sheet', [], false));
-    const IMPORT_URL = @json(route('business.menu.import.run', [], false));
-    const INSPECT_URL = @json(route('business.menu.inspect', [], false));
+    // panel_route(): the path with the app base path (never the APP_URL host, which can differ from the served one).
+    const SHEET_URL = @json(panel_route('business.menu.sheet', []));
+    const IMPORT_URL = @json(panel_route('business.menu.import.run', []));
+    const INSPECT_URL = @json(panel_route('business.menu.inspect', []));
     const CSRF = @json(csrf_token());
     const T = {
         preview: @json(__('معاينة — لم يتغير شيء بعد')),

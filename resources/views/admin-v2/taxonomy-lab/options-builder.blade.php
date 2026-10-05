@@ -20,7 +20,7 @@
     @include('admin-v2.taxonomy-lab._transfer', [
         'ttAll' => $all,
         'ttSelected' => $selected,
-        'ttSaveUrl' => route('admin.taxonomy-lab.options.save', $child->id, false),
+        'ttSaveUrl' => panel_route('admin.taxonomy-lab.options.save', [$child->id]),
         'ttIdsKey' => 'option_ids',
         'ttSourceLabel' => __('كل الخيارات'),
         'ttTargetLabel' => __('خيارات هذا الابن'),

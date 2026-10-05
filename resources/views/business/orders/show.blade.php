@@ -36,7 +36,7 @@
     <div class="a2-card a2-card--section" style="text-align:center;">
         <div class="a2-card-title">{{ __('تأكيد التسليم') }}</div>
         <div class="a2-card-sub" style="margin-bottom:12px;">{{ __('اعرض هذا الرمز للعميل ليمسحه ويؤكد استلام الطلب.') }}</div>
-        <img src="{{ route('handover.qr', $handoverToken, false) }}" alt="{{ __('رمز تأكيد التسليم') }}" width="200" height="200"
+        <img src="{{ panel_route('handover.qr', $handoverToken) }}" alt="{{ __('رمز تأكيد التسليم') }}" width="200" height="200"
              style="border:1px solid var(--a2-line,#e6e9ef);border-radius:12px;background:#fff;">
     </div>
 @elseif($order->handover_confirmed_at)

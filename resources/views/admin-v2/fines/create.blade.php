@@ -66,7 +66,7 @@
 (function () {
     // Root-relative on purpose: an absolute route() URL can carry the wrong host
     // and fail cross-origin, so the search silently returns nothing.
-    var searchUrl = @json(route('admin.wallet-ops.users.search', [], false));
+    var searchUrl = @json(panel_route('admin.wallet-ops.users.search', []));
     var input = document.getElementById('fineUserSearch');
     var list = document.getElementById('fineUsersList');
     var hidden = document.getElementById('fineUserId');

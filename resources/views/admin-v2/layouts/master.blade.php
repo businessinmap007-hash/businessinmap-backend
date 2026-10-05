@@ -346,7 +346,7 @@
 
     @if(Route::has('admin.bookings.protectionPreview'))
         <script>
-            window.BIM_BOOKING_PROTECTION_PREVIEW_URL = @json(route('admin.bookings.protectionPreview', [], false));
+            window.BIM_BOOKING_PROTECTION_PREVIEW_URL = @json(panel_route('admin.bookings.protectionPreview', []));
         </script>
         <script src="{{ asset('admin-v2/js/booking-protection-preview.js') }}"></script>
     @endif

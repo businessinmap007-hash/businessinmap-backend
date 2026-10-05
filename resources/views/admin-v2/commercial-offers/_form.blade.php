@@ -67,7 +67,7 @@
         @php
             $ownerId = (int) old('owner_business_id', $offer->owner_business_id);
             $sellerId = (int) old('seller_business_id', $offer->seller_business_id);
-            $bizLookupUrl = route('admin.business-lookup', [], false);
+            $bizLookupUrl = panel_route('admin.business-lookup', []);
         @endphp
 
         <div class="a2-field">

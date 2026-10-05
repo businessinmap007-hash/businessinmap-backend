@@ -15,9 +15,9 @@
     </div>
 
     <div class="a2-card">
-        <form method="GET" action="{{ route('admin.menu-review.index', [], false) }}" class="a2-filterbar">
+        <form method="GET" action="{{ panel_route('admin.menu-review.index', []) }}" class="a2-filterbar">
             <select class="a2-select a2-filter-md" name="business_id"
-                    data-remote-url="{{ route('admin.business-lookup', [], false) }}"
+                    data-remote-url="{{ panel_route('admin.business-lookup', []) }}"
                     data-placeholder="{{ __('ابحث باسم النشاط أو رقمه #') }}">
                 <option value="0">{{ __('اختر نشاطًا') }}</option>
                 @if($business)
@@ -58,7 +58,7 @@
                                 <td>{{ (int) $row->active_items }}</td>
                                 <td class="a2-text-right">
                                     <a class="a2-btn a2-btn-sm a2-btn-ghost"
-                                       href="{{ route('admin.menu-review.index', ['business_id' => $row->id], false) }}">
+                                       href="{{ panel_route('admin.menu-review.index', ['business_id' => $row->id]) }}">
                                         {{ __('مراجعة') }}
                                     </a>
                                 </td>
@@ -77,7 +77,7 @@
              «المراجعة» عن «المراجعة». --}}
         @include('shared.menu-outline', [
             'outline' => $outline,
-            'editRoute' => fn ($id) => route('admin.menu-items.edit', $id, false),
+            'editRoute' => fn ($id) => panel_route('admin.menu-items.edit', $id),
         ])
     @endif
 </div>

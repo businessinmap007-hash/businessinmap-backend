@@ -35,7 +35,7 @@
     </div>
 </div>
 
-<form method="POST" action="{{ route('business.offerings.reorder', [], false) }}" id="offerings-form">
+<form method="POST" action="{{ panel_route('business.offerings.reorder', []) }}" id="offerings-form">
 @csrf
 <div class="a2-card">
     <div class="a2-card-head">

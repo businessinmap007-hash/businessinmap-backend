@@ -195,7 +195,7 @@
 
 <script>
 (function(){
-    const inlineUpdateUrlTemplate = @json(route('admin.catalog-products.inline-update', ['product' => '__ID__'], false));
+    const inlineUpdateUrlTemplate = @json(panel_route('admin.catalog-products.inline-update', ['product' => '__ID__']));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     function flash(el, cls) {

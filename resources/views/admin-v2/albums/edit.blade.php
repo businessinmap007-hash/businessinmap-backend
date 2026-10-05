@@ -132,8 +132,8 @@
                                     $isCover = ($p !== '' && (string) $a->image === $p);
 
                                     // Root-relative (false): both are fetched from JS.
-                                    $setCoverUrl = route('admin.albums.images.set-cover', [$a->id, $img->id], false);
-                                    $deleteUrl = route('admin.albums.images.delete', [$a->id, $img->id], false);
+                                    $setCoverUrl = panel_route('admin.albums.images.set-cover', [$a->id, $img->id]);
+                                    $deleteUrl = panel_route('admin.albums.images.delete', [$a->id, $img->id]);
                                 @endphp
 
                                 <div
@@ -193,7 +193,7 @@
 
 <script>
 (() => {
-    const uploadUrl = @json(route('admin.upload.image', [], false));
+    const uploadUrl = @json(panel_route('admin.upload.image', []));
     const token = @json(csrf_token());
 
     const el = {

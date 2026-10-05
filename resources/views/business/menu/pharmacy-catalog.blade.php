@@ -120,7 +120,7 @@
     var input = document.getElementById('pharmacy-search-input');
     var results = document.getElementById('pharmacy-search-results');
     var tpl = document.getElementById('pharmacy-result-row-tpl');
-    var searchUrl = @json(route('business.menu.pharmacy.search', [], false));
+    var searchUrl = @json(panel_route('business.menu.pharmacy.search', []));
     var timer = null;
 
     input.addEventListener('input', function () {

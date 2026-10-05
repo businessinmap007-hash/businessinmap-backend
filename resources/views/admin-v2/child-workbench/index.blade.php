@@ -19,7 +19,7 @@
     @endif
 
     {{-- ── the two dropdowns ─────────────────────────────────────────────── --}}
-    <form method="GET" action="{{ route('admin.child-workbench.index', [], false) }}" class="a2-card a2-card--soft a2-mb-16">
+    <form method="GET" action="{{ panel_route('admin.child-workbench.index', []) }}" class="a2-card a2-card--soft a2-mb-16">
         <div class="a2-card-body cw-pickers">
             <label class="cw-field">
                 <span class="a2-muted">{{ __('الأب') }}</span>
@@ -59,7 +59,7 @@
             $at = $ids->search($childId);
             $prev = $at === false ? null : $ids[($at - 1 + $ids->count()) % $ids->count()];
             $next = $at === false ? null : $ids[($at + 1) % $ids->count()];
-            $link = fn ($id) => route('admin.child-workbench.index', ['root_id' => $rootId, 'child_id' => $id], false);
+            $link = fn ($id) => panel_route('admin.child-workbench.index', ['root_id' => $rootId, 'child_id' => $id]);
         @endphp
 
         <div id="childNav" class="a2-mb-16"
@@ -92,7 +92,7 @@
         <div class="cw-columns">
 
             {{-- ── column 1: options ─────────────────────────────────────── --}}
-            <form method="POST" action="{{ route('admin.child-workbench.options', [], false) }}" class="a2-card a2-card--section">
+            <form method="POST" action="{{ panel_route('admin.child-workbench.options', []) }}" class="a2-card a2-card--section">
                 @csrf
                 <input type="hidden" name="root_id" value="{{ $rootId }}">
                 <input type="hidden" name="child_id" value="{{ $childId }}">
@@ -168,7 +168,7 @@
             </form>
 
             {{-- ── column 2: services ────────────────────────────────────── --}}
-            <form method="POST" action="{{ route('admin.child-workbench.services', [], false) }}" class="a2-card a2-card--section">
+            <form method="POST" action="{{ panel_route('admin.child-workbench.services', []) }}" class="a2-card a2-card--section">
                 @csrf
                 <input type="hidden" name="root_id" value="{{ $rootId }}">
                 <input type="hidden" name="child_id" value="{{ $childId }}">
@@ -259,7 +259,7 @@
             {{-- ── column 3: fee ──────────────────────────────────────────
                  One rate for every service this child offers, not one per
                  service — «رسم موحّد على استخدام خدمات المنصّة». --}}
-            <form method="POST" action="{{ route('admin.child-workbench.fees', [], false) }}" class="a2-card a2-card--section">
+            <form method="POST" action="{{ panel_route('admin.child-workbench.fees', []) }}" class="a2-card a2-card--section">
                 @csrf
                 <input type="hidden" name="root_id" value="{{ $rootId }}">
                 <input type="hidden" name="child_id" value="{{ $childId }}">

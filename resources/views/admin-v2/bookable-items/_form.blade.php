@@ -26,7 +26,7 @@
     <div class="a2-form-grid-3">
         <div class="a2-form-group">
             <label class="a2-label" for="business_id">{{ __('البزنس') }}</label>
-            <select id="business_id" name="business_id" class="a2-select js-bookable-business js-bookable-search-select" required data-placeholder="{{ __('اكتب اسم البزنس') }}" data-remote-url="{{ route('admin.bookable-items.business-lookup', [], false) }}">
+            <select id="business_id" name="business_id" class="a2-select js-bookable-business js-bookable-search-select" required data-placeholder="{{ __('اكتب اسم البزنس') }}" data-remote-url="{{ panel_route('admin.bookable-items.business-lookup', []) }}">
                 <option value="">{{ __('اختر البزنس') }}</option>
                 @if($selectedBusiness ?? null)
                     <option value="{{ $selectedBusiness->id }}" selected>{{ $selectedBusiness->name }}</option>
@@ -183,7 +183,7 @@ document.addEventListener('click', function (event) {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    const lookupUrl = @json(route('admin.bookable-items.item-types-lookup', [], false));
+    const lookupUrl = @json(panel_route('admin.bookable-items.item-types-lookup', []));
     const businessSelect = document.querySelector('.js-bookable-business');
     const serviceSelect = document.querySelector('.js-bookable-service');
     const hintNodes = document.querySelectorAll('.js-bookable-type-hint');

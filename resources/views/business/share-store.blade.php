@@ -9,13 +9,13 @@
         <div class="a2-page-subtitle">{{ __('رمز QR ثابت لمتجرك — ضعه على ملصق أو بطاقة؛ مسحه يفتح صفحة متجرك.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('storefront.show', $businessId, false) }}" target="_blank" class="a2-btn a2-btn-ghost">{{ __('معاينة الصفحة') }}</a>
-        <a href="{{ route('storefront.qr', $businessId, false) }}" target="_blank" class="a2-btn a2-btn-primary">{{ __('فتح الرمز للطباعة') }}</a>
+        <a href="{{ panel_route('storefront.show', $businessId) }}" target="_blank" class="a2-btn a2-btn-ghost">{{ __('معاينة الصفحة') }}</a>
+        <a href="{{ panel_route('storefront.qr', $businessId) }}" target="_blank" class="a2-btn a2-btn-primary">{{ __('فتح الرمز للطباعة') }}</a>
     </div>
 </div>
 
 <div class="a2-card a2-card--section" style="text-align:center;">
-    <img src="{{ route('storefront.qr', $businessId, false) }}" alt="{{ __('رمز المتجر') }}" width="240" height="240"
+    <img src="{{ panel_route('storefront.qr', $businessId) }}" alt="{{ __('رمز المتجر') }}" width="240" height="240"
          style="border:1px solid var(--a2-line,#e6e9ef);border-radius:14px;background:#fff;">
     <div class="a2-card-sub" style="margin-top:10px;">{{ __('وجّه الكاميرا إلى الرمز لفتح صفحة المتجر.') }}</div>
 </div>

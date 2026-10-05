@@ -183,7 +183,7 @@
         // Relative URL on purpose: an absolute route() would carry APP_URL's
         // host and be refused as cross-origin when the panel is opened on any
         // other hostname — the save then fails silently.
-        fetch('{{ route('business.training-plans.lookup', [], false) }}?q=' + encodeURIComponent(q), {
+        fetch('{{ panel_route('business.training-plans.lookup', []) }}?q=' + encodeURIComponent(q), {
             headers: { 'Accept': 'application/json' }
         })
             .then(function (r) { return r.json(); })

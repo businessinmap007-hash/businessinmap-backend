@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // route(..., false): an absolute URL built from APP_URL points at a host the
     // panel may not be served from, and the fetch dies on the cross-origin check
     // with nothing on screen to say why.
-    const ENDPOINT = @json(route('admin.medicines.search', [], false));
+    const ENDPOINT = @json(panel_route('admin.medicines.search', []));
 
     const SAYS = {
         empty: @json(__('لا يوجد دواء بهذا الاسم — يستطيع الطبيب إضافته بنفسه وقتها.')),

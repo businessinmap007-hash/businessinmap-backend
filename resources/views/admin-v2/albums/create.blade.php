@@ -111,7 +111,7 @@
 
 <script>
 (function(){
-  const uploadUrl = @json(route('admin.upload.image', [], false));
+  const uploadUrl = @json(panel_route('admin.upload.image', []));
   const token = @json(csrf_token());
 
   const fileInput = document.getElementById('a2AlbumFile');

@@ -28,7 +28,7 @@
     <div class="a2-card a2-mb-16">
         <form method="GET" action="{{ route('admin.business-offers-subscriptions.form') }}" class="a2-filterbar">
             <select class="a2-select a2-filter-lg" name="business_id" required
-                    data-remote-url="{{ route('admin.business-lookup', [], false) }}"
+                    data-remote-url="{{ panel_route('admin.business-lookup', []) }}"
                     data-placeholder="{{ __('اختر البزنس — ابحث بالاسم أو الرقم #') }}">
                 <option value="">{{ __('اختر البزنس') }}</option>
                 @if($business)

@@ -25,7 +25,7 @@
         @php
             $ownerId = (int) old('owner_business_id', $partnership->owner_business_id);
             $partnerId = (int) old('partner_business_id', $partnership->partner_business_id);
-            $lookupUrl = route('admin.business-lookup', [], false);
+            $lookupUrl = panel_route('admin.business-lookup', []);
         @endphp
 
         <div class="a2-field">

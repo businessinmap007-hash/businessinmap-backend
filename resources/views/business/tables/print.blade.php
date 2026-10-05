@@ -32,7 +32,7 @@
         <div class="grid">
             @foreach($rows as $row)
                 <div class="tile">
-                    <img src="{{ route('table.qr', $row->token, false) }}" alt="QR {{ $row->label }}">
+                    <img src="{{ panel_route('table.qr', [$row->token]) }}" alt="QR {{ $row->label }}">
                     <div class="label">{{ $row->label }}</div>
                     <div class="hint">{{ __('امسح الرمز لبدء طلبك') }}</div>
                 </div>

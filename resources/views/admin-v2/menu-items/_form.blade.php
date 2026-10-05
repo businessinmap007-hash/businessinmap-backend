@@ -10,7 +10,7 @@
             <label class="a2-label">{{ __('البزنس') }}</label>
             @php $bizId = (int) old('business_id', $row->business_id ?? 0); @endphp
             <select class="a2-select" name="business_id" required
-                    data-remote-url="{{ route('admin.business-lookup', [], false) }}"
+                    data-remote-url="{{ panel_route('admin.business-lookup', []) }}"
                     data-placeholder="{{ __('اختر البزنس — ابحث بالاسم أو الرقم #') }}">
                 <option value="">{{ __('اختر البزنس') }}</option>
                 @if($bizId)

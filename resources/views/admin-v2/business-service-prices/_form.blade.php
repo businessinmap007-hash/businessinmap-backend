@@ -33,7 +33,7 @@
                 class="a2-select js-business-select"
                 id="business_id"
                 name="business_id"
-                data-remote-url="{{ route('admin.business_service_prices.business-lookup', [], false) }}"
+                data-remote-url="{{ panel_route('admin.business_service_prices.business-lookup', []) }}"
                 data-placeholder="{{ __('اكتب اسم البزنس') }}"
             >
                 <option value="">{{ __('اختر البزنس') }}</option>
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const discountEnabled = document.getElementById('discount_enabled');
     const discountPercent = document.getElementById('discount_percent');
 
-    const itemTypesUrl = @json(route('admin.business_service_prices.item-types-lookup', [], false));
+    const itemTypesUrl = @json(panel_route('admin.business_service_prices.item-types-lookup', []));
     let requestSeq = 0;
 
     function setTypeHint(message) {

@@ -35,7 +35,7 @@
 
     // route templates for JS bulk actions — root-relative (false) so a JS fetch
     // stays same-origin (an absolute APP_URL host mismatch fails cross-origin).
-    $toggleTpl  = route('admin.posts.toggleActive', ['post' => '__ID__'], false);
+    $toggleTpl  = panel_route('admin.posts.toggleActive', ['post' => '__ID__']);
 @endphp
 
 <div class="a2-page">
@@ -152,7 +152,7 @@
                             <button
                                 type="button"
                                 class="a2-pill {{ $isActive ? 'a2-pill-active' : 'a2-pill-inactive' }} js-toggle-active"
-                                data-url="{{ route('admin.posts.toggleActive', $p, false) }}"
+                                data-url="{{ panel_route('admin.posts.toggleActive', $p) }}"
                                 data-state="{{ $isActive ? 1 : 0 }}"
                                 aria-pressed="{{ $isActive ? 'true' : 'false' }}"
                                 title="{{ __('تغيير الحالة') }}"

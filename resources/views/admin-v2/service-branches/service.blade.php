@@ -65,10 +65,10 @@
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const serviceId = @json($serviceIdVal);
     const URLS = {
-        toggle: @json(route('admin.service-branches.toggle', [], false)),
-        store: @json(route('admin.service-branches.branches.store', [], false)),
-        renameTpl: @json(route('admin.service-branches.branches.rename', ['platformServiceItemGroup' => '__ID__'], false)),
-        destroyTpl: @json(route('admin.service-branches.branches.destroy', ['platformServiceItemGroup' => '__ID__'], false)),
+        toggle: @json(panel_route('admin.service-branches.toggle', [])),
+        store: @json(panel_route('admin.service-branches.branches.store', [])),
+        renameTpl: @json(panel_route('admin.service-branches.branches.rename', ['platformServiceItemGroup' => '__ID__'])),
+        destroyTpl: @json(panel_route('admin.service-branches.branches.destroy', ['platformServiceItemGroup' => '__ID__'])),
     };
 
     let branches = @json($branches).map(b => ({ id: Number(b.id), name: b.name, typeIds: (b.type_ids || []).map(Number) }));

@@ -25,12 +25,35 @@
 
 <div class="a2-card a2-mb-16">
     <h3 style="margin-top:0">{{ __('استيراد') }}</h3>
-    <p class="a2-page-subtitle">{{ __('ملف Excel أو CSV بنفس أعمدة النموذج. «النوع» من أنواع نشاطك (في الورقة الثانية من النموذج)، و«القسم» للأصناف التي ليس لها نوع. المقاسات والإضافات والصور والباركود اختيارية — طريقة كتابتها في الورقة الثانية.') }}</p>
+    <p class="a2-page-subtitle">{{ __('ملف Excel أو CSV. بعد اختياره ترى أعمدة ملفك مرقّمة وتربط كل عمود عندنا برقم العمود المقابل له — فلا يهم اختلاف الأسماء. «النوع» من أنواع نشاطك (في الورقة الثانية من النموذج)، و«القسم» للأصناف التي ليس لها نوع. المقاسات والإضافات والصور والباركود اختيارية — طريقة كتابتها في الورقة الثانية.') }}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <input type="file" id="sheetFile" accept=".xlsx,.xls,.csv" class="a2-input" style="max-width:360px">
-        <button type="button" class="a2-btn a2-btn-primary" id="previewBtn" disabled>{{ __('معاينة') }}</button>
     </div>
     <div id="sheetError" class="a2-alert a2-alert-danger" style="display:none;margin-top:12px"></div>
+</div>
+
+<div class="a2-card a2-mb-16" id="mappingCard" style="display:none">
+    <h3 style="margin-top:0">{{ __('ربط الأعمدة') }}</h3>
+    <p class="a2-page-subtitle">{{ __('لكل عمود عندنا اختر رقم العمود المقابل له في ملفك. ما تتركه «بدون» لا يُقرأ، ولا يغيّر شيئًا في صنف موجود.') }}</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+        <div>
+            <strong>{{ __('أعمدة ملفك') }}</strong>
+            <ol id="fileHeaders" style="margin:8px 0 0;padding:0;list-style:none"></ol>
+        </div>
+        <div style="grid-column:span 2">
+            <strong>{{ __('أعمدة التطبيق') }}</strong>
+            <div class="a2-table-wrap">
+                <table class="a2-table">
+                    <thead><tr><th>#</th><th>{{ __('العمود عندنا') }}</th><th>{{ __('يقابله في ملفك') }}</th><th>{{ __('مثال من ملفك') }}</th></tr></thead>
+                    <tbody id="mappingRows"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="a2-page-actions" style="justify-content:flex-start;gap:8px;margin-top:12px">
+        <button type="button" class="a2-btn a2-btn-primary" id="previewBtn">{{ __('معاينة بهذا الربط') }}</button>
+        <button type="button" class="a2-btn a2-btn-ghost" id="resetMapBtn">{{ __('إعادة الربط التلقائي') }}</button>
+    </div>
 </div>
 
 <div class="a2-card" id="reportCard" style="display:none">
@@ -55,6 +78,7 @@
     // route(.., false): a relative URL — an absolute one built from APP_URL can point at another host.
     const SHEET_URL = @json(route('business.menu.sheet', [], false));
     const IMPORT_URL = @json(route('business.menu.import.run', [], false));
+    const INSPECT_URL = @json(route('business.menu.inspect', [], false));
     const CSRF = @json(csrf_token());
     const T = {
         preview: @json(__('معاينة — لم يتغير شيء بعد')),
@@ -65,15 +89,29 @@
         failed: @json(__('حدث خطأ ما، حاول مرة أخرى.')),
         typesSheet: @json(__('الأنواع والوحدات')), types: @json(__('النوع')), group: @json(__('المجموعة')), units: @json(__('الوحدات')),
         howTo: @json(__('طريقة الكتابة')),
+        none: @json(__('— بدون —')),
+        column: @json(__('عمود')),
     };
-    let rows = null;
+    let grid = null, inspected = null, mapping = {};
 
     const fileInput = document.getElementById('sheetFile');
     const previewBtn = document.getElementById('previewBtn');
     const confirmBtn = document.getElementById('confirmBtn');
     const errorBox = document.getElementById('sheetError');
+    const mappingCard = document.getElementById('mappingCard');
 
     function showError(text) { errorBox.textContent = text; errorBox.style.display = text ? 'block' : 'none'; }
+
+    async function post(url, payload) {
+        const res = await fetch(url, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.message || T.failed);
+        return body.data;
+    }
 
     async function getJson(url) {
         const res = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
@@ -104,21 +142,78 @@
         } catch (e) { showError(e.message || T.failed); }
     }));
 
-    // ── import: read the first sheet in the browser, send its rows ──
-    fileInput.addEventListener('change', () => { previewBtn.disabled = !fileInput.files.length; rows = null; });
+    // ── import: read the first sheet in the browser as a grid, let the owner point our columns at his, send both ──
+    // The same file shape comes back to the same mapping: remembered in this browser.
+    const memoryKey = headers => 'bim_menu_import_map_' + headers.join('|');
+    function remembered(headers) {
+        try { return JSON.parse(localStorage.getItem(memoryKey(headers)) || 'null'); } catch (e) { return null; }
+    }
+    function remember() {
+        try { localStorage.setItem(memoryKey(inspected.headers), JSON.stringify(mapping)); } catch (e) { /* private window */ }
+    }
+    const headerLabel = (h, i) => (i + 1) + ' - ' + (h || T.column + ' ' + (i + 1));
 
-    previewBtn.addEventListener('click', async () => {
+    fileInput.addEventListener('change', async () => {
         showError('');
+        grid = inspected = null;
+        mappingCard.style.display = 'none';
+        document.getElementById('reportCard').style.display = 'none';
         const file = fileInput.files[0];
         if (!file) return;
         try {
-            const buffer = await file.arrayBuffer();
-            const book = XLSX.read(buffer, { type: 'array', codepage: 65001 });
+            const book = XLSX.read(await file.arrayBuffer(), { type: 'array', codepage: 65001 });
             const first = book.Sheets[book.SheetNames[0]];
-            rows = XLSX.utils.sheet_to_json(first, { defval: '', raw: false });
-            if (!rows.length) { showError(T.empty); return; }
-            await run(true);
+            grid = XLSX.utils.sheet_to_json(first, { header: 1, defval: '', raw: false, blankrows: false });
+            if (grid.length < 2) { grid = null; showError(T.empty); return; }
+            inspected = await post(INSPECT_URL, { grid });
+            mapping = remembered(inspected.headers) || { ...inspected.mapping };
+            renderMapping();
         } catch (e) { showError(e.message || T.failed); }
+    });
+
+    function renderMapping() {
+        mappingCard.style.display = 'block';
+        const list = document.getElementById('fileHeaders');
+        list.innerHTML = '';
+        inspected.headers.forEach((h, i) => {
+            const li = document.createElement('li');
+            li.style.padding = '3px 0';
+            li.textContent = headerLabel(h, i);
+            list.appendChild(li);
+        });
+        const tbody = document.getElementById('mappingRows');
+        tbody.innerHTML = '';
+        inspected.columns.forEach((col, n) => {
+            const tr = document.createElement('tr');
+            const select = document.createElement('select');
+            select.className = 'a2-input';
+            select.add(new Option(T.none, ''));
+            inspected.headers.forEach((h, i) => select.add(new Option(headerLabel(h, i), String(i + 1))));
+            select.value = mapping[col.key] ? String(mapping[col.key]) : '';
+            const sample = document.createElement('td');
+            sample.style.color = '#777';
+            const refresh = () => {
+                const idx = select.value ? parseInt(select.value, 10) - 1 : -1;
+                sample.textContent = idx >= 0 ? ((inspected.sample[0] || [])[idx] ?? '') : '';
+            };
+            select.addEventListener('change', () => { mapping[col.key] = select.value ? parseInt(select.value, 10) : null; refresh(); });
+            refresh();
+            [String(n + 1), col.label].forEach(text => { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); });
+            const tdSel = document.createElement('td');
+            tdSel.appendChild(select);
+            tr.appendChild(tdSel);
+            tr.appendChild(sample);
+            tbody.appendChild(tr);
+        });
+    }
+
+    document.getElementById('resetMapBtn').addEventListener('click', () => { mapping = { ...inspected.mapping }; renderMapping(); });
+
+    previewBtn.addEventListener('click', async () => {
+        showError('');
+        if (!grid) return;
+        remember();
+        await run(true);
     });
 
     confirmBtn.addEventListener('click', () => run(false));
@@ -126,16 +221,9 @@
     async function run(dryRun) {
         previewBtn.disabled = confirmBtn.disabled = true;
         try {
-            const res = await fetch(IMPORT_URL, {
-                method: 'POST', credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': CSRF },
-                body: JSON.stringify({ rows, dry_run: dryRun ? 1 : 0 }),
-            });
-            const body = await res.json();
-            if (!res.ok) throw new Error(body.message || T.failed);
-            render(body.data, dryRun);
+            render(await post(IMPORT_URL, { grid, mapping, dry_run: dryRun ? 1 : 0 }), dryRun);
         } catch (e) { showError(e.message || T.failed); }
-        finally { previewBtn.disabled = !fileInput.files.length; confirmBtn.disabled = false; }
+        finally { previewBtn.disabled = false; confirmBtn.disabled = false; }
     }
 
     function render(report, dryRun) {

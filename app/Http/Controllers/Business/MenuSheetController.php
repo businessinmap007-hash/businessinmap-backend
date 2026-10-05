@@ -53,12 +53,30 @@ class MenuSheetController extends Controller
         ]);
     }
 
+    /** The picked file's numbered headers, a few rows and the suggested mapping — the page then lets the owner correct it. */
+    public function inspect(Request $request): JsonResponse
+    {
+        $request->validate(['grid' => ['required', 'array', 'min:1']]);
+
+        return response()->json(['success' => true, 'data' => $this->sheet->inspect((array) $request->input('grid'))]);
+    }
+
     public function import(Request $request): JsonResponse
     {
-        $request->validate(['rows' => ['required', 'array', 'min:1'], 'dry_run' => ['nullable', 'boolean']]);
+        $request->validate([
+            'rows' => ['nullable', 'array'],
+            'grid' => ['nullable', 'array'],
+            'mapping' => ['nullable', 'array'],
+            'dry_run' => ['nullable', 'boolean'],
+        ]);
+
+        $rows = $request->has('grid')
+            ? $this->sheet->rowsFromGrid((array) $request->input('grid'), $this->sheet->mappingFromRequest($request))
+            : (array) $request->input('rows', []);
+        abort_if($rows === [], 422, __('الملف فارغ أو بلا صفوف مقروءة.'));
 
         $dryRun = $request->boolean('dry_run', true);
-        $report = $this->sheet->import($request, BusinessContext::business($request), (array) $request->input('rows'), $dryRun);
+        $report = $this->sheet->import($request, BusinessContext::business($request), $rows, $dryRun);
 
         return response()->json(['success' => true, 'data' => $report + ['dry_run' => $dryRun]]);
     }

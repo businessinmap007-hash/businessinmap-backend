@@ -150,11 +150,11 @@ final class MenuSheet
     }
 
     /**
-     * Rows out of a CSV (comma, semicolon or tab; headers in Arabic, English or the column keys).
+     * A CSV as a grid of cells: the header row first (comma, semicolon or tab; a BOM is dropped).
      *
-     * @return list<array<string,string>>
+     * @return list<list<string>>
      */
-    public function parseCsv(string $content): array
+    public function csvGrid(string $content): array
     {
         $content = preg_replace('/^\xEF\xBB\xBF/', '', $content) ?? $content;
         $first = strtok($content, "\n") ?: '';
@@ -162,26 +162,117 @@ final class MenuSheet
 
         $reader = Reader::createFromString($content);
         $reader->setDelimiter($delimiter);
-        $records = iterator_to_array($reader->getRecords(), false);
-        if ($records === []) {
+
+        return array_map(fn ($cells) => array_map(fn ($c) => trim((string) $c), $cells), iterator_to_array($reader->getRecords(), false));
+    }
+
+    /** The file's grid from a request: an uploaded CSV, or `grid` (what a client read out of an Excel file). */
+    public function gridFromRequest(Request $request): array
+    {
+        if ($request->hasFile('file')) {
+            return $this->csvGrid((string) file_get_contents($request->file('file')->getRealPath()));
+        }
+
+        return array_values((array) $request->input('grid', []));
+    }
+
+    /** The column mapping a client sent (an object, or a JSON string in a multipart request), or null. */
+    public function mappingFromRequest(Request $request): ?array
+    {
+        $mapping = $request->input('mapping');
+        if (is_string($mapping)) {
+            $mapping = json_decode($mapping, true);
+        }
+
+        return is_array($mapping) ? $mapping : null;
+    }
+
+    /**
+     * «ربط الأعمدة بالترقيم» — المالك، 2026-10-05: a file whose headers are called something else still imports,
+     * because each of OUR columns is pointed at the file's column NUMBER. This is the suggestion: for each of our
+     * columns, the 1-based number of the file column whose header it recognises (Arabic, English or the key), or
+     * null. The first match wins.
+     *
+     * @param  list<mixed>  $headers  the file's header row
+     * @return array<string,?int> our column key => the file's column number (1-based) or null
+     */
+    public function suggestMapping(array $headers): array
+    {
+        $mapping = array_fill_keys(array_keys(self::COLUMNS), null);
+        foreach (array_values($headers) as $i => $header) {
+            $key = $this->keyOf((string) $header);
+            if ($key !== null && $mapping[$key] === null) {
+                $mapping[$key] = $i + 1;
+            }
+        }
+
+        return $mapping;
+    }
+
+    /** What a file looks like before it is imported: its numbered headers, a few rows, and the suggested mapping. */
+    public function inspect(array $grid): array
+    {
+        $grid = array_values($grid);
+        $headers = array_map(fn ($h) => is_scalar($h) ? trim((string) $h) : '', array_values((array) ($grid[0] ?? [])));
+
+        return [
+            'headers' => $headers,
+            'sample' => array_map(fn ($r) => array_map(fn ($c) => is_scalar($c) ? trim((string) $c) : '', array_values((array) $r)), array_slice($grid, 1, 3)),
+            'total_rows' => max(0, count($grid) - 1),
+            'mapping' => $this->suggestMapping($headers),
+            'columns' => $this->columns(),
+        ];
+    }
+
+    /**
+     * Rows keyed by our column keys, out of a grid (header row first) and a mapping (our key => the file's 1-based
+     * column number). Without a mapping the headers are recognised by name, as before.
+     *
+     * @param  list<list<mixed>>  $grid
+     * @param  array<string,mixed>|null  $mapping
+     * @return list<array<string,string>>
+     */
+    public function rowsFromGrid(array $grid, ?array $mapping = null): array
+    {
+        $grid = array_values($grid);
+        if ($grid === []) {
             return [];
         }
 
-        $keys = array_map(fn ($h) => $this->keyOf((string) $h), array_shift($records));
+        $header = array_shift($grid);
+        $mapping ??= $this->suggestMapping((array) $header);
 
-        return collect($records)
-            ->map(function ($cells) use ($keys) {
+        $columns = [];
+        foreach ($mapping as $key => $number) {
+            if (array_key_exists((string) $key, self::COLUMNS) && is_numeric($number) && (int) $number >= 1) {
+                $columns[(string) $key] = (int) $number - 1;
+            }
+        }
+
+        return collect($grid)
+            ->map(function ($cells) use ($columns) {
+                $cells = array_values((array) $cells);
                 $row = [];
-                foreach ($keys as $i => $key) {
-                    if ($key !== null) {
-                        $row[$key] = trim((string) ($cells[$i] ?? ''));
-                    }
+                foreach ($columns as $key => $index) {
+                    $value = $cells[$index] ?? '';
+                    $row[$key] = is_scalar($value) ? trim((string) $value) : '';
                 }
 
                 return $row;
             })
             ->filter(fn ($row) => collect($row)->filter(fn ($v) => $v !== '')->isNotEmpty())
             ->values()->all();
+    }
+
+    /**
+     * Rows out of a CSV, headers recognised by name — or by the given mapping (see {@see rowsFromGrid()}).
+     *
+     * @param  array<string,mixed>|null  $mapping
+     * @return list<array<string,string>>
+     */
+    public function parseCsv(string $content, ?array $mapping = null): array
+    {
+        return $this->rowsFromGrid($this->csvGrid($content), $mapping);
     }
 
     /**

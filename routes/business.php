@@ -163,6 +163,7 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('menu/import', [MenuSheetController::class, 'index'])->name('menu.import');
         Route::get('menu/sheet', [MenuSheetController::class, 'show'])->name('menu.sheet');
         Route::get('menu/sheet.csv', [MenuSheetController::class, 'csv'])->name('menu.sheet.csv');
+        Route::post('menu/inspect', [MenuSheetController::class, 'inspect'])->name('menu.inspect');
         Route::post('menu/import', [MenuSheetController::class, 'import'])->name('menu.import.run');
 
         // شاشة تعبئة الرفوف — السوبر ماركت والهايبر والمني ماركت فقط، من

@@ -45,19 +45,39 @@ final class BusinessMenuSheetController extends Controller
     }
 
     /**
-     * POST /api/v2/business/menu/import — `file` (CSV) or `rows` (the sheet as JSON, e.g. read from an Excel file
-     * on the phone), and `dry_run` (default true: a preview that changes nothing).
+     * POST /api/v2/business/menu/inspect — `file` (CSV) or `grid` (an Excel file read on the phone, header row first):
+     * the file's numbered headers, a few rows and the suggested mapping, so the merchant can point each of our
+     * columns at the right column of HIS file.
+     */
+    public function inspect(Request $request)
+    {
+        $request->validate(['file' => ['nullable', 'file', 'max:5120'], 'grid' => ['nullable', 'array']]);
+
+        $grid = $this->sheet->gridFromRequest($request);
+        if ($grid === []) {
+            return response()->json(['success' => false, 'message' => __('الملف فارغ أو بلا صفوف مقروءة.')], 422);
+        }
+
+        return response()->json(['success' => true, 'data' => $this->sheet->inspect($grid)]);
+    }
+
+    /**
+     * POST /api/v2/business/menu/import — `file` (CSV), `grid` (an Excel file read on the phone, header row first)
+     * or `rows` (already keyed by our columns), `mapping` (our column key => the file's column number; without it the
+     * headers are recognised by name) and `dry_run` (default true: a preview that changes nothing).
      */
     public function import(Request $request)
     {
         $request->validate([
             'file' => ['nullable', 'file', 'max:5120'],
             'rows' => ['nullable', 'array'],
+            'grid' => ['nullable', 'array'],
+            'mapping' => ['nullable'],
             'dry_run' => ['nullable', 'boolean'],
         ]);
 
-        $rows = $request->hasFile('file')
-            ? $this->sheet->parseCsv((string) file_get_contents($request->file('file')->getRealPath()))
+        $rows = $request->hasFile('file') || $request->has('grid')
+            ? $this->sheet->rowsFromGrid($this->sheet->gridFromRequest($request), $this->sheet->mappingFromRequest($request))
             : (array) $request->input('rows', []);
 
         if ($rows === []) {

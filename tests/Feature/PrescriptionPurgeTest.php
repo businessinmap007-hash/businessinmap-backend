@@ -64,10 +64,10 @@ class PrescriptionPurgeTest extends TestCase
     }
 
     /** Finish it (dispensed) a given number of days ago. */
-    private function finish(int $daysAgo, string $status = Prescription::STATUS_DISPENSED): void
+    private function finish(int $daysAgo, string $status = Prescription::STATUS_DISPENSED, bool $doctorHolds = true): void
     {
         $when = now()->subDays($daysAgo);
-        DB::table('prescriptions')->where('id', $this->id)->update(['status' => $status, 'dispensed_at' => $when, 'updated_at' => $when]);
+        DB::table('prescriptions')->where('id', $this->id)->update(['status' => $status, 'dispensed_at' => $when, 'updated_at' => $when, 'archived_by_doctor_at' => $doctorHolds ? now() : null]);
     }
 
     private function row(): Prescription
@@ -158,6 +158,19 @@ class PrescriptionPurgeTest extends TestCase
         $this->assertNull($row->content_purged_at);
     }
 
+    public function test_nothing_is_purged_until_the_doctors_phone_holds_a_copy_too(): void
+    {
+        $copy = $this->copy();
+        $this->postJson('/api/v2/prescriptions/archived', ['id' => $this->id, 'content' => $copy['content']])->assertOk();
+        $this->finish(400, Prescription::STATUS_DISPENSED, doctorHolds: false);
+
+        Artisan::call('prescriptions:purge-sensitive');
+
+        $row = $this->row();
+        $this->assertSame('Flu', $row->diagnosis);
+        $this->assertNull($row->content_purged_at);
+    }
+
     public function test_nothing_is_purged_before_the_window_or_while_it_is_still_open(): void
     {
         $copy = $this->copy();
@@ -195,7 +208,7 @@ class PrescriptionPurgeTest extends TestCase
     {
         $copy = $this->copy();
         $this->postJson('/api/v2/prescriptions/archived', ['id' => $this->id, 'content' => $copy['content']])->assertOk();
-        DB::table('prescriptions')->where('id', $this->id)->update(['status' => 'cancelled', 'updated_at' => now()->subDays(100)]);
+        DB::table('prescriptions')->where('id', $this->id)->update(['status' => 'cancelled', 'updated_at' => now()->subDays(100), 'archived_by_doctor_at' => now()]);
 
         Artisan::call('prescriptions:purge-sensitive');
 

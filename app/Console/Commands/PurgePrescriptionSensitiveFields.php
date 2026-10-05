@@ -10,7 +10,9 @@ use Illuminate\Console\Command;
  * doctor's notes of a FINISHED prescription leave the server once, and only if:
  *   • it is dispensed or cancelled, and has been for at least `--days` (90 by default);
  *   • it carries the doctor's fingerprint (so the phone's copy can still be proved authentic);
- *   • the patient's phone confirmed it holds the exact content (`archived_by_patient_at`).
+ *   • the patient's phone confirmed it holds the exact content (`archived_by_patient_at`);
+ *   • the doctor's phone did too (`archived_by_doctor_at`) — «استثنِ الروشتات المكتوبة من الحذف إلى أن نبني نسخة
+ *     الطبيب»: until that copy exists nothing is purged.
  * The medicine lines, the fingerprint, the dates and the price stay. It is permanent: the patient's phone (and
  * his encrypted backup) is where the sensitive part lives from then on.
  */
@@ -29,6 +31,8 @@ class PurgePrescriptionSensitiveFields extends Command
             ->whereIn('status', [Prescription::STATUS_DISPENSED, Prescription::STATUS_CANCELLED])
             ->whereNotNull('content_hash')
             ->whereNotNull('archived_by_patient_at')
+            // the doctor loses the diagnosis too: held by his phone as well (nothing sets this until that copy is built)
+            ->whereNotNull('archived_by_doctor_at')
             ->whereNull('content_purged_at')
             // finished = dispensed_at for a dispensed one, else the last change (a cancel only touches updated_at)
             ->whereRaw('COALESCE(dispensed_at, updated_at) <= ?', [$cutoff]);

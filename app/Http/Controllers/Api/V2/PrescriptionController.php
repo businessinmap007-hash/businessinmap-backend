@@ -487,6 +487,11 @@ class PrescriptionController extends Controller
 
     private function serialize(Prescription $p): array
     {
+        // One lookup: which of its lines are controlled drugs (the prescription is controlled if any is).
+        $controlledIds = $p->relationLoaded('items') && $p->items->isNotEmpty()
+            ? Medicine::query()->whereIn('id', $p->items->pluck('medicine_id')->filter())->where('is_controlled', true)->pluck('id')->all()
+            : [];
+
         return [
             'id' => (int) $p->id,
             'status' => (string) $p->status,
@@ -506,7 +511,7 @@ class PrescriptionController extends Controller
             'images' => $p->imagePayload(),
             // Narcotic / psychotropic drug on it → the doctor's handwritten paper (a photo) is on file and is what a
             // pharmacy compares with the paper in the patient's hand.
-            'controlled' => $p->hasControlledItems(),
+            'controlled' => $controlledIds !== [] || (! $p->relationLoaded('items') && $p->hasControlledItems()),
             'handwritten_image' => optional($p->handwrittenImage())->image,
             'doctor' => $p->doctor_id ? $this->party($p->doctor, $p->doctor_id) : null,
             'patient' => $this->party($p->patient, $p->patient_id),
@@ -518,6 +523,7 @@ class PrescriptionController extends Controller
                 ? $p->items->map(fn ($i) => [
                     'id' => (int) $i->id,
                     'medicine_id' => $i->medicine_id ? (int) $i->medicine_id : null,
+                    'is_controlled' => in_array((int) $i->medicine_id, $controlledIds, true),
                     'name' => $i->name,
                     'dosage' => $i->dosage,
                     'quantity' => $i->quantity,

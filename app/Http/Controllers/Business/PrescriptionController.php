@@ -78,6 +78,12 @@ class PrescriptionController extends Controller
         return $this->prescriptions->store($request);
     }
 
+    /** Amend — never in place: the API creates the new version and cancels this one (a controlled drug needs its own photo). */
+    public function revise(Request $request, int $id)
+    {
+        return $this->prescriptions->revise($request, $id);
+    }
+
     /** The doctor's copy is held: `{id, content}`. */
     public function archived(Request $request)
     {

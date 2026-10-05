@@ -17,9 +17,10 @@
 
 {{-- ── كتابة روشتة ─────────────────────────────────────────────────────── --}}
 <div class="a2-card a2-mb-16" id="writeCard" style="display:none">
-    <h3 style="margin-top:0">{{ __('روشتة جديدة') }}</h3>
+    <h3 style="margin-top:0" id="writeTitle">{{ __('روشتة جديدة') }}</h3>
+    <div id="reviseNote" class="a2-alert" style="display:none">{{ __('التعديل لا يغيّر الروشتة الحالية: تُصدر نسخة جديدة سارية وتُلغى القديمة، وتبقى القديمة في السجل. لو فيها دواء مخدر فالنسخة الجديدة تحتاج صورة جديدة بخط يدك.') }}</div>
 
-    <div class="a2-form-row">
+    <div class="a2-form-row" id="visitRow">
         <label>{{ __('المريض (من زيارات عيادتك)') }}</label>
         <select class="a2-select" id="rxVisit"></select>
     </div>
@@ -65,7 +66,7 @@
     </div>
     <div class="a2-table-wrap" style="margin-top:12px">
         <table class="a2-table">
-            <thead><tr><th>#</th><th>{{ __('المريض') }}</th><th>{{ __('الأدوية') }}</th><th>{{ __('الحالة') }}</th><th>{{ __('التاريخ') }}</th><th>{{ __('نسختك') }}</th></tr></thead>
+            <thead><tr><th>#</th><th>{{ __('المريض') }}</th><th>{{ __('الأدوية') }}</th><th>{{ __('الحالة') }}</th><th>{{ __('التاريخ') }}</th><th>{{ __('نسختك') }}</th><th></th></tr></thead>
             <tbody id="rxRows"></tbody>
         </table>
     </div>
@@ -82,6 +83,7 @@
         appointments: @json(route('business.prescriptions.appointments', [], false)),
         store: @json(route('business.prescriptions.store', [], false)),
         archived: @json(route('business.prescriptions.archived', [], false)),
+        revise: @json(route('business.prescriptions.revise', ['id' => '__ID__'], false)),
     };
     const CSRF = @json(csrf_token());
     const ME = @json((int) auth()->id());
@@ -98,6 +100,10 @@
         needLine: @json(__('أضف دواءً واحدًا على الأقل.')),
         needPaper: @json(__('أضف صورة الروشتة المكتوبة بخط اليد أولًا.')),
         issuedOk: @json(__('تم إصدار الروشتة.')),
+        revisedOk: @json(__('تم تعديل الروشتة — أصبحت النسخة الجديدة سارية.')),
+        edit: @json(__('تعديل')), reviseTitle: @json(__('تعديل الروشتة')), newTitle: @json(__('روشتة جديدة')),
+        saveRevise: @json(__('حفظ التعديل')), issue: @json(__('إصدار الروشتة')),
+        legacyLines: @json(__('بعض الأسطر قديمة وغير مربوطة بالقاموس، لذلك لم تُنقل — أضفها من القاموس إن لزمت.')),
         held: @json(__('✓ معتمدة')), local: @json(__('على هذا الجهاز')), none: @json(__('—')),
         purged: @json(__('(حُذف التشخيص من السيرفر — النسخة هنا)')),
         passphrase: @json(__('اختر كلمة سر للنسخة (8 أحرف على الأقل). لن تُحفظ في أي مكان — بدونها لا تُفتح النسخة.')),
@@ -260,6 +266,15 @@
                 (p.archived_by_doctor ? T.held + ' · ' : '') + T.local,
             ];
             cells.forEach(text => { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); });
+            const act = document.createElement('td');
+            // an amendment is for what is still alive: not a dispensed or a cancelled one
+            if (p.status !== 'dispensed' && p.status !== 'cancelled' && p.doctor && p.doctor.id === ME) {
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'a2-btn a2-btn-ghost'; b.textContent = T.edit;
+                b.addEventListener('click', () => startRevise(p));
+                act.appendChild(b);
+            }
+            tr.appendChild(act);
             tbody.appendChild(tr);
         });
     }
@@ -314,9 +329,23 @@
     let lines = [];
     let visits = [];
 
-    $('newRxBtn').addEventListener('click', async () => {
+    let reviseOf = null;   // the prescription being amended, or null when writing a new one
+
+    function openWriter(title) {
+        $('writeTitle').textContent = title;
+        $('issueBtn').textContent = reviseOf ? T.saveRevise : T.issue;
+        $('visitRow').style.display = reviseOf ? 'none' : '';
+        $('reviseNote').style.display = reviseOf ? 'block' : 'none';
         $('writeCard').style.display = 'block';
         $('writeCard').scrollIntoView({ block: 'start' });
+    }
+
+    $('newRxBtn').addEventListener('click', async () => {
+        reviseOf = null;
+        lines = []; renderLines();
+        ['rxDiagnosis', 'rxCondition', 'rxNotes'].forEach(id => { $(id).value = ''; });
+        $('paperFile').value = '';
+        openWriter(T.newTitle);
         try {
             visits = (await api(URLS.appointments)).data;
             const sel = $('rxVisit');
@@ -325,6 +354,28 @@
             visits.forEach((v, i) => sel.add(new Option(v.patient_name + (v.scheduled_at ? ' — ' + new Date(v.scheduled_at).toLocaleString() : ''), String(i))));
         } catch (e) { say(e.message || T.failed); }
     });
+
+    // Amend: the form opens filled from the copy kept here (the full one, even when the server purged its own).
+    function startRevise(p) {
+        say('');
+        reviseOf = p.id;
+        $('rxDiagnosis').value = p.diagnosis || '';
+        $('rxCondition').value = p.patient_condition || '';
+        $('rxNotes').value = p.notes || '';
+        $('paperFile').value = '';
+        const items = p.items || [];
+        lines = items.filter(i => i.medicine_id).map(i => ({
+            medicine_id: i.medicine_id, name: i.name, is_controlled: !!i.is_controlled,
+            dosage: i.dosage || '', quantity: i.quantity || '', instructions: i.instructions || '',
+            frequency_per_day: i.frequency_per_day || '', food_timing: i.food_timing || '',
+            duration_value: i.duration_value || '', duration_unit: i.duration_unit || 'days',
+            time_slots: i.time_slots || null,
+        }));
+        renderLines();
+        openWriter(T.reviseTitle + ' #' + p.id + ' — ' + patientName(p));
+        if (lines.length < items.length) say(T.legacyLines);
+    }
+
     $('cancelWriteBtn').addEventListener('click', () => { $('writeCard').style.display = 'none'; });
 
     let searchTimer = null;
@@ -406,7 +457,7 @@
     $('issueBtn').addEventListener('click', async () => {
         say('');
         const visit = visits[parseInt($('rxVisit').value, 10)];
-        if (!visit) { say(T.needPatient); return; }
+        if (!reviseOf && !visit) { say(T.needPatient); return; }
         if (!lines.length) { say(T.needLine); return; }
         const paper = $('paperFile').files[0];
         if (lines.some(l => l.is_controlled) && !paper) { say(T.needPaper); return; }
@@ -416,23 +467,25 @@
             ['dosage', 'quantity', 'instructions', 'food_timing'].forEach(k => { if (l[k]) o[k] = l[k]; });
             if (l.frequency_per_day) o.frequency_per_day = parseInt(l.frequency_per_day, 10);
             if (l.duration_value) { o.duration_value = parseInt(l.duration_value, 10); o.duration_unit = l.duration_unit; }
+            if (Array.isArray(l.time_slots) && l.time_slots.length) o.time_slots = l.time_slots;
             return o;
         });
         const form = new FormData();
-        form.append('patient_id', visit.patient_id);
-        form.append('appointment_id', visit.id);
+        if (!reviseOf) { form.append('patient_id', visit.patient_id); form.append('appointment_id', visit.id); }
         [['diagnosis', 'rxDiagnosis'], ['patient_condition', 'rxCondition'], ['notes', 'rxNotes']].forEach(([k, id]) => { if ($(id).value.trim()) form.append(k, $(id).value.trim()); });
         form.append('items', JSON.stringify(items));
         if (paper) { form.append('handwritten_image', paper); form.append('handwritten_source', 'upload'); }
 
         $('issueBtn').disabled = true;
         try {
-            await api(URLS.store, { method: 'POST', body: form });
+            const revising = reviseOf;
+            await api(revising ? URLS.revise.replace('__ID__', revising) : URLS.store, { method: 'POST', body: form });
+            reviseOf = null;
             lines = []; renderLines();
             ['rxDiagnosis', 'rxCondition', 'rxNotes'].forEach(id => { $(id).value = ''; });
             $('paperFile').value = '';
             $('writeCard').style.display = 'none';
-            say(T.issuedOk, 'ok');
+            say(revising ? T.revisedOk : T.issuedOk, 'ok');
             await loadIssued();
         } catch (e) { say(e.message || T.failed); }
         finally { $('issueBtn').disabled = false; }

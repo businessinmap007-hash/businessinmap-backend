@@ -243,6 +243,7 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::get('prescriptions/data/medicines', [BusinessPrescriptionController::class, 'medicines'])->name('prescriptions.medicines');
         Route::get('prescriptions/data/appointments', [BusinessPrescriptionController::class, 'appointments'])->name('prescriptions.appointments');
         Route::post('prescriptions', [BusinessPrescriptionController::class, 'store'])->name('prescriptions.store');
+        Route::post('prescriptions/{id}/revise', [BusinessPrescriptionController::class, 'revise'])->whereNumber('id')->name('prescriptions.revise');
         Route::post('prescriptions/archived', [BusinessPrescriptionController::class, 'archived'])->middleware('throttle:60,1')->name('prescriptions.archived');
 
         // Training & nutrition plans — the trainer writing at a desk. The web

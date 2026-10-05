@@ -194,4 +194,36 @@ class DoctorPrescriptionCopyTest extends TestCase
 
         $this->assertNotNull(Prescription::query()->findOrFail($this->id)->archived_by_doctor_at);
     }
+
+    public function test_the_web_amends_a_prescription_into_a_new_version(): void
+    {
+        $this->actingAs($this->doctor);
+        $items = json_encode([['medicine_id' => $this->plain->id, 'dosage' => '1000mg', 'quantity' => '1 box']]);
+
+        $new = $this->post("/business/prescriptions/{$this->id}/revise", ['diagnosis' => 'Flu B', 'items' => $items], ['Accept' => 'application/json'])
+            ->assertCreated()->json('data.prescription');
+
+        $this->assertSame($this->id, $new['revises_prescription_id']);
+        $this->assertSame('1000mg', $new['items'][0]['dosage']);
+        $this->assertSame('cancelled', Prescription::query()->findOrFail($this->id)->status);
+        $this->assertNotNull($new['verifiable']['hash'], 'the new version has its own fingerprint');
+    }
+
+    public function test_the_web_amendment_with_a_controlled_drug_needs_its_own_photo(): void
+    {
+        $this->actingAs($this->doctor);
+        $items = json_encode([['medicine_id' => $this->controlled->id, 'dosage' => '1 tab']]);
+
+        $this->post("/business/prescriptions/{$this->id}/revise", ['items' => $items], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonPath('code', 'handwritten_required');
+        $this->assertSame('issued', Prescription::query()->findOrFail($this->id)->status);
+
+        $this->post("/business/prescriptions/{$this->id}/revise", ['items' => $items, 'handwritten_image' => $this->paper(), 'handwritten_source' => 'upload'], ['Accept' => 'application/json'])->assertCreated();
+    }
+
+    public function test_another_doctor_cannot_amend_it_from_the_web(): void
+    {
+        $other = $this->user(User::TYPE_BUSINESS, 'OtherClinic', 514);
+
+        $this->actingAs($other)->post("/business/prescriptions/{$this->id}/revise", ['items' => json_encode([['medicine_id' => $this->plain->id]])], ['Accept' => 'application/json'])->assertNotFound();
+    }
 }

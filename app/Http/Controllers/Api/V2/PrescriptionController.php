@@ -88,6 +88,37 @@ class PrescriptionController extends Controller
     }
 
     /**
+     * POST /api/v2/prescriptions/issued/archived — `{id, content}`: the DOCTOR's device says «I hold this prescription»
+     * (a phone's secure storage, or a downloaded encrypted file on the computer). Same proof as the patient's: the
+     * content is fingerprinted and must equal what was written. A finished prescription's diagnosis, condition and
+     * notes are purged from the server only once the patient AND the doctor both hold a copy.
+     */
+    public function archivedByDoctor(Request $request)
+    {
+        $doctor = $this->businessOrFail($request);
+
+        $data = $request->validate([
+            'id' => ['required', 'integer'],
+            'content' => ['required', 'array'],
+        ]);
+
+        $row = Prescription::query()->where('doctor_id', $doctor->id)->findOrFail((int) $data['id']);
+
+        abort_unless($row->content_hash, 422, __('هذه الوصفة ليس لها بصمة، فلا يمكن اعتماد نسخة الهاتف.'));
+        abort_unless(hash_equals((string) $row->content_hash, app(PrescriptionContent::class)->hash($data['content'])), 422, __('النسخة المرسلة لا تطابق ما كتبه الطبيب.'));
+
+        if (! $row->archived_by_doctor_at) {
+            $row->forceFill(['archived_by_doctor_at' => now()])->saveQuietly();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم اعتماد نسخة الهاتف.'),
+            'data' => ['id' => (int) $row->id, 'archived' => true],
+        ]);
+    }
+
+    /**
      * POST /api/v2/prescriptions/{prescription}/confirm-quote — the customer
      * accepts the pharmacy's price on a direct request; only now may the
      * pharmacy start preparing it.
@@ -550,6 +581,7 @@ class PrescriptionController extends Controller
                 : null,
             'content_purged' => (bool) $p->content_purged_at,
             'archived_by_patient' => (bool) $p->archived_by_patient_at,
+            'archived_by_doctor' => (bool) $p->archived_by_doctor_at,
         ];
     }
 

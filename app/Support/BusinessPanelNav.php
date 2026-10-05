@@ -91,6 +91,9 @@ class BusinessPanelNav
 
     private const PHARMACY_CHILD_ID = 215;
 
+    /** «روشتاتي» — the physician's practice only (Prescription::DOCTOR_CHILD_IDS), not every business. */
+    private const NEEDS_DOCTOR = 'prescriptions';
+
     /**
      * مفاتيح الخدمات النشطة على تصنيف النشاط.
      *
@@ -206,6 +209,10 @@ class BusinessPanelNav
             return $business
                 && (int) $business->category_child_id === self::PHARMACY_CHILD_ID
                 && in_array('menu', self::servicesOf($business), true);
+        }
+
+        if ($link === self::NEEDS_DOCTOR) {
+            return \App\Models\Prescription::isDoctorBusiness($business ?? Auth::user());
         }
 
         if (in_array($link, self::NEEDS_FOOD_MENU, true)) {

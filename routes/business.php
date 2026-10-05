@@ -32,6 +32,7 @@ use App\Http\Controllers\Business\BookingSettingsController;
 use App\Http\Controllers\Business\MenuSettingsController;
 use App\Http\Controllers\Business\OfferingController;
 use App\Http\Controllers\Business\OrderController;
+use App\Http\Controllers\Business\PrescriptionController as BusinessPrescriptionController;
 use App\Http\Controllers\Business\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -234,6 +235,15 @@ Route::prefix('business')->name('business.')->group(function () {
         Route::put('schedules/{id}', [TripScheduleController::class, 'update'])->whereNumber('id')->name('schedules.update');
         Route::delete('schedules/{id}', [TripScheduleController::class, 'destroy'])->whereNumber('id')->name('schedules.destroy');
         Route::post('schedules/{schedule}/block', [TripReservationController::class, 'block'])->whereNumber('schedule')->name('schedules.block');
+
+        // «روشتاتي» — the doctor's prescriptions at a desk: write one (the same rules as the app — the dictionary,
+        // the handwritten photo for a controlled drug), see the issued ones, keep an encrypted copy on this computer.
+        Route::get('prescriptions', [BusinessPrescriptionController::class, 'index'])->name('prescriptions.index');
+        Route::get('prescriptions/data/issued', [BusinessPrescriptionController::class, 'issued'])->name('prescriptions.issued');
+        Route::get('prescriptions/data/medicines', [BusinessPrescriptionController::class, 'medicines'])->name('prescriptions.medicines');
+        Route::get('prescriptions/data/appointments', [BusinessPrescriptionController::class, 'appointments'])->name('prescriptions.appointments');
+        Route::post('prescriptions', [BusinessPrescriptionController::class, 'store'])->name('prescriptions.store');
+        Route::post('prescriptions/archived', [BusinessPrescriptionController::class, 'archived'])->middleware('throttle:60,1')->name('prescriptions.archived');
 
         // Training & nutrition plans — the trainer writing at a desk. The web
         // face of the API's own trainer side; both go through

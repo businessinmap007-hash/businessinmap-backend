@@ -87,6 +87,10 @@
             ['label' => 'الخطوط', 'route' => 'business.schedules.index', 'gate' => 'schedules', 'active' => ['business.schedules.']],
         ]],
 
+        ['label' => 'الروشتات', 'icon' => 'heart', 'gate' => 'prescriptions', 'children' => [
+            ['label' => 'روشتاتي', 'route' => 'business.prescriptions.index', 'gate' => 'prescriptions', 'active' => ['business.prescriptions.']],
+        ]],
+
         ['label' => 'التدريب', 'icon' => 'heart', 'gate' => 'training-plans', 'children' => [
             ['label' => 'الخطط التدريبية', 'route' => 'business.training-plans.index', 'gate' => 'training-plans', 'active' => ['business.training-plans.']],
         ]],

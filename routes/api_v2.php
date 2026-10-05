@@ -465,6 +465,8 @@ Route::prefix('v2')->group(function () {
         Route::middleware('business.member:' . BusinessCapability::PRESCRIPTIONS)->group(function () {
             Route::post('prescriptions', [PrescriptionController::class, 'store']);
             Route::get('prescriptions/issued', [PrescriptionController::class, 'issued']);
+            // The doctor's own copy (phone / computer) is confirmed here — the other half of what lets the server purge.
+            Route::post('prescriptions/issued/archived', [PrescriptionController::class, 'archivedByDoctor'])->middleware('throttle:60,1');
             Route::post('prescriptions/{prescription}/revise', [PrescriptionController::class, 'revise'])->whereNumber('prescription');
         });
         Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');

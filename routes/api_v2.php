@@ -489,6 +489,7 @@ Route::prefix('v2')->group(function () {
         Route::get('me/agenda-feed', [AgendaController::class, 'feedUrl']);
         Route::post('me/agenda-feed/rotate', [AgendaController::class, 'rotateFeed']);
         Route::post('agenda', [AgendaController::class, 'store']);
+        Route::post('agenda/scrub', [AgendaController::class, 'scrub']);
         Route::post('agenda/recurring', [AgendaController::class, 'storeRecurring']);
         Route::delete('agenda/{item}', [AgendaController::class, 'destroy'])->whereNumber('item');
 

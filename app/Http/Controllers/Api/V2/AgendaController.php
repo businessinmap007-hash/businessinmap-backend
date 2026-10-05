@@ -135,19 +135,23 @@ class AgendaController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'title' => ['required', 'string', 'max:200'],
+            // `private`: the title and notes stay on the phone — only the time is sent (the server keeps it under a
+            // neutral title). Without it the task is stored whole, as before.
+            'private' => ['nullable', 'boolean'],
+            'title' => ['required_unless:private,1,true', 'nullable', 'string', 'max:200'],
             'starts_at' => ['required', 'date', 'after:now'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'remind' => ['nullable', 'boolean'],
         ]);
+        $private = (bool) ($data['private'] ?? false);
 
         $item = $this->agenda->addPersonalTask(
             (int) $request->user()->id,
-            $data['title'],
+            $private ? AgendaItem::PRIVATE_TITLE : (string) $data['title'],
             Carbon::parse($data['starts_at']),
             isset($data['ends_at']) ? Carbon::parse($data['ends_at']) : null,
-            $data['notes'] ?? null,
+            $private ? null : ($data['notes'] ?? null),
             (bool) ($data['remind'] ?? false),
         );
 
@@ -166,7 +170,8 @@ class AgendaController extends Controller
     public function storeRecurring(Request $request)
     {
         $data = $request->validate([
-            'title' => ['required', 'string', 'max:200'],
+            'private' => ['nullable', 'boolean'],
+            'title' => ['required_unless:private,1,true', 'nullable', 'string', 'max:200'],
             'start_time' => ['required', 'date_format:H:i'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'frequency' => ['required', 'in:daily,weekly'],
@@ -182,15 +187,17 @@ class AgendaController extends Controller
             ? array_values(array_unique(array_map('intval', $data['weekdays'])))
             : [];
 
+        $private = (bool) ($data['private'] ?? false);
+
         $result = $this->agenda->addRecurringTasks(
             (int) $request->user()->id,
-            $data['title'],
+            $private ? AgendaItem::PRIVATE_TITLE : (string) $data['title'],
             $h,
             $m,
             (int) ($data['duration_minutes'] ?? 30),
             $weekdays,
             (int) ($data['weeks'] ?? 4) * 7,
-            $data['notes'] ?? null,
+            $private ? null : ($data['notes'] ?? null),
             (bool) ($data['remind'] ?? false),
         );
 
@@ -199,6 +206,23 @@ class AgendaController extends Controller
             'message' => __('تمت إضافة المهام المتكررة.'),
             'data' => $result,
         ], 201);
+    }
+
+    /**
+     * POST /api/v2/agenda/scrub — `{ids: [..]}`: the phone now holds the title and notes of these personal tasks, so
+     * the server drops them (keeping the time). Only my own personal tasks; anything else is ignored. Idempotent.
+     */
+    public function scrub(Request $request)
+    {
+        $data = $request->validate(['ids' => ['required', 'array', 'min:1', 'max:500'], 'ids.*' => ['integer']]);
+
+        $count = AgendaItem::query()
+            ->where('user_id', (int) $request->user()->id)
+            ->where('kind', AgendaItem::KIND_PERSONAL)
+            ->whereIn('id', $data['ids'])
+            ->update(['title' => AgendaItem::PRIVATE_TITLE, 'notes' => null]);
+
+        return response()->json(['success' => true, 'data' => ['scrubbed' => $count]]);
     }
 
     /** DELETE /api/v2/agenda/{item} — cancel a personal task I added. */
@@ -228,6 +252,8 @@ class AgendaController extends Controller
             'starts_at' => optional($i->starts_at)->toIso8601String(),
             'ends_at' => optional($i->ends_at)->toIso8601String(),
             'blocking' => (bool) $i->blocking,
+            // a personal task whose title/notes are kept on the owner's phone (the title here is the neutral one)
+            'private' => $i->kind === AgendaItem::KIND_PERSONAL && $i->title === AgendaItem::PRIVATE_TITLE,
             'source' => $i->source_type ? ['type' => class_basename($i->source_type), 'id' => (int) $i->source_id] : null,
         ];
     }

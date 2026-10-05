@@ -220,6 +220,7 @@ class AgendaService
     ): array {
         $created = 0;
         $skipped = 0;
+        $ids = [];
         $today = Carbon::today();
 
         for ($d = 0; $d <= $days; $d++) {
@@ -240,7 +241,7 @@ class AgendaService
                 continue;
             }
 
-            AgendaItem::create([
+            $ids[] = (int) AgendaItem::create([
                 'user_id' => $userId,
                 'kind' => AgendaItem::KIND_PERSONAL,
                 'title' => $title,
@@ -250,11 +251,11 @@ class AgendaService
                 'blocking' => true,
                 'status' => AgendaItem::STATUS_ACTIVE,
                 'remind' => $remind,
-            ]);
+            ])->id;
             $created++;
         }
 
-        return ['created' => $created, 'skipped' => $skipped];
+        return ['created' => $created, 'skipped' => $skipped, 'ids' => $ids];
     }
 
     /** Add a non-blocking point reminder (used for medication doses). */

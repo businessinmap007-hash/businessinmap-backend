@@ -19,6 +19,13 @@ class AgendaItem extends Model
     /** A monthly payment of an order bought on instalments — see App\Services\InstallmentPlan. */
     public const KIND_INSTALLMENT = 'installment';
 
+    /**
+     * «الأجندا تُحفظ على الفون» — المالك، 2026-10-05. A personal task's title and notes live on the owner's phone;
+     * the server keeps only WHEN (so two things are never booked into the same minute, and a reminder can fire) under
+     * this neutral title.
+     */
+    public const PRIVATE_TITLE = 'مهمة شخصية';
+
     public const KINDS = [self::KIND_APPOINTMENT, self::KIND_BOOKING, self::KIND_PERSONAL, self::KIND_MEDICATION, self::KIND_INSTALLMENT];
 
     public const STATUS_ACTIVE = 'active';

@@ -5254,10 +5254,12 @@ paths:
           content:
             text/calendar:
               schema: { type: string }
+  /agenda/scrub:
+    post: { tags: [Agenda], summary: 'The phone now holds the title and notes of these personal tasks ({ids: [..]}): the server drops them and keeps the time under a neutral title. Only my own personal tasks; idempotent', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /agenda/recurring:
     post:
       tags: [Agenda]
-      summary: Add a repeating personal task (clashing days are skipped)
+      summary: Add a repeating personal task (clashing days are skipped). With private=1 only the times are sent (title and notes stay on the phone); the reply lists the created ids
       requestBody:
         required: true
         content:

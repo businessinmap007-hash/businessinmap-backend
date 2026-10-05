@@ -2890,5 +2890,7 @@
     "تم تسجيل صرف الوصفة.": "The prescription was recorded as dispensed.",
     "هذه الوصفة ليس لها بصمة، فلا يمكن اعتماد نسخة الهاتف.": "This prescription has no fingerprint, so a phone copy cannot be accepted.",
     "النسخة المرسلة لا تطابق ما كتبه الطبيب.": "The copy sent does not match what the doctor wrote.",
-    "تم اعتماد نسخة الهاتف.": "The phone copy was accepted."
+    "تم اعتماد نسخة الهاتف.": "The phone copy was accepted.",
+    "الأدوية المخدرة تحتاج صورة الروشتة المكتوبة بخط الطبيب.": "Controlled drugs need a photo of the prescription handwritten by the doctor.",
+    "لا يمكن صرف دواء مخدر دون صورة الروشتة المكتوبة بخط الطبيب.": "A controlled drug cannot be dispensed without the photo of the prescription handwritten by the doctor."
 }

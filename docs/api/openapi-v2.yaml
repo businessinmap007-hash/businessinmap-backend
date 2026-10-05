@@ -4992,7 +4992,14 @@ paths:
     post:
       tags: [Prescriptions]
       summary: Issue a prescription (doctor → patient)
-      description: The caller must be a clinic (business) account; otherwise 403.
+      description: >-
+        The caller must be a clinic (business) account; otherwise 403.
+        A line may hold a CONTROLLED drug (narcotic / psychotropic: `is_controlled` on the medicine search result).
+        Then the request must also carry `handwritten_image` — a photo of the paper prescription in the doctor's own
+        handwriting (and `handwritten_source` camera|upload) — sent as multipart with `items` as a JSON string. Without it:
+        422 with `code: handwritten_required` and `controlled` (the drug names); nothing is stored. The same applies to
+        revise. The prescription then carries `controlled` and `handwritten_image`, and a pharmacy will not dispense a
+        controlled one that has no photo on file.
       requestBody:
         required: true
         content:
@@ -5322,7 +5329,7 @@ paths:
         - { $ref: '#/components/parameters/PerPage' }
       responses: { '200': { description: OK } }
   /pharmacy/prescriptions/verify:
-    post: { tags: [Prescriptions], summary: 'A prescription the patient showed on his phone ({id, content}): the server recomputes the fingerprint of the content and compares it with the one stored when the doctor issued it. Returns authentic, and when authentic: status, can_dispense, superseded, the doctor and dates', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Prescriptions], summary: 'A prescription the patient showed on his phone ({id, content}): the server recomputes the fingerprint of the content and compares it with the one stored when the doctor issued it. Returns authentic, and when authentic: status, can_dispense, superseded, the doctor and dates, and controlled + handwritten_image (the photo of the doctor handwritten paper, to compare with the paper in the patient hand; a controlled prescription with no photo on file has can_dispense false)', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /pharmacy/prescriptions/dispense-in-person:
     post: { tags: [Prescriptions], summary: 'Hand the medicine over against a shown prescription ({id, content}). Re-verified, then dispensed exactly once (row locked); only a prescription still in the issued state can be taken this way', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /pharmacy/prescriptions/{prescription}/price:

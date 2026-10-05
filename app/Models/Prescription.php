@@ -114,6 +114,18 @@ class Prescription extends Model
         'delivery_driver_id' => 'integer',
     ];
 
+    /** Does a line of it hold a narcotic / psychotropic drug (Medicine::is_controlled)? */
+    public function hasControlledItems(): bool
+    {
+        return $this->items()->whereIn('medicine_id', Medicine::query()->where('is_controlled', true)->select('id'))->exists();
+    }
+
+    /** The photo of the doctor's handwritten paper prescription, if one was attached. */
+    public function handwrittenImage(): ?Image
+    {
+        return $this->images()->where('purpose', Image::PURPOSE_HANDWRITTEN)->latest('id')->first();
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(PrescriptionItem::class);

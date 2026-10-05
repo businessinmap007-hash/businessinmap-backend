@@ -80,6 +80,8 @@ class MedicineController extends Controller
             'manufacturer' => $m->manufacturer,
             'drug_class' => $m->drug_class,
             'route' => $m->route,
+            // Narcotic / psychotropic: a prescription with it needs a photo of the doctor's handwritten paper.
+            'is_controlled' => (bool) $m->is_controlled,
             // Dated, because the register's own disclaimer says prices change
             // constantly and an undated price is a claim nobody can check.
             'price_egp' => $m->price_egp !== null ? (float) $m->price_egp : null,

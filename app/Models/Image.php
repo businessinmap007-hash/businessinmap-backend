@@ -13,11 +13,15 @@ class Image extends Model
     /** Picked from storage / uploaded. */
     public const SOURCE_UPLOAD = 'upload';
 
+    /** The doctor's own handwritten paper prescription (required when a controlled drug is on it). */
+    public const PURPOSE_HANDWRITTEN = 'handwritten_prescription';
+
     protected $fillable = [
         'image',
         'imageable_id',
         'imageable_type',
         'source',
+        'purpose',
     ];
 
     public function imageable()

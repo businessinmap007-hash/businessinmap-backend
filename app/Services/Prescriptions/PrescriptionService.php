@@ -3,11 +3,13 @@
 namespace App\Services\Prescriptions;
 
 use App\Models\Address;
+use App\Models\Image;
 use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\PrescriptionItem;
 use App\Models\PrescriptionShare;
 use App\Models\User;
+use App\Services\Media\ImageUploadService;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -151,6 +153,7 @@ class PrescriptionService
             ]);
 
             $this->createItems($prescription, $items);
+            $this->attachHandwriting($prescription, $header['handwritten_image'] ?? null, $header['handwritten_source'] ?? null);
             // The fingerprint of what was written: a copy on the patient's phone is checked against it.
             app(PrescriptionContent::class)->stamp($prescription);
 
@@ -160,6 +163,35 @@ class PrescriptionService
 
             return $prescription->load('items');
         });
+    }
+
+    /**
+     * «لا بد من صورة روشتة بخط الطبيب» — the photo of the paper prescription goes in with the prescription itself, in
+     * the same transaction: a prescription with a controlled drug and no handwriting is never stored.
+     */
+    private function attachHandwriting(Prescription $prescription, mixed $file, ?string $source): void
+    {
+        if ($file === null) {
+            if ($prescription->hasControlledItems()) {
+                throw ValidationException::withMessages(['handwritten_image' => __('الأدوية المخدرة تحتاج صورة الروشتة المكتوبة بخط الطبيب.')]);
+            }
+
+            return;
+        }
+
+        $prescription->images()->create([
+            'image' => app(ImageUploadService::class)->store($file),
+            'source' => $source === Image::SOURCE_CAMERA ? Image::SOURCE_CAMERA : Image::SOURCE_UPLOAD,
+            'purpose' => Image::PURPOSE_HANDWRITTEN,
+        ]);
+    }
+
+    /** A controlled drug is never handed over without the doctor's handwritten paper on file (legacy prescriptions included). */
+    private function assertHandwritingForControlled(Prescription $prescription): void
+    {
+        if ($prescription->hasControlledItems() && $prescription->handwrittenImage() === null) {
+            throw ValidationException::withMessages(['handwritten_image' => __('لا يمكن صرف دواء مخدر دون صورة الروشتة المكتوبة بخط الطبيب.')]);
+        }
     }
 
     /** @param  array<int,array<string,mixed>>  $items */
@@ -256,6 +288,7 @@ class PrescriptionService
             ]);
 
             $this->createItems($revision, $items);
+            $this->attachHandwriting($revision, $header['handwritten_image'] ?? null, $header['handwritten_source'] ?? null);
             app(PrescriptionContent::class)->stamp($revision);
 
             $prescription->update(['status' => Prescription::STATUS_CANCELLED]);
@@ -407,6 +440,8 @@ class PrescriptionService
     /** Pharmacy: dispensed (delivered or handed over) — only once priced. */
     public function dispense(Prescription $prescription): Prescription
     {
+        $this->assertHandwritingForControlled($prescription);
+
         if ($prescription->medicine_total === null) {
             throw ValidationException::withMessages([
                 'medicine_total' => __('يجب تسعير الوصفة قبل صرفها.'),
@@ -430,6 +465,7 @@ class PrescriptionService
     {
         return DB::transaction(function () use ($prescription, $pharmacy) {
             $locked = Prescription::query()->whereKey($prescription->id)->lockForUpdate()->firstOrFail();
+            $this->assertHandwritingForControlled($locked);
 
             if ($locked->status !== Prescription::STATUS_ISSUED) {
                 throw ValidationException::withMessages([

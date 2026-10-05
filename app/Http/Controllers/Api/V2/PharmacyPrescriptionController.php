@@ -81,11 +81,18 @@ class PharmacyPrescriptionController extends Controller
             return ['authentic' => false];
         }
 
+        // «لا بد من صورة روشتة بخط الطبيب» — a controlled drug is dispensed only against the doctor's handwritten paper,
+        // whose photo is returned here so the pharmacist compares it with the paper in the patient's hand.
+        $controlled = $row->hasControlledItems();
+        $handwritten = $controlled ? $row->handwrittenImage() : null;
+
         return [
             'authentic' => true,
             'status' => (string) $row->status,
             // issued = may be dispensed; sent/preparing/ready = another pharmacy already has it; dispensed/cancelled = no.
-            'can_dispense' => $row->status === Prescription::STATUS_ISSUED,
+            'can_dispense' => $row->status === Prescription::STATUS_ISSUED && (! $controlled || $handwritten !== null),
+            'controlled' => $controlled,
+            'handwritten_image' => optional($handwritten)->image,
             'superseded' => (bool) ($row->status === Prescription::STATUS_CANCELLED && $row->revisedBy()->exists()),
             'doctor' => $row->doctor ? ['id' => (int) $row->doctor->id, 'name' => $row->doctor->displayName()] : null,
             'issued_at' => optional($row->issued_at)->toIso8601String(),

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicAppointment;
 use App\Models\Image;
+use App\Models\Medicine;
 use App\Models\Prescription;
 use App\Models\PrescriptionItem;
 use App\Models\User;
@@ -109,6 +110,7 @@ class PrescriptionController extends Controller
     public function store(Request $request)
     {
         $doctor = $this->businessOrFail($request); // a clinic is a business account
+        $this->itemsFromJson($request); // a multipart request (with the handwritten photo) carries the items as JSON
 
         $data = $request->validate([
             'patient_id' => ['required', 'integer', 'exists:users,id', 'different:' . $doctor->id],
@@ -117,6 +119,8 @@ class PrescriptionController extends Controller
             'patient_condition' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
+            'handwritten_image' => array_merge(['nullable'], ImageUploadService::validationRules()),
+            'handwritten_source' => ['nullable', Rule::in([Image::SOURCE_CAMERA, Image::SOURCE_UPLOAD])],
             // A prescription line names a real, dictionary-verified drug — never
             // free text, so a typo can never become what the patient buys.
             // Missing the drug in the dictionary? MedicineController::store adds
@@ -150,11 +154,15 @@ class PrescriptionController extends Controller
             );
         }
 
+        $this->handwritingRequiredOr422($request, $data['items']);
+
         $prescription = $this->service->issue($doctor, $patient, [
             'appointment_id' => $data['appointment_id'] ?? null,
             'diagnosis' => $data['diagnosis'] ?? null,
             'patient_condition' => $data['patient_condition'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'handwritten_image' => $request->file('handwritten_image'),
+            'handwritten_source' => $data['handwritten_source'] ?? null,
         ], $data['items']);
 
         return response()->json([
@@ -361,12 +369,15 @@ class PrescriptionController extends Controller
         $doctor = $this->businessOrFail($request);
 
         abort_if((int) $row->doctor_id !== (int) $doctor->id, 404);
+        $this->itemsFromJson($request);
 
         $data = $request->validate([
             'diagnosis' => ['nullable', 'string', 'max:255'],
             'patient_condition' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
+            'handwritten_image' => array_merge(['nullable'], ImageUploadService::validationRules()),
+            'handwritten_source' => ['nullable', Rule::in([Image::SOURCE_CAMERA, Image::SOURCE_UPLOAD])],
             'items.*.medicine_id' => ['required', 'integer', 'exists:medicines,id'],
             'items.*.dosage' => ['nullable', 'string', 'max:120'],
             'items.*.quantity' => ['nullable', 'string', 'max:120'],
@@ -379,7 +390,9 @@ class PrescriptionController extends Controller
             'items.*.duration_unit' => ['nullable', Rule::in(array_keys(PrescriptionItem::DURATION_UNIT_DAYS)), 'required_with:items.*.duration_value'],
         ]);
 
-        $revision = $this->service->revise($row, $data, $data['items']);
+        $this->handwritingRequiredOr422($request, $data['items']);
+
+        $revision = $this->service->revise($row, $data + ['handwritten_image' => $request->file('handwritten_image')], $data['items']);
 
         return response()->json([
             'success' => true,
@@ -414,6 +427,40 @@ class PrescriptionController extends Controller
         }
 
         return $business;
+    }
+
+    /** A multipart request cannot nest arrays cleanly: its `items` may arrive as a JSON string. */
+    private function itemsFromJson(Request $request): void
+    {
+        if (is_string($request->input('items'))) {
+            $decoded = json_decode((string) $request->input('items'), true);
+            $request->merge(['items' => is_array($decoded) ? $decoded : []]);
+        }
+    }
+
+    /**
+     * «لا بد من صورة روشتة بخط الطبيب» — a prescription with a controlled drug is refused without the photo of the
+     * doctor's handwritten paper. The reply names the drugs, so the app can ask for the photo and send again.
+     *
+     * @param  array<int,array<string,mixed>>  $items
+     */
+    private function handwritingRequiredOr422(Request $request, array $items): void
+    {
+        if ($request->hasFile('handwritten_image')) {
+            return;
+        }
+
+        $names = Medicine::query()->whereIn('id', array_column($items, 'medicine_id'))->where('is_controlled', true)->pluck('name')->all();
+        if ($names === []) {
+            return;
+        }
+
+        abort(response()->json([
+            'success' => false,
+            'code' => 'handwritten_required',
+            'message' => __('الأدوية المخدرة تحتاج صورة الروشتة المكتوبة بخط الطبيب.'),
+            'controlled' => $names,
+        ], 422));
     }
 
     private function partyOrFail(Request $request, int $id): Prescription
@@ -457,6 +504,10 @@ class PrescriptionController extends Controller
             'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
             'priced_at' => optional($p->priced_at)->toIso8601String(),
             'images' => $p->imagePayload(),
+            // Narcotic / psychotropic drug on it → the doctor's handwritten paper (a photo) is on file and is what a
+            // pharmacy compares with the paper in the patient's hand.
+            'controlled' => $p->hasControlledItems(),
+            'handwritten_image' => optional($p->handwrittenImage())->image,
             'doctor' => $p->doctor_id ? $this->party($p->doctor, $p->doctor_id) : null,
             'patient' => $this->party($p->patient, $p->patient_id),
             'pharmacy' => $p->pharmacy_id ? $this->party($p->pharmacy, $p->pharmacy_id) : null,

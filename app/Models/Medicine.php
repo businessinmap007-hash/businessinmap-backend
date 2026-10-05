@@ -20,6 +20,7 @@ class Medicine extends Model
         'manufacturer',
         'drug_class',
         'route',
+        'is_controlled',
         'price_egp',
         'price_captured_at',
         'source',
@@ -30,6 +31,7 @@ class Medicine extends Model
     protected $casts = [
         'uses_count' => 'integer',
         'strength_is_derived' => 'boolean',
+        'is_controlled' => 'boolean',
         'price_egp' => 'decimal:2',
         'price_captured_at' => 'date',
     ];
@@ -213,7 +215,8 @@ class Medicine extends Model
 
         $medicine = static::query()->firstOrCreate(
             ['name' => $name, 'strength' => $strength],
-            ['created_by' => $doctorId, 'uses_count' => 0],
+            // A drug a doctor adds by name is checked against the controlled list too (no ingredient is known here).
+            ['created_by' => $doctorId, 'uses_count' => 0, 'is_controlled' => \App\Support\ControlledMedicines::matches(null, $name)],
         );
 
         $medicine->increment('uses_count');

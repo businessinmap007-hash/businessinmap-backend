@@ -67,6 +67,26 @@ class AgendaController extends Controller
     }
 
     /**
+     * GET /api/v2/agenda/upcoming?days=14 — my coming items that ask to be reminded of (`remind`): the phone schedules
+     * its OWN notifications from them (with the words of a private task, which the server does not hold). Times are the
+     * user's wall clock, like every agenda time; the window starts a day early so no timezone drops a due item and the
+     * phone does its own «is it past?» check.
+     */
+    public function upcoming(Request $request)
+    {
+        $days = min(max((int) $request->get('days', 14), 1), 60);
+        $from = Carbon::today()->subDay();
+
+        $items = $this->agenda->forRange((int) $request->user()->id, $from, Carbon::today()->addDays($days)->endOfDay())
+            ->where('remind', true)
+            ->map(fn (AgendaItem $i) => $this->serialize($i))
+            ->values()
+            ->all();
+
+        return response()->json(['success' => true, 'data' => ['items' => $items]]);
+    }
+
+    /**
      * GET /api/v2/agenda/export.ics — download my upcoming agenda as an iCalendar
      * file (from today over `days`, default 90) for import into a calendar app.
      */

@@ -485,6 +485,7 @@ Route::prefix('v2')->group(function () {
         // Personal agenda: my unified day + week + my own tasks.
         Route::get('agenda', [AgendaController::class, 'index']);
         Route::get('agenda/week', [AgendaController::class, 'week']);
+        Route::get('agenda/upcoming', [AgendaController::class, 'upcoming']);
         Route::get('agenda/export.ics', [AgendaController::class, 'ics']);
         Route::get('me/agenda-feed', [AgendaController::class, 'feedUrl']);
         Route::post('me/agenda-feed/rotate', [AgendaController::class, 'rotateFeed']);

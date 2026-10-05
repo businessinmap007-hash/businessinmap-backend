@@ -5254,6 +5254,8 @@ paths:
           content:
             text/calendar:
               schema: { type: string }
+  /agenda/upcoming:
+    get: { tags: [Agenda], summary: 'My coming items that ask to be reminded of (remind=true), default next 14 days (max 60) - the phone schedules its own notifications from them', parameters: [{ name: days, in: query, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /agenda/scrub:
     post: { tags: [Agenda], summary: 'The phone now holds the title and notes of these personal tasks ({ids: [..]}): the server drops them and keeps the time under a neutral title. Only my own personal tasks; idempotent', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /agenda/recurring:

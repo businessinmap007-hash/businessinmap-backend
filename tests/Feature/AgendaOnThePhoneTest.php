@@ -113,4 +113,18 @@ class AgendaOnThePhoneTest extends TestCase
         // again: nothing left to drop, and no error
         $this->postJson('/api/v2/agenda/scrub', ['ids' => [$old]])->assertOk()->assertJsonPath('data.scrubbed', 0);
     }
+
+    public function test_upcoming_lists_only_what_asks_to_be_reminded_of(): void
+    {
+        $with = $this->postJson('/api/v2/agenda', ['private' => true, 'starts_at' => $this->at(2, 10), 'remind' => true])->assertCreated()->json('data.item.id');
+        $without = $this->postJson('/api/v2/agenda', ['private' => true, 'starts_at' => $this->at(3, 10)])->assertCreated()->json('data.item.id');
+        $far = $this->postJson('/api/v2/agenda', ['private' => true, 'starts_at' => $this->at(40, 10), 'remind' => true])->assertCreated()->json('data.item.id');
+
+        $ids = collect($this->getJson('/api/v2/agenda/upcoming')->assertOk()->json('data.items'))->pluck('id');
+
+        $this->assertTrue($ids->contains($with));
+        $this->assertFalse($ids->contains($without), 'no reminder asked');
+        $this->assertFalse($ids->contains($far), 'beyond the window');
+        $this->assertTrue(collect($this->getJson('/api/v2/agenda/upcoming?days=60')->json('data.items'))->pluck('id')->contains($far));
+    }
 }

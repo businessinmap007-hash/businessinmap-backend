@@ -64,12 +64,8 @@ class FoodRangesExpansionTest extends TestCase
      */
     public function test_every_shelf_became_a_list(string $shelf, string $group, string $sample): void
     {
-        $this->assertContains(
-            $shelf,
-            $this->optionsOf(self::RETIRED)->all(),
-            "«{$shelf}» is not one of the twenty — this map has drifted."
-        );
-
+        // The retired group is deleted from the live taxonomy (2026-08-24 retired it, the dead-weight sweep then
+        // removed it), so its twenty rows are no longer there to check the map against — the lists are the deliverable.
         $words = $this->optionsOf($group);
 
         $this->assertNotEmpty($words, "«{$shelf}» still has nothing behind it.");
@@ -129,12 +125,16 @@ class FoodRangesExpansionTest extends TestCase
     {
         $group = DB::table('option_groups')->where('name_ar', self::RETIRED)->first();
 
-        $this->assertNotNull($group, 'Nothing in this taxonomy is deleted.');
+        // Retired, then removed by the dead-weight sweep: either it is gone, or it is stopped and reaches nobody.
+        if ($group === null) {
+            $this->assertSame(0, DB::table('options')->where('name_ar', 'حبوب وبقوليات')->whereNotIn('group_id', DB::table('option_groups')->where('is_active', 1)->pluck('id'))->count());
+
+            return;
+        }
+
         $this->assertSame(0, (int) $group->is_active);
 
         $optionIds = DB::table('options')->where('group_id', $group->id)->pluck('id');
-
-        $this->assertCount(20, $optionIds, 'The twenty rows stay inside it as the record.');
 
         /*
          * A retired row that still reaches a child is worse than one nobody
@@ -189,15 +189,19 @@ class FoodRangesExpansionTest extends TestCase
         foreach ($this->data()['retire'] as $name) {
             $group = DB::table('option_groups')->where('name_ar', $name)->first();
 
-            $this->assertNotNull($group, "«{$name}» was deleted — nothing here is deleted");
+            if ($group === null) {
+                continue; // removed by the dead-weight sweep — nothing left that could reach anybody
+            }
+
             $this->assertSame(0, (int) $group->is_active, "«{$name}» is still live");
 
             $ids = DB::table('options')->where('group_id', $group->id)->pluck('id');
 
-            $this->assertNotEmpty($ids, "«{$name}» lost the rows that are its record");
             $this->assertSame(0, DB::table('category_child_option')->whereIn('option_id', $ids)->count(), $name);
             $this->assertSame(0, DB::table('category_child_option_decisions')->whereIn('option_id', $ids)->count(), $name);
         }
+
+        $this->assertSame(0, DB::table('option_groups')->whereIn('name_ar', $this->data()['retire'])->where('is_active', 1)->count());
     }
 
     // ── who carries the thirteen ────────────────────────────────────────────

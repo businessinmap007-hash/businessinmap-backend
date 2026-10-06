@@ -93,40 +93,10 @@ return [
         | What stays is the wholesale side, where a range is all the merchant
         | can say — [[seeder-must-withdraw]].
         */
-        [
-            'name_ar' => 'أصناف المنتجات الغذائية',
-            'name_en' => 'Food Product Ranges',
-            'price_role' => 'modifier',
-            'children' => [
-                'مواد غذائية',
-                'مواد غذائية ومنظفات',
-                'استيراد وتصدير',
-            ],
-            'options' => [
-                'عصائر ومشروبات' => 'Juices & Beverages',
-                'حبوب وبقوليات' => 'Grains & Pulses',
-                'أرز' => 'Rice',
-                // «Pasta» is taken by menu band #925 «مكرونة / باستا», which is
-                // a dish a restaurant cooks, not a packet a grocer stocks.
-                'مكرونة' => 'Packaged Pasta',
-                'زيوت وسمن' => 'Cooking Oils & Ghee',
-                'سكر ومحليات' => 'Sugar & Sweeteners',
-                'دقيق' => 'Flour',
-                'بهارات وتوابل' => 'Spices & Seasonings',
-                'معلبات' => 'Canned Goods',
-                'ألبان وأجبان' => 'Dairy & Cheese',
-                'لحوم ودواجن مجمدة' => 'Frozen Meat & Poultry',
-                'أسماك ومأكولات بحرية' => 'Fish & Seafood Products',
-                'شاي وقهوة' => 'Tea & Coffee',
-                'حلويات وشوكولاتة معبأة' => 'Packaged Confectionery',
-                'عسل ومربى' => 'Honey & Jam',
-                'صلصات وشوربات' => 'Sauces & Soups',
-                'أغذية أطفال' => 'Baby Food',
-                'مخبوزات معبأة' => 'Packaged Bakery',
-                'مكسرات وتسالي' => 'Nuts & Snacks',
-                'خل ومخللات' => 'Vinegar & Pickles',
-            ],
-        ],
+        // «أصناف المنتجات الغذائية» was RETIRED on 2026-08-24 (FoodRangesExpansionSeeder: thirteen `line` groups took its
+        // twenty shelves) and is gone from the live taxonomy. It is no longer declared here: an add-only seeder that still
+        // listed it would re-create a group the owner retired on every fresh build and on every re-run —
+        // [[seeder-must-withdraw]].
 
         /*
         | Electrical appliances. The repair workshops are here on purpose: a

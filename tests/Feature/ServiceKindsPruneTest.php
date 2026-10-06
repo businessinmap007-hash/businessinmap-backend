@@ -306,7 +306,12 @@ class ServiceKindsPruneTest extends TestCase
             foreach ($configs as $json) {
                 $kinds = json_decode((string) $json, true)['allowed_item_types'] ?? [];
 
-                $this->assertSame($expected, $kinds, "«{$name}» does not carry exactly what it was given");
+                // The kinds are a SET — the writer stores them in its own order — so compare them as one.
+                $expectedSorted = $expected;
+                sort($expectedSorted);
+                sort($kinds);
+
+                $this->assertSame($expectedSorted, $kinds, "«{$name}» does not carry exactly what it was given");
 
                 // Only where the assignment actually dropped it. «معمل تحاليل»
                 // keeps the plain appointment on purpose — coming in to give a
@@ -773,7 +778,13 @@ class ServiceKindsPruneTest extends TestCase
         $snapshot = fn () => DB::table('category_service_configs')
             ->where('is_active', 1)
             ->get(['id', 'config'])
-            ->mapWithKeys(fn ($r) => [(int) $r->id => implode(',', json_decode((string) $r->config, true)['allowed_item_types'] ?? [])])
+            // a set: the order the writer stores the kinds in carries no meaning
+            ->mapWithKeys(function ($r) {
+                $kinds = json_decode((string) $r->config, true)['allowed_item_types'] ?? [];
+                sort($kinds);
+
+                return [(int) $r->id => implode(',', $kinds)];
+            })
             ->all();
 
         $before = $snapshot();

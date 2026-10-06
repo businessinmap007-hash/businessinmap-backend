@@ -102,8 +102,8 @@ class ProduceAisleSplitTest extends TestCase
     {
         $source = DB::table('option_groups')->where('name_ar', self::SOURCE)->first();
 
-        $this->assertNotNull($source, 'Nothing in this taxonomy is deleted.');
-        $this->assertSame(0, (int) $source->is_active, 'An emptied group is stopped, and stays as the record.');
+        // Stopped, and since the dead-weight sweep possibly removed altogether — it is never live.
+        $this->assertSame(0, (int) ($source->is_active ?? 0), 'An emptied group is stopped, not live.');
     }
 
     public function test_no_greengrocer_lost_a_word(): void

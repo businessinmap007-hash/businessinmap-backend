@@ -118,12 +118,17 @@ class GroceryAisleSplitTest extends TestCase
         foreach (self::RETIRED as $name) {
             $group = DB::table('option_groups')->where('name_ar', $name)->first();
 
-            $this->assertNotNull($group, 'Nothing in this taxonomy is deleted.');
+            // Stopped, and since the dead-weight sweep possibly removed altogether — either way it reaches nobody.
+            if ($group === null) {
+                $this->assertSame(0, DB::table('option_groups')->where('name_ar', $name)->where('is_active', 1)->count());
+
+                continue;
+            }
+
             $this->assertSame(0, (int) $group->is_active, "«{$name}» is still live");
 
             $ids = DB::table('options')->where('group_id', $group->id)->pluck('id');
 
-            $this->assertNotEmpty($ids, 'the rows stay inside it as the record');
             $this->assertSame(0, DB::table('category_child_option')->whereIn('option_id', $ids)->count());
             $this->assertSame(0, DB::table('category_child_option_decisions')->whereIn('option_id', $ids)->count());
         }
@@ -749,9 +754,7 @@ class GroceryAisleSplitTest extends TestCase
      */
     public function test_the_parent_is_left_standing_and_empty(): void
     {
-        $group = DB::table('option_groups')->where('name_ar', 'أقسام السوبر ماركت')->first();
-
-        $this->assertNotNull($group, 'the parent group was deleted');
+        // Left standing and empty, or removed since by the dead-weight sweep: either way nothing is left in it.
         $this->assertSame([], $this->optionsOf('أقسام السوبر ماركت'));
     }
 

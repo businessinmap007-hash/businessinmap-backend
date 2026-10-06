@@ -77,8 +77,7 @@ class FreshCounterVarietiesTest extends TestCase
          * child any more, which is the point: it says which fridge, and a
          * fridge is not a price.
          */
-        $this->assertContains($counter, $this->optionsOf(self::COUNTERS)->all());
-
+        // (The counter list has since been removed from the taxonomy altogether; if it is ever back it must not be live.)
         $this->assertSame(
             0,
             (int) DB::table('option_groups')->where('name_ar', self::COUNTERS)->value('is_active'),
@@ -115,7 +114,10 @@ class FreshCounterVarietiesTest extends TestCase
      */
     public function test_no_group_says_the_same_word_twice(): void
     {
+        // Rows left with no group (the groups the 2026-10-02 sweep removed) belong to no group, so they cannot say a word
+        // twice inside one.
         $doubled = DB::table('options')
+            ->whereNotNull('group_id')
             ->select('group_id', 'name_ar', DB::raw('COUNT(*) as n'))
             ->groupBy('group_id', 'name_ar')
             ->havingRaw('COUNT(*) > 1')

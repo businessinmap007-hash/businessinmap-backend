@@ -135,7 +135,8 @@ class ButcherAndDisplayOrderTest extends TestCase
         // «delivery» is no longer a service of any trade but the carriers
         // (2026-09-24) — pickup/delivery is an option group on the sale itself.
         $this->assertNotContains('delivery', $services);
-        $this->assertNotContains('retail', $services, 'A butcher weighs what he cuts; he has no barcoded shelf.');
+        // «retail» was switched on for him on 2026-09-24 (the retail multi-price rows work) — the first cut gave him
+        // no barcoded shelf, the live trade has one now, so it is not asserted either way.
     }
 
     public function test_the_seeder_is_idempotent(): void

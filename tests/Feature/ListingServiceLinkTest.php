@@ -205,8 +205,20 @@ class ListingServiceLinkTest extends TestCase
             ->values()
             ->all();
 
-        $this->assertSame([], array_values(array_diff($holders, $kitchens)),
-            'these do not cook and hold «منيو»: ' . implode('، ', array_diff($holders, $kitchens)));
+        // «قم بتوزيع الخدمة بناء على ما يناسب كل مجموعة خيارات» — المالك، 2026-09-28: «منيو» (priced rows) is now on for
+        // every child that sells goods on the retail service — it is how a shop prices its own stock — so a retail child
+        // holding it is a decision (MenuServiceDistributionSeeder), not the food default speaking.
+        $retailChildren = DB::table('category_platform_services as cps')
+            ->join('platform_services as s', 's.id', '=', 'cps.platform_service_id')
+            ->join('category_children_master as m', 'm.id', '=', 'cps.child_id')
+            ->where('s.key', 'retail')
+            ->where('cps.is_active', 1)
+            ->pluck('m.name_ar')
+            ->all();
+
+        $unexplained = array_values(array_diff($holders, $kitchens, $retailChildren));
+
+        $this->assertSame([], $unexplained, 'these neither cook nor sell goods on retail, yet hold «منيو»: ' . implode('، ', $unexplained));
     }
 
     /**

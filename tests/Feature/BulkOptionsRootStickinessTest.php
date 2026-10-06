@@ -105,9 +105,10 @@ class BulkOptionsRootStickinessTest extends TestCase
         $this->assertStringContainsString("bulkForm.addEventListener('submit'", $script);
         $this->assertStringContainsString('input[name="_token"]', $script);
 
-        // Relative, or the ping leaves the origin the page is served from and
-        // arrives without the session cookie it exists to refresh.
-        $this->assertStringContainsString("route('admin.session.ping', [], false)", $script);
+        // Relative to the app's base path, or the ping leaves the origin the page is
+        // served from and arrives without the session cookie it exists to refresh.
+        // (panel_route() is the relative route that also keeps a sub-folder install's base path.)
+        $this->assertStringContainsString("panel_route('admin.session.ping'", $script);
     }
 
     /** …and activateRoot actually calls it. */

@@ -155,6 +155,14 @@ class OptionGroupCohesionTest extends TestCase
         $group = DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
             ->where('o.id', $compound)->first(['g.name_ar', 'g.is_active']);
 
+        // Retired into a group no screen offers — or, since OrphanOptionsCleanupSeeder, gone altogether. What is never
+        // allowed is the row standing in a LIVE group, or standing in none.
+        if ($compound === 0) {
+            $this->assertSame(0, DB::table('options')->where('name_ar', 'شحن وتوصيل')->count());
+
+            return;
+        }
+
         $this->assertNotNull($group, 'the retired row was left groupless');
         $this->assertSame(0, (int) $group->is_active, 'a retired row must sit in a group no screen offers');
     }

@@ -31,7 +31,7 @@ class PostResource extends JsonResource
             'body' => $this->body,
             'image' => $this->image ?: null,
             'images' => $this->whenLoaded('images', fn () => $this->images
-                ->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image])
+                ->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image, 'source' => $i->source])
                 ->values()
                 ->all()),
             'is_active' => (bool) $this->is_active,

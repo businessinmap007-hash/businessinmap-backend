@@ -5840,6 +5840,7 @@ paths:
               properties:
                 title: { type: string, maxLength: 191, description: 'The post title, in whichever language the author writes it. Required unless subject_type is sent, in which case the linked item names the post.' }
                 body: { type: string }
+                sources: { type: array, items: { type: string, enum: [camera, upload] }, description: 'Where each photo in images[] came from, same order (a live camera shot or the gallery). Returned as images[].source and shown as a badge in the photo viewer; missing = upload.' }
                 expire_at: { type: string, format: date-time }
                 subject_type:
                   type: string

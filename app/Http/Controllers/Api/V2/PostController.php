@@ -225,6 +225,10 @@ final class PostController extends Controller
             'image' => ['nullable', ...ImageUploadService::validationRules()],
             'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ImageUploadService::validationRules(),
+            // Where each photo came from (a live camera shot or the gallery), by the same index as `images` — the
+            // viewer tells the customer which it is.
+            'sources' => ['nullable', 'array', 'max:10'],
+            'sources.*' => ['nullable', Rule::in([Image::SOURCE_CAMERA, Image::SOURCE_UPLOAD])],
         ]);
 
         $user = $request->user();
@@ -281,6 +285,10 @@ final class PostController extends Controller
             'image' => ['nullable', ...ImageUploadService::validationRules()],
             'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ImageUploadService::validationRules(),
+            // Where each photo came from (a live camera shot or the gallery), by the same index as `images` — the
+            // viewer tells the customer which it is.
+            'sources' => ['nullable', 'array', 'max:10'],
+            'sources.*' => ['nullable', Rule::in([Image::SOURCE_CAMERA, Image::SOURCE_UPLOAD])],
             // Opt-in: without it, uploading images appends instead of wiping.
             'replace_images' => ['nullable', 'boolean'],
         ]);
@@ -491,13 +499,16 @@ final class PostController extends Controller
             return;
         }
 
-        foreach ($request->file('images') as $file) {
+        $sources = (array) $request->input('sources', []);
+
+        foreach ($request->file('images') as $i => $file) {
             if (! $file) {
                 continue;
             }
 
             $image = new Image();
             $image->image = $this->uploads->store($file);
+            $image->source = ($sources[$i] ?? null) === Image::SOURCE_CAMERA ? Image::SOURCE_CAMERA : Image::SOURCE_UPLOAD;
             $post->images()->save($image);
         }
     }

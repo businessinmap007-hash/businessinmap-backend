@@ -185,6 +185,34 @@ class PostsApiV2Test extends TestCase
         }
     }
 
+    public function test_each_photo_remembers_whether_it_was_a_camera_shot_or_from_the_gallery(): void
+    {
+        $author = $this->user('business');
+
+        $response = $this->actingAs($author, 'sanctum')->postJson('/api/v2/posts', [
+            'title' => 'عنوان',
+            'body' => 'نص حقيقي للمنشور',
+            'images' => [
+                UploadedFile::fake()->create('one.jpg', 64, 'image/jpeg'),
+                UploadedFile::fake()->create('two.png', 64, 'image/png'),
+                UploadedFile::fake()->create('three.png', 64, 'image/png'),
+            ],
+            // the third says nothing — it is an upload, never a guess
+            'sources' => ['camera', 'upload'],
+        ])->assertCreated();
+
+        $post = Post::findOrFail($response->json('data.id'));
+        $post->load('images');
+        $this->trackUploadsOf($post);
+
+        // …and the post tells the viewer, so the customer sees the camera/gallery badge on each
+        $this->assertSame(['camera', 'upload', 'upload'], array_column($response->json('data.images'), 'source'));
+
+        $this->actingAs($author, 'sanctum')->postJson('/api/v2/posts', [
+            'title' => 'عنوان', 'body' => 'نص', 'images' => [UploadedFile::fake()->create('a.jpg', 64, 'image/jpeg')], 'sources' => ['telepathy'],
+        ])->assertStatus(422);
+    }
+
     public function test_publishing_requires_a_title_and_a_body(): void
     {
         $author = $this->user('business');

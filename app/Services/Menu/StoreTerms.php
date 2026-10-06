@@ -56,33 +56,12 @@ final class StoreTerms
         return $this->build($businessId, true);
     }
 
-    /**
-     * Replace the store's answers for the groups it was sent; a group left out is untouched.
-     *
-     * @param  array<int|string,list<int>>  $selection  group id => option ids
-     * @return list<array{group_id:int,group_name:string,options:list<array{id:int,name:string,selected:bool}>}>
-     */
-    public function save(int $businessId, array $selection): array
+    /** @return list<int> every option of every group the store answers (what the profile may tick) */
+    public function optionIds(int $businessId): array
     {
-        $allowed = $this->groupIds($businessId);
+        $groups = $this->groupIds($businessId);
 
-        DB::transaction(function () use ($businessId, $selection, $allowed) {
-            foreach ($selection as $groupId => $optionIds) {
-                $groupId = (int) $groupId;
-                if (! in_array($groupId, $allowed, true)) {
-                    continue;
-                }
-                $valid = DB::table('options')->where('group_id', $groupId)->pluck('id')->map(fn ($id) => (int) $id)->all();
-                $chosen = array_values(array_intersect($valid, array_map('intval', (array) $optionIds)));
-
-                DB::table('option_user')->where('user_id', $businessId)->whereIn('option_id', $valid)->delete();
-                foreach ($chosen as $optionId) {
-                    DB::table('option_user')->insert(['user_id' => $businessId, 'option_id' => $optionId]);
-                }
-            }
-        });
-
-        return $this->forMerchant($businessId);
+        return $groups === [] ? [] : DB::table('options')->whereIn('group_id', $groups)->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     private function build(int $businessId, bool $onlySelected): array

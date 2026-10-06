@@ -72,12 +72,12 @@ class StoreTermsAndRolesTest extends TestCase
         DB::table('option_user')->where('user_id', $shop->id)->delete();
 
         Sanctum::actingAs($shop);
-        $mine = collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/business/menu/terms')->assertOk()->json('data.terms'))->keyBy('group_name');
-        $this->assertTrue($mine->has('الاستبدال والإرجاع'), 'the trade asks for its return policy');
+        $mine = collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/profile/options')->assertOk()->json('data.terms'))->keyBy('name');
+        $this->assertTrue($mine->has('الاستبدال والإرجاع'), 'the trade asks for its return policy — in the profile');
         $this->assertNotContains(true, array_column($mine['الاستبدال والإرجاع']['options'], 'selected'), 'nothing answered yet');
 
-        $saved = $this->putJson('/api/v2/business/menu/terms', ['groups' => [$this->group('الاستبدال والإرجاع') => [$swap], $this->group('الحد الأدنى للطلب') => [$minimum]]])->assertOk()->json('data.terms');
-        $this->assertContains(true, array_column(collect($saved)->firstWhere('group_name', 'الاستبدال والإرجاع')['options'], 'selected'));
+        $saved = $this->patchJson('/api/v2/profile/options', ['option_ids' => [$swap, $minimum]])->assertOk()->json('data.terms');
+        $this->assertContains(true, array_column(collect($saved)->firstWhere('name', 'الاستبدال والإرجاع')['options'], 'selected'));
 
         Sanctum::actingAs(User::query()->where('type', '!=', 'business')->orderBy('id')->firstOrFail());
         $seen = collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/discovery/menu/' . $shop->id)->assertOk()->json('data.terms'))->keyBy('group_name');
@@ -91,7 +91,9 @@ class StoreTermsAndRolesTest extends TestCase
         $paymentOption = $this->option('الدفع والسداد', 'كاش'); // a price changer, not a policy
         DB::table('option_user')->where('user_id', $shop->id)->where('option_id', $paymentOption)->delete();
 
-        $this->putJson('/api/v2/business/menu/terms', ['groups' => [$this->group('الدفع والسداد') => [$paymentOption]]])->assertOk();
+        // not one of this trade's terms, and not in its attribute list either: refused, nothing is stored
+        DB::table('category_child_option')->where('child_id', $shop->category_child_id)->where('option_id', $paymentOption)->delete();
+        $this->patchJson('/api/v2/profile/options', ['option_ids' => [$paymentOption]])->assertUnprocessable();
 
         $this->assertFalse(DB::table('option_user')->where('user_id', $shop->id)->where('option_id', $paymentOption)->exists());
     }
@@ -104,7 +106,7 @@ class StoreTermsAndRolesTest extends TestCase
         $change = $this->option('الاستبدال والإرجاع', 'تغيير');
         DB::table('option_user')->where('user_id', $shop->id)->delete();
         Sanctum::actingAs($shop);
-        $this->putJson('/api/v2/business/menu/terms', ['groups' => [$this->group('الاستبدال والإرجاع') => [$swap]]])->assertOk();
+        $this->patchJson('/api/v2/profile/options', ['option_ids' => [$swap]])->assertOk();
 
         app()->setLocale('ar'); // a request resets the locale; the snapshot is taken in the customer's own
         $order = Order::create([
@@ -115,11 +117,42 @@ class StoreTermsAndRolesTest extends TestCase
         ]);
 
         // The store edits its profile afterwards …
-        $this->putJson('/api/v2/business/menu/terms', ['groups' => [$this->group('الاستبدال والإرجاع') => [$change]]])->assertOk();
+        $this->patchJson('/api/v2/profile/options', ['option_ids' => [$change]])->assertOk();
 
         app()->setLocale('ar');
         // … the order still says what the customer agreed to.
         $this->assertSame(['استبدال'], array_column($order->fresh()->terms[0]['options'], 'name'));
         $this->assertSame(['تغيير'], array_column(app(StoreTerms::class)->forCustomer($shop->id)[0]['options'], 'name'));
+    }
+
+    /**
+     * «التسليم والاستلام مختلف فى الثلاثة» — المالك، 2026-10-06: the profile, the store page and checkout each showed a
+     * different set. The store's terms are edited in ONE place (the profile) and every reader takes the same ticks.
+     */
+    public function test_the_profile_the_store_page_and_checkout_all_show_the_same_delivery_and_pickup(): void
+    {
+        app()->setLocale('ar');
+        $shop = User::query()->where('type', 'business')->where('category_child_id', 116)->orderBy('id')->firstOrFail();
+        $ticks = array_map(fn ($name) => $this->option('التسليم والاستلام', $name), ['توصيل طلبات', 'شحن', 'استلام من المكان']);
+        DB::table('option_user')->where('user_id', $shop->id)->delete();
+
+        Sanctum::actingAs($shop);
+        $profile = $this->withHeaders(['Accept-Language' => 'ar'])->patchJson('/api/v2/profile/options', ['option_ids' => $ticks])->assertOk()->json('data');
+
+        $group = collect($profile['terms'])->firstWhere('name', 'التسليم والاستلام');
+        $inProfile = collect($group['options'])->where('selected', true)->pluck('name')->sort()->values()->all();
+        $this->assertSame(['استلام من المكان', 'توصيل طلبات', 'شحن'], $inProfile);
+        $this->assertContains('تسليم أرض المصنع', array_column($group['options'], 'name'), 'every option of the group can be ticked here');
+        $this->assertNotContains('التسليم والاستلام', array_column($profile['groups'], 'name'), 'never listed twice');
+
+        $customer = User::query()->where('type', '!=', 'business')->orderBy('id')->firstOrFail();
+        Sanctum::actingAs($customer);
+        $storePage = collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/discovery/menu/' . $shop->id)->assertOk()->json('data.terms'))->firstWhere('group_name', 'التسليم والاستلام');
+        $onStorePage = collect($storePage['options'])->pluck('name')->sort()->values()->all();
+
+        $checkout = collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/businesses/' . $shop->id)->assertOk()->json('data.fulfillment.methods'))->pluck('name_ar')->sort()->values()->all();
+
+        $this->assertSame($inProfile, $onStorePage, 'the store page shows what the profile ticked');
+        $this->assertSame($inProfile, $checkout, 'checkout offers what the profile ticked');
     }
 }

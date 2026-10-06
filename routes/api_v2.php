@@ -855,8 +855,6 @@ Route::prefix('v2')->group(function () {
             // «خدمات المحل»: a shop's priced services (cooking method) — priced once, per unit bought.
             Route::get('addons', [\App\Http\Controllers\Api\V2\BusinessAddonsController::class, 'index']);
             Route::put('addons', [\App\Http\Controllers\Api\V2\BusinessAddonsController::class, 'update']);
-            Route::get('terms', [\App\Http\Controllers\Api\V2\BusinessTermsController::class, 'index']);
-            Route::put('terms', [\App\Http\Controllers\Api\V2\BusinessTermsController::class, 'update']);
             // «استيراد وتصدير المنيو»: the menu as a sheet (JSON or CSV), and an import with a preview.
             Route::get('sheet', [\App\Http\Controllers\Api\V2\BusinessMenuSheetController::class, 'show']);
             Route::get('sheet.csv', [\App\Http\Controllers\Api\V2\BusinessMenuSheetController::class, 'csv']);

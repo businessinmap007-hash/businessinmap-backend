@@ -7,6 +7,7 @@ use App\Http\Resources\V2\AccountResource;
 use App\Models\CategoryChild;
 use App\Models\OptionGroup;
 use App\Services\Media\ImageUploadService;
+use App\Services\Menu\StoreTerms;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -318,7 +319,12 @@ final class ProfileController extends Controller
             ->pluck('cco.option_id')
             ->all();
 
-        $invalid = array_diff($optionIds, $allowed);
+        // «شروط المتجر» now live in this screen: the options of the groups the trade asks the store to answer
+        // (returns, delivery & pickup, minimum order…) are editable here too — every one of them, as they were
+        // on the page this replaced — even when the specialty's own attribute list does not carry them.
+        $termsOptions = app(StoreTerms::class)->optionIds((int) $user->id);
+
+        $invalid = array_diff($optionIds, array_merge($allowed, $termsOptions));
 
         if ($invalid) {
             throw ValidationException::withMessages([
@@ -380,6 +386,13 @@ final class ProfileController extends Controller
         // root is two pivot rows — «جديد، جديد، مستعمل، مستعمل» on screen.
         $options = $options->reject(fn ($o) => $o->group?->price_role === OptionGroup::ROLE_LINE)->unique('id')->values();
 
+        // «شروط المتجر» — returns, delivery & pickup, minimum order, trade scope: the groups this trade asks the
+        // store to answer, each with ALL its options, ticked from the same `option_user` the customer reads. They
+        // are shown in their own block, so they are taken out of the attribute list below (never listed twice).
+        $terms = app(StoreTerms::class)->forMerchant((int) $user->id);
+        $termGroupIds = array_column($terms, 'group_id');
+        $options = $options->reject(fn ($o) => in_array((int) ($o->group_id ?? 0), $termGroupIds, true))->values();
+
         $groups = [];
         foreach ($options as $o) {
             $gid = (int) ($o->group_id ?? 0);
@@ -397,6 +410,7 @@ final class ProfileController extends Controller
 
         return [
             'child_id' => $childId ?: null,
+            'terms' => array_map(fn (array $g) => ['id' => $g['group_id'], 'name' => $g['group_name'], 'options' => $g['options']], $terms),
             'groups' => array_values($groups),
             'selected_ids' => $selected,
         ];

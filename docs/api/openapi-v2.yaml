@@ -1048,13 +1048,18 @@ paths:
     get:
       tags: [Profile]
       summary: The attributes catalog for a business's own specialty, marked with its current picks
+      description: >
+        `terms` is «شروط المتجر» — the groups the trade asks the store to answer (returns, delivery & pickup,
+        minimum order, trade scope), each with all its options and `selected` flags; they are edited HERE and
+        nowhere else, and what is ticked is exactly what customers read on the store page, at checkout and on the
+        order. `groups` are the specialty's other attributes (never the same group twice); `selected_ids` covers both.
       responses: { '200': { description: OK }, '403': { description: Not a business account } }
     patch:
       tags: [Profile]
       summary: A business sets which attributes describe it (full replace)
       description: >
         option_ids must all belong to the option set linked to the business's own
-        category_child_id (category_child_option) — a business can only pick
+        category_child_id (category_child_option) or to a group of its «شروط المتجر» — a business can only pick
         attributes valid for its own specialty. Send an empty array to clear all.
       requestBody:
         required: true
@@ -2744,9 +2749,6 @@ paths:
   /business/menu/addons:
     get: { tags: [Business Menu], summary: "The services this trade adds on top of an item (cooking method), with the shop's price for each", responses: { '200': { description: OK } } }
     put: { tags: [Business Menu], summary: "Price the shop's services once - {prices: {option_id: price}}; 0 = not offered. Every item carries them as a single-choice extra", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
-  /business/menu/terms:
-    get: { tags: [Business Menu], summary: "The store's own terms (returns, minimum order, delivery, trade scope), each option flagged selected", responses: { '200': { description: OK } } }
-    put: { tags: [Business Menu], summary: "Answer the store's terms once - {groups: {group_id: [option_id]}}; shown on its page and frozen on each order", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/menu/available-types:
     get: { tags: [Business Menu], summary: Which menu item types this business's menu currently allows, responses: { '200': { description: OK } } }
     put: { tags: [Business Menu], summary: Set which menu item types this business's menu allows, responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }

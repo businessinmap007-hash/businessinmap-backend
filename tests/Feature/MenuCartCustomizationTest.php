@@ -27,6 +27,7 @@ class MenuCartCustomizationTest extends TestCase
         parent::setUp();
         $this->customer = User::query()->orderBy('id')->firstOrFail();
         $this->biz = User::query()->where('type', 'business')->firstOrFail();
+        $this->offerDelivery($this->biz);
     }
 
     public function test_variant_and_extras_priced_server_side(): void

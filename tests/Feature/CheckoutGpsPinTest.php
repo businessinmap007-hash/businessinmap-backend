@@ -45,6 +45,7 @@ class CheckoutGpsPinTest extends TestCase
         }
 
         $this->businessId = (int) $businessId;
+        $this->offerDelivery($this->businessId);
         $this->city = $city;
 
         $this->menuId = MenuItem::create([

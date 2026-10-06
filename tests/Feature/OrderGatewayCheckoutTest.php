@@ -51,6 +51,7 @@ class OrderGatewayCheckoutTest extends TestCase
             $this->markTestSkipped('Needs a business.');
         }
         $this->businessId = (int) $business->id;
+        $this->offerDelivery($this->businessId);
 
         $product = $this->makeCatalogProduct('furniture');
         $this->listingId = BusinessCatalogListing::create([

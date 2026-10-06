@@ -74,9 +74,16 @@ class BusinessMenuSetting extends Model
             ->select('o.id', 'o.name_ar', 'o.name_en')
             ->get();
 
+        if ($ticked->isEmpty() && app(\App\Services\Menu\StoreTerms::class)->asks((int) $business->id, $groupId)) {
+            // «امنع الطلب حتى يختار» — المالك، 2026-10-06: a store whose trade ASKS it how it delivers and has not
+            // answered offers nothing; checkout refuses until it does. A guess (the two generic answers) was shown
+            // before and never matched what the store meant.
+            return [];
+        }
+
         if ($ticked->isEmpty()) {
-            // Nothing configured yet: the two generic answers, so checkout is
-            // never left with no fulfilment options at all.
+            // A trade that is never asked this question (it is not one of its store terms) cannot answer it: the
+            // two generic answers, so such a store is not left with no fulfilment option at all.
             $ticked = DB::table('options')->where('group_id', $groupId)
                 ->whereIn('name_ar', ['توصيل طلبات', 'استلام من المكان'])
                 ->get(['id', 'name_ar', 'name_en']);

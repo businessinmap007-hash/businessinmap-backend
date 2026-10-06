@@ -34,6 +34,7 @@ class CheckoutPickupTimeTest extends TestCase
         }
 
         $this->businessId = (int) $businessId;
+        $this->offerDelivery($this->businessId);
 
         $this->menuId = MenuItem::create([
             'business_id' => $this->businessId, 'name_ar' => 'صنف اختبار',

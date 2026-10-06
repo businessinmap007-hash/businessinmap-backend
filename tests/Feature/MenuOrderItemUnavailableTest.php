@@ -32,6 +32,7 @@ class MenuOrderItemUnavailableTest extends TestCase
         $this->business = User::query()->where('type', 'business')->orderBy('id')->first()
             ?: $this->markTestSkipped('Needs a business user.');
         $this->customer = User::query()->where('id', '!=', $this->business->id)->orderBy('id')->firstOrFail();
+        $this->offerDelivery($this->business);
     }
 
     /** @param list<float> $linePrices */

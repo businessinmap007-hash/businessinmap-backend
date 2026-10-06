@@ -30,6 +30,7 @@ class MenuOrderStatusAudienceTest extends TestCase
     {
         parent::setUp();
         $this->biz = User::query()->where('type', 'business')->firstOrFail();
+        $this->offerDelivery($this->biz);
         $others = User::query()->where('id', '!=', $this->biz->id)->orderBy('id')->take(2)->get();
         if ($others->count() < 2) {
             $this->markTestSkipped('Needs two non-business users.');

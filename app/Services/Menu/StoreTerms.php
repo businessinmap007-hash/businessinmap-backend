@@ -56,6 +56,12 @@ final class StoreTerms
         return $this->build($businessId, true);
     }
 
+    /** Does this store's trade ask it to answer this group? */
+    public function asks(int $businessId, int $groupId): bool
+    {
+        return in_array($groupId, $this->groupIds($businessId), true);
+    }
+
     /** @return list<int> every option of every group the store answers (what the profile may tick) */
     public function optionIds(int $businessId): array
     {

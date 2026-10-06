@@ -30,6 +30,8 @@ class RetailMinimumOrderTest extends TestCase
         parent::setUp();
 
         $this->biz = User::query()->where('type', 'business')->firstOrFail();
+
+        $this->offerDelivery($this->biz);
         $this->customer = User::query()->where('id', '!=', $this->biz->id)->orderBy('id')->firstOrFail();
     }
 

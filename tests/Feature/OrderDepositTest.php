@@ -39,6 +39,8 @@ class OrderDepositTest extends TestCase
         parent::setUp();
 
         $this->business = User::query()->where('type', 'business')->firstOrFail();
+
+        $this->offerDelivery($this->business);
         $this->customer = User::query()->where('type', 'client')->firstOrFail();
 
         BusinessMenuSetting::query()->updateOrCreate(

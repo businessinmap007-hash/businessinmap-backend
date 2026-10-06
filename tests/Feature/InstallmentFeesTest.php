@@ -36,6 +36,7 @@ class InstallmentFeesTest extends TestCase
 
         $this->business = User::query()->where('type', 'business')->where('category_child_id', 116)->where('category_id', 23)->orderBy('id')->firstOrFail();
         $this->customer = User::query()->where('type', '!=', 'business')->where('id', '!=', $this->business->id)->orderBy('id')->firstOrFail();
+        $this->offerDelivery($this->business);
 
         UserServiceFeeConsent::updateOrCreate(
             ['user_id' => $this->business->id],

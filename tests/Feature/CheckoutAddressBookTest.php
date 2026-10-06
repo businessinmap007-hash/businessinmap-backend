@@ -45,6 +45,7 @@ class CheckoutAddressBookTest extends TestCase
         }
 
         $this->businessId = (int) $businessId;
+        $this->offerDelivery($this->businessId);
         $this->governorateId = (int) $governorate->id;
         $this->cityId = (int) City::query()->where('governorate_id', $governorate->id)->value('id');
 

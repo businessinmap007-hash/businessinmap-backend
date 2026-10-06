@@ -29,6 +29,8 @@ class FractionalQuantitiesTest extends TestCase
         parent::setUp();
 
         $this->shop = User::query()->where('type', 'business')->where('category_child_id', 101)->orderBy('id')->firstOrFail();
+
+        $this->offerDelivery($this->shop);
         $this->customer = User::query()->where('type', '!=', 'business')->where('id', '!=', $this->shop->id)->orderBy('id')->firstOrFail();
         DB::table('business_working_hours')->where('business_id', $this->shop->id)->delete();
         DB::table('business_addon_prices')->where('business_id', $this->shop->id)->delete();

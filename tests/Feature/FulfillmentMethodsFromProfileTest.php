@@ -86,13 +86,27 @@ class FulfillmentMethodsFromProfileTest extends TestCase
         $this->assertSame('pickup', $byName['استلام من المكان']['type']);
     }
 
-    public function test_a_business_that_never_configured_it_gets_the_two_generic_defaults(): void
+    public function test_a_store_whose_trade_asks_and_has_not_answered_offers_nothing(): void
     {
+        // «امنع الطلب حتى يختار» — المالك، 2026-10-06: no guessed defaults for a store that is asked and silent.
         $childId = (int) DB::table('category_children_master')->where('name_ar', 'خضار وفاكهة')->value('id');
         $business = $this->makeBusiness($childId);
+        $this->assertTrue(app(\App\Services\Menu\StoreTerms::class)->asks($business->id, $this->groupId()), 'this trade is asked how it delivers');
 
-        $methods = BusinessMenuSetting::fulfillmentMethodsFor($business);
-        $names = collect($methods)->pluck('name_ar')->all();
+        $this->assertSame([], BusinessMenuSetting::fulfillmentMethodsFor($business));
+    }
+
+    public function test_a_trade_that_is_never_asked_keeps_the_two_generic_answers(): void
+    {
+        $asked = DB::table('service_option_group_placements')->where('option_group_id', $this->groupId())->where('usage', 'store_terms')->pluck('child_id')->all();
+        $childId = (int) DB::table('category_children_master')->whereNotIn('id', $asked ?: [0])->orderBy('id')->value('id');
+        if ($childId <= 0) {
+            $this->markTestSkipped('Every trade is asked the question.');
+        }
+        $business = $this->makeBusiness($childId);
+        $this->assertFalse(app(\App\Services\Menu\StoreTerms::class)->asks($business->id, $this->groupId()));
+
+        $names = collect(BusinessMenuSetting::fulfillmentMethodsFor($business))->pluck('name_ar')->all();
 
         $this->assertContains('توصيل طلبات', $names);
         $this->assertContains('استلام من المكان', $names);

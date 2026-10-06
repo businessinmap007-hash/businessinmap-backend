@@ -715,9 +715,39 @@ class CustomerCartService
         return __('موقع على الخريطة') . ': ' . round($lat, 6) . ', ' . round($lng, 6);
     }
 
+    /**
+     * «امنع الطلب حتى يختار» + «ما ظهر فى إتمام الطلب غير مطابق لما تم اختياره» — المالك، 2026-10-06. An order is
+     * placed only under a delivery/pickup method the store itself ticked in its profile: a store that has not
+     * answered how it delivers cannot be ordered from, and a type it does not offer is refused (dine-in is the
+     * tables' own door and is not part of that answer).
+     */
+    private function assertStoreOffers(Order $cart): void
+    {
+        if ($cart->fulfillment_type === Order::FULFILLMENT_DINE_IN) {
+            return;
+        }
+
+        $business = User::query()->find($cart->business_id);
+        if (! $business) {
+            return;
+        }
+
+        $methods = \App\Models\BusinessMenuSetting::fulfillmentMethodsFor($business);
+
+        if ($methods === []) {
+            throw ValidationException::withMessages(['fulfillment_type' => __('هذا المتجر لم يحدد طريقة التسليم والاستلام بعد، فلا يمكن إتمام الطلب الآن.')]);
+        }
+
+        if (! in_array($cart->fulfillment_type, array_column($methods, 'type'), true)) {
+            throw ValidationException::withMessages(['fulfillment_type' => __('طريقة الاستلام المختارة لا يقدمها هذا المتجر.')]);
+        }
+    }
+
     private function placeOrder(Order $cart, array $data): void
     {
         $cart->fulfillment_type = $data['fulfillment_type'] ?? $cart->fulfillment_type ?: Order::FULFILLMENT_DELIVERY;
+
+        $this->assertStoreOffers($cart);
 
         // The business's own flat delivery charge (Api\V2\DeliveryController::
         // updateDeliverySettings) - known and shown to the customer right here

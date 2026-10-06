@@ -47,6 +47,8 @@ class CustomerCartTest extends TestCase
         $products = [$this->makeCatalogProduct('furniture'), $this->makeCatalogProduct('mattresses')];
 
         [$this->businessA, $this->businessB] = array_map('intval', $businesses);
+        $this->offerDelivery($this->businessA);
+        $this->offerDelivery($this->businessB);
 
         $this->listingA = BusinessCatalogListing::create(['business_id' => $this->businessA, 'catalog_product_id' => $products[0], 'sku' => 'CA', 'price' => 10.00, 'currency' => 'EGP', 'stock' => 50, 'is_active' => 1])->id;
         $this->listingB = BusinessCatalogListing::create(['business_id' => $this->businessB, 'catalog_product_id' => $products[1], 'sku' => 'CB', 'price' => 4.00, 'currency' => 'EGP', 'stock' => 50, 'is_active' => 1])->id;

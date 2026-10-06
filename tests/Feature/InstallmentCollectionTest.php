@@ -33,6 +33,8 @@ class InstallmentCollectionTest extends TestCase
         parent::setUp();
 
         $this->shop = User::query()->where('type', 'business')->where('category_child_id', 116)->where('category_id', 23)->orderBy('id')->firstOrFail();
+
+        $this->offerDelivery($this->shop);
         $this->customer = User::query()->where('type', '!=', 'business')->where('id', '!=', $this->shop->id)->orderBy('id')->firstOrFail();
         DB::table('business_working_hours')->where('business_id', $this->shop->id)->delete();
 

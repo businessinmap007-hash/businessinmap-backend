@@ -34,6 +34,19 @@ final class MenuDiscoveryController extends Controller
             return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
         }
 
+        // «اجعل الحساب لا يمكن أن يعرض منتجات دون اختيار طرق الاستلام والتسليم»: until the shop has set up how it
+        // delivers, customers see no products (its own owner still sees them).
+        $viewerId = (int) optional(request()->user('sanctum'))->id;
+        if ($viewerId !== (int) $business && ! app(\App\Services\Business\StoreSetup::class)->isComplete((int) $business)) {
+            return response()->json(['success' => true, 'data' => [
+                'business' => ['id' => (int) $biz->id, 'name' => (string) $biz->name, 'logo' => $biz->logo, 'is_open_now' => false, 'menu_display_mode' => \App\Models\BusinessMenuSetting::DISPLAY_GRID],
+                // The shop has not said how it delivers yet: no products are shown (and none can be ordered).
+                'setup_incomplete' => true,
+                'sections' => [],
+                'terms' => [],
+            ]]);
+        }
+
         // Worked out once per business rather than once per item — the same
         // config `heading()` would otherwise re-read on every row.
         $isGoodsCatalog = MarketCatalogChildren::includes($biz);
@@ -168,6 +181,10 @@ final class MenuDiscoveryController extends Controller
             : null;
 
         if (! $row || ! $biz) {
+            return response()->json(['success' => false, 'message' => __('الصنف غير موجود.')], 404);
+        }
+
+        if ((int) $biz->id !== (int) optional(request()->user('sanctum'))->id && ! app(\App\Services\Business\StoreSetup::class)->isComplete((int) $biz->id)) {
             return response()->json(['success' => false, 'message' => __('الصنف غير موجود.')], 404);
         }
 
@@ -443,13 +460,15 @@ final class MenuDiscoveryController extends Controller
             // `images` is the gallery, and the one to draw.
             // The merchant's own photo first; a device he did not photograph
             // shows its catalog master's open-licensed image instead.
-            'image' => $item->image ?: ($item->catalogProduct?->main_image ?: null),
+            // The photo the merchant chose for the card (else his first), then the legacy column, then the catalog master's.
+            'image' => optional($item->coverImage())->image ?: ($item->image ?: ($item->catalogProduct?->main_image ?: null)),
             // The licence credit that catalog photo must carry (CC BY-SA…);
             // null when the merchant's own photo is shown.
-            'image_credit' => $item->image ? null : ($item->catalogProduct?->main_image_credit ?: null),
+            'image_credit' => ($item->coverImage() || $item->image) ? null : ($item->catalogProduct?->main_image_credit ?: null),
             // `source: camera` = a live shot (required for a second-hand
             // unit) — the app puts the camera badge on it.
-            'images' => $item->images->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image, 'source' => $i->source])->values(),
+            'cover_image_id' => optional($item->coverImage())->id,
+            'images' => $item->galleryPayload(),
             'base_price' => $base,
             // What the price is the price OF. Null is «by the item» — a
             // sandwich — and only a shop that weighs what it sells says

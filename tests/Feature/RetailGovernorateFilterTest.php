@@ -23,6 +23,7 @@ use Tests\TestCase;
  */
 class RetailGovernorateFilterTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
     use SeedsRetailCatalog;
 

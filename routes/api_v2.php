@@ -501,6 +501,9 @@ Route::prefix('v2')->group(function () {
         // Per-user reminder lead times.
         Route::get('me/reminder-preferences', [ReminderPreferenceController::class, 'show']);
         Route::put('me/reminder-preferences', [ReminderPreferenceController::class, 'update']);
+        // «اعدادات الاشعارات»: one switch per category — on = active, off = silent (still in the inbox).
+        Route::get('me/notification-preferences', [\App\Http\Controllers\Api\V2\NotificationPreferenceController::class, 'show']);
+        Route::put('me/notification-preferences', [\App\Http\Controllers\Api\V2\NotificationPreferenceController::class, 'update']);
 
         // Training plans — the client's side: read the plans a trainer assigned
         // me and log my progress. Party-only.
@@ -888,6 +891,9 @@ Route::prefix('v2')->group(function () {
             // takes the whole gallery with it (MenuItem::booted).
             Route::post('items/{item}/images', [BusinessMenuItemController::class, 'storeImages'])->whereNumber('item');
             Route::delete('items/{item}/images/{image}', [BusinessMenuItemController::class, 'destroyImage'])->whereNumber(['item', 'image']);
+            // «أى صورة تظهر على الكارت» and «أى جزء منها يظهر».
+            Route::put('items/{item}/cover', [BusinessMenuItemController::class, 'setCover'])->whereNumber('item');
+            Route::put('items/{item}/images/{image}/crop', [BusinessMenuItemController::class, 'cropImage'])->whereNumber(['item', 'image']);
 
             // «كاش أو أقساط» — the payment plans of an item (big-ticket kinds only).
             Route::put('items/{item}/addons', [BusinessMenuItemController::class, 'updateAddonChoices'])->whereNumber('item');

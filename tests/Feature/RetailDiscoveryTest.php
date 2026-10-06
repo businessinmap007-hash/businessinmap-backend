@@ -15,6 +15,7 @@ use Tests\TestCase;
  */
 class RetailDiscoveryTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
     use SeedsRetailCatalog;
 

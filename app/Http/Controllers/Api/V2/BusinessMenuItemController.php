@@ -1124,7 +1124,7 @@ final class BusinessMenuItemController extends Controller
         return response()->json([
             'success' => true,
             'data' => ['images' => array_map(
-                fn (Image $image) => ['id' => (int) $image->id, 'image' => $image->image, 'source' => $image->source],
+                fn (Image $image) => ['id' => (int) $image->id, 'image' => $image->image, 'source' => $image->source, 'is_cover' => false, 'crop' => ['x' => 0.5, 'y' => 0.5, 'zoom' => 1.0]],
                 $saved
             )],
         ], 201);
@@ -1144,7 +1144,48 @@ final class BusinessMenuItemController extends Controller
         app(ImageUploadService::class)->delete($row->image);
         $row->delete();
 
+        // The card's photo is gone: the card falls back to the first one that is left.
+        if ((int) $model->cover_image_id === (int) $image) {
+            $model->forceFill(['cover_image_id' => null])->save();
+        }
+
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * PUT /api/v2/business/menu/items/{item}/cover — `{image_id}`: which photo the CARD shows. Must be one of this
+     * item's own photos; `null` goes back to «the first one».
+     */
+    public function setCover(Request $request, int $item)
+    {
+        $model = $this->ownItem($request, $item);
+        $data = $request->validate(['image_id' => ['nullable', 'integer']]);
+
+        if ($data['image_id'] ?? null) {
+            $model->images()->findOrFail((int) $data['image_id']);
+        }
+        $model->forceFill(['cover_image_id' => $data['image_id'] ?? null])->save();
+
+        return response()->json(['success' => true, 'data' => ['cover_image_id' => $model->cover_image_id ? (int) $model->cover_image_id : optional($model->load('images')->coverImage())->id]]);
+    }
+
+    /**
+     * PUT /api/v2/business/menu/items/{item}/images/{image}/crop — `{x, y, zoom}`: which part of the photo the card
+     * shows. (x, y) is the point kept in the middle, 0..1 across and down; zoom 1 shows the whole photo, up to 4 goes in.
+     */
+    public function cropImage(Request $request, int $item, int $image)
+    {
+        $model = $this->ownItem($request, $item);
+        $row = $model->images()->findOrFail($image);
+        $data = $request->validate([
+            'x' => ['required', 'numeric', 'between:0,1'],
+            'y' => ['required', 'numeric', 'between:0,1'],
+            'zoom' => ['required', 'numeric', 'between:1,4'],
+        ]);
+
+        $row->update(['focal_x' => round((float) $data['x'], 3), 'focal_y' => round((float) $data['y'], 3), 'zoom' => round((float) $data['zoom'], 2)]);
+
+        return response()->json(['success' => true, 'data' => ['id' => (int) $row->id, 'crop' => ['x' => (float) $row->focal_x, 'y' => (float) $row->focal_y, 'zoom' => (float) $row->zoom]]]);
     }
 
     // ────────────────────────── Extra groups ──────────────────────────

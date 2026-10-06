@@ -17,6 +17,7 @@ use Tests\TestCase;
  */
 class ApplianceSpecsTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
     use SeedsRetailCatalog;
 

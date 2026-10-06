@@ -30,6 +30,7 @@ use Tests\TestCase;
  */
 class RetailWholesaleVisibilityTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
     use SeedsRetailCatalog;
 

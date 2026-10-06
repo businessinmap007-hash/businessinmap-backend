@@ -16,6 +16,7 @@ use Tests\TestCase;
  */
 class LocalizedDbContentTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
 
     private function business(): User

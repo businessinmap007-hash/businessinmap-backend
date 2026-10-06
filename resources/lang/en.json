@@ -2894,5 +2894,6 @@
     "الأدوية المخدرة تحتاج صورة الروشتة المكتوبة بخط الطبيب.": "Controlled drugs need a photo of the prescription handwritten by the doctor.",
     "لا يمكن صرف دواء مخدر دون صورة الروشتة المكتوبة بخط الطبيب.": "A controlled drug cannot be dispensed without the photo of the prescription handwritten by the doctor.",
     "هذا المتجر لم يحدد طريقة التسليم والاستلام بعد، فلا يمكن إتمام الطلب الآن.": "This store has not set how it delivers or hands over orders yet, so the order cannot be placed now.",
-    "طريقة الاستلام المختارة لا يقدمها هذا المتجر.": "This store does not offer the chosen way of receiving the order."
+    "طريقة الاستلام المختارة لا يقدمها هذا المتجر.": "This store does not offer the chosen way of receiving the order.",
+    "هذا المتجر لم يكمل إعداد حسابه بعد، فلا يمكن الطلب منه الآن.": "This store has not finished setting up its account yet, so you cannot order from it now."
 }

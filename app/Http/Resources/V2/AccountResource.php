@@ -45,8 +45,18 @@ class AccountResource extends JsonResource
             'category_slug' => optional($this->category)->slug,
             'balance' => (float) $this->balance,
             'social' => $this->socialLinks(),
+            // Business only: what the account still has to set up before it can show products («اكتمال الحساب»).
+            'setup' => $this->isBusiness() ? $this->setupState() : null,
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];
+    }
+
+    /** @return array{complete:bool,missing:list<string>} */
+    private function setupState(): array
+    {
+        $missing = app(\App\Services\Business\StoreSetup::class)->missing($this->resource);
+
+        return ['complete' => $missing === [], 'missing' => $missing];
     }
 
     /** Null links are dropped, not sent as "" — a field genuinely unset. */

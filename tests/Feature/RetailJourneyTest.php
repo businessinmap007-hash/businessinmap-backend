@@ -28,6 +28,7 @@ use Tests\TestCase;
  */
 class RetailJourneyTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
     use SeedsRetailCatalog;
 

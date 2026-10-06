@@ -25,7 +25,12 @@ final class StoreTerms
     /** @return list<int> the groups this store's trade asks it to answer, in order */
     public function groupIds(int $businessId): array
     {
-        $child = (int) User::query()->whereKey($businessId)->value('category_child_id');
+        return $this->groupIdsForChild((int) User::query()->whereKey($businessId)->value('category_child_id'));
+    }
+
+    /** @return list<int> the groups a TRADE (category child) asks its stores to answer, in order */
+    public function groupIdsForChild(int $child): array
+    {
         $menu = (int) PlatformService::query()->where('key', PlatformService::KEY_MENU)->value('id');
 
         if ($child <= 0 || $menu <= 0) {

@@ -52,7 +52,8 @@ final class BusinessPageController extends Controller
             ->where('is_active', 1)
             ->count();
 
-        $hasMenu = DB::table('menu_items')->where('business_id', $business)->where('is_active', 1)->exists();
+        $setupComplete = app(\App\Services\Business\StoreSetup::class)->isComplete((int) $business);
+        $hasMenu = $setupComplete && DB::table('menu_items')->where('business_id', $business)->where('is_active', 1)->exists();
         // The old per-business "delivery" price row is not a service a customer
         // browses - delivery is a fee (users.delivery_fee_amount) or a Shipping &
         // Delivery account's own business - so it never earns a Services tab.

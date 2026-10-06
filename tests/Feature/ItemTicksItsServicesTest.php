@@ -15,6 +15,7 @@ use Tests\TestCase;
  */
 class ItemTicksItsServicesTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
 
     private User $shop;

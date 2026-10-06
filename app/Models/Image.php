@@ -22,6 +22,15 @@ class Image extends Model
         'imageable_type',
         'source',
         'purpose',
+        'focal_x',
+        'focal_y',
+        'zoom',
+    ];
+
+    protected $casts = [
+        'focal_x' => 'float',
+        'focal_y' => 'float',
+        'zoom' => 'float',
     ];
 
     public function imageable()

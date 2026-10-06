@@ -86,12 +86,8 @@ class MenuItemResource extends JsonResource
 
             // Relative paths, as everywhere else — an absolute URL breaks the
             // moment the host changes, which is exactly what happened before.
-            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($i) => [
-                'id' => (int) $i->id,
-                'image' => $i->image,
-                // camera = a live shot — the app badges it.
-                'source' => $i->source,
-            ])->values()),
+            'cover_image_id' => $this->whenLoaded('images', fn () => optional($this->resource->coverImage())->id),
+            'images' => $this->whenLoaded('images', fn () => $this->resource->galleryPayload()),
 
             // «كاش أو أقساط» — only for the kinds that sell on instalments.
             'payment_plans' => app(\App\Services\Menu\PaymentPlans::class)->present($this->resource),

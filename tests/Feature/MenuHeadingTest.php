@@ -28,6 +28,7 @@ use Tests\TestCase;
  */
 class MenuHeadingTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
 
     /**

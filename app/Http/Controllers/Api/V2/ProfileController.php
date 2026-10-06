@@ -390,6 +390,7 @@ final class ProfileController extends Controller
         // store to answer, each with ALL its options, ticked from the same `option_user` the customer reads. They
         // are shown in their own block, so they are taken out of the attribute list below (never listed twice).
         $terms = app(StoreTerms::class)->forMerchant((int) $user->id);
+        $requiredGroup = app(\App\Services\Business\StoreSetup::class)->groupId();
         $termGroupIds = array_column($terms, 'group_id');
         $options = $options->reject(fn ($o) => in_array((int) ($o->group_id ?? 0), $termGroupIds, true))->values();
 
@@ -410,7 +411,8 @@ final class ProfileController extends Controller
 
         return [
             'child_id' => $childId ?: null,
-            'terms' => array_map(fn (array $g) => ['id' => $g['group_id'], 'name' => $g['group_name'], 'options' => $g['options']], $terms),
+            // `required`: the account is not complete until at least one option of this group is ticked.
+            'terms' => array_map(fn (array $g) => ['id' => $g['group_id'], 'name' => $g['group_name'], 'required' => $g['group_id'] === $requiredGroup, 'options' => $g['options']], $terms),
             'groups' => array_values($groups),
             'selected_ids' => $selected,
         ];

@@ -41,20 +41,37 @@ class OrderBlockedUntilStoreAnswersTest extends TestCase
         return DB::table('options')->where('group_id', $group)->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
-    private function checkout(array $extra = [])
+    private function checkoutPrepared(): void
     {
         Sanctum::actingAs($this->customer);
         $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->menuId, 'qty' => 1])->assertCreated();
+    }
+
+    private function checkout(array $extra = [])
+    {
+        $this->checkoutPrepared();
 
         return $this->postJson("/api/v2/cart/{$this->shop->id}/checkout", $extra + ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addDay()->toIso8601String()]);
     }
 
-    public function test_the_page_offers_nothing_and_the_order_is_refused_until_the_store_answers(): void
+    public function test_the_page_offers_nothing_and_nothing_can_be_ordered_until_the_store_answers(): void
     {
         $this->getJson('/api/v2/businesses/' . $this->shop->id)->assertOk()->assertJsonPath('data.fulfillment.methods', []);
 
-        $this->checkout()->assertUnprocessable()->assertJsonValidationErrors(['fulfillment_type']);
-        $this->assertSame(0, Order::query()->where('user_id', $this->customer->id)->where('business_id', $this->shop->id)->where('status', 'pending')->count());
+        Sanctum::actingAs($this->customer);
+        $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $this->menuId, 'qty' => 1])->assertUnprocessable()->assertJsonValidationErrors(['offering_id']);
+        $this->assertSame(0, Order::query()->where('user_id', $this->customer->id)->where('business_id', $this->shop->id)->count());
+    }
+
+    public function test_a_cart_made_before_the_store_changed_its_mind_cannot_be_checked_out_either(): void
+    {
+        $this->offerDelivery($this->shop, ['استلام من المكان']);
+        $this->checkoutPrepared();
+        // the store now un-answers: the cart already holds its item, but the order is refused at the door
+        DB::table('option_user')->where('user_id', $this->shop->id)->whereIn('option_id', $this->deliveryOptionIds())->delete();
+
+        $this->postJson("/api/v2/cart/{$this->shop->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addDay()->toIso8601String()])
+            ->assertUnprocessable()->assertJsonValidationErrors(['fulfillment_type']);
     }
 
     public function test_once_it_answers_the_order_goes_through_under_what_it_ticked(): void

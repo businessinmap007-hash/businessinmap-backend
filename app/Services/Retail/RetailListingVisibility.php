@@ -55,6 +55,10 @@ class RetailListingVisibility
      */
     public function apply($query, ?User $viewer, string $table = 'business_catalog_listings')
     {
+        // «لا يعرض منتجات دون اختيار طرق الاستلام والتسليم» — a business that has not finished its setup shows nothing
+        // to others (its own listings stay visible to itself).
+        app(\App\Services\Business\StoreSetup::class)->onlyComplete($query, "{$table}.business_id", $viewer ? (int) $viewer->id : null);
+
         $query = $query->where(function ($outer) use ($viewer, $table) {
             $outer->where("{$table}.visibility", self::PUBLIC);
 
@@ -83,6 +87,10 @@ class RetailListingVisibility
     /** True when this viewer may see this one listing. */
     public function canSee(BusinessCatalogListing $listing, ?User $viewer): bool
     {
+        if ((int) $listing->business_id !== (int) optional($viewer)->id && ! app(\App\Services\Business\StoreSetup::class)->isComplete((int) $listing->business_id)) {
+            return false;
+        }
+
         if ((string) $listing->visibility === self::RESTRICTED) {
             if (! $viewer) {
                 return false;

@@ -76,7 +76,9 @@ class StoreTermsAndRolesTest extends TestCase
         $this->assertTrue($mine->has('الاستبدال والإرجاع'), 'the trade asks for its return policy — in the profile');
         $this->assertNotContains(true, array_column($mine['الاستبدال والإرجاع']['options'], 'selected'), 'nothing answered yet');
 
-        $saved = $this->patchJson('/api/v2/profile/options', ['option_ids' => [$swap, $minimum]])->assertOk()->json('data.terms');
+        // the shop also says how it hands over orders — without that it shows nothing to customers at all
+        $pickup = $this->option('التسليم والاستلام', 'استلام من المكان');
+        $saved = $this->patchJson('/api/v2/profile/options', ['option_ids' => [$swap, $minimum, $pickup]])->assertOk()->json('data.terms');
         $this->assertContains(true, array_column(collect($saved)->firstWhere('name', 'الاستبدال والإرجاع')['options'], 'selected'));
 
         Sanctum::actingAs(User::query()->where('type', '!=', 'business')->orderBy('id')->firstOrFail());

@@ -78,6 +78,7 @@ class MenuItem extends Model
         'menu_section_id',
         'medicine_id',
         'catalog_product_id',
+        'cover_image_id',
         'item_type',
         'category_id',
         'name_ar',
@@ -377,5 +378,32 @@ class MenuItem extends Model
         $row = $cache->get($key);
 
         return $row ? $row->displayName() : $key;
+    }
+
+    /** The photo the card shows: the one the merchant chose, else the first. */
+    public function coverImage(): ?Image
+    {
+        $images = $this->images;
+
+        return ($this->cover_image_id ? $images->firstWhere('id', (int) $this->cover_image_id) : null) ?: $images->first();
+    }
+
+    /**
+     * The gallery as every client reads it: each photo with where it came from (a live shot or an upload — the
+     * customer sees the badge too), whether it is the card's photo, and which part of it the card shows.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function galleryPayload(): array
+    {
+        $cover = $this->coverImage();
+
+        return $this->images->map(fn (Image $i) => [
+            'id' => (int) $i->id,
+            'image' => $i->image,
+            'source' => $i->source,
+            'is_cover' => $cover && (int) $cover->id === (int) $i->id,
+            'crop' => ['x' => (float) ($i->focal_x ?? 0.5), 'y' => (float) ($i->focal_y ?? 0.5), 'zoom' => (float) ($i->zoom ?? 1.0)],
+        ])->values()->all();
     }
 }

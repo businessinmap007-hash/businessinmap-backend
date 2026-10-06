@@ -13,6 +13,7 @@ use Tests\TestCase;
  */
 class MenuDiscoveryTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
     use SeedsMenu;
 

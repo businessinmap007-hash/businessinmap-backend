@@ -19,6 +19,7 @@ use Tests\TestCase;
  */
 class RetailListingExtrasTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
     use SeedsRetailCatalog;
 

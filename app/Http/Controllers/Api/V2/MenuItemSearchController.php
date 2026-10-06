@@ -60,6 +60,7 @@ final class MenuItemSearchController extends Controller
             ->join('users as biz', 'biz.id', '=', 'menu_items.business_id')
             ->where('biz.type', 'business')
             ->where('menu_items.is_active', true)
+            ->tap(fn ($q) => app(\App\Services\Business\StoreSetup::class)->onlyComplete($q, 'menu_items.business_id'))
             ->when(! empty($data['catalog_product_id']), fn ($q) => $q->where('menu_items.catalog_product_id', (int) $data['catalog_product_id']))
             ->when(! empty($data['brand_id']), fn ($q) => $q->whereIn('menu_items.catalog_product_id',
                 DB::table('catalog_products')->where('brand_id', (int) $data['brand_id'])->select('id')))
@@ -120,7 +121,7 @@ final class MenuItemSearchController extends Controller
         $page = $base->paginate(
             (int) ($data['per_page'] ?? 20),
             ['menu_items.id', 'menu_items.business_id', 'menu_items.catalog_product_id', 'menu_items.name_ar', 'menu_items.name_en',
-                'menu_items.base_price', 'menu_items.image', 'menu_items.available_quantity', 'menu_items.description_ar', 'menu_items.description_en',
+                'menu_items.base_price', 'menu_items.image', 'menu_items.cover_image_id', 'menu_items.available_quantity', 'menu_items.description_ar', 'menu_items.description_en',
                 'biz.name as business_name', 'biz.logo as business_logo', 'biz.governorate_id', 'biz.city_id']
         );
 
@@ -131,11 +132,19 @@ final class MenuItemSearchController extends Controller
         $attrs->preload($ids);
         $masterSpecs = app(ProductSpecs::class)->forProducts($products);
         $images = DB::table('catalog_products')->whereIn('id', $products)->pluck('main_image', 'id');
+        // The photo the merchant chose for each card (else his first upload) beats the catalog master's.
+        $covers = [];
+        $chosen = collect($page->items())->pluck('cover_image_id', 'id');
+        foreach (DB::table('images')->where('imageable_type', $morph)->whereIn('imageable_id', $ids)->orderBy('id')->get(['id', 'imageable_id', 'image', 'focal_x', 'focal_y', 'zoom']) as $img) {
+            if (! isset($covers[$img->imageable_id]) || (int) ($chosen[$img->imageable_id] ?? 0) === (int) $img->id) {
+                $covers[$img->imageable_id] = $img;
+            }
+        }
 
         $cardCodes = collect($fields)->where('show_on_card', true)->pluck('code')->all();
         $installments = app(\App\Services\Menu\PaymentPlans::class)->cardLines(collect($page->items())->mapWithKeys(fn ($r) => [(int) $r->id => (float) $r->base_price])->all());
 
-        $items = collect($page->items())->map(function ($r) use ($attrs, $masterSpecs, $images, $english, $cardCodes, $installments) {
+        $items = collect($page->items())->map(function ($r) use ($attrs, $masterSpecs, $images, $covers, $english, $cardCodes, $installments) {
             $specs = $attrs->mergeIntoSpecs($masterSpecs[(int) $r->catalog_product_id] ?? [], (int) $r->id);
             $byCode = collect($specs)->keyBy('code');
             // «الوصف» when the kind ticked it for the card.
@@ -151,7 +160,8 @@ final class MenuItemSearchController extends Controller
                 'price' => (float) $r->base_price,
                 // «تقسيط من … شهريًا» when it can be bought on instalments.
                 'installment' => $installments[(int) $r->id] ?? null,
-                'image' => $r->image ?: ($images[$r->catalog_product_id] ?? null),
+                'image' => ($covers[$r->id]->image ?? null) ?: ($r->image ?: ($images[$r->catalog_product_id] ?? null)),
+                'image_crop' => isset($covers[$r->id]) ? ['x' => (float) $covers[$r->id]->focal_x, 'y' => (float) $covers[$r->id]->focal_y, 'zoom' => (float) $covers[$r->id]->zoom] : null,
                 'catalog_product_id' => $r->catalog_product_id ? (int) $r->catalog_product_id : null,
                 'available_quantity' => $r->available_quantity !== null ? (int) $r->available_quantity : null,
                 'specs' => $specs,

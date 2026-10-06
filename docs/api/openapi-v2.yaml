@@ -2743,6 +2743,12 @@ paths:
   /business/menu/items/{item}/addon-options:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
     put: { tags: [Business Menu], summary: "Tick the shop's priced services (cooking method, preparation...) this item offers, one by one - {option_ids: [..]}; the item resource lists them as addon_services with enabled flags", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/menu/items/{item}/cover:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    put: { tags: [Business Menu], summary: "Choose which of the item's photos the CARD shows - {image_id} (null = the first one). Customers and the merchant's own cards then draw it, uploaded photos before the catalog master's", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/menu/items/{item}/images/{image}/crop:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }, { name: image, in: path, required: true, schema: { type: integer } }]
+    put: { tags: [Business Menu], summary: 'Which part of a photo the card shows - {x, y, zoom}: the point kept in the middle (0..1) and how far in (1 = the whole photo, up to 4); so the empty part is not shown and the product is not cut off', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/menu/items/{item}/payment-plans:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
     put: { tags: [Business Menu], summary: "Replace an item's instalment plans - {plans: [{months, down, total_price}]}; refused for kinds that do not sell on instalments", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
@@ -5307,6 +5313,9 @@ paths:
                 lunch_at: { type: string, example: '14:00' }
                 dinner_at: { type: string, example: '20:00' }
       responses: { '200': { description: Saved }, '422': { $ref: '#/components/responses/Validation' } }
+  /me/notification-preferences:
+    get: { tags: [Notifications], summary: 'My notification categories, each with a switch: on = active, off = silent (still in the inbox, no push, no sound)', responses: { '200': { description: OK } } }
+    put: { tags: [Notifications], summary: 'Switch categories - {categories: {orders: false}}; a category left out is untouched; critical alerts and platform announcements are never silenced', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /me/reminder-preferences:
     get:
       tags: [Agenda]

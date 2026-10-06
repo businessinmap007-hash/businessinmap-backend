@@ -77,6 +77,10 @@ class CustomerCartService
         $qty = $this->wholeOrFraction($qty, $resolved[3] ?? null);
         $businessId = $resolved[0];
 
+        if (! app(\App\Services\Business\StoreSetup::class)->isComplete((int) $businessId)) {
+            throw ValidationException::withMessages(['offering_id' => __('هذا المتجر لم يكمل إعداد حسابه بعد، فلا يمكن الطلب منه الآن.')]);
+        }
+
         return DB::transaction(function () use ($userId, $businessId, $offeringId, $resolved, $qty) {
             $cart = $this->draftFor($userId, $businessId);
             $this->mergeOrCreateLine($cart, $offeringId, $resolved, $qty, null);

@@ -17,6 +17,7 @@ use Tests\TestCase;
  */
 class OrderReorderTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
 
     private User $client;

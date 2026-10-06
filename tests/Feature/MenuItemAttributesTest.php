@@ -18,6 +18,7 @@ use Tests\TestCase;
  */
 class MenuItemAttributesTest extends TestCase
 {
+    use \Tests\Concerns\AnswersDelivery;
     use DatabaseTransactions;
 
     private function carShop(): User

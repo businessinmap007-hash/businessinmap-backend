@@ -5,6 +5,7 @@ namespace App\Services\Notifications;
 use App\Models\AppNotification;
 use App\Models\NotificationChannelRule;
 use App\Models\NotificationDeliveryLog;
+use App\Support\NotificationCategories;
 
 final class NotificationDispatcherService
 {
@@ -64,6 +65,22 @@ final class NotificationDispatcherService
         $realtimeResult = null;
         $firebaseResult = null;
         $realtimeSent = false;
+
+        // «اعدادات الاشعارات»: a category the user switched OFF is silent — it stays in the inbox (created above) but
+        // raises no push and no sound. A critical rule is never silenced.
+        if (NotificationCategories::isSilenced($userId, $eventKey, (bool) $rule->critical)) {
+            $this->log($notification, $eventKey, $userId, NotificationDeliveryLog::CHANNEL_FIREBASE, NotificationDeliveryLog::STATUS_SKIPPED, 'silenced_by_user');
+
+            return [
+                'created' => true,
+                'event_key' => $eventKey,
+                'notification_id' => $notification->id,
+                'rule_id' => $rule->id,
+                'realtime' => null,
+                'firebase' => null,
+                'silenced' => true,
+            ];
+        }
 
         if ($rule->realtime_enabled && ! ($data['skip_realtime'] ?? false)) {
             $realtimeResult = app(RealtimeNotificationService::class)->sendToUser($userId, $notification, [

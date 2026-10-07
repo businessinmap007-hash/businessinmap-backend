@@ -58,6 +58,7 @@ class BusinessDepositPolicy extends Model
         'guarantee_hybrid_extra_percent',
         'guarantee_multiple',
         'forfeit_to_business',
+        'accept_deposit_as_payment',
 
         'dispute_resolution_days',
         'warning_every_days',
@@ -87,6 +88,7 @@ class BusinessDepositPolicy extends Model
         'guarantee_hybrid_extra_percent' => 'decimal:2',
         'guarantee_multiple' => 'decimal:2',
         'forfeit_to_business' => 'boolean',
+        'accept_deposit_as_payment' => 'boolean',
 
         'dispute_resolution_days' => 'integer',
         'warning_every_days' => 'integer',

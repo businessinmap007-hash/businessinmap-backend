@@ -1102,6 +1102,10 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/confirm-payment', [BookingController::class, 'confirmPayment'])->whereNumber('booking');
             Route::post('{booking}/deposit/agree-release', [BookingController::class, 'agreeReleaseDeposit'])->whereNumber('booking');
             Route::post('{booking}/deposit/agree-refund', [BookingController::class, 'agreeRefundDeposit'])->whereNumber('booking');
+            // «قبول الديبوزت كدفعة»: the customer asks, the business (an optional term) accepts or declines.
+            Route::post('{booking}/deposit/request-as-payment', [BookingController::class, 'requestDepositAsPayment'])->whereNumber('booking');
+            Route::post('{booking}/deposit/accept-as-payment', [BookingController::class, 'acceptDepositAsPayment'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            Route::post('{booking}/deposit/decline-as-payment', [BookingController::class, 'declineDepositAsPayment'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
         });
 
         Route::prefix('offers')->group(function () {

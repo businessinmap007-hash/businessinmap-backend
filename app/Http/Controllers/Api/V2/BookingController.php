@@ -552,6 +552,8 @@ final class BookingController extends Controller
             'data' => [
                 'booking' => $this->titled($booking),
                 'financial_preview' => $this->partyPreview(request(), $booking),
+                // «قبول الديبوزت كدفعة»: may it be asked, was it, was it accepted
+                'deposit_as_payment' => app(\App\Services\BookingDepositPaymentService::class)->state($booking),
             ],
         ]);
     }
@@ -735,6 +737,39 @@ final class BookingController extends Controller
     }
 
     /**
+     * POST /api/v2/bookings/{booking}/deposit/request-as-payment — the customer asks that the frozen deposit be
+     * taken as a payment instead of a transfer outside the platform (only where the business opted in).
+     */
+    public function requestDepositAsPayment(Request $request, Booking $booking)
+    {
+        $this->authorizeClientBooking($request, $booking);
+
+        app(\App\Services\BookingDepositPaymentService::class)->request($booking, (int) $request->user()->id);
+
+        return $this->bookingResponse($booking->fresh(), 'Request recorded successfully.');
+    }
+
+    /** POST /api/v2/bookings/{booking}/deposit/accept-as-payment — the business takes the customer's frozen deposit as a payment. */
+    public function acceptDepositAsPayment(Request $request, Booking $booking)
+    {
+        $this->authorizeBusinessBooking($request, $booking);
+
+        app(\App\Services\BookingDepositPaymentService::class)->accept($booking, (int) $booking->business_id);
+
+        return $this->bookingResponse($booking->fresh(), 'Deposit taken as a payment.');
+    }
+
+    /** POST /api/v2/bookings/{booking}/deposit/decline-as-payment — the business declines; the deposit stays frozen. */
+    public function declineDepositAsPayment(Request $request, Booking $booking)
+    {
+        $this->authorizeBusinessBooking($request, $booking);
+
+        app(\App\Services\BookingDepositPaymentService::class)->decline($booking, (int) $booking->business_id);
+
+        return $this->bookingResponse($booking->fresh(), 'Request declined.');
+    }
+
+    /**
      * Same as agreeReleaseDeposit(), for the opposite outcome: both parties
      * agreeing the deal did not go through, so the deposit should be
      * REFUNDED to the client instead.
@@ -866,6 +901,7 @@ final class BookingController extends Controller
             'data' => [
                 'booking' => $this->titled($booking),
                 'financial_preview' => $this->partyPreview(request(), $booking),
+                'deposit_as_payment' => app(\App\Services\BookingDepositPaymentService::class)->state($booking),
             ],
         ]);
     }

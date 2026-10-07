@@ -54,6 +54,7 @@ final class BusinessBookingTermsController extends Controller
             'business_counter_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'guarantee_multiple' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'forfeit_to_business' => ['nullable', 'boolean'],
+            'accept_deposit_as_payment' => ['nullable', 'boolean'],
         ]);
 
         $mode = $data['security_mode'];
@@ -85,6 +86,8 @@ final class BusinessBookingTermsController extends Controller
             'client_guarantee_strategy' => $mode === self::MODE_GUARANTEE ? Policy::GUARANTEE_GENERAL : Policy::GUARANTEE_PER_OPERATION_HOLD,
             'guarantee_multiple' => $mode === self::MODE_GUARANTEE ? (float) ($data['guarantee_multiple'] ?? 0) : 0,
             'forfeit_to_business' => (bool) ($data['forfeit_to_business'] ?? false),
+            // taking the frozen deposit as a payment only exists where a deposit is frozen in the wallet
+            'accept_deposit_as_payment' => $mode === self::MODE_DEPOSIT && (bool) ($data['accept_deposit_as_payment'] ?? false),
         ])->save();
 
         return response()->json(['success' => true, 'data' => $this->payload($row->fresh())]);
@@ -118,6 +121,7 @@ final class BusinessBookingTermsController extends Controller
             'business_counter_percent' => $row ? (float) $row->business_counter_hold_percent : 50.0,
             'guarantee_multiple' => $row ? (float) $row->guarantee_multiple : 0.0,
             'forfeit_to_business' => (bool) ($row?->forfeit_to_business),
+            'accept_deposit_as_payment' => (bool) ($row?->accept_deposit_as_payment),
             // every booking waits for the business to accept it — shown, never switched
             'confirmation' => 'merchant_approval',
             'max_percent' => BookingDepositCalculator::SYSTEM_MAX_PERCENT,

@@ -95,6 +95,11 @@ class NotificationChannelRule extends Model
             'shipping_company_assigned' => ['طلب شحن جديد', 'New shipping request', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'delivery_new'],
             'shipping_update' => ['تحديث الشحن', 'Shipping update', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
             'delivery_eta_updated' => ['موعد وصول التوصيل', 'Delivery ETA updated', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'delivery_new'],
+            // «ابدأ بالديبوزت»: the rating opens when a deposit or a guarantee is used, and the optional «take my frozen deposit as a payment».
+            'wallet_rating_opened' => ['فُتح التقييم', 'Rating is open', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'wallet'],
+            'booking.deposit_payment_requested' => ['طلب اعتماد الديبوزت كدفعة', 'Deposit as payment requested', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'booking.deposit_payment_accepted' => ['اعتُمد الديبوزت كدفعة', 'Deposit taken as a payment', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'booking.deposit_payment_declined' => ['لم يُعتمد الديبوزت كدفعة', 'Deposit not taken as a payment', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'wallet_deposit' => ['إيداع في المحفظة', 'Wallet deposit', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'wallet'],
             'wallet_withdraw' => ['خصم من المحفظة', 'Wallet withdraw', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'wallet'],
             'guarantee_expiring' => ['قرب انتهاء الضمان', 'Guarantee expiring', AppNotification::TYPE_GUARANTEE, AppNotification::PRIORITY_HIGH, true, false, true, false, false, true, 0, 'warning'],

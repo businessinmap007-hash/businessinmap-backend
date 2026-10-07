@@ -159,11 +159,17 @@ class DepositsEscrowService
             // A deposit can't be a way to dodge service fees: force fee + rating
             // on whichever party actually posted a hold.
             $enforcer = app(\App\Services\ServiceFeeConsentEnforcer::class);
-            if ((float) $clientAmount > 0) {
-                $enforcer->enforceById((int) $clientId, 'استخدام ديبوزت (عميل)');
-            }
-            if ((float) $businessAmount > 0) {
-                $enforcer->enforceById((int) $businessId, 'استخدام ديبوزت (نشاط)');
+            foreach ([[(float) $clientAmount, (int) $clientId, 'استخدام ديبوزت (عميل)'], [(float) $businessAmount, (int) $businessId, 'استخدام ديبوزت (نشاط)']] as [$amount, $partyId, $why]) {
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $enforcer->enforceById($partyId, $why);
+
+                // Already in the programme: the enforcer said nothing — say it for THIS deposit, once.
+                if (! $enforcer->changedLast && ($party = \App\Models\User::find($partyId))) {
+                    $enforcer->announceRatingOpened($party, 'deposit:' . $deposit->id);
+                }
             }
 
             return $deposit;

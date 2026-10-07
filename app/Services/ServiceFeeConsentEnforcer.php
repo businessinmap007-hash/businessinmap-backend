@@ -21,6 +21,9 @@ use App\Models\UserServiceFeeConsent;
  */
 class ServiceFeeConsentEnforcer
 {
+    /** Did the last enforce() actually switch something on? (False = the user was already in the programme.) */
+    public bool $changedLast = false;
+
     /** Force the fee + rating consent for a user. Returns the consent row. */
     public function enforce(User $user, string $reason): UserServiceFeeConsent
     {
@@ -47,6 +50,8 @@ class ServiceFeeConsentEnforcer
             $changed = true;
         }
 
+        $this->changedLast = $changed;
+
         if ($changed) {
             $consent->notes = trim((string) $consent->notes . "\n[إلزام تلقائي] " . $reason);
             $consent->save();
@@ -57,7 +62,42 @@ class ServiceFeeConsentEnforcer
             $user->forceFill(['rating_enabled' => true])->save();
         }
 
+        // «عند استخدام الديبوزت أو الضمان يظهر رسالة فتح التقييم» — said once, when it actually opens.
+        if ($changed) {
+            $this->announceRatingOpened($user, 'rating_opened:' . $user->id);
+        }
+
         return $consent;
+    }
+
+    /**
+     * The message that says the rating is open and that platform fees are charged separately from each party's wallet
+     * (never from the deposit). `$sourceKey` makes it once per source: the same deposit never says it twice.
+     */
+    public function announceRatingOpened(User $user, string $sourceKey): void
+    {
+        try {
+            $already = \App\Models\AppNotification::query()
+                ->where('user_id', $user->id)
+                ->where('source_type', 'wallet_rating_opened')
+                ->where('meta->source_key', $sourceKey)
+                ->exists();
+
+            if ($already) {
+                return;
+            }
+
+            app(\App\Services\Notifications\NotificationDispatcherService::class)->dispatch('wallet_rating_opened', (int) $user->id, [
+                'title_ar' => 'فُتح التقييم',
+                'title_en' => 'Rating is open',
+                'body_ar' => 'باستخدامك الديبوزت أو الضمان، فُتح التقييم لحسابك. رسوم المنصة تُخصم من محفظتك بشكل منفصل، ولا تُحسب من الديبوزت.',
+                'body_en' => 'By using a deposit or a guarantee, rating is now open on your account. Platform fees are charged separately from your wallet, never from the deposit.',
+                'meta' => ['source_key' => $sourceKey],
+                'skip_realtime' => true,
+            ]);
+        } catch (\Throwable $e) {
+            report($e); // a missed notice must never undo a deposit or a guarantee
+        }
     }
 
     /** Convenience: enforce by user id when the model isn't already loaded. */

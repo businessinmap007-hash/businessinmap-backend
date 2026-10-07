@@ -137,4 +137,15 @@ class BusinessBookingTermsTest extends TestCase
         $customer = User::query()->where('type', '!=', User::TYPE_BUSINESS)->orderBy('id')->firstOrFail();
         $this->actingAs($customer, 'sanctum')->getJson('/api/v2/business/booking-terms')->assertForbidden();
     }
+
+    public function test_the_business_may_accept_the_frozen_deposit_as_a_payment_only_where_a_deposit_is_frozen(): void
+    {
+        $this->save(['accept_deposit_as_payment' => true])->assertOk()->assertJsonPath('data.accept_deposit_as_payment', true);
+
+        // an outside transfer or a guarantee has no frozen deposit to take
+        $this->save(['security_mode' => 'external_transfer', 'accept_deposit_as_payment' => true])
+            ->assertOk()->assertJsonPath('data.accept_deposit_as_payment', false);
+        $this->save(['security_mode' => 'guarantee_freeze', 'accept_deposit_as_payment' => true])
+            ->assertOk()->assertJsonPath('data.accept_deposit_as_payment', false);
+    }
 }

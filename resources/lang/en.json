@@ -2895,5 +2895,13 @@
     "لا يمكن صرف دواء مخدر دون صورة الروشتة المكتوبة بخط الطبيب.": "A controlled drug cannot be dispensed without the photo of the prescription handwritten by the doctor.",
     "هذا المتجر لم يحدد طريقة التسليم والاستلام بعد، فلا يمكن إتمام الطلب الآن.": "This store has not set how it delivers or hands over orders yet, so the order cannot be placed now.",
     "طريقة الاستلام المختارة لا يقدمها هذا المتجر.": "This store does not offer the chosen way of receiving the order.",
-    "هذا المتجر لم يكمل إعداد حسابه بعد، فلا يمكن الطلب منه الآن.": "This store has not finished setting up its account yet, so you cannot order from it now."
+    "هذا المتجر لم يكمل إعداد حسابه بعد، فلا يمكن الطلب منه الآن.": "This store has not finished setting up its account yet, so you cannot order from it now.",
+    "لا يمكن ذلك إلا بعد بدء التنفيذ.": "This is only possible once the service has started.",
+    "هذا النشاط لا يقبل الديبوزت كدفعة.": "This business does not take the deposit as a payment.",
+    "لا يوجد ديبوزت مجمّد من العميل.": "There is no deposit frozen from the customer.",
+    "يوجد نزاع مفتوح على هذا الحجز.": "There is an open dispute on this booking.",
+    "هذا الحساب ليس عميل هذا الحجز.": "This account is not this booking's customer.",
+    "سبق طلب ذلك.": "This was already requested.",
+    "هذا الحجز ليس لنشاطك.": "This booking is not your business's.",
+    "لا يوجد طلب معلّق.": "There is no pending request."
 }

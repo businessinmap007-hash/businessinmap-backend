@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
 use App\Http\Controllers\Api\V2\BusinessBookingCheckTimesController;
 use App\Http\Controllers\Api\V2\BusinessBookableRoomController;
+use App\Http\Controllers\Api\V2\BusinessStayRequestController;
+use App\Http\Controllers\Api\V2\StayRequestController;
 use App\Http\Controllers\Api\V2\BusinessBookingTermsController;
 use App\Http\Controllers\Api\V2\BusinessMenuBundleController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
@@ -988,6 +990,17 @@ Route::prefix('v2')->group(function () {
             Route::post('room', [BusinessBookableRoomController::class, 'assign']);
         });
 
+        // What hotel guests ask during a running stay (an issue with the room, something to bring) and the hotel's
+        // own list of services a guest may order.
+        Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
+            Route::get('business/stay-requests', [BusinessStayRequestController::class, 'index']);
+            Route::patch('business/stay-requests/{stayRequest}', [BusinessStayRequestController::class, 'update'])->whereNumber('stayRequest');
+            Route::get('business/stay-services', [BusinessStayRequestController::class, 'services']);
+            Route::post('business/stay-services', [BusinessStayRequestController::class, 'storeService']);
+            Route::patch('business/stay-services/{option}', [BusinessStayRequestController::class, 'updateService'])->whereNumber('option');
+            Route::delete('business/stay-services/{option}', [BusinessStayRequestController::class, 'destroyService'])->whereNumber('option');
+        });
+
         // «شروط الحجز»: deposit / guarantee / outside transfer, in the business's own words.
         Route::prefix('business/booking-terms')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('/', [BusinessBookingTermsController::class, 'show']);
@@ -1105,6 +1118,10 @@ Route::prefix('v2')->group(function () {
             Route::post('/', [BookingController::class, 'store'])->middleware('dispute.settled');
             Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking');
             Route::get('{booking}/financial-preview', [BookingController::class, 'financialPreview'])->whereNumber('booking');
+            // the guest's two buttons during a running hotel stay: «بلّغ عن مشكلة» / «اطلب خدمة»
+            Route::get('{booking}/stay-requests', [StayRequestController::class, 'index'])->whereNumber('booking');
+            Route::post('{booking}/stay-requests', [StayRequestController::class, 'store'])->whereNumber('booking');
+            Route::post('{booking}/stay-requests/{stayRequest}/cancel', [StayRequestController::class, 'cancel'])->whereNumber(['booking', 'stayRequest']);
             Route::post('{booking}/accept', [BookingController::class, 'accept'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/reject', [BookingController::class, 'reject'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/cancel', [BookingController::class, 'cancel'])->whereNumber('booking');

@@ -2641,6 +2641,18 @@ paths:
   /business/bookings/{booking}/room:
     parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
     post: { tags: [Business Bookables], summary: 'Put the stay in a room - {room_id}. A stay is given one automatically when it starts; the customer sees the number only from then on', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/stay-requests:
+    get: { tags: [Business Bookables], summary: "What hotel guests asked during their stays, with the room number - ?status=open (default, oldest first)|done|all", responses: { '200': { description: OK } } }
+  /business/stay-requests/{stayRequest}:
+    parameters: [{ name: stayRequest, in: path, required: true, schema: { type: integer } }]
+    patch: { tags: [Business Bookables], summary: 'Move a guest request along - {status: in_progress|done|cancelled}; the guest is told', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/stay-services:
+    get: { tags: [Business Bookables], summary: "The services a guest may order during a stay - the hotel's own list, or the platform's starting list until the hotel writes its own (custom=false)", responses: { '200': { description: OK } } }
+    post: { tags: [Business Bookables], summary: 'Add services - {titles: [..]}. The first row written keeps the starting list and adds to it', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/stay-services/{option}:
+    parameters: [{ name: option, in: path, required: true, schema: { type: integer } }]
+    patch: { tags: [Business Bookables], summary: 'Rename a service or switch it off - {title?, is_active?}', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    delete: { tags: [Business Bookables], summary: Remove a service from the list, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /business/booking-terms:
     get:
       tags: [Business Bookables]
@@ -3504,6 +3516,13 @@ paths:
         '422': { $ref: '#/components/responses/Validation' }
   /bookings/{booking}:
     get: { tags: [Bookings], summary: Booking detail, parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /bookings/{booking}/stay-requests:
+    parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Bookings], summary: "A hotel guest's two buttons: the issue categories, the hotel's services, and this stay's requests (can_request is true only while the stay runs)", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+    post: { tags: [Bookings], summary: "Report a problem with the room ({kind: issue, category, note}) or order something ({kind: service, title, note}) - reaches the hotel with the room number", responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /bookings/{booking}/stay-requests/{stayRequest}/cancel:
+    parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }, { name: stayRequest, in: path, required: true, schema: { type: integer } }]
+    post: { tags: [Bookings], summary: 'Withdraw a request the hotel has not started', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /bookings/{booking}/financial-preview:
     get: { tags: [Bookings], summary: Fee/deposit preview (the caller's own side only), description: 'Returns only the calling party''s money - deposit, fee lines, own wallet balance and readiness - plus a single counterpart_ready flag. The counterparty''s wallet and guarantee checks are never included.', parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /bookings/{booking}/accept:

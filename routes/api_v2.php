@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
 use App\Http\Controllers\Api\V2\BusinessBookingCheckTimesController;
+use App\Http\Controllers\Api\V2\BusinessBookableRoomController;
 use App\Http\Controllers\Api\V2\BusinessBookingTermsController;
 use App\Http\Controllers\Api\V2\BusinessMenuBundleController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
@@ -973,6 +974,18 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/booking-settings')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('check-times', [BusinessBookingCheckTimesController::class, 'show']);
             Route::put('check-times', [BusinessBookingCheckTimesController::class, 'update']);
+        });
+
+        // The rooms behind a room type (the hotel's own list) and putting a stay in one.
+        Route::prefix('business/bookable-items/{item}/rooms')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('item')->group(function () {
+            Route::get('/', [BusinessBookableRoomController::class, 'index']);
+            Route::post('/', [BusinessBookableRoomController::class, 'store']);
+            Route::patch('{room}', [BusinessBookableRoomController::class, 'update'])->whereNumber('room');
+            Route::delete('{room}', [BusinessBookableRoomController::class, 'destroy'])->whereNumber('room');
+        });
+        Route::prefix('business/bookings/{booking}')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('booking')->group(function () {
+            Route::get('rooms', [BusinessBookableRoomController::class, 'forBooking']);
+            Route::post('room', [BusinessBookableRoomController::class, 'assign']);
         });
 
         // «شروط الحجز»: deposit / guarantee / outside transfer, in the business's own words.

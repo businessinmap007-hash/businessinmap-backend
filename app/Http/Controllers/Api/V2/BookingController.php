@@ -1095,13 +1095,45 @@ final class BookingController extends Controller
     private function titled($subject)
     {
         if ($subject instanceof Booking) {
-            return $subject->append('title');
+            return $this->hideRoomInternals($subject->append('title'));
         }
 
         $items = $subject instanceof \Illuminate\Contracts\Pagination\Paginator ? $subject->getCollection() : $subject;
-        $items->each(fn (Booking $booking) => $booking->append('title'));
+        $items->each(fn (Booking $booking) => $this->hideRoomInternals($booking->append('title')));
 
         return $subject;
+    }
+
+    /**
+     * «العدد والرقم لكل غرفة لدى الفندق فقط ويظهر عند بداية التنفيذ»: the hotel sees its room numbers; the customer
+     * sees a number only once the stay has started, and never the unit's internal note or (on a room type with listed
+     * rooms) its code.
+     */
+    private function hideRoomInternals(Booking $booking): Booking
+    {
+        $viewer = request()->user();
+        $businessSide = $viewer && (int) \App\Support\BusinessContext::id(request()) === (int) $booking->business_id;
+
+        if ($businessSide) {
+            return $booking;
+        }
+
+        if (! in_array((string) $booking->status, [Booking::STATUS_IN_PROGRESS, Booking::STATUS_COMPLETED], true)) {
+            $booking->unsetRelation('room');
+            $booking->setAttribute('room_id', null);
+        }
+
+        $unit = $booking->relationLoaded('bookable') ? $booking->bookable : null;
+
+        if ($unit instanceof \App\Models\BookableItem) {
+            $unit->makeHidden('notes');
+
+            if ($unit->item_type === 'booking_stay' && $unit->rooms()->exists()) {
+                $unit->makeHidden('code');
+            }
+        }
+
+        return $booking;
     }
 
     private function relations(bool $details = false): array
@@ -1117,6 +1149,8 @@ final class BookingController extends Controller
             'business:id,name,type,phone,logo,image,category_id,category_child_id',
             'service:id,key,name_ar,name_en,supports_deposit',
             'bookable',
+            // the hotel's own room number, once the stay has one (hidden from the customer until the stay starts)
+            'room',
             // the booking names itself from these; loading them here keeps
             // Booking::title() from costing a query per row
             'offering',

@@ -785,6 +785,9 @@ class ServiceExecutionEngine
                 }
             }
 
+            // «ويظهر عند بداية التنفيذ»: a stay on a room type with listed rooms is given its room now.
+            app(\App\Services\BookingRoomService::class)->assignOnStart($booking);
+
             $this->chargeExecutionFeeOnce($booking);
 
             $meta = is_array($booking->meta ?? null) ? $booking->meta : [];

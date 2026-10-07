@@ -100,6 +100,12 @@ class BookableItem extends Model
         return $this->belongsTo(PlatformService::class, 'service_id');
     }
 
+    /** The numbered rooms behind this room type — the hotel's own list (see BookingRoomService). */
+    public function rooms(): HasMany
+    {
+        return $this->hasMany(BookableItemRoom::class, 'bookable_item_id');
+    }
+
     public function lineOption(): BelongsTo
     {
         return $this->belongsTo(Option::class, 'line_option_id');

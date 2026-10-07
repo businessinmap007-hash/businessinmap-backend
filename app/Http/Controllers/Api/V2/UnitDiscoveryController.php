@@ -142,11 +142,14 @@ final class UnitDiscoveryController extends Controller
      */
     private function unitPayload(BookableItem $unit, ?array $window, ?BusinessServicePrice $price = null): array
     {
+        // «العدد والرقم لكل غرفة لدى الفندق فقط»: a room TYPE with listed rooms is shown by what it is, never by a number.
+        $byType = $unit->item_type === 'booking_stay' && $unit->rooms()->exists();
+
         $payload = [
             'id' => (int) $unit->id,
-            'code' => (string) ($unit->code ?? ''),
-            'title' => $unit->title,
-            'label' => $unit->displayLabel(),
+            'code' => $byType ? '' : (string) ($unit->code ?? ''),
+            'title' => $byType ? null : $unit->title,
+            'label' => $byType ? (string) (optional($unit->lineOption)->name_ar ?: optional($unit->lineOption)->name_en ?: $unit->displayLabel()) : $unit->displayLabel(),
             'description' => $unit->description,
             'capacity' => $unit->capacity !== null ? (int) $unit->capacity : null,
             'images' => $unit->imagePayload(),

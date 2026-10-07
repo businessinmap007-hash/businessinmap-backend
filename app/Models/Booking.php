@@ -162,6 +162,12 @@ class Booking extends Model
         return $this->morphTo();
     }
 
+    /** The room given to a stay when it started — the hotel's own number. */
+    public function room(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(BookableItemRoom::class, 'room_id');
+    }
+
     /**
      * What this booking is ABOUT: the price row it came from
      * (BusinessServicePrice) or the listing it was made on (MenuItem — a

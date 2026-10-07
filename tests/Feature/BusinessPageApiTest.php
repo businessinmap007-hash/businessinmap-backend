@@ -77,6 +77,23 @@ class BusinessPageApiTest extends TestCase
      * ids, so the app doesn't need a separate picker fetch to show "which
      * governorate/city" on a business's own info page.
      */
+    public function test_a_business_that_sells_bookings_gets_a_booking_tab_and_one_that_does_not_does_not(): void
+    {
+        $this->getJson('/api/v2/businesses/' . $this->biz->id)->assertOk()->assertJsonPath('data.sections.booking', false);
+
+        $serviceId = (int) DB::table('platform_services')->where('key', 'booking')->value('id');
+        $price = \App\Models\BusinessServicePrice::create([
+            'business_id' => $this->biz->id, 'service_id' => $serviceId, 'child_id' => (int) DB::table('category_children_master')->value('id'),
+            'bookable_item_type' => 'booking_stay', 'price' => 900, 'currency' => 'EGP', 'is_active' => 1,
+        ]);
+
+        $this->getJson('/api/v2/businesses/' . $this->biz->id)->assertOk()->assertJsonPath('data.sections.booking', true);
+
+        // a priced row that is switched off sells nothing
+        $price->update(['is_active' => 0]);
+        $this->getJson('/api/v2/businesses/' . $this->biz->id)->assertOk()->assertJsonPath('data.sections.booking', false);
+    }
+
     public function test_the_business_page_includes_governorate_and_city_names(): void
     {
         $city = \App\Models\City::query()->whereNotNull('governorate_id')->firstOrFail();

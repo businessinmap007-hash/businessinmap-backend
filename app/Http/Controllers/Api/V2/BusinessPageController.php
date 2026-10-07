@@ -64,6 +64,15 @@ final class BusinessPageController extends Controller
             ->where('s.key', '!=', 'delivery')
             ->exists();
 
+        // A business that sells bookings (a hotel's rooms, a hall, a pitch) shows a «الحجز» tab beside its posts, the
+        // way a menu business shows its menu: it has an active price on the booking service.
+        $hasBooking = DB::table('business_service_prices as p')
+            ->join('platform_services as s', 's.id', '=', 'p.service_id')
+            ->where('p.business_id', $business)
+            ->where('p.is_active', 1)
+            ->where('s.key', \App\Models\PlatformService::KEY_BOOKING)
+            ->exists();
+
         // A stay's own clock (hotels, vacation apartments, chalets — any
         // booking business) -- set once from the business's own booking
         // settings screen, shown here so a customer knows it before booking
@@ -156,6 +165,7 @@ final class BusinessPageController extends Controller
                     'posts' => $postsCount > 0,
                     'menu' => $hasMenu,
                     'services' => $hasServices,
+                    'booking' => $hasBooking,
                 ],
                 // Which fulfillment methods the unified entry point should
                 // offer above the menu — see Order::FULFILLMENT_* and

@@ -12,6 +12,8 @@ class TemplateMeal extends Model
         'meal_type',
         'name',
         'calories',
+        'food_id',
+        'servings',
         'notes',
         'sort_order',
     ];

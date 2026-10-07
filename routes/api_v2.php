@@ -55,6 +55,7 @@ use App\Http\Controllers\Api\V2\ThreadAccessController;
 use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\ExerciseLibraryController;
+use App\Http\Controllers\Api\V2\FoodLibraryController;
 use App\Http\Controllers\Api\V2\PlanPhotoController;
 use App\Http\Controllers\Api\V2\TrainerClientLookupController;
 use App\Http\Controllers\Api\V2\TrainerPhotoController;
@@ -1327,6 +1328,23 @@ Route::prefix('v2')->group(function () {
         // Reusable training templates: build once, apply to many clients.
         // The exercise catalogue a trainer picks from (read-only; curated in admin).
         Route::get('business/training/exercise-library', [ExerciseLibraryController::class, 'index'])
+            ->middleware('business.member:' . BusinessCapability::TRAINING);
+        // …and the specialist's OWN exercises (theirs alone): add, correct, delete.
+        Route::post('business/training/exercise-library', [ExerciseLibraryController::class, 'store'])
+            ->middleware('business.member:' . BusinessCapability::TRAINING);
+        Route::put('business/training/exercise-library/{exercise}', [ExerciseLibraryController::class, 'update'])->whereNumber('exercise')
+            ->middleware('business.member:' . BusinessCapability::TRAINING);
+        Route::delete('business/training/exercise-library/{exercise}', [ExerciseLibraryController::class, 'destroy'])->whereNumber('exercise')
+            ->middleware('business.member:' . BusinessCapability::TRAINING);
+
+        // The food catalogue («جدول التغذية») a specialist picks a meal from, and their own foods.
+        Route::get('business/training/food-library', [FoodLibraryController::class, 'index'])
+            ->middleware('business.member:' . BusinessCapability::TRAINING);
+        Route::post('business/training/food-library', [FoodLibraryController::class, 'store'])
+            ->middleware('business.member:' . BusinessCapability::TRAINING);
+        Route::put('business/training/food-library/{food}', [FoodLibraryController::class, 'update'])->whereNumber('food')
+            ->middleware('business.member:' . BusinessCapability::TRAINING);
+        Route::delete('business/training/food-library/{food}', [FoodLibraryController::class, 'destroy'])->whereNumber('food')
             ->middleware('business.member:' . BusinessCapability::TRAINING);
 
         // Find the client to write a plan for: an EXACT phone or e-mail, throttled.

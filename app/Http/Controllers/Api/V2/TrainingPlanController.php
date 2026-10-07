@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\Image;
 use App\Models\TrainerPhoto;
+use App\Models\FoodItem;
 use App\Models\LibraryExercise;
 use App\Models\PlanExercise;
 use App\Models\PlanMeal;
@@ -260,7 +261,9 @@ class TrainingPlanController extends Controller
         $row = $this->ownedOrFail($request, $plan);
 
         $data = $request->validate([
-            'library_exercise_id' => ['nullable', 'integer', Rule::exists('exercise_library', 'id')->where('is_active', 1)],
+            'library_exercise_id' => ['nullable', 'integer', Rule::exists('exercise_library', 'id')
+                ->where('is_active', 1)
+                ->where(fn ($q) => $q->whereNull('owner_id')->orWhere('owner_id', BusinessContext::id($request)))],
             'name' => ['required_without:library_exercise_id', 'nullable', 'string', 'max:200'],
             'day_of_week' => ['nullable', 'integer', 'between:0,6'],
             'sets' => ['nullable', 'integer', 'min:0'],
@@ -272,7 +275,7 @@ class TrainingPlanController extends Controller
             'sort_order' => ['nullable', 'integer'],
         ]);
 
-        $exercise = $row->exercises()->create(LibraryExercise::withDefaults($data));
+        $exercise = $row->exercises()->create(LibraryExercise::withDefaults($data, BusinessContext::id($request)));
 
         return response()->json(['success' => true, 'data' => ['exercise' => $this->exercise($exercise, $row)]], 201);
     }
@@ -283,13 +286,17 @@ class TrainingPlanController extends Controller
 
         $data = $request->validate([
             'meal_type' => ['required', Rule::in(PlanMeal::TYPES)],
-            'name' => ['required', 'string', 'max:200'],
+            'food_id' => ['nullable', 'integer', Rule::exists('food_library', 'id')
+                ->where('is_active', 1)
+                ->where(fn ($q) => $q->whereNull('owner_id')->orWhere('owner_id', BusinessContext::id($request)))],
+            'servings' => ['nullable', 'numeric', 'min:0.25', 'max:50'],
+            'name' => ['required_without:food_id', 'nullable', 'string', 'max:200'],
             'calories' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer'],
         ]);
 
-        $meal = $row->meals()->create($data);
+        $meal = $row->meals()->create(FoodItem::withDefaults($data, BusinessContext::id($request)));
 
         return response()->json(['success' => true, 'data' => ['meal' => $this->meal($meal)]], 201);
     }
@@ -583,6 +590,8 @@ class TrainingPlanController extends Controller
             'meal_type' => (string) $m->meal_type,
             'name' => (string) $m->name,
             'calories' => $m->calories !== null ? (int) $m->calories : null,
+            'food_id' => $m->food_id ? (int) $m->food_id : null,
+            'servings' => (float) ($m->servings ?? 1),
             'notes' => $m->notes,
             'sort_order' => (int) $m->sort_order,
             'images' => $m->relationLoaded('images') ? $m->imagePayload() : [],

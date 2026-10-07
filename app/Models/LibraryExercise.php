@@ -21,6 +21,7 @@ class LibraryExercise extends Model
         'flexibility' => ['ar' => 'مرونة وإطالة', 'en' => 'Flexibility'],
         'functional' => ['ar' => 'وظيفي', 'en' => 'Functional'],
         'warmup' => ['ar' => 'إحماء', 'en' => 'Warm-up'],
+        'rehab' => ['ar' => 'علاجي وتأهيلي', 'en' => 'Therapeutic / rehab'],
     ];
 
     public const EQUIPMENT = [
@@ -36,7 +37,7 @@ class LibraryExercise extends Model
 
     protected $fillable = [
         'exercise_category_id', 'name_ar', 'name_en', 'kind', 'equipment',
-        'default_sets', 'default_reps', 'sort_order', 'is_active',
+        'default_sets', 'default_reps', 'instructions', 'owner_id', 'sort_order', 'is_active',
     ];
 
     protected $casts = ['is_active' => 'boolean'];
@@ -49,6 +50,12 @@ class LibraryExercise extends Model
     public function scopeActive(Builder $q): Builder
     {
         return $q->where('is_active', true);
+    }
+
+    /** The shared catalogue plus this user's own entries — never anyone else's. */
+    public function scopeVisibleTo(Builder $q, int $userId): Builder
+    {
+        return $q->where(fn ($w) => $w->whereNull('owner_id')->orWhere('owner_id', $userId));
     }
 
     public function label(): string
@@ -65,7 +72,7 @@ class LibraryExercise extends Model
      * when the trainer typed none, and the suggested sets/reps when unset.
      * Explicit values always win — the entry is a starting point.
      */
-    public static function withDefaults(array $data): array
+    public static function withDefaults(array $data, ?int $userId = null): array
     {
         if (empty($data['library_exercise_id'])) {
             unset($data['library_exercise_id']);
@@ -73,7 +80,8 @@ class LibraryExercise extends Model
             return $data;
         }
 
-        $entry = static::query()->active()->find($data['library_exercise_id']);
+        // an entry is the shared catalogue or the caller's own; another specialist's is not reachable
+        $entry = static::query()->active()->visibleTo((int) $userId)->find($data['library_exercise_id']);
 
         if (! $entry) {
             unset($data['library_exercise_id']);
@@ -86,6 +94,9 @@ class LibraryExercise extends Model
         }
         $data['sets'] ??= $entry->default_sets;
         $data['reps'] ??= $entry->default_reps;
+        if (trim((string) ($data['notes'] ?? '')) === '' && trim((string) $entry->instructions) !== '') {
+            $data['notes'] = $entry->instructions;
+        }
 
         return $data;
     }

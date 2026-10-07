@@ -4682,7 +4682,17 @@ paths:
         '403': { description: 'Missing, tampered or expired signature' }
         '404': { description: Not a plan photo }
   /business/training/exercise-library:
+    post: { tags: [Training], summary: 'Add MY OWN exercise to the library (visible to me alone): category, name, optional kind (default rehab), equipment, default sets/reps and instructions.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
     get: { tags: [Training], summary: The exercise catalogue a trainer picks from (sections, kinds, equipment and exercises; filter by category_id/kind/equipment/q), parameters: [ { in: query, name: category_id, schema: { type: integer } }, { in: query, name: kind, schema: { type: string } }, { in: query, name: equipment, schema: { type: string } }, { in: query, name: q, schema: { type: string } } ], responses: { '200': { description: OK }, '403': { description: Not a training-capable business } } }
+  /business/training/exercise-library/{exercise}:
+    put: { tags: [Training], summary: 'Correct one of MY OWN library exercises (the shared catalogue is read-only). An edit that does not name a kind keeps it.', parameters: [{ name: exercise, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'Not your exercise' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Training], summary: 'Delete one of MY OWN library exercises; plans that already use it keep their copy.', parameters: [{ name: exercise, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'Not your exercise' } } }
+  /business/training/food-library:
+    get: { tags: [Training], summary: 'The food catalogue («جدول التغذية») a nutrition specialist picks a meal from — the shared catalogue plus MY OWN foods (`mine`); each food carries its serving, calories, protein, carbs and fat for THAT serving. Filter by category_id/q.', parameters: [ { in: query, name: category_id, schema: { type: integer } }, { in: query, name: q, schema: { type: string } } ], responses: { '200': { description: OK }, '403': { description: Not a training-capable business } } }
+    post: { tags: [Training], summary: 'Add MY OWN food (visible to me alone): category, name, serving label, calories and optional macros.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/training/food-library/{food}:
+    put: { tags: [Training], summary: 'Correct one of MY OWN foods (the shared catalogue is read-only).', parameters: [{ name: food, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'Not your food' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Training], summary: 'Delete one of MY OWN foods; plans that already use it keep their meal.', parameters: [{ name: food, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'Not your food' } } }
   /business/training-plans/{plan}/exercises:
     post:
       tags: [Training]

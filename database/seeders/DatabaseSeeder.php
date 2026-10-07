@@ -400,6 +400,11 @@ class DatabaseSeeder extends Seeder
            // reads booking_patterns.php, so it follows the vocabulary above.
            BookingShapesSeeder::class,
 
+           // «جدول التغذية وجدول التمارين العلاجية» — what a specialist picks a meal or an exercise from.
+           // Add-only; a specialist's own entries are never touched.
+           FoodLibrarySeeder::class,
+           TherapeuticExercisesSeeder::class,
+
             //  EgyptCountriesSeeder::class,
             //  EgyptGovernoratesSeeder::class,
             //  EgyptCitiesSeeder::class,

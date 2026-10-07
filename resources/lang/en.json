@@ -2903,5 +2903,11 @@
     "هذا الحساب ليس عميل هذا الحجز.": "This account is not this booking's customer.",
     "سبق طلب ذلك.": "This was already requested.",
     "هذا الحجز ليس لنشاطك.": "This booking is not your business's.",
-    "لا يوجد طلب معلّق.": "There is no pending request."
+    "لا يوجد طلب معلّق.": "There is no pending request.",
+    "لا توجد غرفة متاحة من هذا النوع الآن.": "There is no free room of this type right now.",
+    "هذه الغرفة غير متاحة لهذا الحجز.": "This room is not available for this booking.",
+    "لا يمكن تغيير غرفة حجز منتهٍ.": "The room of a finished booking cannot be changed.",
+    "الغرف للفنادق والإقامة فقط.": "Rooms exist for hotels and stays only.",
+    "الغرفة مسندة لحجز قائم.": "The room is held by a live booking.",
+    "هذا الحجز ليس على نوع غرف مسجّلة.": "This booking is not on a room type with listed rooms."
 }

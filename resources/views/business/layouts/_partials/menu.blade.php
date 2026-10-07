@@ -98,7 +98,6 @@
         // ما يشترك فيه كل نشاطٍ مهما باع.
         ['label' => 'العروض والأسعار', 'icon' => 'tag', 'children' => [
             ['label' => 'عروضي', 'route' => 'business.offerings.index', 'active' => ['business.offerings.']],
-            ['label' => 'أسعاري', 'route' => 'business.prices.index', 'active' => ['business.prices.']],
         ]],
 
         ['label' => 'الحساب', 'icon' => 'users', 'children' => [

@@ -127,7 +127,7 @@ class BusinessPanelSidebarTest extends TestCase
         foreach ([177, 536, 225] as $childId) {
             $labels = $this->labels($this->menuOf($this->on($childId)));
 
-            foreach (['الرئيسية', 'العروض والأسعار', 'أسعاري', 'الحساب', 'الموظفون'] as $label) {
+            foreach (['الرئيسية', 'العروض والأسعار', 'الحساب', 'الموظفون'] as $label) {
                 $this->assertContains($label, $labels, "«{$label}» مخفىٌّ عن التصنيف #{$childId}");
             }
         }

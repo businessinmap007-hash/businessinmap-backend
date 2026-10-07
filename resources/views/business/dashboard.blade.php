@@ -24,11 +24,6 @@
         <div class="a2-stat-value">{{ $stats['active_items'] }}</div>
     </div>
 
-    <a href="{{ route('business.prices.index') }}" class="a2-stat-card" style="text-decoration:none;color:inherit;">
-        <div class="a2-stat-label">{{ __('أسعاري') }}</div>
-        <div class="a2-stat-value">{{ $stats['prices'] }}</div>
-    </a>
-
     <a href="{{ route('business.menu.index') }}" class="a2-stat-card" style="text-decoration:none;color:inherit;">
         <div class="a2-stat-label">{{ __('أصناف المنيو') }}</div>
         <div class="a2-stat-value">{{ $stats['menu_items'] }}</div>

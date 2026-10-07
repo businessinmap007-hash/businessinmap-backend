@@ -55,6 +55,7 @@ use App\Http\Controllers\Api\V2\ThreadAccessController;
 use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\ExerciseLibraryController;
+use App\Http\Controllers\Api\V2\InvestigationOrderController;
 use App\Http\Controllers\Api\V2\FoodLibraryController;
 use App\Http\Controllers\Api\V2\PlanPhotoController;
 use App\Http\Controllers\Api\V2\TrainerClientLookupController;
@@ -290,6 +291,9 @@ Route::prefix('v2')->group(function () {
         ->whereNumber('image')->middleware('signed')->name('plan-photos.show');
     Route::get('trainer-photos/{photo}', [TrainerPhotoController::class, 'show'])
         ->whereNumber('photo')->middleware('signed')->name('trainer-photos.show');
+    // A file of an investigation order (a request photo or a result), from private storage — the same signed link.
+    Route::get('investigation-files/{image}', [InvestigationOrderController::class, 'file'])
+        ->whereNumber('image')->middleware('signed')->name('investigation-files.show');
 
     Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         // Account: current user + token lifecycle.
@@ -478,6 +482,28 @@ Route::prefix('v2')->group(function () {
             Route::post('prescriptions/{prescription}/revise', [PrescriptionController::class, 'revise'])->whereNumber('prescription');
         });
         Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show'])->whereNumber('prescription');
+
+        // Investigation orders («طلب تحاليل وأشعة»): a doctor orders tests from the platform's lists, the patient
+        // shares the order with a registered lab or radiology centre (or asks one directly), the centre accepts it and
+        // attaches the results. Only the doctor, the patient and the centre may read one.
+        Route::get('investigations/catalog', [InvestigationOrderController::class, 'catalog']);
+        Route::get('investigation-centers/{center}/tests', [InvestigationOrderController::class, 'centerTests'])->whereNumber('center');
+        Route::get('investigation-orders', [InvestigationOrderController::class, 'index']);
+        Route::post('investigation-orders/request', [InvestigationOrderController::class, 'requestFromCenter'])->middleware('throttle:30,1');
+        Route::middleware('business.member:' . BusinessCapability::INVESTIGATIONS)->group(function () {
+            Route::post('investigation-orders', [InvestigationOrderController::class, 'store']);
+            Route::get('investigation-orders/issued', [InvestigationOrderController::class, 'issued']);
+            Route::prefix('business/investigation-orders')->group(function () {
+                Route::get('/', [InvestigationOrderController::class, 'centerIndex']);
+                Route::post('{order}/accept', [InvestigationOrderController::class, 'accept'])->whereNumber('order');
+                Route::post('{order}/decline', [InvestigationOrderController::class, 'decline'])->whereNumber('order');
+                Route::post('{order}/results', [InvestigationOrderController::class, 'results'])->whereNumber('order');
+            });
+        });
+        Route::get('investigation-orders/{order}', [InvestigationOrderController::class, 'show'])->whereNumber('order');
+        Route::get('investigation-orders/{order}/centers', [InvestigationOrderController::class, 'centers'])->whereNumber('order');
+        Route::post('investigation-orders/{order}/send', [InvestigationOrderController::class, 'send'])->whereNumber('order');
+        Route::post('investigation-orders/{order}/cancel', [InvestigationOrderController::class, 'cancel'])->whereNumber('order');
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/confirm-quote', [PrescriptionController::class, 'confirmQuote'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');

@@ -16,7 +16,9 @@ use Illuminate\Support\Facades\DB;
  *   وجبات Day use     فطار / غداء / عشاء — a guest who only sleeps a few hours still eats; added to the day's price.
  *                     Offered wherever «نظام الوجبات» is (the children that feed a guest at all).
  *   إطلالة الوحدة     + إطلالة على الحديقة / إطلالة على النيل — the canvas shows both next to the pool and the sea.
- *   نوع الزيارة       كشف / إعادة / استشارة — the line a clinic prices; a hospital and a medical centre hold clinics too.
+ *   تخصصات طبية       + تغذية علاجية / علاج طبيعي وتأهيل / طب رياضي — the specialties that open the nutrition and exercise tools
+ *                     ({@see \App\Support\BusinessCapability::TRAINING_SPECIALTIES}). A clinic's visit kinds (كشف، إعادة، استشارة) are
+ *                     item types already, so no word of that kind is added here.
  *
  * What already existed is NOT repeated: the meal plans, the pool view, «زيارة منزلية» (a lab's home collection),
  * «أنواع الأشعة», «التحاليل الطبية» and the packages are all in the vocabulary — the canvas only drew them.
@@ -36,22 +38,22 @@ class BookingDesignOptionsSeeder extends Seeder
             'options' => ['فطار' => 'Day Use Breakfast', 'غداء' => 'Day Use Lunch', 'عشاء' => 'Day Use Dinner'],
             'children' => ['like' => 'نظام الوجبات'],
         ],
-        'نوع الزيارة' => [
-            'en' => 'Visit Type', 'role' => 'line', 'at' => 1200,
-            'options' => ['كشف' => 'Examination Visit', 'إعادة' => 'Follow-up Visit', 'استشارة' => 'Consultation Visit'],
-            'children' => ['عيادة', 'مركز طبي', 'مستشفى'],
-        ],
     ];
 
     /** group → options added to a group that already exists, linked wherever that group already is. */
     private const EXTRA_OPTIONS = [
         'إطلالة الوحدة' => ['إطلالة على الحديقة' => 'Garden View', 'إطلالة على النيل' => 'Nile View'],
+        'تخصصات طبية' => ['تغذية علاجية' => 'Clinical Nutrition', 'علاج طبيعي وتأهيل' => 'Physiotherapy & Rehabilitation', 'طب رياضي' => 'Sports Medicine'],
     ];
+
+    /** Groups added by an earlier run of this seeder that turned out to repeat something that already exists. */
+    private const RETIRED_GROUPS = ['نوع الزيارة'];
 
     public function run(): void
     {
         DB::transaction(function () {
             $this->command?->info('Booking design options:');
+            $this->retire();
 
             foreach (self::GROUPS as $name => $def) {
                 $groupId = $this->group($name, $def);
@@ -79,6 +81,32 @@ class BookingDesignOptionsSeeder extends Seeder
 
         // A new group takes its alphabetical place inside its price role, like every other group.
         $this->call(DisplayOrderSeeder::class);
+    }
+
+    /** A retired group goes with its words and links — only while nobody has priced or ticked one of them. */
+    private function retire(): void
+    {
+        foreach (self::RETIRED_GROUPS as $name) {
+            $groupId = (int) DB::table('option_groups')->where('name_ar', $name)->value('id');
+
+            if ($groupId <= 0) {
+                continue;
+            }
+
+            $optionIds = DB::table('options')->where('group_id', $groupId)->pluck('id');
+
+            if (DB::table('business_service_prices')->whereIn('line_option_id', $optionIds)->exists()
+                || DB::table('option_user')->whereIn('option_id', $optionIds)->exists()) {
+                $this->command?->warn("  ! «{$name}» مستخدمة — لم تُسحب.");
+
+                continue;
+            }
+
+            DB::table('category_child_option')->whereIn('option_id', $optionIds)->delete();
+            DB::table('options')->where('group_id', $groupId)->delete();
+            DB::table('option_groups')->where('id', $groupId)->delete();
+            $this->command?->line("  - «{$name}» سُحبت (تكرار لأنواع الحجز).");
+        }
     }
 
     /** @param array<string,mixed> $def */

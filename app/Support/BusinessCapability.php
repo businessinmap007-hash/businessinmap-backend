@@ -23,6 +23,7 @@ final class BusinessCapability
     public const WORKING_HOURS = 'working_hours';
     public const PROJECTS = 'projects';
     public const PRESCRIPTIONS = 'prescriptions';
+    public const INVESTIGATIONS = 'investigations';
     public const SCHEDULES = 'schedules';
     public const PRICES = 'prices';
     public const TRAINING = 'training';
@@ -46,6 +47,7 @@ final class BusinessCapability
             self::WORKING_HOURS => ['مواعيد العمل', 'Working hours'],
             self::PROJECTS => ['المشاريع', 'Projects'],
             self::PRESCRIPTIONS => ['الوصفات الطبية', 'Prescriptions'],
+            self::INVESTIGATIONS => ['طلبات الفحوصات', 'Investigation orders'],
             self::SCHEDULES => ['خطوط التشغيل', 'Trip schedules'],
             self::TRAINING => ['خطط التدريب والتغذية', 'Training & nutrition plans'],
             self::CLINIC => ['مواعيد العيادة', 'Clinic appointments'],
@@ -105,10 +107,19 @@ final class BusinessCapability
      */
     private const NEEDS_HEALTH_ROOT = [
         self::PRESCRIPTIONS,
+        self::INVESTIGATIONS,
         self::CLINIC,
     ];
 
     private const HEALTH_ROOT_SLUG = 'health';
+
+    /**
+     * «التغذية والتمارين العلاجية … ستحتاجها بعض التخصصات ونقوم بربطها» — المالك، 2026-10-08.
+     *
+     * A business under the health root opens the nutrition and exercise tools only when it ticked one of these
+     * specialties on itself — a dentist has no use for a diet plan. A trainer (a gym) is gated by its trade as before.
+     */
+    public const TRAINING_SPECIALTIES = ['تغذية علاجية', 'علاج طبيعي وتأهيل', 'طب رياضي'];
 
     /**
      * Services whose own catalog is priced through a business-wide LIST of
@@ -138,10 +149,15 @@ final class BusinessCapability
 
         $services = BusinessPanelNav::servicesOf($business);
         $isHealth = self::standsUnderHealth($business);
+        $trainsPatients = $isHealth && self::tickedTrainingSpecialty($business);
 
         return array_filter(
             self::registry(),
-            function (string $key) use ($services, $isHealth) {
+            function (string $key) use ($services, $isHealth, $trainsPatients) {
+                if ($key === self::TRAINING && $isHealth) {
+                    return $trainsPatients && in_array('training', $services, true);
+                }
+
                 if (isset(self::NEEDS_SERVICE[$key])) {
                     return in_array(self::NEEDS_SERVICE[$key], $services, true);
                 }
@@ -179,7 +195,16 @@ final class BusinessCapability
         return array_values(array_intersect(self::sanitize($keys), $allowed));
     }
 
-    private static function standsUnderHealth(User $business): bool
+    private static function tickedTrainingSpecialty(User $business): bool
+    {
+        return DB::table('option_user as ou')
+            ->join('options as o', 'o.id', '=', 'ou.option_id')
+            ->where('ou.user_id', (int) $business->id)
+            ->whereIn('o.name_ar', self::TRAINING_SPECIALTIES)
+            ->exists();
+    }
+
+    public static function standsUnderHealth(User $business): bool
     {
         $rootId = (int) ($business->category_id ?? 0);
 

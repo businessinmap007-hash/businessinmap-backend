@@ -2938,5 +2938,15 @@
     "اكتب سعر Day use.": "Enter the day-use price.",
     "هذه الغرفة لا تُحجز Day use.": "This room is not sold as day use.",
     "اختر موعدًا لم يبدأ بعد.": "Choose a time that has not started yet.",
-    "اختر الغرفة وتاريخ Day use.": "Choose the room and the day-use date."
+    "اختر الغرفة وتاريخ Day use.": "Choose the room and the day-use date.",
+    "اختر من قائمة التحاليل والأشعة فقط.": "Pick from the list of tests and exams only.",
+    "لا يمكن إرسال هذا الطلب الآن.": "This order cannot be sent now.",
+    "هذه الجهة لا تجري أيًّا من هذه الفحوصات.": "This centre does none of these tests.",
+    "اختر معملًا أو مركز أشعة مسجّلًا.": "Choose a registered lab or radiology centre.",
+    "لا يمكن تنفيذ هذا الإجراء على الطلب في حالته الحالية.": "This action cannot be done on the order in its current state.",
+    "هذه الخدمة للأطباء والجهات الطبية.": "This service is for doctors and medical businesses.",
+    "هذه الخدمة للمعامل ومراكز الأشعة.": "This service is for labs and radiology centres.",
+    "تم إرسال طلب الفحوصات إلى المريض.": "The investigation order was sent to the patient.",
+    "تم إرسال الطلب إلى الجهة.": "The order was sent to the centre.",
+    "تم إرسال طلبك إلى الجهة.": "Your request was sent to the centre."
 }

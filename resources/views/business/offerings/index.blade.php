@@ -13,7 +13,6 @@
         <div class="a2-page-subtitle">{{ __('كل ما تبيعه في مكان واحد — خدمات، منيو، ومنتجات تجزئة.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.prices.create') }}" class="a2-btn a2-btn-ghost">{{ __('+ سعر خدمة') }}</a>
         <a href="{{ route('business.menu.create') }}" class="a2-btn a2-btn-ghost">{{ __('+ صنف منيو') }}</a>
         <a href="{{ route('business.products.create') }}" class="a2-btn a2-btn-primary">{{ __('+ منتج تجزئة') }}</a>
     </div>

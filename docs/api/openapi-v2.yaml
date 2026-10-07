@@ -70,6 +70,12 @@ tags:
       Delegated staff on a business account — a clinic secretary, a shop/
       restaurant employee — each granted a set of capabilities from the one
       shared services registry. They then act AS the business on those surfaces.
+  - name: Investigations
+    description: >-
+      Investigation orders («طلب تحاليل وأشعة»): a doctor orders lab tests and radiology exams for a patient, picked from the platform's own lists
+      (never typed); the patient shares the order with a registered lab or radiology centre — or asks one directly, with no doctor — and sees
+      what each centre would charge for the whole order; the centre accepts it (with a time), declines it, or attaches the results as photos.
+      Only the doctor, the patient and the centre may read an order. Files are private, behind signed links.
   - name: Prescriptions
     description: >-
       Medical prescriptions (روشتة): a doctor (clinic business) issues one for a
@@ -5063,6 +5069,35 @@ paths:
       summary: Remove an open (unbooked) slot
       parameters: [{ name: slot, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: Deleted }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /investigations/catalog:
+    get: { tags: [Investigations], summary: 'The lab tests and radiology exams a doctor picks from (id + name), never typed.', responses: { '200': { description: OK } } }
+  /investigation-centers/{center}/tests:
+    get: { tags: [Investigations], summary: 'The tests and exams a lab or radiology centre does, each with its price — what a patient picks from on the centre page (404 for a business that is not a centre).', parameters: [{ name: center, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /investigation-orders:
+    get: { tags: [Investigations], summary: 'My investigation orders as a patient (paginated, newest first).', responses: { '200': { description: OK } } }
+    post: { tags: [Investigations], summary: 'A doctor (a health business) orders tests for a patient — {patient_id, option_ids[], notes}. Labs and radiology centres only receive, so they are refused.', responses: { '201': { description: Created }, '403': { description: 'Not a doctor / health business' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /investigation-orders/issued:
+    get: { tags: [Investigations], summary: 'The orders a doctor issued.', responses: { '200': { description: OK }, '403': { description: 'Not a doctor / health business' } } }
+  /investigation-orders/request:
+    post: { tags: [Investigations], summary: 'The patient asks a registered centre directly, with no doctor — multipart {center_id, option_ids[], notes?, photo? (a paper request)}. The order is sent at once and priced at that centre.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /investigation-orders/{order}:
+    get: { tags: [Investigations], summary: 'One order — the doctor, the patient or the centre it was sent to; anyone else gets 404. Carries the items (with the centre price once sent), the total, the centre note and the signed links of the request photo and the result files.', parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /investigation-orders/{order}/centers:
+    get: { tags: [Investigations], summary: 'The registered labs and radiology centres and what each would charge for the whole order (covers / of / total / missing), best coverage first, then cheapest. The patient only.', parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /investigation-orders/{order}/send:
+    post: { tags: [Investigations], summary: 'The patient shares an `issued` order with a centre — {center_id}. Each item is priced there (items the centre does not do stay unpriced) and the centre is told. A centre that does none of it is refused.', parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /investigation-orders/{order}/cancel:
+    post: { tags: [Investigations], summary: 'The doctor or the patient cancels an order until the centre accepts it.', parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /investigation-files/{image}:
+    get: { tags: [Investigations], summary: 'A file of an order from private storage (a request photo or a result). No login: the signed, time-limited link is the credential.', parameters: [{ name: image, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: The image }, '403': { description: 'Missing, tampered or expired signature' }, '404': { description: Not an investigation file } } }
+  /business/investigation-orders:
+    get: { tags: [Investigations], summary: "The centre's orders — tab=incoming (sent) | accepted | done (ready or declined). A lab, a radiology centre, a hospital or a medical centre.", parameters: [{ name: tab, in: query, schema: { type: string, enum: [incoming, accepted, done] } }], responses: { '200': { description: OK }, '403': { description: 'Not a centre' } } }
+  /business/investigation-orders/{order}/accept:
+    post: { tags: [Investigations], summary: 'The centre accepts a sent order — {appointment_at?, note?}; the patient is told.', parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/investigation-orders/{order}/decline:
+    post: { tags: [Investigations], summary: "The centre declines — {note?}. A doctor's order goes back to the patient to send elsewhere; a patient's own request is `declined`.", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/investigation-orders/{order}/results:
+    post: { tags: [Investigations], summary: 'The centre attaches the results — multipart images[] (1–10 photos) and an optional note; the order becomes `ready` and the patient and the doctor are told.', parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /prescriptions:
     get:
       tags: [Prescriptions]

@@ -215,12 +215,11 @@ class BookingDayUseTest extends TestCase
         $this->assertFalse($linked('وجبات Day use', 'مالك وحدة مصيفية'), 'a private let feeds nobody');
         $this->assertFalse($linked('وجبات Day use', 'عيادة'));
         foreach (['عيادة', 'مركز طبي', 'مستشفى'] as $trade) {
-            $this->assertTrue($linked('نوع الزيارة', $trade), $trade);
+            $this->assertTrue($linked('تخصصات طبية', $trade), $trade);
         }
-        $this->assertFalse($linked('نوع الزيارة', 'فندق'));
+        $this->assertSame(0, DB::table('option_groups')->where('name_ar', 'نوع الزيارة')->count(), 'the visit kinds of a clinic are item types already');
         $this->assertTrue($linked('إطلالة الوحدة', 'فندق'));
         $this->assertSame('modifier', DB::table('option_groups')->where('name_ar', 'وجبات Day use')->value('price_role'));
-        $this->assertSame('line', DB::table('option_groups')->where('name_ar', 'نوع الزيارة')->value('price_role'));
     }
 
     public function test_the_guest_books_day_use_and_holds_the_room_for_the_window_only(): void

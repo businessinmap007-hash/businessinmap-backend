@@ -4,6 +4,7 @@ namespace App\Services\Investigations;
 
 use App\Models\BusinessServicePrice;
 use App\Models\Image;
+use App\Models\PlatformService;
 use App\Models\InvestigationOrder;
 use App\Models\InvestigationOrderItem;
 use App\Models\User;
@@ -151,7 +152,7 @@ final class InvestigationOrderService
 
     // ───────────────────────── centres and prices ─────────────────────────
 
-    /** What this centre charges for one test or exam — the price it wrote in «أسعاري» — or null when it does not do it. */
+    /** What this centre charges for one test or exam — the price it wrote in its own test list — or null when it does not do it. */
     public function priceAt(User $center, int $optionId): ?float
     {
         $price = BusinessServicePrice::query()
@@ -230,6 +231,65 @@ final class InvestigationOrderService
         }
 
         return $out;
+    }
+
+    /**
+     * The centre's own price list: every test and exam of the platform's lists with what THIS centre charges for it
+     * (null = it does not do it). A centre prices its tests here, in the same screen that receives its orders — not in a
+     * general «prices» screen of the services it sells.
+     *
+     * @return list<array{option_id:int,kind:string,name:string,price:?float}>
+     */
+    public function priceListOf(User $center): array
+    {
+        $catalog = $this->catalog();
+        $have = collect($this->testsOf($center))->keyBy('option_id');
+        $out = [];
+
+        foreach (['lab', 'radiology'] as $kind) {
+            foreach ($catalog[$kind] as $row) {
+                $out[] = ['option_id' => $row['id'], 'kind' => $kind, 'name' => $row['name'], 'price' => $have[$row['id']]['price'] ?? null];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Saves what the centre sent — `{optionId: price|null}`. A price writes (or changes) the row, null or 0 removes it.
+     * Only words of the platform's lists are accepted; anything else is ignored.
+     *
+     * @param  array<int|string,mixed>  $prices
+     */
+    public function savePrices(User $center, array $prices): array
+    {
+        $allowed = collect($this->catalog())->flatten(1)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $serviceId = (int) PlatformService::query()->where('key', PlatformService::KEY_BOOKING)->value('id');
+
+        DB::transaction(function () use ($center, $prices, $allowed, $serviceId) {
+            foreach ($prices as $optionId => $price) {
+                $optionId = (int) $optionId;
+
+                if (! in_array($optionId, $allowed, true)) {
+                    continue;
+                }
+
+                $keys = [
+                    'business_id' => (int) $center->id, 'service_id' => $serviceId, 'child_id' => (int) $center->category_child_id,
+                    'bookable_item_type' => BusinessServicePrice::DEFAULT_ITEM_TYPE, 'line_option_id' => $optionId,
+                ];
+
+                if ($price === null || $price === '' || (float) $price <= 0) {
+                    BusinessServicePrice::query()->where($keys)->delete();
+
+                    continue;
+                }
+
+                BusinessServicePrice::query()->updateOrCreate($keys, ['price' => round((float) $price, 2), 'currency' => 'EGP', 'is_active' => 1]);
+            }
+        });
+
+        return $this->priceListOf($center);
     }
 
     // ───────────────────────── the centre's side ─────────────────────────

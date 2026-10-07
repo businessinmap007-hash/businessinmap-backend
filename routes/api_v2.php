@@ -493,6 +493,8 @@ Route::prefix('v2')->group(function () {
         Route::middleware('business.member:' . BusinessCapability::INVESTIGATIONS)->group(function () {
             Route::post('investigation-orders', [InvestigationOrderController::class, 'store']);
             Route::get('investigation-orders/issued', [InvestigationOrderController::class, 'issued']);
+            Route::get('business/investigation-prices', [InvestigationOrderController::class, 'priceList']);
+            Route::put('business/investigation-prices', [InvestigationOrderController::class, 'savePrices']);
             Route::prefix('business/investigation-orders')->group(function () {
                 Route::get('/', [InvestigationOrderController::class, 'centerIndex']);
                 Route::post('{order}/accept', [InvestigationOrderController::class, 'accept'])->whereNumber('order');

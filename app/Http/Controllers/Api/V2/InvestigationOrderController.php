@@ -153,6 +153,21 @@ class InvestigationOrderController extends Controller
 
     // ───────────────────────── the centre ─────────────────────────
 
+    /** GET /api/v2/business/investigation-prices — the centre's own price list of the platform's tests and exams. */
+    public function priceList(Request $request)
+    {
+        return response()->json(['success' => true, 'data' => ['tests' => $this->service->priceListOf($this->centerOrFail($request))]]);
+    }
+
+    /** PUT /api/v2/business/investigation-prices — `{prices: {optionId: price|null}}` (null or 0 = the centre does not do it). */
+    public function savePrices(Request $request)
+    {
+        $center = $this->centerOrFail($request);
+        $data = $request->validate(['prices' => ['required', 'array', 'max:400'], 'prices.*' => ['nullable', 'numeric', 'min:0', 'max:1000000']]);
+
+        return response()->json(['success' => true, 'data' => ['tests' => $this->service->savePrices($center, $data['prices'])]]);
+    }
+
     /** GET /api/v2/business/investigation-orders?tab=incoming|accepted|done */
     public function centerIndex(Request $request)
     {

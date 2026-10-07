@@ -229,6 +229,34 @@ class InvestigationOrdersTest extends TestCase
         $this->getJson('/api/v2/investigation-centers/' . $this->user(User::TYPE_BUSINESS, self::CLINIC)->id . '/tests')->assertNotFound();
     }
 
+    public function test_a_centre_prices_its_own_tests_in_one_list(): void
+    {
+        [, , $o] = $this->setUpOrder();
+        $lab = $this->user(User::TYPE_BUSINESS, self::LAB, 'Lab');
+
+        Sanctum::actingAs($lab);
+        $list = collect($this->getJson('/api/v2/business/investigation-prices')->assertOk()->json('data.tests'));
+        $this->assertGreaterThan(20, $list->count());
+        $this->assertNull($list->firstWhere('option_id', $o['cbc'])['price'], 'it does none of it until it prices it');
+
+        $saved = collect($this->putJson('/api/v2/business/investigation-prices', ['prices' => [$o['cbc'] => 120, $o['liver'] => 180, 999999 => 5]])->assertOk()->json('data.tests'));
+        $this->assertEquals(120, $saved->firstWhere('option_id', $o['cbc'])['price']);
+        $this->assertCount(2, $saved->whereNotNull('price'), 'a word that is not on the lists is ignored');
+
+        // a changed price changes the row; 0 / null removes it
+        $this->putJson('/api/v2/business/investigation-prices', ['prices' => [$o['cbc'] => 130, $o['liver'] => 0]])->assertOk();
+        $this->assertSame(1, BusinessServicePrice::query()->where('business_id', $lab->id)->count());
+        $this->assertEquals(130, BusinessServicePrice::query()->where('business_id', $lab->id)->value('price'));
+
+        // what it priced is what a patient sees on its page and what an order is charged
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT));
+        $this->assertSame([$o['cbc']], collect($this->getJson("/api/v2/investigation-centers/{$lab->id}/tests")->json('data.tests'))->pluck('option_id')->all());
+
+        // a doctor / a client has no price list
+        Sanctum::actingAs($this->user(User::TYPE_BUSINESS, self::CLINIC));
+        $this->getJson('/api/v2/business/investigation-prices')->assertStatus(403);
+    }
+
     public function test_a_declined_doctors_order_goes_back_to_the_patient_to_send_elsewhere(): void
     {
         [$doctor, $patient, $o] = $this->setUpOrder();

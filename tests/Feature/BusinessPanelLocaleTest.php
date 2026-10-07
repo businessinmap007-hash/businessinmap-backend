@@ -61,7 +61,7 @@ class BusinessPanelLocaleTest extends TestCase
             ->assertOk()
             ->assertSee('Home')          // nav
             ->assertSee('Staff')         // nav
-            ->assertSee('My Prices')     // nav
+            ->assertSee('My Bookings')    // nav
             ->assertSee('Next steps');   // dashboard body
     }
 

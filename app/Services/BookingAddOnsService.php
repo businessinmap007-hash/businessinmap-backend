@@ -64,6 +64,8 @@ final class BookingAddOnsService
                     'group_id' => $groupId,
                     'group' => $groupName,
                     'selection_type' => $withSelection ? ($selection[$groupId] ?? OfferingOptionGroupSetting::defaultFor($groupId)) : null,
+                    // the meals of a Day use are added to the DAY's price, a night's meal plan to each night's
+                    'applies_to' => $withSelection ? (in_array($groupName, BookingVocabularyRoles::DAY_USE_GROUPS, true) ? 'day_use' : 'night') : null,
                     'options' => collect($options)->map(fn ($o) => [
                         'id' => (int) $o->id,
                         'name' => app()->getLocale() === 'en' ? ($o->name_en ?: $o->name_ar) : ($o->name_ar ?: $o->name_en),

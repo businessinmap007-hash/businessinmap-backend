@@ -131,6 +131,8 @@ final class BookingController extends Controller
             'party_size' => ['nullable', 'integer', 'min:1'],
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer'],
+            'day_use' => ['nullable', 'boolean'],
+            'date' => ['nullable', 'date'],
         ]);
 
         $business = User::query()
@@ -142,6 +144,11 @@ final class BookingController extends Controller
             throw ValidationException::withMessages([
                 'business_id' => __('البزنس غير موجود أو غير صحيح.'),
             ]);
+        }
+
+        // «Day use»: the guest names a date, the room type names the window.
+        if (! empty($data['day_use'])) {
+            $data = $this->applyDayUse($data);
         }
 
         $offering = $this->resolveOffering($data, (int) $data['business_id']);
@@ -156,6 +163,7 @@ final class BookingController extends Controller
             optionIds: $data['option_ids'] ?? [],
             partySize: max((int) ($data['party_size'] ?? 1), 1),
             offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null,
+            dayUse: ! empty($data['day_use']),
         );
 
         return response()->json([
@@ -264,7 +272,7 @@ final class BookingController extends Controller
             ->where('business_id', $business->id)
             ->where('is_active', 1)
             ->orderBy('title')
-            ->get(['id', 'title', 'code', 'item_type', 'capacity', 'quantity'])
+            ->get(['id', 'title', 'code', 'item_type', 'capacity', 'quantity', 'meta', 'is_active'])
             ->map(fn (BookableItem $item) => [
                 'id' => (int) $item->id,
                 'title' => $item->title,
@@ -272,6 +280,7 @@ final class BookingController extends Controller
                 'item_type' => $item->item_type,
                 'capacity' => $item->capacity,
                 'quantity' => $item->quantity,
+                'day_use' => app(\App\Services\BookingDayUseService::class)->offer($item),
             ])->all();
     }
 
@@ -411,6 +420,12 @@ final class BookingController extends Controller
             ]);
         }
 
+        $dayUse = ! empty($data['day_use']);
+
+        if ($dayUse) {
+            $data = $this->applyDayUse($data);
+        }
+
         // Mutual conflict guard (before any pricing work): a timed booking can't
         // overlap anything already on the customer's agenda — another booking, a
         // clinic appointment, or a personal task.
@@ -445,7 +460,8 @@ final class BookingController extends Controller
             // فلا يُضرب `quantity` فيها مرّةً ثانية.
             until: $data['ends_at'] ?? null,
             // وعددُ النزلاء، لأن «إفطار لكل فرد» يُضرب فيه.
-            partySize: max((int) ($data['party_size'] ?? 1), 1)
+            partySize: max((int) ($data['party_size'] ?? 1), 1),
+            dayUse: $dayUse
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -458,6 +474,15 @@ final class BookingController extends Controller
         );
 
         $data = $this->applyKindGranularity($data, $business, $bookable);
+
+        if ($dayUse) {
+            // a window of hours inside one day, not a night — whatever the stay kind would have said
+            $data['duration_unit'] = 'hour';
+            $data['duration_value'] = app(\App\Services\BookingDayUseService::class)
+                ->hours(Carbon::parse($data['starts_at']), Carbon::parse($data['ends_at']));
+            $data['all_day'] = false;
+            $data['meta'] = array_merge($data['meta'] ?? [], ['day_use' => true]);
+        }
 
         $payload = [
             'user_id' => (int) $user->id,
@@ -1109,6 +1134,38 @@ final class BookingController extends Controller
      * sees a number only once the stay has started, and never the unit's internal note or (on a room type with listed
      * rooms) its code.
      */
+    /**
+     * «Day use»: turns the guest's `date` into the window the room type named. Needs the room type (`bookable_id`) —
+     * the window and the price are its, never the guest's.
+     */
+    private function applyDayUse(array $data): array
+    {
+        $date = $data['date'] ?? (! empty($data['starts_at']) ? Carbon::parse($data['starts_at'])->toDateString() : null);
+
+        if (empty($data['bookable_id']) || ! $date) {
+            throw ValidationException::withMessages(['date' => __('اختر الغرفة وتاريخ Day use.')]);
+        }
+
+        $unit = BookableItem::query()
+            ->where('business_id', (int) $data['business_id'])
+            ->where('is_active', 1)
+            ->find((int) $data['bookable_id']);
+
+        if (! $unit) {
+            throw ValidationException::withMessages(['bookable_id' => __('هذه الغرفة لا تُحجز Day use.')]);
+        }
+
+        [$start, $end] = app(\App\Services\BookingDayUseService::class)->window($unit, (string) $date);
+
+        return array_merge($data, [
+            'date' => $start->toDateString(),
+            'starts_at' => $start->toDateTimeString(),
+            'ends_at' => $end->toDateTimeString(),
+            'all_day' => false,
+            'day_use' => true,
+        ]);
+    }
+
     private function hideRoomInternals(Booking $booking): Booking
     {
         $viewer = request()->user();
@@ -1191,6 +1248,8 @@ final class BookingController extends Controller
             // ما لا يعرفه سطرُ السعر يسقط صامتًا عند الحساب.
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer'],
+            // «Day use»: a hotel room for the day — send `date`, the room type's own window follows.
+            'day_use' => ['nullable', 'boolean'],
         ];
     }
 

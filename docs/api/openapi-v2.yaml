@@ -2635,6 +2635,10 @@ paths:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }, { name: room, in: path, required: true, schema: { type: integer } }]
     patch: { tags: [Business Bookables], summary: 'Rename a room, close it for maintenance (status=maintenance) or note it', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
     delete: { tags: [Business Bookables], summary: 'Remove a room (refused while a live stay holds it)', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/bookable-items/{item}/day-use:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Bookables], summary: "Day use of a hotel room type - the window and flat price the hotel set (enabled false until it does)", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    put: { tags: [Business Bookables], summary: 'Set Day use - {enabled, from: "HH:mm", to: "HH:mm", price}. The window is 2-16 hours; a guest then books it by date (POST /bookings with day_use=true and date), holding one room of the type for that window at the flat price', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/bookings/{booking}/rooms:
     parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
     get: { tags: [Business Bookables], summary: 'The rooms this stay could be put in (free ones) and the one it has', responses: { '200': { description: OK } } }

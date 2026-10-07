@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
 use App\Http\Controllers\Api\V2\BusinessBookingCheckTimesController;
 use App\Http\Controllers\Api\V2\BusinessBookableRoomController;
+use App\Http\Controllers\Api\V2\BusinessDayUseController;
 use App\Http\Controllers\Api\V2\BusinessStayRequestController;
 use App\Http\Controllers\Api\V2\StayRequestController;
 use App\Http\Controllers\Api\V2\BusinessBookingTermsController;
@@ -984,6 +985,11 @@ Route::prefix('v2')->group(function () {
             Route::post('/', [BusinessBookableRoomController::class, 'store']);
             Route::patch('{room}', [BusinessBookableRoomController::class, 'update'])->whereNumber('room');
             Route::delete('{room}', [BusinessBookableRoomController::class, 'destroy'])->whereNumber('room');
+        });
+        // «Day use»: the same room type sold through the day, in a window and at a flat price.
+        Route::prefix('business/bookable-items/{item}/day-use')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('item')->group(function () {
+            Route::get('/', [BusinessDayUseController::class, 'show']);
+            Route::put('/', [BusinessDayUseController::class, 'update']);
         });
         Route::prefix('business/bookings/{booking}')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('booking')->group(function () {
             Route::get('rooms', [BusinessBookableRoomController::class, 'forBooking']);

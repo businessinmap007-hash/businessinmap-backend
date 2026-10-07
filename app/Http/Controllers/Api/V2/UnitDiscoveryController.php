@@ -153,6 +153,8 @@ final class UnitDiscoveryController extends Controller
             'description' => $unit->description,
             'capacity' => $unit->capacity !== null ? (int) $unit->capacity : null,
             'images' => $unit->imagePayload(),
+            // «Day use»: the room type is also sold through the day — {from, to, price}; null when it is not
+            'day_use' => app(\App\Services\BookingDayUseService::class)->offer($unit),
         ];
 
         $payload += $this->pricingOf($unit, $price, $window);

@@ -39,6 +39,8 @@ class BookableItemResource extends JsonResource
             'is_active' => (bool) $this->is_active,
             'status' => (string) ($this->status ?: \App\Models\BookableItem::STATUS_AVAILABLE),
             'is_currently_booked' => $this->resource->isCurrentlyBooked(),
+            // «Day use» — only a room type of a stay has one
+            'day_use' => $this->item_type === 'booking_stay' ? app(\App\Services\BookingDayUseService::class)->settings($this->resource) : null,
         ];
     }
 

@@ -2932,5 +2932,11 @@
     "مناشف إضافية": "Extra towels",
     "وسائد وبطاطين إضافية": "Extra pillows & blankets",
     "غسيل وكي": "Laundry & ironing",
-    "خدمة غرف": "Room service"
+    "خدمة غرف": "Room service",
+    "Day use للفنادق والإقامة فقط.": "Day use is for hotels and stays only.",
+    "مدة Day use بين :min و:max ساعة.": "A day-use window lasts between :min and :max hours.",
+    "اكتب سعر Day use.": "Enter the day-use price.",
+    "هذه الغرفة لا تُحجز Day use.": "This room is not sold as day use.",
+    "اختر موعدًا لم يبدأ بعد.": "Choose a time that has not started yet.",
+    "اختر الغرفة وتاريخ Day use.": "Choose the room and the day-use date."
 }

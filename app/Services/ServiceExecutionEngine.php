@@ -70,7 +70,10 @@ class ServiceExecutionEngine
         ?int $offeringId = null,
         array $optionIds = [],
         mixed $until = null,
-        int $partySize = 1
+        int $partySize = 1,
+        // «Day use»: the room type is sold for a window of one day at the flat price its hotel named — see
+        // BookingDayUseService. The window itself arrives as [$pricingDate, $until].
+        bool $dayUse = false
     ): array {
         $quantity = max($quantity, 1);
 
@@ -219,6 +222,19 @@ class ServiceExecutionEngine
             allocation: $allocation
         );
 
+        if ($dayUse) {
+            if (! $bookable || ! app(BookingDayUseService::class)->offer($bookable)) {
+                throw ValidationException::withMessages(['bookable_id' => __('هذه الغرفة لا تُحجز Day use.')]);
+            }
+
+            $priceBreakdown = app(BookingDayUseService::class)->breakdown(
+                $priceBreakdown,
+                $bookable,
+                $quantity,
+                Carbon::parse($pricingDate)->toDateString()
+            );
+        }
+
         /*
          * لا وديعةَ فى حجزٍ عبر تخصيص — شروطُه بين الشريكين فى عقد الشراكة،
          * لا مبلغًا يُجمَّد من محفظة العميل النهائى.
@@ -284,7 +300,8 @@ class ServiceExecutionEngine
         // thing `store()` resolves before calling `prepare()`. Without it, a
         // service/item combo with more than one price row could preview a
         // different row than the one `store()` ultimately books.
-        ?int $offeringId = null
+        ?int $offeringId = null,
+        bool $dayUse = false
     ): array {
         $calc = $this->prepare(
             businessId: $businessId,
@@ -297,7 +314,8 @@ class ServiceExecutionEngine
             offeringId: $offeringId,
             optionIds: $optionIds,
             until: $endsAt,
-            partySize: $partySize
+            partySize: $partySize,
+            dayUse: $dayUse
         );
 
         $availability = null;

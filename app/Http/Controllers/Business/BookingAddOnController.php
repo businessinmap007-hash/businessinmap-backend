@@ -197,8 +197,8 @@ class BookingAddOnController extends Controller
                 continue;
             }
 
-            // متعدد هو الافتراض المخزَّن أصلًا — إعادة كتابته صفٌّ زائد.
-            if ($type === OfferingOptionGroupSetting::SELECTION_MULTIPLE) {
+            // ما يطابق الافتراضَ المنصّىّ للمجموعة (متعدد، أو واحد للوجبات) لا يُخزَّن — صفٌّ زائد.
+            if ($type === OfferingOptionGroupSetting::defaultFor($groupId)) {
                 OfferingOptionGroupSetting::query()
                     ->where('offering_type', $offeringType)
                     ->where('offering_id', $businessId)

@@ -100,6 +100,7 @@
                 ['label' => 'ربط الخدمات (جماعي)', 'route' => 'admin.categories.services-bulk.index', 'active' => 'admin.categories.services-bulk.'],
                 ['label' => 'مكونات الخدمة', 'route' => 'admin.service-components.index', 'active' => 'admin.service-components.'],
                 ['label' => 'أشكال المنيو', 'route' => 'admin.menu-shapes.index', 'active' => 'admin.menu-shapes.'],
+                ['label' => 'أشكال الحجز', 'route' => 'admin.booking-shapes.index', 'active' => 'admin.booking-shapes.'],
                 ['label' => 'قيم موديلات الكتالوج', 'route' => 'admin.catalog-model-values.index', 'active' => 'admin.catalog-model-values.'],
                 ['label' => 'رسوم الأبناء (جماعي)', 'route' => 'admin.category-child-service-fees.bulk.edit', 'active' => 'admin.category-child-service-fees.'],
             ]],

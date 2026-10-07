@@ -79,7 +79,13 @@ final class BusinessServicePriceController extends Controller
                     'item_types' => array_values($allowed[(int) $s->id] ?? []),
                 ])->values(),
                 'lines' => $this->vocabularyGroups($vocabulary['lines']),
-                'modifiers' => $this->vocabularyGroups($vocabulary['modifiers']),
+                // what is priced elsewhere (the rooms are the base, meals are add-ons, a view belongs to one room) is not
+                // offered again here — «تسعير نظام الوجبات منفصل»
+                'modifiers' => $this->vocabularyGroups(app(\App\Services\BookingVocabularyRoles::class)->withoutRoles(
+                    $vocabulary['modifiers'],
+                    $this->businessId(),
+                    [\App\Services\BookingVocabularyRoles::ROLE_LINE, \App\Services\BookingVocabularyRoles::ROLE_UNIT, \App\Services\BookingVocabularyRoles::ROLE_ADDON]
+                )),
             ],
         ]);
     }

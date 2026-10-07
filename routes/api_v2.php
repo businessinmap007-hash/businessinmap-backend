@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
 use App\Http\Controllers\Api\V2\BusinessBookingCheckTimesController;
 use App\Http\Controllers\Api\V2\BusinessBookableRoomController;
+use App\Http\Controllers\Api\V2\BusinessBookableFeatureController;
+use App\Http\Controllers\Api\V2\BusinessBookingAddOnsController;
 use App\Http\Controllers\Api\V2\BusinessDayUseController;
 use App\Http\Controllers\Api\V2\BusinessStayRequestController;
 use App\Http\Controllers\Api\V2\StayRequestController;
@@ -986,6 +988,15 @@ Route::prefix('v2')->group(function () {
             Route::patch('{room}', [BusinessBookableRoomController::class, 'update'])->whereNumber('room');
             Route::delete('{room}', [BusinessBookableRoomController::class, 'destroy'])->whereNumber('room');
         });
+        // «إضافات الحجز»: meal plans (one choice by default) and the price of a room's own features, priced once for the
+        // whole business; and which features a given room carries.
+        Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
+            Route::get('business/booking-add-ons', [BusinessBookingAddOnsController::class, 'show']);
+            Route::put('business/booking-add-ons', [BusinessBookingAddOnsController::class, 'update']);
+            Route::get('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'show'])->whereNumber('item');
+            Route::put('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'update'])->whereNumber('item');
+        });
+
         // «Day use»: the same room type sold through the day, in a window and at a flat price.
         Route::prefix('business/bookable-items/{item}/day-use')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('item')->group(function () {
             Route::get('/', [BusinessDayUseController::class, 'show']);

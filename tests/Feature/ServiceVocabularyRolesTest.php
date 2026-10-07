@@ -60,6 +60,13 @@ class ServiceVocabularyRolesTest extends TestCase
             'category_child_id' => self::CHILD,
             'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
         ]);
+
+        // These tests are about CHARGING add-ons together; the meal plans are one-choice by default now
+        // (see test_meal_plans_are_one_choice_by_default), so they state the opposite where they need it.
+        \App\Models\OfferingOptionGroupSetting::query()->updateOrCreate(
+            ['offering_type' => (new User)->getMorphClass(), 'offering_id' => $this->hotel->id, 'option_group_id' => (int) \App\Models\OptionGroup::query()->where('name_ar', 'نظام الوجبات')->value('id')],
+            ['selection_type' => 'multiple']
+        );
     }
 
     private function serviceId(): int
@@ -131,18 +138,28 @@ class ServiceVocabularyRolesTest extends TestCase
      * الإعلانُ يضيّق ولا يُشترط، فلا ينكسر تاجرٌ لم يفتح هذه الشاشة قطّ — وهم
      * كلُّ تجّار المنصّة يوم كُتبت.
      */
-    public function test_a_business_that_declared_nothing_sees_everything(): void
+    public function test_a_business_that_declared_nothing_gets_the_platforms_roles_for_the_stay_vocabulary(): void
     {
         $vocabulary = app(\App\Services\MerchantOfferingVocabulary::class)
             ->for((int) $this->hotel->id, self::CHILD, self::ROOT)['modifiers'];
 
-        foreach (BookingVocabularyRoles::ROLES as $role) {
-            $this->assertSame(
-                $vocabulary->count(),
-                $this->roles()->only($vocabulary, (int) $this->hotel->id, $role)->count(),
-                "الدور «{$role}» ضيّق قائمةً بلا إعلان"
-            );
-        }
+        $this->assertSame([], $this->roles()->for((int) $this->hotel->id), 'nothing was declared');
+
+        // the rooms are the base of the price, the meal plans a separate add-on
+        $line = $this->roles()->only($vocabulary, (int) $this->hotel->id, BookingVocabularyRoles::ROLE_LINE);
+        $addon = $this->roles()->only($vocabulary, (int) $this->hotel->id, BookingVocabularyRoles::ROLE_ADDON);
+
+        $this->assertTrue($line->has('الغرف'));
+        $this->assertFalse($line->has('نظام الوجبات'));
+        $this->assertTrue($addon->has('نظام الوجبات'));
+        $this->assertFalse($addon->has('الغرف'));
+
+        // one declaration from the merchant switches the defaults off — his word about his shop wins
+        $this->roles()->save((int) $this->hotel->id, [$this->groupIdOf(self::BREAKFAST) => BookingVocabularyRoles::ROLE_LINE]);
+        $this->assertSame(
+            [$this->groupIdOf(self::BREAKFAST) => BookingVocabularyRoles::ROLE_LINE],
+            $this->roles()->effective((int) $this->hotel->id)
+        );
     }
 
     /**

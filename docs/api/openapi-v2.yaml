@@ -2657,6 +2657,13 @@ paths:
     parameters: [{ name: option, in: path, required: true, schema: { type: integer } }]
     patch: { tags: [Business Bookables], summary: 'Rename a service or switch it off - {title?, is_active?}', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
     delete: { tags: [Business Bookables], summary: Remove a service from the list, responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/booking-add-ons:
+    get: { tags: [Business Bookables], summary: "إضافات الحجز - add_ons (meal plans: one choice by default, selection_type single|multiple) and features (a room's own view/features), each option with the price the hotel wrote once for the whole business", responses: { '200': { description: OK } } }
+    put: { tags: [Business Bookables], summary: 'Price them - {add_ons: [{option_id, enabled, value, adjust_type, per_person}], features: [same], selection_types: {groupId: single|multiple}}. Rows the screen does not show are kept', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/bookable-items/{item}/features:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Bookables], summary: "The features this room carries (a pool view) with the price the hotel wrote for each - the room's own price then shows the room type's price plus them", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    put: { tags: [Business Bookables], summary: 'Say which features this room carries - {option_ids: [..]}; the room type (line) is kept', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /business/booking-terms:
     get:
       tags: [Business Bookables]

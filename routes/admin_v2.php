@@ -234,6 +234,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // «أشكال المنيو»: «منيو أساسي» vs «منيو تفصيلي» per priced option
         // group, tried live on a phone preview — and each detail kind's fields.
+        // «أشكال الحجز»: how a booking trade page is drawn for the guest — kinds as sections with their units, what the
+        // guest is asked and in what order — tried on a phone, assigned to trades.
+        Route::prefix('booking-shapes')->name('booking-shapes.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
+            Route::get('/', [\App\Http\Controllers\AdminV2\BookingShapesController::class, 'index'])->name('index');
+            Route::post('{shape}/settings', [\App\Http\Controllers\AdminV2\BookingShapesController::class, 'saveSettings'])->whereNumber('shape')->name('settings');
+            Route::post('{shape}/children', [\App\Http\Controllers\AdminV2\BookingShapesController::class, 'assign'])->whereNumber('shape')->name('assign');
+            Route::delete('children/{child}', [\App\Http\Controllers\AdminV2\BookingShapesController::class, 'unassign'])->whereNumber('child')->name('unassign');
+        });
+
         Route::prefix('menu-shapes')->name('menu-shapes.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
             Route::get('/', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'index'])->name('index');
             Route::post('assign', [\App\Http\Controllers\AdminV2\MenuShapesController::class, 'assign'])->name('assign');

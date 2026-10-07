@@ -41,6 +41,8 @@ class BookingAddOnsTest extends TestCase
     private const DOUBLE = 966;
     private const BREAKFAST = 855;
     private const FULL_BOARD = 856;
+    // «إطلالة بحرية» — a room's own feature (group «إطلالة الوحدة»), not a meal plan
+    private const SEA_VIEW = 853;
 
     private User $hotel;
 
@@ -58,6 +60,27 @@ class BookingAddOnsTest extends TestCase
             'category_child_id' => self::CHILD,
             'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
         ]);
+
+        // These tests are about CHARGING add-ons together; the meal plans are one-choice by default now
+        // (see test_meal_plans_are_one_choice_by_default), so they state the opposite where they need it.
+        \App\Models\OfferingOptionGroupSetting::query()->updateOrCreate(
+            ['offering_type' => (new User)->getMorphClass(), 'offering_id' => $this->hotel->id, 'option_group_id' => (int) \App\Models\OptionGroup::query()->where('name_ar', 'نظام الوجبات')->value('id')],
+            ['selection_type' => 'multiple']
+        );
+    }
+
+    public function test_meal_plans_are_one_choice_by_default(): void
+    {
+        $other = User::create([
+            'name' => 'Zz Meals ' . uniqid(), 'email' => 'zz-meals-' . uniqid() . '@test.local', 'phone' => '01' . random_int(100000000, 999999999),
+            'password' => Hash::make('Passw0rdTest'), 'type' => User::TYPE_BUSINESS, 'category_id' => self::ROOT, 'category_child_id' => self::CHILD,
+            'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
+        ]);
+        $group = (int) \App\Models\OptionGroup::query()->where('name_ar', 'نظام الوجبات')->value('id');
+
+        $this->assertSame('single', \App\Models\OfferingOptionGroupSetting::forOwnOffering((new User)->getMorphClass(), (int) $other->id)[$group]);
+        $this->assertSame('multiple', \App\Models\OfferingOptionGroupSetting::forOwnOffering((new User)->getMorphClass(), (int) $this->hotel->id)[$group], 'what a hotel wrote wins over the default');
+        $this->assertSame('multiple', \App\Models\OfferingOptionGroupSetting::defaultFor((int) \App\Models\OptionGroup::query()->where('name_ar', 'الغرف')->value('id')));
     }
 
     private function serviceId(): int
@@ -397,15 +420,15 @@ class BookingAddOnsTest extends TestCase
         $price = $this->priceFor(self::SINGLE, 600);
         $room = $this->roomOf(self::SINGLE, 'D118');
 
-        $this->saveFeature(self::FULL_BOARD, 100);
-        $room->syncOfferingOptions(self::SINGLE, [self::FULL_BOARD]);
+        $this->saveFeature(self::SEA_VIEW, 100);
+        $room->syncOfferingOptions(self::SINGLE, [self::SEA_VIEW]);
 
         $this->assertSame(700.0, $this->nightly($room), 'الإطلالةُ قبل الحفظ');
 
         $this->saveAddOns([
             'option_ids' => [self::BREAKFAST],
-            'feature_ids' => [self::FULL_BOARD],
-            'adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 100],
+            'feature_ids' => [self::SEA_VIEW],
+            'adjust' => [self::BREAKFAST => 50, self::SEA_VIEW => 100],
         ])->assertRedirect();
 
         $this->assertSame(700.0, $this->nightly($room), 'الإطلالةُ مُحيت من شاشة الإضافات');
@@ -425,13 +448,13 @@ class BookingAddOnsTest extends TestCase
 
         $this->saveAddOns([
             'option_ids' => [self::BREAKFAST],
-            'feature_ids' => [self::FULL_BOARD],
-            'adjust' => [self::BREAKFAST => 50, self::FULL_BOARD => 100],
+            'feature_ids' => [self::SEA_VIEW],
+            'adjust' => [self::BREAKFAST => 50, self::SEA_VIEW => 100],
         ])->assertRedirect();
 
         $this->actingAs($this->hotel)->post(
             route('business.bookable-items.pricing.store', $room->id, false),
-            ['price' => 600, 'option_ids' => [self::FULL_BOARD]]
+            ['price' => 600, 'option_ids' => [self::SEA_VIEW]]
         )->assertRedirect();
 
         $this->assertSame(700.0, $this->nightly($room), 'الغرفةُ تحمل ميزتَها');

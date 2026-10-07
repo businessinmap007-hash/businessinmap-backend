@@ -124,6 +124,9 @@ final class UnitDiscoveryController extends Controller
                 'starts_at' => $window[0] ?? null,
                 'ends_at' => $window[1] ?? null,
                 'kinds' => $groups,
+                // «أشكال الحجز»: how this trade page is drawn (sections or a flat list, what is shown, in what order).
+                // null for a trade nobody has put on a shape — the client draws what it always drew.
+                'shape' => app(\App\Services\BookingShapes::class)->payload(app(\App\Services\BookingShapes::class)->forBusiness((int) $biz->id)),
             ],
         ]);
     }

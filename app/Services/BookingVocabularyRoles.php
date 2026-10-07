@@ -39,6 +39,17 @@ class BookingVocabularyRoles
     public const ROLES = [self::ROLE_LINE, self::ROLE_UNIT, self::ROLE_ADDON];
 
     /**
+     * ما تقوله المنصّةُ عن مفرداتِ الإقامة قبل أن يعلن التاجرُ شيئًا — فلا يحتاج فندقٌ فتحَ شاشةٍ لم يرَها قطّ:
+     * الغرف أساسُ السعر، والإطلالةُ صفةُ غرفةٍ بعينها، والوجبات سعرٌ منفصلٌ يختاره النزيل.
+     * (المالك، 2026-10-07: «تسعير نظام الوجبات منفصل كالإضافات فى المطاعم، والفيو إضافة سعر للغرفة»)
+     */
+    public const PLATFORM_DEFAULTS = [
+        'الغرف' => self::ROLE_LINE,
+        'إطلالة الوحدة' => self::ROLE_UNIT,
+        'نظام الوجبات' => self::ROLE_ADDON,
+    ];
+
+    /**
      * الأدوارُ المُعلَنة عند هذا النشاط، مفتاحُها معرّفُ المجموعة.
      *
      * @return array<int,string>
@@ -53,6 +64,27 @@ class BookingVocabularyRoles
             ->where('business_id', $businessId)
             ->pluck('role', 'option_group_id')
             ->mapWithKeys(fn ($role, $groupId) => [(int) $groupId => (string) $role])
+            ->all();
+    }
+
+    /**
+     * الأدوارُ التى تعمل بها الشاشات: ما أعلنه التاجرُ، فإن لم يعلن شيئًا قطّ فما تقوله المنصّة. إعلانٌ واحدٌ من
+     * التاجر يُبطل الافتراضات كلَّها — قولُه عن محلّه أولى.
+     *
+     * @return array<int,string>
+     */
+    public function effective(int $businessId): array
+    {
+        $declared = $this->for($businessId);
+
+        if ($declared !== [] || $businessId <= 0) {
+            return $declared;
+        }
+
+        return OptionGroup::query()
+            ->whereIn('name_ar', array_keys(self::PLATFORM_DEFAULTS))
+            ->get(['id', 'name_ar'])
+            ->mapWithKeys(fn ($g) => [(int) $g->id => self::PLATFORM_DEFAULTS[$g->name_ar]])
             ->all();
     }
 
@@ -104,7 +136,7 @@ class BookingVocabularyRoles
      */
     public function only(Collection $grouped, int $businessId, string $role, ?Collection $everything = null): Collection
     {
-        $declared = $this->for($businessId);
+        $declared = $this->effective($businessId);
 
         if ($declared === []) {
             return $grouped;
@@ -138,6 +170,28 @@ class BookingVocabularyRoles
         });
 
         return $kept->merge($extra);
+    }
+
+    /**
+     * يُسقط المجموعاتِ التى لها أحدُ هذه الأدوار — ما يُسعَّر فى مكانٍ آخر لا يُعرض مرّةً ثانية. ومجموعةٌ بلا دور تبقى.
+     *
+     * @param  array<int,string>  $roles
+     */
+    public function withoutRoles(Collection $grouped, int $businessId, array $roles): Collection
+    {
+        $declared = $this->effective($businessId);
+
+        if ($declared === []) {
+            return $grouped;
+        }
+
+        $names = $this->groupNames(array_keys($declared));
+
+        return $grouped->reject(function ($options, $groupName) use ($declared, $names, $roles) {
+            $groupId = $names[$groupName] ?? null;
+
+            return $groupId !== null && in_array($declared[$groupId] ?? '', $roles, true);
+        });
     }
 
     /**

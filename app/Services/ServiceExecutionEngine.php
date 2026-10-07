@@ -227,11 +227,20 @@ class ServiceExecutionEngine
                 throw ValidationException::withMessages(['bookable_id' => __('هذه الغرفة لا تُحجز Day use.')]);
             }
 
+            // «الـ Day use ممكن يضيف وجبة فطار غداء عشاء» — the guest's chosen meals ride on the flat price.
+            $meals = $this->dayUseMeals(
+                $businessPrice,
+                $optionIds,
+                round((float) (app(BookingDayUseService::class)->offer($bookable)['price'] ?? 0), 2),
+                $partySize
+            );
+
             $priceBreakdown = app(BookingDayUseService::class)->breakdown(
                 $priceBreakdown,
                 $bookable,
                 $quantity,
-                Carbon::parse($pricingDate)->toDateString()
+                Carbon::parse($pricingDate)->toDateString(),
+                $meals
             );
         }
 
@@ -1360,6 +1369,31 @@ class ServiceExecutionEngine
         }
 
         return ['base' => $unitPrice, 'total' => round($total, 2), 'lines' => $lines];
+    }
+
+    /**
+     * The Day use meals the guest ticked, priced on the day's flat price. Only the groups named in
+     * {@see BookingVocabularyRoles::DAY_USE_GROUPS} count here — a night's meal plan has no place in a few hours.
+     *
+     * @return array{base:float,total:float,lines:array<int,array<string,mixed>>}|null
+     */
+    protected function dayUseMeals(BusinessServicePrice $businessPrice, array $optionIds, float $flatPrice, int $partySize): ?array
+    {
+        if ($optionIds === []) {
+            return null;
+        }
+
+        $mealIds = DB::table('options as o')
+            ->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->whereIn('o.id', $optionIds)
+            ->whereIn('g.name_ar', BookingVocabularyRoles::DAY_USE_GROUPS)
+            ->pluck('o.id')->map(fn ($id) => (int) $id)->all();
+
+        if ($mealIds === []) {
+            return null;
+        }
+
+        return $this->applyModifiers($this->modifierRowsFor($businessPrice, $mealIds), $flatPrice, $partySize);
     }
 
     protected function resolvePriceModifiers(

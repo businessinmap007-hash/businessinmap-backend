@@ -257,6 +257,9 @@ final class BookingController extends Controller
             'name' => $r->name,
             'group_id' => $r->group_id ? (int) $r->group_id : null,
             'group_name' => $r->group_id ? ($groupNames[$r->group_id] ?? null) : null,
+            'applies_to' => $r->group_id && in_array($groupNames[$r->group_id] ?? '', \App\Services\BookingVocabularyRoles::DAY_USE_GROUPS, true)
+                ? 'day_use'
+                : 'night',
             'selection_type' => $r->group_id
                 ? ($selectionTypes[$r->group_id] ?? \App\Models\OfferingOptionGroupSetting::SELECTION_MULTIPLE)
                 : \App\Models\OfferingOptionGroupSetting::SELECTION_MULTIPLE,

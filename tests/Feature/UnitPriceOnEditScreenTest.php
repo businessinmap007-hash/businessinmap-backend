@@ -32,6 +32,7 @@ class UnitPriceOnEditScreenTest extends TestCase
     private const SINGLE = 965;
     private const BREAKFAST = 855;
     private const FULL_BOARD = 856;
+    private const SEA_VIEW = 853;
 
     private User $hotel;
 
@@ -190,11 +191,11 @@ class UnitPriceOnEditScreenTest extends TestCase
 
         $this->savePricing($room, [
             'price' => 600,
-            'option_ids' => [self::FULL_BOARD],
-            'option_adjust' => [self::FULL_BOARD => 100],
+            'option_ids' => [self::SEA_VIEW],
+            'option_adjust' => [self::SEA_VIEW => 100],
         ])->assertRedirect();
 
-        $this->assertContains(self::FULL_BOARD, $room->fresh()->modifierOptionIds()->all());
+        $this->assertContains(self::SEA_VIEW, $room->fresh()->modifierOptionIds()->all());
     }
 
     /*

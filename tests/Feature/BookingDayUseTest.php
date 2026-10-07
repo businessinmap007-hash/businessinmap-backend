@@ -162,6 +162,67 @@ class BookingDayUseTest extends TestCase
         $this->assertSame('day_use', $res->json('data.price_breakdown.source'));
     }
 
+    public function test_day_use_meals_ride_on_the_flat_price_and_a_nights_meal_plan_does_not(): void
+    {
+        $this->seed(\Database\Seeders\BookingDesignOptionsSeeder::class);
+        $this->enable()->assertOk();
+
+        $meal = fn (string $name) => (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'وجبات Day use')->where('o.name_ar', $name)->value('o.id');
+        $breakfast = $meal('فطار');
+        $lunch = $meal('غداء');
+        $nightPlan = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', 'نظام الوجبات')->where('o.name_ar', 'شامل الإفطار')->value('o.id');
+
+        $this->assertGreaterThan(0, $breakfast);
+        $this->assertGreaterThan(0, $nightPlan);
+
+        $this->hotel->syncOfferingOptions(null, [$breakfast, $lunch, $nightPlan], [
+            $breakfast => ['type' => 'amount', 'value' => 100],
+            $lunch => ['type' => 'amount', 'value' => 150],
+            $nightPlan => ['type' => 'amount', 'value' => 80],
+        ]);
+
+        $price = fn (array $optionIds) => $this->actingAs($this->guest, 'sanctum')
+            ->postJson('/api/v2/bookings/preview', $this->body(['option_ids' => $optionIds]))->assertOk();
+
+        $this->assertEquals(350, $price([])->json('data.price'));
+        $this->assertEquals(500, $price([$lunch])->json('data.price'), 'the lunch is added to the flat price');
+        $this->assertEquals(600, $price([$breakfast, $lunch])->json('data.price'), 'meals add up — it is a multiple choice');
+        $this->assertEquals(350, $price([$nightPlan])->json('data.price'), 'a night meal plan means nothing for a few hours');
+        $this->assertSame('day_use', $price([$lunch])->json('data.price_breakdown.source'));
+
+        // the guest's form tells each group which form it belongs to
+        $modifiers = collect($this->actingAs($this->guest, 'sanctum')->getJson("/api/v2/bookings/form/{$this->hotel->id}")->assertOk()->json('data.modifiers'));
+        $this->assertSame('day_use', $modifiers->firstWhere('option_id', $lunch)['applies_to']);
+        $this->assertSame('night', $modifiers->firstWhere('option_id', $nightPlan)['applies_to']);
+
+        // and the booking carries the meals in its price
+        $res = $this->actingAs($this->guest, 'sanctum')->postJson('/api/v2/bookings', $this->body(['option_ids' => [$lunch]]))->assertCreated();
+        $this->assertEquals(500, (float) Booking::findOrFail($res->json('data.booking.id'))->price);
+    }
+
+    public function test_the_design_options_are_choices_of_the_right_trades_only(): void
+    {
+        $this->seed(\Database\Seeders\BookingDesignOptionsSeeder::class);
+
+        $linked = fn (string $group, string $trade) => DB::table('category_child_option as cco')
+            ->join('options as o', 'o.id', '=', 'cco.option_id')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->join('category_children_master as c', 'c.id', '=', 'cco.child_id')
+            ->where('g.name_ar', $group)->where('c.name_ar', $trade)->exists();
+
+        $this->assertTrue($linked('وجبات Day use', 'فندق'));
+        $this->assertFalse($linked('وجبات Day use', 'مالك وحدة مصيفية'), 'a private let feeds nobody');
+        $this->assertFalse($linked('وجبات Day use', 'عيادة'));
+        foreach (['عيادة', 'مركز طبي', 'مستشفى'] as $trade) {
+            $this->assertTrue($linked('نوع الزيارة', $trade), $trade);
+        }
+        $this->assertFalse($linked('نوع الزيارة', 'فندق'));
+        $this->assertTrue($linked('إطلالة الوحدة', 'فندق'));
+        $this->assertSame('modifier', DB::table('option_groups')->where('name_ar', 'وجبات Day use')->value('price_role'));
+        $this->assertSame('line', DB::table('option_groups')->where('name_ar', 'نوع الزيارة')->value('price_role'));
+    }
+
     public function test_the_guest_books_day_use_and_holds_the_room_for_the_window_only(): void
     {
         $this->enable()->assertOk();

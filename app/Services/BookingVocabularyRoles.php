@@ -47,7 +47,14 @@ class BookingVocabularyRoles
         'الغرف' => self::ROLE_LINE,
         'إطلالة الوحدة' => self::ROLE_UNIT,
         'نظام الوجبات' => self::ROLE_ADDON,
+        'وجبات Day use' => self::ROLE_ADDON,
     ];
+
+    /**
+     * Add-on groups that belong to the Day use form only — a guest who sleeps a few hours still eats (فطار/غداء/عشاء),
+     * and a night's stay has its own meal plan instead. The guest payload tags them so each form shows its own.
+     */
+    public const DAY_USE_GROUPS = ['وجبات Day use'];
 
     /**
      * الأدوارُ المُعلَنة عند هذا النشاط، مفتاحُها معرّفُ المجموعة.

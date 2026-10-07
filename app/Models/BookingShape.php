@@ -50,6 +50,10 @@ class BookingShape extends Model
         'ask_children' => ['label' => 'عدد الأطفال', 'hint' => 'سؤالٌ مستقلّ عن الأطفال.', 'type' => 'bool', 'default' => true],
         'offer_day_use' => ['label' => 'Day use', 'hint' => 'يُعرض الخيار على كل نوع أتاحه الفندق.', 'type' => 'bool', 'default' => false],
         'in_stay_requests' => ['label' => 'طلبات النزيل أثناء الإقامة', 'hint' => 'زرّا «بلّغ عن مشكلة» و«اطلب خدمة» على الحجز الجاري.', 'type' => 'bool', 'default' => false],
+        'pick_provider' => ['label' => 'اختيار الطبيب أو المختص أولًا', 'hint' => 'أقسام (تخصصات) تحتها الأطباء بأتعابهم وأقرب موعد، ثم اليوم والوقت.', 'type' => 'bool', 'default' => false],
+        'multi_select' => ['label' => 'أكثر من بند في حجز واحد', 'hint' => 'أشعة وتحاليل: يختار الضيف عدة فحوصات (تشيك بوكس) ويُجمع الإجمالي.', 'type' => 'bool', 'default' => false],
+        'ask_attachment' => ['label' => 'صورة طلب الطبيب', 'hint' => 'زر لإرفاق صورة الروشتة أو طلب الفحص (اختياري).', 'type' => 'bool', 'default' => false],
+        'offer_home_service' => ['label' => 'خدمة من المنزل', 'hint' => 'سحب عينة أو زيارة منزلية بإضافة سعرية.', 'type' => 'bool', 'default' => false],
     ];
 
     protected $table = 'booking_shapes';

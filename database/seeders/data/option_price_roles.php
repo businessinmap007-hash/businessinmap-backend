@@ -262,6 +262,7 @@ return [
         // no price could reach it. One row, and a group of one is right when it
         // exists so something can be priced.
         'خدمات الفندق',           // نقل من المطار
+        'نوع الزيارة',            // كشف ≠ إعادة ≠ استشارة — سعر كل زيارة عند الطبيب (تصميم الكانفا، 2026-10-07)
         'المواد الدراسية',        // حصة رياضيات
         'مجالات التدريب',         // كورس برمجة
         'اللغات',                  // كورس إنجليزي
@@ -537,6 +538,7 @@ return [
         // Created 2026-09-08 (VehicleOptionGroupsSeeder) but never added here — every run of this seeder was silently downgrading it to 'descriptive', dropping it out of an appliance shop's modifiers.
         'ماركات الأجهزة الكهربائية',  // كريازي ≠ تورنادو
         'نظام الوجبات',           // إقامة كاملة ≠ شامل الإفطار
+        'وجبات Day use',          // فطار / غداء / عشاء تُضاف إلى سعر اليوم — لا ليالي هنا
         'إطلالة الوحدة',          // إطلالة بحرية أغلى
         /*
          * The coworking pair (2026-08-11), and they are the reason its units

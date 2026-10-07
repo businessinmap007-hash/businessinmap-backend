@@ -42,7 +42,7 @@ class BookableUnitPresentationTest extends TestCase
     /** «غرفة فردية» — ما تبيعه، و«شامل الإفطار» — ما يضيفه النزيل. */
     private const SINGLE_ROOM = 965;
     private const BREAKFAST = 855;
-    private const FULL_BOARD = 856;
+    private const SEA_VIEW = 853;
 
     private function hotel(): User
     {
@@ -263,19 +263,19 @@ class BookableUnitPresentationTest extends TestCase
         $hotel = $this->hotel();
 
         $this->actingAs($hotel)->put(route('business.booking-add-ons.update', [], false), [
-            'feature_ids' => [self::FULL_BOARD],
-            'adjust' => [self::FULL_BOARD => 100],
+            'feature_ids' => [self::SEA_VIEW],
+            'adjust' => [self::SEA_VIEW => 100],
         ])->assertRedirect();
 
         $this->postBatch($hotel, [
             'from' => 9001, 'to' => 9002,
             'price' => 600,
-            'option_ids' => [self::FULL_BOARD],
+            'option_ids' => [self::SEA_VIEW],
         ])->assertRedirect();
 
         $room = BookableItem::where('business_id', $hotel->id)->firstOrFail();
 
-        $this->assertContains(self::FULL_BOARD, $room->modifierOptionIds()->all());
+        $this->assertContains(self::SEA_VIEW, $room->modifierOptionIds()->all());
         $this->assertSame(700.0, $this->nightly($room), 'الصفةُ لم تُحسَب بنفسها');
     }
 
@@ -286,14 +286,14 @@ class BookableUnitPresentationTest extends TestCase
 
         // سعرُ الميزة يُكتب مرّةً، والدفعةُ تُؤشّر أىَّ الغرف تحملها.
         $this->actingAs($hotel)->put(route('business.booking-add-ons.update', [], false), [
-            'feature_ids' => [self::FULL_BOARD],
-            'adjust' => [self::FULL_BOARD => 100],
+            'feature_ids' => [self::SEA_VIEW],
+            'adjust' => [self::SEA_VIEW => 100],
         ])->assertRedirect();
 
         $this->postBatch($hotel, [
             'from' => 9001, 'to' => 9002,
             'price' => 600,
-            'option_ids' => [self::FULL_BOARD],
+            'option_ids' => [self::SEA_VIEW],
         ])->assertRedirect();
 
         $kind = $this->getJson('/api/v2/discovery/units/' . $hotel->id)

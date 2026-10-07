@@ -28,7 +28,7 @@ class BookingShapesTest extends TestCase
 
     public function test_every_booking_trade_stands_on_a_shape_and_a_hotel_on_the_hotel_one(): void
     {
-        $this->assertSame(['hotel_rooms', 'furnished_units', 'hourly_venue', 'table', 'appointment', 'course'], BookingShape::query()->orderBy('sort_order')->pluck('code')->all());
+        $this->assertSame(['hotel_rooms', 'furnished_units', 'hourly_venue', 'table', 'appointment', 'course', 'clinic', 'hospital', 'radiology', 'lab'], BookingShape::query()->orderBy('sort_order')->pluck('code')->all());
 
         $hotel = app(BookingShapes::class)->forChild(536);
         $this->assertSame('hotel_rooms', $hotel->code);
@@ -36,6 +36,12 @@ class BookingShapesTest extends TestCase
 
         // a flat or a chalet is a stay, but not rooms by the night
         $this->assertSame('furnished_units', app(BookingShapes::class)->forChild(537)->code);
+
+        // the medical trades each have the shape the canvas drew for them
+        $this->assertSame('clinic', app(BookingShapes::class)->forChild(514)->code);
+        $this->assertSame('hospital', app(BookingShapes::class)->forChild(513)->code);
+        $this->assertSame('radiology', app(BookingShapes::class)->forChild(252)->code);
+        $this->assertSame('lab', app(BookingShapes::class)->forChild(163)->code);
 
         // a trade nobody booked has none — the app draws what it always drew
         $this->assertNull(app(BookingShapes::class)->forChild(999999));
@@ -63,6 +69,20 @@ class BookingShapesTest extends TestCase
 
         $this->assertSame('flat', $shape->fresh()->resolvedSettings()['layout']);
         $this->assertSame('furnished_units', app(BookingShapes::class)->forChild(536)->code, 'a trade already on a shape is never moved');
+    }
+
+    public function test_the_medical_shapes_say_what_the_canvas_drew(): void
+    {
+        $lab = BookingShape::where('code', 'lab')->firstOrFail()->resolvedSettings();
+        $this->assertTrue($lab['multi_select']);
+        $this->assertTrue($lab['ask_attachment']);
+        $this->assertTrue($lab['offer_home_service']);
+
+        $hospital = BookingShape::where('code', 'hospital')->firstOrFail()->resolvedSettings();
+        $this->assertSame('sections', $hospital['layout'], 'departments, then the doctors under each');
+        $this->assertTrue($hospital['pick_provider']);
+
+        $this->assertFalse(BookingShape::where('code', 'hotel_rooms')->firstOrFail()->resolvedSettings()['multi_select']);
     }
 
     public function test_settings_are_a_closed_list(): void

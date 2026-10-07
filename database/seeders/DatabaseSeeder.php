@@ -391,6 +391,15 @@ class DatabaseSeeder extends Seeder
            // SaleUnits::herbsCodes() has all three units available.
            HerbsBunchUnitSeeder::class,
 
+           // «كل الاضافات الموجودة فى التصميم ضيفها الى قاعدة البيانات وتكون
+           // اختيارات للبزنس» — Day use meals, more views, the clinic visit
+           // kinds. Last on purpose: it asks the withdrawal ledger and only adds.
+           BookingDesignOptionsSeeder::class,
+
+           // «أشكال الحجز» — how each booking trade's page is drawn; add-only,
+           // reads booking_patterns.php, so it follows the vocabulary above.
+           BookingShapesSeeder::class,
+
             //  EgyptCountriesSeeder::class,
             //  EgyptGovernoratesSeeder::class,
             //  EgyptCitiesSeeder::class,

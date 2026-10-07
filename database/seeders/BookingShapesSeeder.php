@@ -46,6 +46,26 @@ class BookingShapesSeeder extends Seeder
             'description' => 'التحاقٌ ممتد: فترة الكورس والمجموعة والمستوى.',
             'settings' => ['layout' => 'flat', 'show_photos' => false, 'show_capacity' => false, 'pick_order' => 'dates_then_unit', 'ask_guest_counts' => false, 'ask_children' => false, 'offer_day_use' => false],
         ],
+        'clinic' => [
+            'name_ar' => 'عيادة', 'name_en' => 'Clinic', 'icon' => 'stethoscope', 'pattern' => 'consultation', 'sort_order' => 70,
+            'description' => 'الطبيب وأتعابه، نوع الزيارة (كشف/إعادة/استشارة)، ثم اليوم والوقت.',
+            'settings' => ['layout' => 'flat', 'show_photos' => true, 'show_capacity' => false, 'show_availability' => false, 'price_includes_features' => false, 'pick_order' => 'dates_then_unit', 'ask_guest_counts' => false, 'ask_children' => false, 'offer_day_use' => false, 'ask_attachment' => false, 'offer_home_service' => true],
+        ],
+        'hospital' => [
+            'name_ar' => 'مستشفى', 'name_en' => 'Hospital', 'icon' => 'hospital', 'pattern' => 'consultation', 'sort_order' => 80,
+            'description' => 'أقسام (باطنة، عظام، أطفال…) تحتها الأطباء بأتعابهم وأقرب موعد؛ الطوارئ بلا حجز.',
+            'settings' => ['layout' => 'sections', 'show_photos' => true, 'show_capacity' => false, 'show_availability' => true, 'price_includes_features' => false, 'pick_order' => 'unit_then_dates', 'ask_guest_counts' => false, 'ask_children' => false, 'offer_day_use' => false, 'pick_provider' => true],
+        ],
+        'radiology' => [
+            'name_ar' => 'مركز أشعة', 'name_en' => 'Radiology Centre', 'icon' => 'scan', 'pattern' => 'consultation', 'sort_order' => 90,
+            'description' => 'فحوصات بأقسامها (عادية، رنين، موجات صوتية) بالسعر وتعليمات التحضير؛ أكثر من فحص في حجز واحد، وصورة طلب الطبيب.',
+            'settings' => ['layout' => 'sections', 'show_photos' => false, 'show_capacity' => false, 'show_availability' => false, 'price_includes_features' => false, 'pick_order' => 'unit_then_dates', 'ask_guest_counts' => false, 'ask_children' => false, 'offer_day_use' => false, 'multi_select' => true, 'ask_attachment' => true],
+        ],
+        'lab' => [
+            'name_ar' => 'معمل تحاليل', 'name_en' => 'Laboratory', 'icon' => 'flask', 'pattern' => 'consultation', 'sort_order' => 100,
+            'description' => 'تحاليل وباقات بأسعارها وملاحظات الصيام؛ أكثر من تحليل، وسحب العينة من المنزل بإضافة سعرية، وصورة طلب الطبيب.',
+            'settings' => ['layout' => 'sections', 'show_photos' => false, 'show_capacity' => false, 'show_availability' => false, 'price_includes_features' => false, 'pick_order' => 'unit_then_dates', 'ask_guest_counts' => false, 'ask_children' => false, 'offer_day_use' => false, 'multi_select' => true, 'ask_attachment' => true, 'offer_home_service' => true],
+        ],
     ];
 
     /** A pattern → the shape it starts on. */
@@ -60,6 +80,13 @@ class BookingShapesSeeder extends Seeder
 
     /** Trades that are stays but not hotel rooms: a flat, a chalet, a rented unit. */
     private const FURNISHED_CHILDREN = [537, 552, 517, 518, 522];
+
+    /**
+     * The medical trades have a shape of their own (the canvas drew them: clinic, hospital, radiology, lab) instead of
+     * the generic «موعد». A trade that was still on the shape its pattern gave it is moved once; one an admin has since
+     * put elsewhere is left alone.
+     */
+    private const MEDICAL_CHILDREN = [514 => 'clinic', 515 => 'clinic', 513 => 'hospital', 252 => 'radiology', 163 => 'lab'];
 
     public function run(): void
     {
@@ -102,6 +129,13 @@ class BookingShapesSeeder extends Seeder
             DB::table('booking_shape_children')->insert([
                 'child_id' => $childId, 'booking_shape_id' => $ids[$code], 'created_at' => now(), 'updated_at' => now(),
             ]);
+        }
+
+        foreach (self::MEDICAL_CHILDREN as $childId => $code) {
+            DB::table('booking_shape_children')
+                ->where('child_id', $childId)
+                ->where('booking_shape_id', $ids['appointment'])
+                ->update(['booking_shape_id' => $ids[$code], 'updated_at' => now()]);
         }
     }
 }

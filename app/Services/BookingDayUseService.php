@@ -110,30 +110,37 @@ final class BookingDayUseService
     /**
      * The price a Day use booking carries: the flat day-use price, once per room. No night's price, no per-night
      * extras, no discount of the nightly row — the hotel named one price for the day.
+     *
+     * The one thing that rides on it is the meals the guest ticked (فطار / غداء / عشاء): they are priced by the hotel
+     * like any add-on and counted once per room.
+     *
+     * @param  array{base:float,total:float,lines:array<int,array<string,mixed>>}|null  $meals
      */
-    public function breakdown(array $base, BookableItem $item, int $quantity, string $date): array
+    public function breakdown(array $base, BookableItem $item, int $quantity, string $date, ?array $meals = null): array
     {
         $offer = $this->offer($item);
         $price = round((float) ($offer['price'] ?? 0), 2);
         $quantity = max($quantity, 1);
+        $extras = round((float) ($meals['total'] ?? 0), 2);
+        $unit = round($price + $extras, 2);
 
         return array_merge($base, [
             'source' => 'day_use',
-            'unit_price' => $price,
+            'unit_price' => $unit,
             'base_unit_price' => $price,
             'price_rule' => null,
-            'modifiers' => [],
-            'modifiers_total' => 0.0,
-            'periods' => [['date' => $date, 'base_price' => $price, 'modifiers_total' => 0.0, 'price' => $price, 'rule' => null]],
+            'modifiers' => $meals['lines'] ?? [],
+            'modifiers_total' => $extras,
+            'periods' => [['date' => $date, 'base_price' => $price, 'modifiers_total' => $extras, 'price' => $unit, 'rule' => null]],
             'periods_count' => 1,
             'period_unit' => 'day_use',
             'units' => $quantity,
             'quantity' => $quantity,
-            'original_price' => round($price * $quantity, 2),
+            'original_price' => round($unit * $quantity, 2),
             'discount_enabled' => false,
             'discount_percent' => 0,
             'discount_amount' => 0.0,
-            'final_price' => round($price * $quantity, 2),
+            'final_price' => round($unit * $quantity, 2),
         ]);
     }
 

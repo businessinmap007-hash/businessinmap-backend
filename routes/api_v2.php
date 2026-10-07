@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V2\AuthController;
 use App\Http\Controllers\Api\V2\BookingController;
 use App\Http\Controllers\Api\V2\BusinessBookableItemController;
 use App\Http\Controllers\Api\V2\BusinessBookingCheckTimesController;
+use App\Http\Controllers\Api\V2\BusinessBookingTermsController;
 use App\Http\Controllers\Api\V2\BusinessMenuBundleController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
@@ -972,6 +973,12 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/booking-settings')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('check-times', [BusinessBookingCheckTimesController::class, 'show']);
             Route::put('check-times', [BusinessBookingCheckTimesController::class, 'update']);
+        });
+
+        // «شروط الحجز»: deposit / guarantee / outside transfer, in the business's own words.
+        Route::prefix('business/booking-terms')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
+            Route::get('/', [BusinessBookingTermsController::class, 'show']);
+            Route::put('/', [BusinessBookingTermsController::class, 'update']);
         });
 
         // Business retail listings: a merchant's priced listings over the shared

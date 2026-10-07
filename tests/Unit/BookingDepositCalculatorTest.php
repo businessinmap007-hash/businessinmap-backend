@@ -48,13 +48,13 @@ class BookingDepositCalculatorTest extends TestCase
         $this->assertSame(10.0, (float) $out['configured_percent']);
     }
 
-    public function test_percent_is_capped_at_system_max_20(): void
+    public function test_percent_is_capped_at_system_max_50(): void
     {
-        // Ask for 50% with a 100% policy max — must still cap at the system 20%.
-        $out = $this->calc($this->basePolicy(['deposit_value' => 50.0, 'max_deposit_percent' => 100.0]));
+        // Ask for 80% with a 100% policy max — must still cap at the system 50%.
+        $out = $this->calc($this->basePolicy(['deposit_value' => 80.0, 'max_deposit_percent' => 100.0]));
 
-        $this->assertSame(20.0, (float) $out['configured_percent']);
-        $this->assertSame(200.0, (float) $out['amount']);      // 20% of 1000
+        $this->assertSame(50.0, (float) $out['configured_percent']);
+        $this->assertSame(500.0, (float) $out['amount']);      // 50% of 1000
     }
 
     public function test_min_deposit_amount_raises_within_cap(): void

@@ -6,7 +6,8 @@ use App\Models\BusinessDepositPolicy;
 
 class BookingDepositCalculator
 {
-    public const SYSTEM_MAX_PERCENT = 20.0;
+    /** «الديبوزت 20 أو 25 أو 50%» — المالك، 2026-10-07: the platform ceiling is half of the booking value. */
+    public const SYSTEM_MAX_PERCENT = 50.0;
     public const DEFAULT_COUNTER_HOLD_PERCENT = 50.0;
 
     public function calculate(array $policy, array $amounts): array
@@ -80,7 +81,11 @@ class BookingDepositCalculator
         $clientStrategy = (string) ($policy['client_guarantee_strategy'] ?? 'per_operation_hold');
         $businessStrategy = (string) ($policy['business_guarantee_strategy'] ?? 'per_operation_hold');
 
-        $clientCovered = $this->guaranteeCovers($clientGuarantee, $depositAmount, $clientStrategy);
+        // A guarantee may be asked to stand for a MULTIPLE of the day's value, not only the deposit — «يجمّد الضمان حتى
+        // لو أضعاف قيمة حجز اليوم». With no multiple (0, the default) it is the deposit itself, as before.
+        $guaranteeMultiple = max(0.0, (float) ($policy['guarantee_multiple'] ?? 0));
+        $clientGuaranteeRequired = $this->money(max($depositAmount, $firstDayAmount * $guaranteeMultiple));
+        $clientCovered = $this->guaranteeCovers($clientGuarantee, $clientGuaranteeRequired, $clientStrategy);
         $businessCoverageBase = $depositAmount;
         $businessCovered = $this->guaranteeCovers($businessGuarantee, $businessCoverageBase, $businessStrategy);
 
@@ -146,6 +151,7 @@ class BookingDepositCalculator
             'client_guarantee_strategy' => $clientStrategy,
             'business_guarantee_strategy' => $businessStrategy,
             'client_guarantee_covered' => $clientCovered,
+            'client_guarantee_required_amount' => $clientGuaranteeRequired,
             'business_guarantee_covered' => $businessCovered,
             'client_guarantee' => $clientGuarantee,
             'business_guarantee' => $businessGuarantee,
@@ -248,6 +254,7 @@ class BookingDepositCalculator
             'client_guarantee_strategy' => $policy['client_guarantee_strategy'] ?? 'per_operation_hold',
             'business_guarantee_strategy' => $policy['business_guarantee_strategy'] ?? 'per_operation_hold',
             'client_guarantee_covered' => false,
+            'client_guarantee_required_amount' => 0.0,
             'business_guarantee_covered' => false,
             'client_guarantee' => $clientGuarantee,
             'business_guarantee' => $businessGuarantee,

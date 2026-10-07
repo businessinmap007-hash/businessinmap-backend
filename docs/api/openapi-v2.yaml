@@ -2618,6 +2618,15 @@ paths:
     post: { tags: [Business Bookables], summary: 'Upload photos for one bookable unit (multipart images[], max 10 per unit) — same gallery pattern as the menu item photos.', parameters: [{ name: item, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '422': { description: 'Not an image, or the 10-photo cap is reached' } } }
   /business/bookable-items/{item}/images/{image}:
     delete: { tags: [Business Bookables], summary: 'Delete one photo from a bookable unit. Removes the FILE as well as the row.', parameters: [{ name: item, in: path, required: true, schema: { type: integer } }, { name: image, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { description: 'Not this business unit, or no such photo' } } }
+  /business/booking-terms:
+    get:
+      tags: [Business Bookables]
+      summary: "شروط الحجز — how the business secures its bookings (deposit frozen in both wallets / the customer's guarantee / transfer outside the app), with a preview for an 800 booking"
+      responses: { '200': { description: OK } }
+    put:
+      tags: [Business Bookables]
+      summary: 'Save the terms: enabled, security_mode (deposit_freeze|guarantee_freeze|external_transfer), deposit_percent (1-50), deposit_base (first_day|total), business_counter_percent, guarantee_multiple (0-10), forfeit_to_business'
+      responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
   /business/booking-settings/check-times:
     get: { tags: [Business Bookables], summary: A stay's check-in/check-out clock, responses: { '200': { description: OK } } }
     put: { tags: [Business Bookables], summary: Set the check-in/check-out clock ('HH:mm' or null), responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }

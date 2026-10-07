@@ -42,7 +42,7 @@ class BookingDepositPolicyResolver
             });
     }
 
-    protected function fromBusinessPolicy(BusinessDepositPolicy $policy): array
+    public function fromBusinessPolicy(BusinessDepositPolicy $policy): array
     {
         return [
             'enabled' => (bool) $policy->is_enabled,
@@ -62,6 +62,8 @@ class BookingDepositPolicyResolver
             'client_guarantee_strategy' => (string) ($policy->client_guarantee_strategy ?? BusinessDepositPolicy::GUARANTEE_PER_OPERATION_HOLD),
             'business_guarantee_strategy' => (string) ($policy->business_guarantee_strategy ?? BusinessDepositPolicy::GUARANTEE_PER_OPERATION_HOLD),
             'guarantee_hybrid_extra_percent' => (float) ($policy->guarantee_hybrid_extra_percent ?? 20),
+            'guarantee_multiple' => max(0.0, (float) ($policy->guarantee_multiple ?? 0)),
+            'forfeit_to_business' => (bool) ($policy->forfeit_to_business ?? false),
             'dispute_resolution_days' => (int) $policy->dispute_resolution_days,
             'warning_every_days' => (int) $policy->warning_every_days,
             'non_cooperation_fee_enabled' => (bool) $policy->non_cooperation_fee_enabled,

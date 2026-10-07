@@ -2630,7 +2630,7 @@ paths:
   /business/bookable-items/{item}/rooms:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
     get: { tags: [Business Bookables], summary: "The hotel's own list of numbered rooms behind a room type (booking_stay only). Never shown to a customer", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
-    post: { tags: [Business Bookables], summary: 'Add rooms - {numbers: ["101","102"]}; a number already listed is skipped. The type's quantity follows the open rooms', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Business Bookables], summary: 'Add rooms - {numbers: ["101","102"]}; a number already listed is skipped. The quantity of the room type follows the open rooms', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/bookable-items/{item}/rooms/{room}:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }, { name: room, in: path, required: true, schema: { type: integer } }]
     patch: { tags: [Business Bookables], summary: 'Rename a room, close it for maintenance (status=maintenance) or note it', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }

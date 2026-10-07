@@ -316,6 +316,9 @@ final class BookingController extends Controller
             })
             ->values();
 
+        $payments = app(\App\Services\BookingDepositPaymentService::class);
+        $bookings->each(fn (Booking $booking) => $booking->setAttribute('deposit_as_payment', $payments->state($booking)));
+
         return response()->json([
             'success' => true,
             'data' => ['bookings' => $this->titled($bookings)],

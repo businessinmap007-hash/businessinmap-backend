@@ -20,7 +20,7 @@ final class NotificationCategories
         'social' => ['المنشورات والعروض والوظائف', 'Posts, offers & jobs', ['post_', 'comment_', 'offer_', 'job_']],
         'trips' => ['الرحلات والمشاريع', 'Trips & projects', ['trip_', 'project_']],
         'money' => ['المحفظة والضمانات والنزاعات', 'Wallet, guarantees & disputes', ['wallet_', 'guarantee_', 'coguarantor_', 'dispute_']],
-        'health' => ['الأدوية والوصفات والفحوصات', 'Medicine, prescriptions & tests', ['prescription_', 'investigation_']],
+        'health' => ['الأدوية والوصفات والفحوصات', 'Medicine, prescriptions & tests', ['prescription_', 'investigation_', 'hospital_']],
         'training' => ['التدريب والخطط', 'Training & plans', ['training_']],
         'team' => ['الموظفون', 'Staff', ['staff_']],
     ];

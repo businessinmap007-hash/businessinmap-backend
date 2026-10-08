@@ -141,6 +141,13 @@ class ClinicAppointmentController extends Controller
             ->orderBy('starts_at')
             ->paginate((int) $request->get('per_page', 30));
 
+        // «حجوزات العيادات خاضعة لمواعيد عمل العيادات» — المالك: a slot published before the clinic changed its hours
+        // is not offered outside them (booking it would be refused anyway).
+        $hours = app(\App\Services\BusinessHoursService::class);
+        $rows->setCollection($rows->getCollection()->filter(
+            fn (ClinicAppointmentSlot $s) => $hours->isOpenThroughout((int) $clinic, $s->starts_at, $s->starts_at->copy()->addMinutes((int) $s->duration_minutes))
+        )->values());
+
         $rows->getCollection()->transform(fn (ClinicAppointmentSlot $s) => [
             'id' => (int) $s->id,
             'starts_at' => optional($s->starts_at)->toIso8601String(),

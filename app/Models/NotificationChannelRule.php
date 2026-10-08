@@ -156,6 +156,7 @@ class NotificationChannelRule extends Model
 
             // Investigation orders: a doctor orders tests (→ the patient), the patient sends them to a centre
             // (→ the centre), the centre accepts / declines / has the results (→ the patient, and the doctor).
+            'hospital_doctor' => ['دعوة أو رد من مستشفى', 'Hospital doctor invitation', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'investigation_issued' => ['طلب فحوصات جديد', 'New investigation order', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             'investigation_received' => ['طلب فحوصات وارد', 'Investigation order received', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'system'],
             'investigation_accepted' => ['قبول طلب الفحوصات', 'Investigation order accepted', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],

@@ -76,6 +76,11 @@ tags:
       (never typed); the patient shares the order with a registered lab or radiology centre — or asks one directly, with no doctor — and sees
       what each centre would charge for the whole order; the centre accepts it (with a time), declines it, or attaches the results as photos.
       Only the doctor, the patient and the centre may read an order. Files are private, behind signed links.
+  - name: HospitalDoctors
+    description: >-
+      Doctors under a hospital's departments («الأطباء تحت الأقسام»): the departments are the medical specialties a hospital or medical centre
+      ticked on itself; it lists doctors under each. A doctor with an account on the app joins only by accepting (so nobody is listed without
+      agreeing) and a patient can open that doctor's page from under the department; a doctor with no account is listed as text.
   - name: Prescriptions
     description: >-
       Medical prescriptions (روشتة): a doctor (clinic business) issues one for a
@@ -5101,6 +5106,21 @@ paths:
     post: { tags: [Investigations], summary: "The centre declines — {note?}. A doctor's order goes back to the patient to send elsewhere; a patient's own request is `declined`.", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /business/investigation-orders/{order}/results:
     post: { tags: [Investigations], summary: 'The centre attaches the results — multipart images[] (1–10 photos) and an optional note; the order becomes `ready` and the patient and the doctor are told.', parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /hospitals/{hospital}/departments:
+    get: { tags: [HospitalDoctors], summary: "What a patient reads on a hospital's page: its departments (the specialties it ticked) each with its active doctors — {name, business_id (the doctor's own page; null for a doctor listed as text)}. 404 for a business that is not a hospital or medical centre.", parameters: [{ name: hospital, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/hospital-doctors:
+    get: { tags: [HospitalDoctors], summary: "The hospital's own view of its departments and doctors, pending invitations included.", responses: { '200': { description: OK }, '403': { description: 'Not a hospital or medical centre' } } }
+    post: { tags: [HospitalDoctors], summary: 'Put a doctor under a department — {option_id, user_id} for a doctor with an account (pending until that doctor accepts, unless the doctor already agreed to this hospital), or {option_id, name, title?} for a doctor with no account (listed at once). The department must be one the hospital ticked.', responses: { '201': { description: Created }, '403': { description: 'Not a hospital or medical centre' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hospital-doctors/find-doctors:
+    get: { tags: [HospitalDoctors], summary: 'Doctor accounts (individual clinics) matching ?q= (2+ characters), to invite.', parameters: [{ name: q, in: query, schema: { type: string } }], responses: { '200': { description: OK }, '403': { description: 'Not a hospital or medical centre' } } }
+  /business/hospital-doctors/{row}:
+    delete: { tags: [HospitalDoctors], summary: "The hospital drops a doctor from a department (404 on another hospital's row).", parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/hospital-invitations:
+    get: { tags: [HospitalDoctors], summary: 'A doctor sees who invited them (pending) and where they are listed (active).', responses: { '200': { description: OK } } }
+  /business/hospital-invitations/{row}/accept:
+    post: { tags: [HospitalDoctors], summary: "Accept an invitation — it also opens the same hospital's other pending departments, since it is one agreement.", parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hospital-invitations/{row}:
+    delete: { tags: [HospitalDoctors], summary: 'Decline an invitation, or leave a department the doctor is listed under.', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /prescriptions:
     get:
       tags: [Prescriptions]

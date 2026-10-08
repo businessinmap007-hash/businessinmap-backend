@@ -2948,5 +2948,16 @@
     "هذه الخدمة للمعامل ومراكز الأشعة.": "This service is for labs and radiology centres.",
     "تم إرسال طلب الفحوصات إلى المريض.": "The investigation order was sent to the patient.",
     "تم إرسال الطلب إلى الجهة.": "The order was sent to the centre.",
-    "تم إرسال طلبك إلى الجهة.": "Your request was sent to the centre."
+    "تم إرسال طلبك إلى الجهة.": "Your request was sent to the centre.",
+    "الأقسام للمستشفيات والمراكز الطبية فقط.": "Departments are for hospitals and medical centres only.",
+    "هذا القسم غير مفعّل في حسابك.": "This department is not enabled on your account.",
+    "هذا الحساب ليس حساب طبيب.": "This account is not a doctor.",
+    "هذا الطبيب مضاف في هذا القسم.": "This doctor is already in this department.",
+    "اكتب اسم الطبيب أو اختر حسابه.": "Write the doctor's name or pick their account.",
+    "هذه الدعوة لم تعد قيد الانتظار.": "This invitation is no longer pending.",
+    "أُرسلت الدعوة إلى الطبيب.": "The invitation was sent to the doctor.",
+    "تمت إضافة الطبيب.": "The doctor was added.",
+    "تمت إزالة الطبيب من القسم.": "The doctor was removed from the department.",
+    "ظهرت الآن ضمن أطباء المستشفى.": "You now appear among the hospital's doctors.",
+    "تم.": "Done."
 }

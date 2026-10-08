@@ -55,6 +55,7 @@ use App\Http\Controllers\Api\V2\ThreadAccessController;
 use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\ExerciseLibraryController;
+use App\Http\Controllers\Api\V2\HospitalDoctorController;
 use App\Http\Controllers\Api\V2\InvestigationOrderController;
 use App\Http\Controllers\Api\V2\FoodLibraryController;
 use App\Http\Controllers\Api\V2\PlanPhotoController;
@@ -569,6 +570,7 @@ Route::prefix('v2')->group(function () {
         Route::get('clinic-appointments/{appointment}/checkin-token', [ClinicAppointmentController::class, 'checkinToken'])->whereNumber('appointment');
         // Published open slots: browse a clinic's, then book one in a tap.
         Route::get('clinics/{clinic}/slots', [ClinicAppointmentController::class, 'slots'])->whereNumber('clinic');
+        Route::get('hospitals/{hospital}/departments', [HospitalDoctorController::class, 'departments'])->whereNumber('hospital');
         Route::post('clinic-slots/{slot}/book', [ClinicAppointmentController::class, 'bookSlot'])->whereNumber('slot');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
@@ -1331,6 +1333,20 @@ Route::prefix('v2')->group(function () {
             Route::post('/', [ClinicLinkController::class, 'store']);
             Route::post('{link}/accept', [ClinicLinkController::class, 'accept'])->whereNumber('link');
             Route::delete('{link}', [ClinicLinkController::class, 'destroy'])->whereNumber('link');
+        });
+
+        // «الأطباء تحت الأقسام»: a hospital lists doctors under the departments (the specialties it ticked); a doctor with
+        // an account joins by accepting, and a patient opens that doctor's page from under the department.
+        Route::prefix('business/hospital-doctors')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
+            Route::get('/', [HospitalDoctorController::class, 'index']);
+            Route::get('find-doctors', [HospitalDoctorController::class, 'findDoctors']);
+            Route::post('/', [HospitalDoctorController::class, 'store']);
+            Route::delete('{row}', [HospitalDoctorController::class, 'destroy'])->whereNumber('row');
+        });
+        Route::prefix('business/hospital-invitations')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
+            Route::get('/', [HospitalDoctorController::class, 'invitations']);
+            Route::post('{row}/accept', [HospitalDoctorController::class, 'accept'])->whereNumber('row');
+            Route::delete('{row}', [HospitalDoctorController::class, 'leave'])->whereNumber('row');
         });
 
         // «1 كشف ثم 2 استشارة»: the clinic's own repeating queue pattern.

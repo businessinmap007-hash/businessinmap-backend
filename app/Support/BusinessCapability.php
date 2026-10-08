@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\InvestigationOrder;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -150,10 +151,17 @@ final class BusinessCapability
         $services = BusinessPanelNav::servicesOf($business);
         $isHealth = self::standsUnderHealth($business);
         $trainsPatients = $isHealth && self::tickedTrainingSpecialty($business);
+        $onlyReceivesTests = $isHealth
+            && in_array((int) ($business->category_child_id ?? 0), InvestigationOrder::RECEIVE_ONLY_CHILDREN, true);
 
         return array_filter(
             self::registry(),
-            function (string $key) use ($services, $isHealth, $trainsPatients) {
+            function (string $key) use ($services, $isHealth, $trainsPatients, $onlyReceivesTests) {
+                // a lab or a radiology centre only receives orders: no clinic, no prescriptions to issue or fill
+                if ($onlyReceivesTests && in_array($key, [self::CLINIC, self::PRESCRIPTIONS], true)) {
+                    return false;
+                }
+
                 if ($key === self::TRAINING && $isHealth) {
                     return $trainsPatients && in_array('training', $services, true);
                 }

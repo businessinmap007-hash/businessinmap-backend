@@ -123,6 +123,16 @@ class InvestigationOrdersTest extends TestCase
         $this->issue($doctor, $doctor, [$o['cbc']])->assertStatus(422);
     }
 
+    public function test_a_lab_is_not_offered_the_clinic_or_the_prescriptions(): void
+    {
+        $lab = $this->user(User::TYPE_BUSINESS, self::LAB, 'Lab');
+        $keys = array_keys(\App\Support\BusinessCapability::forBusiness($lab));
+
+        $this->assertContains('investigations', $keys);
+        $this->assertNotContains('clinic', $keys);
+        $this->assertNotContains('prescriptions', $keys);
+    }
+
     public function test_the_patient_sees_what_each_centre_charges_for_the_whole_order(): void
     {
         [$doctor, $patient, $o] = $this->setUpOrder();

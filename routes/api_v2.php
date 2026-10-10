@@ -871,6 +871,10 @@ Route::prefix('v2')->group(function () {
         Route::get('medical-backup', [\App\Http\Controllers\Api\V2\MedicalBackupController::class, 'show'])->middleware('throttle:10,1');
         Route::put('medical-backup', [\App\Http\Controllers\Api\V2\MedicalBackupController::class, 'update'])->middleware('throttle:10,1');
         Route::delete('medical-backup', [\App\Http\Controllers\Api\V2\MedicalBackupController::class, 'destroy']);
+        // The clinic's patient files live on its device; this is their optional encrypted server copy.
+        Route::get('clinic-files-backup', [\App\Http\Controllers\Api\V2\ClinicFilesBackupController::class, 'show'])->middleware('throttle:10,1');
+        Route::put('clinic-files-backup', [\App\Http\Controllers\Api\V2\ClinicFilesBackupController::class, 'update'])->middleware('throttle:10,1');
+        Route::delete('clinic-files-backup', [\App\Http\Controllers\Api\V2\ClinicFilesBackupController::class, 'destroy']);
         Route::post('medical-shares', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'store'])->middleware('throttle:30,1');
         Route::get('medical-shares/{id}', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'show'])->whereUuid('id')->middleware('throttle:30,1');
         Route::delete('medical-shares/{id}', [\App\Http\Controllers\Api\V2\MedicalShareController::class, 'destroy'])->whereUuid('id');

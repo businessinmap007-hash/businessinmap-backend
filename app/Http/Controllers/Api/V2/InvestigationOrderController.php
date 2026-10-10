@@ -180,7 +180,7 @@ class InvestigationOrderController extends Controller
         };
 
         $rows = InvestigationOrder::query()->where('center_id', (int) $center->id)->whereIn('status', $statuses)
-            ->with(['items', 'doctor:id,name,name_en,medical_title', 'patient:id,name', 'images'])->latest('id')->paginate((int) $request->get('per_page', 20));
+            ->with(['items', 'patient:id,name', 'images'])->latest('id')->paginate((int) $request->get('per_page', 20));
 
         $rows->getCollection()->transform(fn (InvestigationOrder $o) => $this->serialize($o, $request->user()));
 
@@ -195,7 +195,7 @@ class InvestigationOrderController extends Controller
 
         $row = $this->service->accept($row, ! empty($data['appointment_at']) ? new \DateTimeImmutable($data['appointment_at']) : null, $data['note'] ?? null);
 
-        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row->load(['items', 'patient:id,name', 'doctor:id,name', 'images']), $request->user())]]);
+        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row->load(['items', 'patient:id,name', 'images']), $request->user())]]);
     }
 
     /** POST /api/v2/business/investigation-orders/{id}/decline — `{note?}` */
@@ -206,22 +206,27 @@ class InvestigationOrderController extends Controller
 
         $row = $this->service->decline($row, $data['note'] ?? null);
 
-        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row->load(['patient:id,name', 'doctor:id,name', 'images']), $request->user())]]);
+        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row->load(['patient:id,name', 'images']), $request->user())]]);
     }
 
-    /** POST /api/v2/business/investigation-orders/{id}/results — photos of the results (multipart `images[]`) and a note. */
+    /**
+     * POST /api/v2/business/investigation-orders/{id}/results — the results as TEXT per test (`texts[item_id]`), and/or
+     * photos of what is not text (multipart `images[]`), and a note. At least one of the two.
+     */
     public function results(Request $request, int $order)
     {
         $row = $this->centerOrderOrFail($request, $order);
         $data = $request->validate([
-            'images' => ['required', 'array', 'min:1', 'max:10'],
+            'texts' => ['nullable', 'array', 'max:60'],
+            'texts.*' => ['nullable', 'string', 'max:4000'],
+            'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ImageUploadService::validationRules(),
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $row = $this->service->attachResults($row, $request->file('images', []), $data['note'] ?? null);
+        $row = $this->service->attachResults($row, $request->file('images', []), $data['note'] ?? null, $data['texts'] ?? []);
 
-        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row->load(['patient:id,name', 'doctor:id,name']), $request->user())]]);
+        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row->load(['patient:id,name', 'images']), $request->user())]]);
     }
 
     // ───────────────────────── a file, from private storage ─────────────────────────
@@ -286,13 +291,21 @@ class InvestigationOrderController extends Controller
     {
         $o->loadMissing('images');
 
+        // «لا يصل الطلب إلى المعمل أو الأشعة باسم الطبيب … عمولات» — المالك، 2026-10-11: the centre the order went to
+        // never learns which doctor wrote it. The patient and the doctor see each other; the centre sees neither a
+        // name nor an id.
+        $viewerIsCenter = $o->center_id !== null && $viewer !== null
+            && in_array((int) $o->center_id, [(int) $viewer->id, (int) BusinessContext::id(request())], true)
+            && ! in_array((int) $o->doctor_id, [(int) $viewer->id, (int) BusinessContext::id(request())], true);
+
         return [
             'id' => (int) $o->id,
             'status' => (string) $o->status,
-            'doctor' => $o->doctor ? ['id' => (int) $o->doctor->id, 'name' => $o->doctor->name] : null,
+            'doctor' => ! $viewerIsCenter && $o->doctor ? ['id' => (int) $o->doctor->id, 'name' => $o->doctor->name] : null,
+            'ordered_by_doctor' => $o->doctor_id !== null,
             'patient' => $o->patient ? ['id' => (int) $o->patient->id, 'name' => $o->patient->name] : null,
             'center' => $o->center ? ['id' => (int) $o->center->id, 'name' => $o->center->name] : null,
-            'items' => $o->items->map(fn ($i) => ['id' => (int) $i->id, 'kind' => $i->kind, 'name' => $i->name, 'price' => $i->price])->values(),
+            'items' => $o->items->map(fn ($i) => ['id' => (int) $i->id, 'kind' => $i->kind, 'name' => $i->name, 'price' => $i->price, 'result' => $i->result_text])->values(),
             'total' => $o->total,
             'notes' => $o->notes,
             'center_note' => $o->center_note,

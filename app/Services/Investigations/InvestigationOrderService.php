@@ -369,16 +369,40 @@ final class InvestigationOrderService
     }
 
     /**
-     * The results, as photos of the papers or the films. The patient reads them; the doctor who ordered the tests
-     * is told too and reads them from the order.
+     * The results: TEXT beside each test it answers (the lab already has them as text — a few bytes, readable in the
+     * app, copyable into the patient's file), and photos only for what is not text. The patient reads them; the doctor
+     * who ordered the tests is told too and reads them from the order.
      *
      * @param  list<UploadedFile>  $files
+     * @param  array<int|string,string|null>  $texts  item id => the result as written
      */
-    public function attachResults(InvestigationOrder $order, array $files, ?string $note): InvestigationOrder
+    public function attachResults(InvestigationOrder $order, array $files, ?string $note, array $texts = []): InvestigationOrder
     {
         $this->assertStatus($order, [InvestigationOrder::STATUS_ACCEPTED, InvestigationOrder::STATUS_READY]);
 
-        DB::transaction(function () use ($order, $files, $note) {
+        $order->loadMissing('items');
+        $byId = $order->items->keyBy('id');
+        $written = [];
+        foreach ($texts as $itemId => $text) {
+            $text = trim((string) $text);
+            if ($text === '') {
+                continue;
+            }
+            if (! $byId->has((int) $itemId)) {
+                throw ValidationException::withMessages(['texts' => __('نتيجة لفحص ليس في هذا الطلب.')]);
+            }
+            $written[(int) $itemId] = $text;
+        }
+
+        if ($written === [] && $files === []) {
+            throw ValidationException::withMessages(['texts' => __('اكتب نتيجة فحص واحد على الأقل أو أرفق صورة.')]);
+        }
+
+        DB::transaction(function () use ($order, $files, $note, $written) {
+            foreach ($written as $itemId => $text) {
+                $order->items->firstWhere('id', $itemId)?->update(['result_text' => $text]);
+            }
+
             foreach ($files as $file) {
                 $order->images()->create([
                     'image' => app(ImageUploadService::class)->storePrivate($file),

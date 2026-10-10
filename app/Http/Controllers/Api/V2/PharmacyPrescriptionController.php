@@ -63,7 +63,16 @@ class PharmacyPrescriptionController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم تسجيل صرف الوصفة.'),
-            'data' => ['id' => (int) $row->id, 'status' => (string) $row->status, 'dispensed_at' => optional($row->dispensed_at)->toIso8601String()],
+            // `final` = this was the LAST filling: the paper gets its «تم الصرف» stamp now
+            'data' => [
+                'id' => (int) $row->id,
+                'status' => (string) $row->status,
+                'dispensed_at' => optional($row->dispensed_at)->toIso8601String(),
+                'dispense_limit' => (int) ($row->dispense_limit ?: 1),
+                'dispense_count' => (int) $row->dispense_count,
+                'dispenses_left' => $row->dispensesLeft(),
+                'final' => $row->status === \App\Models\Prescription::STATUS_DISPENSED,
+            ],
         ]);
     }
 
@@ -92,9 +101,17 @@ class PharmacyPrescriptionController extends Controller
             // issued = may be dispensed; sent/preparing/ready = another pharmacy already has it; dispensed/cancelled = no.
             'can_dispense' => $row->status === Prescription::STATUS_ISSUED && (! $controlled || $handwritten !== null),
             'controlled' => $controlled,
+            // «يُختم عليها تم الصرف بعد المرات التي سيصرف فيها»: how many fillings, how many are done, and whether the one
+            // about to be recorded is the LAST (the pharmacist then stamps the paper «تم الصرف»)
+            'dispense_limit' => (int) ($row->dispense_limit ?: 1),
+            'dispense_count' => (int) $row->dispense_count,
+            'dispenses_left' => $row->dispensesLeft(),
+            'final_dispense' => $row->dispensesLeft() <= 1,
             'handwritten_image' => optional($handwritten)->image,
             'superseded' => (bool) ($row->status === Prescription::STATUS_CANCELLED && $row->revisedBy()->exists()),
-            'doctor' => $row->doctor ? ['id' => (int) $row->doctor->id, 'name' => $row->doctor->displayName()] : null,
+            // «الطبيب غير معلوم لهم»: the pharmacy checks the prescription is genuine (its hash) and reads the
+            // handwritten paper — never who wrote it.
+            'doctor' => null,
             'issued_at' => optional($row->issued_at)->toIso8601String(),
             'dispensed_at' => optional($row->dispensed_at)->toIso8601String(),
         ];
@@ -218,7 +235,7 @@ class PharmacyPrescriptionController extends Controller
             'delivery_address' => $p->delivery_address,
             'diagnosis' => $p->diagnosis,
             'notes' => $p->notes,
-            'doctor' => $p->doctor ? ['id' => (int) $p->doctor->id, 'name' => $p->doctor->displayName()] : null,
+            'doctor' => null, // the pharmacy never learns the doctor (commissions)
             'patient' => $p->patient ? ['id' => (int) $p->patient->id, 'name' => $p->patient->name] : ['id' => (int) $p->patient_id],
             'medicine_total' => $p->medicine_total !== null ? (float) $p->medicine_total : null,
             'priced_at' => optional($p->priced_at)->toIso8601String(),

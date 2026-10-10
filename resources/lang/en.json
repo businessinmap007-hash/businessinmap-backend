@@ -2970,5 +2970,7 @@
     "تم إرسال طلبك إلى المستشفى.": "Your request was sent to the hospital.",
     "تمت إضافة الإجراء.": "The procedure was added.",
     "تم الحفظ.": "Saved.",
-    "قسم": "Section"
+    "قسم": "Section",
+    "نتيجة لفحص ليس في هذا الطلب.": "A result for a test that is not in this order.",
+    "اكتب نتيجة فحص واحد على الأقل أو أرفق صورة.": "Write at least one test result or attach a photo."
 }

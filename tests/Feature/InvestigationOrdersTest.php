@@ -123,6 +123,70 @@ class InvestigationOrdersTest extends TestCase
         $this->issue($doctor, $doctor, [$o['cbc']])->assertStatus(422);
     }
 
+    public function test_the_centre_never_learns_which_doctor_ordered_the_tests(): void
+    {
+        [$doctor, $patient, $o] = $this->setUpOrder();
+        $lab = $this->user(User::TYPE_BUSINESS, self::LAB, 'Lab');
+        $this->price($lab, $o['cbc'], 100);
+
+        $id = $this->issue($doctor, $patient, [$o['cbc']], ['notes' => 'صيام'])->json('data.order.id');
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/investigation-orders/{$id}/send", ['center_id' => $lab->id])->assertOk();
+
+        // «الطبيب غير معلوم لهم — عمولات»: the centre's list, its detail and its answers carry no doctor
+        Sanctum::actingAs($lab);
+        $row = $this->getJson('/api/v2/business/investigation-orders')->assertOk()->json('data.data.0');
+        $this->assertNull($row['doctor']);
+        $this->assertStringNotContainsString((string) $doctor->name, json_encode($row, JSON_UNESCAPED_UNICODE));
+        $this->assertNull($this->getJson("/api/v2/investigation-orders/{$id}")->assertOk()->json('data.order.doctor'));
+        $this->assertNull($this->postJson("/api/v2/business/investigation-orders/{$id}/accept")->assertOk()->json('data.order.doctor'));
+
+        // the patient and the doctor still see each other
+        Sanctum::actingAs($patient);
+        $this->assertSame($doctor->id, $this->getJson("/api/v2/investigation-orders/{$id}")->json('data.order.doctor.id'));
+        Sanctum::actingAs($doctor);
+        $this->assertSame($patient->id, $this->getJson("/api/v2/investigation-orders/{$id}")->json('data.order.patient.id'));
+
+        // nor does the centre's notification name him
+        $body = AppNotification::query()->where('user_id', $lab->id)->where('notifiable_id', $id)->get()->map(fn ($n) => $n->title . ' ' . $n->body)->implode(' ');
+        $this->assertStringNotContainsString((string) $doctor->name, $body);
+    }
+
+    public function test_a_result_is_written_as_text_beside_its_test_and_read_in_the_app(): void
+    {
+        [$doctor, $patient, $o] = $this->setUpOrder();
+        $lab = $this->user(User::TYPE_BUSINESS, self::LAB, 'Lab');
+        $this->price($lab, $o['cbc'], 100);
+        $this->price($lab, $o['sugar'], 50);
+
+        $id = $this->issue($doctor, $patient, [$o['cbc'], $o['sugar']])->json('data.order.id');
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/investigation-orders/{$id}/send", ['center_id' => $lab->id])->assertOk();
+        Sanctum::actingAs($lab);
+        $this->postJson("/api/v2/business/investigation-orders/{$id}/accept")->assertOk();
+
+        $items = $this->getJson("/api/v2/investigation-orders/{$id}")->json('data.order.items');
+        [$cbc, $sugar] = [$items[0]['id'], $items[1]['id']];
+
+        // nothing at all is not a result
+        $this->postJson("/api/v2/business/investigation-orders/{$id}/results", [], ['Accept' => 'application/json'])->assertStatus(422);
+        // a result for a test that is not in the order is refused
+        $this->postJson("/api/v2/business/investigation-orders/{$id}/results", ['texts' => [999999999 => 'x']])->assertStatus(422);
+
+        $res = $this->postJson("/api/v2/business/investigation-orders/{$id}/results", [
+            'texts' => [$cbc => 'Hb 13.2 g/dL (12-16) — WBC 6.1', $sugar => '92 mg/dL'], 'note' => 'طبيعي',
+        ])->assertOk();
+
+        $this->assertSame('ready', $res->json('data.order.status'));
+        $this->assertSame(['Hb 13.2 g/dL (12-16) — WBC 6.1', '92 mg/dL'], array_column($res->json('data.order.items'), 'result'));
+        $this->assertCount(0, $res->json('data.order.result_files'), 'text only: no file stored');
+
+        foreach ([$patient, $doctor] as $party) {
+            Sanctum::actingAs($party);
+            $this->assertSame('92 mg/dL', $this->getJson("/api/v2/investigation-orders/{$id}")->json('data.order.items.1.result'));
+        }
+    }
+
     public function test_a_lab_is_not_offered_the_clinic_or_the_prescriptions(): void
     {
         $lab = $this->user(User::TYPE_BUSINESS, self::LAB, 'Lab');

@@ -154,6 +154,7 @@ class PrescriptionService
 
             $this->createItems($prescription, $items);
             $this->attachHandwriting($prescription, $header['handwritten_image'] ?? null, $header['handwritten_source'] ?? null);
+            $this->applyDispenseLimit($prescription, $header['dispense_limit'] ?? null);
             // The fingerprint of what was written: a copy on the patient's phone is checked against it.
             app(PrescriptionContent::class)->stamp($prescription);
 
@@ -163,6 +164,20 @@ class PrescriptionService
 
             return $prescription->load('items');
         });
+    }
+
+    /**
+     * «بعد المرات التي سيصرف فيها» — only a prescription with a controlled drug may be filled more than once, between
+     * one and six times; everything else is dispensed once, whatever the request says.
+     */
+    private function applyDispenseLimit(Prescription $prescription, mixed $limit): void
+    {
+        $times = 1;
+        if ($limit !== null && $limit !== '' && $prescription->hasControlledItems()) {
+            $times = max(1, min(6, (int) $limit));
+        }
+
+        $prescription->update(['dispense_limit' => $times]);
     }
 
     /**
@@ -289,6 +304,7 @@ class PrescriptionService
 
             $this->createItems($revision, $items);
             $this->attachHandwriting($revision, $header['handwritten_image'] ?? null, $header['handwritten_source'] ?? null);
+            $this->applyDispenseLimit($revision, $header['dispense_limit'] ?? null);
             app(PrescriptionContent::class)->stamp($revision);
 
             $prescription->update(['status' => Prescription::STATUS_CANCELLED]);
@@ -448,8 +464,24 @@ class PrescriptionService
             ]);
         }
 
+        $next = (int) $prescription->dispense_count + 1;
+
+        // a controlled prescription with more fillings to come: this one is counted and it goes back to the patient,
+        // «issued» again for the next time (the same reset as a pharmacy that could not fulfil it)
+        if ($next < (int) ($prescription->dispense_limit ?: 1)) {
+            $this->transition($prescription, [Prescription::STATUS_READY, Prescription::STATUS_PREPARING], Prescription::STATUS_ISSUED);
+            $prescription->update([
+                'dispense_count' => $next, 'last_dispensed_at' => now(),
+                'pharmacy_id' => null, 'fulfillment_type' => null, 'delivery_address' => null, 'delivery_address_id' => null,
+                'medicine_total' => null, 'priced_at' => null,
+            ]);
+            $prescription->items()->update(['unit_price' => null, 'billed_quantity' => null, 'line_total' => null]);
+
+            return $prescription;
+        }
+
         $this->transition($prescription, [Prescription::STATUS_READY, Prescription::STATUS_PREPARING], Prescription::STATUS_DISPENSED);
-        $prescription->update(['dispensed_at' => now()]);
+        $prescription->update(['dispensed_at' => now(), 'dispense_count' => $next, 'last_dispensed_at' => now()]);
 
         return $prescription;
     }
@@ -475,16 +507,29 @@ class PrescriptionService
                 ]);
             }
 
+            $next = (int) $locked->dispense_count + 1;
+            $limit = max(1, (int) ($locked->dispense_limit ?: 1));
+            $last = $next >= $limit;
+
+            // The LAST filling is the one that makes it «dispensed» (and the paper gets its «تم الصرف» stamp); the ones
+            // before it are counted and the prescription stays open for the next.
             $locked->update([
-                'pharmacy_id' => (int) $pharmacy->id,
-                'fulfillment_type' => Prescription::FULFILLMENT_PICKUP,
-                'status' => Prescription::STATUS_DISPENSED,
-                'dispensed_at' => now(),
+                'pharmacy_id' => $last ? (int) $pharmacy->id : null,
+                'fulfillment_type' => $last ? Prescription::FULFILLMENT_PICKUP : null,
+                'status' => $last ? Prescription::STATUS_DISPENSED : Prescription::STATUS_ISSUED,
+                'dispensed_at' => $last ? now() : null,
+                'dispense_count' => $next,
+                'last_dispensed_at' => now(),
             ]);
 
             $this->notify('prescription_ready', (int) $locked->patient_id, $locked,
                 'صُرفت وصفتك', 'Your prescription was dispensed',
-                'صرفت لك ' . $pharmacy->displayName() . ' وصفتك الطبية.', $pharmacy->displayName() . ' dispensed your prescription.');
+                $last
+                    ? 'صرفت لك ' . $pharmacy->displayName() . ' وصفتك الطبية.'
+                    : 'صُرفت المرة ' . $next . ' من ' . $limit . ' من وصفتك الطبية.',
+                $last
+                    ? $pharmacy->displayName() . ' dispensed your prescription.'
+                    : 'Filling ' . $next . ' of ' . $limit . ' of your prescription was dispensed.');
 
             return $locked;
         });

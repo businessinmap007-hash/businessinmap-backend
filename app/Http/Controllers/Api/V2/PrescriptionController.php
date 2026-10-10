@@ -152,6 +152,8 @@ class PrescriptionController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'handwritten_image' => array_merge(['nullable'], ImageUploadService::validationRules()),
             'handwritten_source' => ['nullable', Rule::in([Image::SOURCE_CAMERA, Image::SOURCE_UPLOAD])],
+            // «بعد المرات التي سيصرف فيها»: only meaningful with a controlled drug (anything else is dispensed once)
+            'dispense_limit' => ['nullable', 'integer', 'min:1', 'max:6'],
             // A prescription line names a real, dictionary-verified drug — never
             // free text, so a typo can never become what the patient buys.
             // Missing the drug in the dictionary? MedicineController::store adds
@@ -194,6 +196,7 @@ class PrescriptionController extends Controller
             'notes' => $data['notes'] ?? null,
             'handwritten_image' => $request->file('handwritten_image'),
             'handwritten_source' => $data['handwritten_source'] ?? null,
+            'dispense_limit' => $data['dispense_limit'] ?? null,
         ], $data['items']);
 
         return response()->json([
@@ -409,6 +412,7 @@ class PrescriptionController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'handwritten_image' => array_merge(['nullable'], ImageUploadService::validationRules()),
             'handwritten_source' => ['nullable', Rule::in([Image::SOURCE_CAMERA, Image::SOURCE_UPLOAD])],
+            'dispense_limit' => ['nullable', 'integer', 'min:1', 'max:6'],
             'items.*.medicine_id' => ['required', 'integer', 'exists:medicines,id'],
             'items.*.dosage' => ['nullable', 'string', 'max:120'],
             'items.*.quantity' => ['nullable', 'string', 'max:120'],
@@ -543,6 +547,9 @@ class PrescriptionController extends Controller
             // Narcotic / psychotropic drug on it → the doctor's handwritten paper (a photo) is on file and is what a
             // pharmacy compares with the paper in the patient's hand.
             'controlled' => $controlledIds !== [] || (! $p->relationLoaded('items') && $p->hasControlledItems()),
+            'dispense_limit' => (int) ($p->dispense_limit ?: 1),
+            'dispense_count' => (int) $p->dispense_count,
+            'dispenses_left' => $p->dispensesLeft(),
             'handwritten_image' => optional($p->handwrittenImage())->image,
             'doctor' => $p->doctor_id ? $this->party($p->doctor, $p->doctor_id) : null,
             'patient' => $this->party($p->patient, $p->patient_id),

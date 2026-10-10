@@ -196,4 +196,58 @@ class ControlledPrescriptionTest extends TestCase
         $this->postJson('/api/v2/pharmacy/prescriptions/dispense-in-person', ['id' => $id, 'content' => $copy['content']])->assertUnprocessable();
         $this->assertSame('issued', $row->fresh()->status);
     }
+
+    /** The doctor writes a controlled prescription to be filled $times times (multipart, like the app). */
+    private function issueFilledTimes(int $times, array $medicines)
+    {
+        $body = $this->body($medicines);
+        $body['items'] = json_encode($body['items']);
+        $body['handwritten_image'] = $this->paper();
+        $body['handwritten_source'] = 'camera';
+        $body['dispense_limit'] = $times;
+
+        return $this->post('/api/v2/prescriptions', $body, ['Accept' => 'application/json']);
+    }
+
+    public function test_a_controlled_prescription_is_stamped_dispensed_only_after_its_last_filling(): void
+    {
+        $id = $this->issueFilledTimes(3, [$this->controlled])->assertCreated()->assertJsonPath('data.prescription.dispense_limit', 3)->json('data.prescription.id');
+
+        Sanctum::actingAs($this->patient);
+        $copy = $this->getJson("/api/v2/prescriptions/{$id}")->json('data.prescription.verifiable');
+        Sanctum::actingAs($this->pharmacy);
+
+        $check = $this->postJson('/api/v2/pharmacy/prescriptions/verify', ['id' => $id, 'content' => $copy['content']])->assertOk()->json('data');
+        $this->assertSame(3, $check['dispenses_left']);
+        $this->assertFalse($check['final_dispense']);
+        $this->assertNull($check['doctor'], 'the pharmacy never learns the doctor');
+
+        // fillings 1 and 2: counted, the prescription stays open, no stamp yet
+        foreach ([1, 2] as $n) {
+            $done = $this->postJson('/api/v2/pharmacy/prescriptions/dispense-in-person', ['id' => $id, 'content' => $copy['content']])->assertOk()->json('data');
+            $this->assertFalse($done['final']);
+            $this->assertSame($n, $done['dispense_count']);
+            $this->assertSame('issued', Prescription::query()->findOrFail($id)->status);
+        }
+
+        $check = $this->postJson('/api/v2/pharmacy/prescriptions/verify', ['id' => $id, 'content' => $copy['content']])->json('data');
+        $this->assertTrue($check['can_dispense']);
+        $this->assertTrue($check['final_dispense'], 'the next one is the last: the paper is stamped then');
+
+        // the last filling makes it dispensed; nothing more can be taken
+        $last = $this->postJson('/api/v2/pharmacy/prescriptions/dispense-in-person', ['id' => $id, 'content' => $copy['content']])->assertOk()->json('data');
+        $this->assertTrue($last['final']);
+        $this->assertSame('dispensed', $last['status']);
+        $this->postJson('/api/v2/pharmacy/prescriptions/dispense-in-person', ['id' => $id, 'content' => $copy['content']])->assertUnprocessable();
+    }
+
+    public function test_an_ordinary_prescription_is_filled_once_whatever_the_number_asked(): void
+    {
+        Sanctum::actingAs($this->doctor);
+        $body = $this->body([$this->plain]);
+        $body['dispense_limit'] = 5;
+        $id = $this->postJson('/api/v2/prescriptions', $body)->assertCreated()->assertJsonPath('data.prescription.dispense_limit', 1)->json('data.prescription.id');
+
+        $this->assertSame(1, Prescription::query()->findOrFail($id)->dispense_limit);
+    }
 }

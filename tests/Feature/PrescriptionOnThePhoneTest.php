@@ -83,7 +83,8 @@ class PrescriptionOnThePhoneTest extends TestCase
 
         $this->assertTrue($check['authentic']);
         $this->assertTrue($check['can_dispense']);
-        $this->assertSame($this->doctor->id, $check['doctor']['id']);
+        // «الطبيب غير معلوم للصيدلية» (commissions): it is proved genuine, never attributed
+        $this->assertNull($check['doctor']);
     }
 
     public function test_a_copy_the_patient_edited_is_not_authentic(): void

@@ -86,6 +86,9 @@ class Prescription extends Model
         'pharmacy_id',
         'origin',
         'status',
+        'dispense_limit',
+        'dispense_count',
+        'last_dispensed_at',
         'fulfillment_type',
         'diagnosis',
         'patient_condition',
@@ -106,6 +109,9 @@ class Prescription extends Model
     protected $casts = [
         'issued_at' => 'datetime',
         'dispensed_at' => 'datetime',
+        'last_dispensed_at' => 'datetime',
+        'dispense_limit' => 'integer',
+        'dispense_count' => 'integer',
         'medicine_total' => 'decimal:2',
         'priced_at' => 'datetime',
         'archived_by_patient_at' => 'datetime',
@@ -113,6 +119,12 @@ class Prescription extends Model
         'content_purged_at' => 'datetime',
         'delivery_driver_id' => 'integer',
     ];
+
+    /** How many dispensings are still to come (a controlled prescription may be filled several times). */
+    public function dispensesLeft(): int
+    {
+        return max(0, (int) ($this->dispense_limit ?: 1) - (int) $this->dispense_count);
+    }
 
     /** Does a line of it hold a narcotic / psychotropic drug (Medicine::is_controlled)? */
     public function hasControlledItems(): bool

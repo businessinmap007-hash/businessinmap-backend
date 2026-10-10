@@ -11,7 +11,7 @@ class InvestigationOrderItem extends Model
     public const KIND_LAB = 'lab';
     public const KIND_RADIOLOGY = 'radiology';
 
-    protected $fillable = ['investigation_order_id', 'option_id', 'kind', 'name', 'price', 'sort_order'];
+    protected $fillable = ['investigation_order_id', 'option_id', 'kind', 'name', 'price', 'result_text', 'sort_order'];
 
     protected $casts = ['price' => 'float'];
 

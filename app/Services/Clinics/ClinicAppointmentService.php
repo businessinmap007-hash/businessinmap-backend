@@ -70,6 +70,14 @@ class ClinicAppointmentService
         return [(int) $minutes, $price?->id];
     }
 
+    /** «لشخص آخر»: who will actually walk in when the account that books is not the patient. */
+    private function attendeeName(array $data): ?string
+    {
+        $name = trim((string) ($data['for_name'] ?? ''));
+
+        return $name !== '' ? $name : null;
+    }
+
     /** Patient requests an appointment at a time; the clinic will confirm it. */
     public function request(User $patient, User $clinic, array $data): ClinicAppointment
     {
@@ -84,6 +92,8 @@ class ClinicAppointmentService
             'duration_minutes' => $duration,
             'status' => ClinicAppointment::STATUS_REQUESTED,
             'reason' => $data['reason'] ?? null,
+            'attendee_name' => $this->attendeeName($data),
+            'attendee_phone' => $this->attendeeName($data) ? ($data['for_phone'] ?? null) : null,
         ]);
 
         $this->notify('appointment_requested', (int) $clinic->id, $appointment,
@@ -335,6 +345,8 @@ class ClinicAppointmentService
                 'duration_minutes' => (int) $slot->duration_minutes,
                 'status' => ClinicAppointment::STATUS_CONFIRMED,
                 'reason' => $data['reason'] ?? null,
+                'attendee_name' => $this->attendeeName($data),
+                'attendee_phone' => $this->attendeeName($data) ? ($data['for_phone'] ?? null) : null,
             ]);
 
             $slot->update(['appointment_id' => (int) $appointment->id]);

@@ -489,6 +489,7 @@ class BusinessClinicAppointmentController extends Controller
             'scheduled_at' => optional($a->scheduled_at)->toIso8601String(),
             'duration_minutes' => (int) $a->duration_minutes,
             'reason' => $a->reason,
+            'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
             'notes' => $a->notes,
             'prescription_id' => $a->relationLoaded('prescription') && $a->prescription
                 ? (int) $a->prescription->id : null,

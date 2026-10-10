@@ -48,6 +48,8 @@ class ClinicAppointmentController extends Controller
             'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'reason' => ['nullable', 'string', 'max:255'],
+            'for_name' => ['nullable', 'string', 'max:120'],
+            'for_phone' => ['nullable', 'string', 'max:30'],
         ]);
 
         $clinic = User::query()->findOrFail((int) $data['clinic_id']);
@@ -163,7 +165,11 @@ class ClinicAppointmentController extends Controller
     /** POST /api/v2/clinic-slots/{slot}/book — book an open slot (confirmed at once). */
     public function bookSlot(Request $request, int $slot)
     {
-        $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+            'for_name' => ['nullable', 'string', 'max:120'],
+            'for_phone' => ['nullable', 'string', 'max:30'],
+        ]);
 
         $row = ClinicAppointmentSlot::query()->findOrFail($slot);
         $appointment = $this->service->bookSlot($request->user(), $row, $data);
@@ -184,6 +190,7 @@ class ClinicAppointmentController extends Controller
             'duration_minutes' => (int) $a->duration_minutes,
             'service_price_id' => $a->service_price_id ? (int) $a->service_price_id : null,
             'reason' => $a->reason,
+            'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
             'prescription_id' => $a->relationLoaded('prescription') && $a->prescription
                 ? (int) $a->prescription->id : null,
             'clinic' => $a->relationLoaded('clinic') && $a->clinic

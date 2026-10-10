@@ -56,6 +56,7 @@ use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\ExerciseLibraryController;
 use App\Http\Controllers\Api\V2\HospitalDoctorController;
+use App\Http\Controllers\Api\V2\HospitalProcedureController;
 use App\Http\Controllers\Api\V2\InvestigationOrderController;
 use App\Http\Controllers\Api\V2\FoodLibraryController;
 use App\Http\Controllers\Api\V2\PlanPhotoController;
@@ -571,6 +572,11 @@ Route::prefix('v2')->group(function () {
         // Published open slots: browse a clinic's, then book one in a tap.
         Route::get('clinics/{clinic}/slots', [ClinicAppointmentController::class, 'slots'])->whereNumber('clinic');
         Route::get('hospitals/{hospital}/departments', [HospitalDoctorController::class, 'departments'])->whereNumber('hospital');
+        // «إجراء طبي في المستشفى»: what a hospital offers (surgeries, endoscopies, treatments) and the patient's request.
+        Route::get('hospitals/{hospital}/procedures', [HospitalProcedureController::class, 'offered'])->whereNumber('hospital');
+        Route::post('procedure-requests', [HospitalProcedureController::class, 'store'])->middleware('throttle:30,1');
+        Route::get('procedure-requests', [HospitalProcedureController::class, 'index']);
+        Route::post('procedure-requests/{row}/cancel', [HospitalProcedureController::class, 'cancel'])->whereNumber('row');
         Route::post('clinic-slots/{slot}/book', [ClinicAppointmentController::class, 'bookSlot'])->whereNumber('slot');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
@@ -1342,6 +1348,18 @@ Route::prefix('v2')->group(function () {
             Route::get('find-doctors', [HospitalDoctorController::class, 'findDoctors']);
             Route::post('/', [HospitalDoctorController::class, 'store']);
             Route::delete('{row}', [HospitalDoctorController::class, 'destroy'])->whereNumber('row');
+        });
+        Route::prefix('business/hospital-procedures')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
+            Route::get('/', [HospitalProcedureController::class, 'catalog']);
+            Route::put('/', [HospitalProcedureController::class, 'save']);
+            Route::post('custom', [HospitalProcedureController::class, 'addCustom']);
+            Route::delete('custom/{procedure}', [HospitalProcedureController::class, 'deleteCustom'])->whereNumber('procedure');
+        });
+        Route::prefix('business/procedure-requests')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
+            Route::get('/', [HospitalProcedureController::class, 'requests']);
+            Route::post('{row}/accept', [HospitalProcedureController::class, 'accept'])->whereNumber('row');
+            Route::post('{row}/decline', [HospitalProcedureController::class, 'decline'])->whereNumber('row');
+            Route::post('{row}/complete', [HospitalProcedureController::class, 'complete'])->whereNumber('row');
         });
         Route::prefix('business/hospital-invitations')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
             Route::get('/', [HospitalDoctorController::class, 'invitations']);

@@ -76,6 +76,11 @@ tags:
       (never typed); the patient shares the order with a registered lab or radiology centre — or asks one directly, with no doctor — and sees
       what each centre would charge for the whole order; the centre accepts it (with a time), declines it, or attaches the results as photos.
       Only the doctor, the patient and the centre may read an order. Files are private, behind signed links.
+  - name: HospitalProcedures
+    description: >-
+      Medical procedures of a hospital («إجراء طبي»): surgeries, endoscopies and treatment procedures picked from the platform's list (or added by the
+      hospital itself, seen by it alone), each with the hospital's OWN price (none = «السعر بعد التقييم»). A patient asks for one; the hospital accepts
+      it with a date (quoting a price when it had none — a listed price is never overwritten), declines it, and marks it done.
   - name: HospitalDoctors
     description: >-
       Doctors under a hospital's departments («الأطباء تحت الأقسام»): the departments are the medical specialties a hospital or medical centre
@@ -5121,6 +5126,28 @@ paths:
     post: { tags: [HospitalDoctors], summary: "Accept an invitation — it also opens the same hospital's other pending departments, since it is one agreement.", parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/hospital-invitations/{row}:
     delete: { tags: [HospitalDoctors], summary: 'Decline an invitation, or leave a department the doctor is listed under.', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /hospitals/{hospital}/procedures:
+    get: { tags: [HospitalProcedures], summary: 'What a hospital offers, by kind (surgery / endoscopy / procedure): {id (the offering a patient asks for), name, price (null = after assessment), notes}. 404 for a business that is not a hospital or medical centre.', parameters: [{ name: hospital, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /procedure-requests:
+    get: { tags: [HospitalProcedures], summary: "The caller's own procedure requests as a patient (paginated, newest first).", responses: { '200': { description: OK } } }
+    post: { tags: [HospitalProcedures], summary: 'Ask a hospital for a procedure it offers — {hospital_procedure_id, preferred_date?, notes?}. The name and price are kept as asked.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /procedure-requests/{row}/cancel:
+    post: { tags: [HospitalProcedures], summary: 'The patient cancels a request until it is completed (404 for anyone else).', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hospital-procedures:
+    get: { tags: [HospitalProcedures], summary: "The hospital's own view: the platform list and its own entries by kind, each with `offered` and its price.", responses: { '200': { description: OK }, '403': { description: 'Not a hospital or medical centre' } } }
+    put: { tags: [HospitalProcedures], summary: "Save what the hospital offers — {items: [{procedure_id, offered, price|null}]}. Only the platform's list and the hospital's own entries are accepted.", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hospital-procedures/custom:
+    post: { tags: [HospitalProcedures], summary: "Add a procedure the platform list does not have — {kind: surgery|endoscopy|procedure, name}; visible to this hospital alone and offered at once.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hospital-procedures/custom/{procedure}:
+    delete: { tags: [HospitalProcedures], summary: "Remove one of the hospital's own entries (404 for the platform list or another hospital's).", parameters: [{ name: procedure, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/procedure-requests:
+    get: { tags: [HospitalProcedures], summary: "The hospital's requests by ?tab= incoming (requested) | upcoming (accepted) | done (completed, declined, cancelled).", parameters: [{ name: tab, in: query, schema: { type: string } }], responses: { '200': { description: OK }, '403': { description: 'Not a hospital or medical centre' } } }
+  /business/procedure-requests/{row}/accept:
+    post: { tags: [HospitalProcedures], summary: 'Accept a requested procedure — {scheduled_at, price? (only fills a missing price), note?}; the patient is told.', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/procedure-requests/{row}/decline:
+    post: { tags: [HospitalProcedures], summary: 'Decline a requested procedure — {note?}; the patient is told.', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/procedure-requests/{row}/complete:
+    post: { tags: [HospitalProcedures], summary: 'Mark an accepted procedure done.', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /prescriptions:
     get:
       tags: [Prescriptions]

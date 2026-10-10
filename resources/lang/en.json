@@ -2959,5 +2959,15 @@
     "تمت إضافة الطبيب.": "The doctor was added.",
     "تمت إزالة الطبيب من القسم.": "The doctor was removed from the department.",
     "ظهرت الآن ضمن أطباء المستشفى.": "You now appear among the hospital's doctors.",
-    "تم.": "Done."
+    "تم.": "Done.",
+    "الإجراءات الطبية للمستشفيات والمراكز الطبية فقط.": "Medical procedures are for hospitals and medical centres only.",
+    "إجراء غير موجود في القائمة.": "That procedure is not on the list.",
+    "اكتب اسم الإجراء واختر نوعه.": "Write the procedure name and pick its kind.",
+    "هذا الإجراء موجود في القائمة.": "This procedure is already on the list.",
+    "هذا الإجراء غير متاح.": "This procedure is not available.",
+    "لا يمكنك طلب إجراء من حسابك.": "You cannot request a procedure from your own account.",
+    "لا يمكن تنفيذ هذا الآن على هذا الطلب.": "This cannot be done to this request now.",
+    "تم إرسال طلبك إلى المستشفى.": "Your request was sent to the hospital.",
+    "تمت إضافة الإجراء.": "The procedure was added.",
+    "تم الحفظ.": "Saved."
 }

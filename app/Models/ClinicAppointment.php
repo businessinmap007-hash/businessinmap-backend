@@ -38,6 +38,8 @@ class ClinicAppointment extends Model
         'duration_minutes',
         'status',
         'reason',
+        'attendee_name',
+        'attendee_phone',
         'notes',
         'reminded_day_at',
         'reminded_soon_at',

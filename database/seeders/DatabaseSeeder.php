@@ -403,6 +403,7 @@ class DatabaseSeeder extends Seeder
            // «جدول التغذية وجدول التمارين العلاجية» — what a specialist picks a meal or an exercise from.
            // Add-only; a specialist's own entries are never touched.
            FoodLibrarySeeder::class,
+           MedicalProceduresSeeder::class,
            TherapeuticExercisesSeeder::class,
 
             //  EgyptCountriesSeeder::class,

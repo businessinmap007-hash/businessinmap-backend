@@ -156,6 +156,10 @@ class NotificationChannelRule extends Model
 
             // Investigation orders: a doctor orders tests (→ the patient), the patient sends them to a centre
             // (→ the centre), the centre accepts / declines / has the results (→ the patient, and the doctor).
+            'procedure_requested' => ['طلب إجراء طبي', 'Procedure request', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            'procedure_accepted' => ['قبول طلب الإجراء', 'Procedure accepted', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            'procedure_declined' => ['اعتذار عن طلب الإجراء', 'Procedure declined', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'procedure_cancelled' => ['إلغاء طلب إجراء', 'Procedure cancelled', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'hospital_doctor' => ['دعوة أو رد من مستشفى', 'Hospital doctor invitation', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'investigation_issued' => ['طلب فحوصات جديد', 'New investigation order', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             'investigation_received' => ['طلب فحوصات وارد', 'Investigation order received', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'system'],

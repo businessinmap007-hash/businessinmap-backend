@@ -55,6 +55,9 @@ class Kernel extends ConsoleKernel
         // Operation-chat retention: start the 7-day clock on completed
         // operations' chats and lock expired ones. Retention is measured in
         // days, so daily off-peak is plenty.
+        // Result photos kept on the patient's phone (and read by the doctor) leave the server; unkept ones warn first.
+        $schedule->command('investigations:purge-result-files')->dailyAt('03:45')->withoutOverlapping();
+
         $schedule->command('operation-chats:expire')
             ->dailyAt('03:30')
             ->withoutOverlapping();

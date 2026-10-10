@@ -94,7 +94,23 @@ class InvestigationOrderController extends Controller
     /** GET /api/v2/investigation-orders/{id} — any of the three parties. */
     public function show(Request $request, int $order)
     {
-        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($this->partyOrFail($request, $order), $request->user())]]);
+        $row = $this->partyOrFail($request, $order);
+
+        // the ordering doctor opening a ready order is what lets its photos leave the server once the patient has them
+        if ($row->doctor_id !== null && $row->status === InvestigationOrder::STATUS_READY && $row->doctor_seen_at === null
+            && in_array((int) $row->doctor_id, [(int) $request->user()->id, (int) BusinessContext::id($request)], true)) {
+            $row->forceFill(['doctor_seen_at' => now()])->saveQuietly();
+        }
+
+        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row, $request->user())]]);
+    }
+
+    /** POST /api/v2/investigation-orders/{id}/saved — the patient has a copy of the result photos on his phone. */
+    public function saved(Request $request, int $order)
+    {
+        $row = InvestigationOrder::query()->where('patient_id', (int) $request->user()->id)->with(['items', 'images'])->findOrFail($order);
+
+        return response()->json(['success' => true, 'data' => ['order' => $this->serialize($this->service->markSaved($row), $request->user())]]);
     }
 
     /** GET /api/v2/investigation-orders/{id}/centers — the registered centres and what each charges for the whole order. */
@@ -315,6 +331,11 @@ class InvestigationOrderController extends Controller
             'ready_at' => $o->ready_at?->toIso8601String(),
             'request_files' => $o->filesOf(InvestigationOrder::PURPOSE_REQUEST),
             'result_files' => $o->filesOf(InvestigationOrder::PURPOSE_RESULT),
+            // the photos leave the server once kept on the phone (and read by the doctor), or unkept after the window
+            'files_purged' => $o->files_purged_at !== null,
+            'patient_saved' => $o->patient_saved_at !== null,
+            'files_expire_at' => $o->files_purged_at === null && $o->ready_at !== null && $o->patient_saved_at === null
+                ? $o->ready_at->copy()->addDays(InvestigationOrder::FILE_RETENTION_DAYS)->toIso8601String() : null,
         ];
     }
 }

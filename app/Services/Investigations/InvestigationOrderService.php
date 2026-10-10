@@ -405,7 +405,8 @@ final class InvestigationOrderService
 
             foreach ($files as $file) {
                 $order->images()->create([
-                    'image' => app(ImageUploadService::class)->storePrivate($file),
+                    // results are photos of papers and films: shrunk, they are a few hundred KB, not megabytes
+                    'image' => app(ImageUploadService::class)->storePrivateShrunk($file),
                     'source' => Image::SOURCE_UPLOAD, 'purpose' => InvestigationOrder::PURPOSE_RESULT,
                 ]);
             }
@@ -426,6 +427,78 @@ final class InvestigationOrderService
         });
 
         return $order->fresh(['items', 'images']);
+    }
+
+    /**
+     * The patient says a copy of the result photos is on his phone. From now on the server's copies are only kept until
+     * the ordering doctor has opened them (and a short grace), then deleted — see `purgeFiles()`.
+     */
+    public function markSaved(InvestigationOrder $order): InvestigationOrder
+    {
+        $this->assertStatus($order, [InvestigationOrder::STATUS_READY]);
+
+        if ($order->patient_saved_at === null) {
+            $order->update(['patient_saved_at' => now()]);
+        }
+
+        return $order->fresh(['items', 'images']);
+    }
+
+    /**
+     * The retention sweep: delete the result PHOTOS (files and rows) of every order where the patient kept a copy and
+     * the doctor — if there was one — has read them, once the grace has passed; and of an order nobody kept after the
+     * retention window. Text results stay. An order about to expire unkept warns the patient first, once.
+     *
+     * @return array{purged:int,warned:int}
+     */
+    public function purgeFiles(?\DateTimeInterface $now = null): array
+    {
+        $now = \Illuminate\Support\Carbon::instance($now ?? now());
+        $grace = $now->copy()->subDays(InvestigationOrder::FILE_GRACE_DAYS);
+        $cap = $now->copy()->subDays(InvestigationOrder::FILE_RETENTION_DAYS);
+        $warnFrom = $now->copy()->subDays(InvestigationOrder::FILE_RETENTION_DAYS - InvestigationOrder::FILE_WARN_DAYS);
+        $purged = 0;
+        $warned = 0;
+
+        $orders = InvestigationOrder::query()
+            ->whereNull('files_purged_at')
+            ->whereHas('images', fn ($q) => $q->where('purpose', InvestigationOrder::PURPOSE_RESULT))
+            ->get();
+
+        foreach ($orders as $order) {
+            $kept = $order->patient_saved_at !== null && $order->patient_saved_at <= $grace
+                && ($order->doctor_id === null || ($order->doctor_seen_at !== null && $order->doctor_seen_at <= $grace));
+            $expired = $order->ready_at !== null && $order->ready_at <= $cap;
+
+            if ($kept || $expired) {
+                $this->deleteResultFiles($order);
+                $purged++;
+
+                continue;
+            }
+
+            if ($order->patient_saved_at === null && $order->expiry_warned_at === null && $order->ready_at !== null && $order->ready_at <= $warnFrom) {
+                $order->update(['expiry_warned_at' => $now]);
+                $this->notify('investigation_files_expiring', (int) $order->patient_id, $order,
+                    'احفظ نسخة من نتائجك', 'Save a copy of your results',
+                    'ستُحذف صور نتائج فحوصاتك من السيرفر قريبًا — احفظها على هاتفك.', 'The photos of your test results will be deleted from the server soon — keep them on your phone.');
+                $warned++;
+            }
+        }
+
+        return ['purged' => $purged, 'warned' => $warned];
+    }
+
+    private function deleteResultFiles(InvestigationOrder $order): void
+    {
+        $uploads = app(ImageUploadService::class);
+
+        foreach ($order->images()->where('purpose', InvestigationOrder::PURPOSE_RESULT)->get() as $image) {
+            $uploads->delete($image->image);
+            $image->delete();
+        }
+
+        $order->update(['files_purged_at' => now()]);
     }
 
     public function cancel(InvestigationOrder $order): InvestigationOrder

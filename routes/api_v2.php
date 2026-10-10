@@ -508,6 +508,7 @@ Route::prefix('v2')->group(function () {
         Route::get('investigation-orders/{order}/centers', [InvestigationOrderController::class, 'centers'])->whereNumber('order');
         Route::post('investigation-orders/{order}/send', [InvestigationOrderController::class, 'send'])->whereNumber('order');
         Route::post('investigation-orders/{order}/cancel', [InvestigationOrderController::class, 'cancel'])->whereNumber('order');
+        Route::post('investigation-orders/{order}/saved', [InvestigationOrderController::class, 'saved'])->whereNumber('order');
         Route::post('prescriptions/{prescription}/send', [PrescriptionController::class, 'send'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/confirm-quote', [PrescriptionController::class, 'confirmQuote'])->whereNumber('prescription');
         Route::post('prescriptions/{prescription}/cancel', [PrescriptionController::class, 'cancel'])->whereNumber('prescription');

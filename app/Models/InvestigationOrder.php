@@ -27,6 +27,13 @@ class InvestigationOrder extends Model
     public const PURPOSE_REQUEST = 'investigation_request';
     public const PURPOSE_RESULT = 'investigation_result';
 
+    /** A result photo stays this many days after the patient AND the doctor have it… */
+    public const FILE_GRACE_DAYS = 3;
+
+    /** …or, when nobody kept it, this many days after the results came in (with a warning before). */
+    public const FILE_RETENTION_DAYS = 180;
+    public const FILE_WARN_DAYS = 14;
+
     /** Child trades that take these orders: lab, radiology centre, hospital, medical centre. */
     public const CENTER_CHILDREN = [163, 252, 513, 515];
 
@@ -35,7 +42,7 @@ class InvestigationOrder extends Model
 
     protected $fillable = [
         'doctor_id', 'patient_id', 'center_id', 'status', 'notes', 'center_note', 'appointment_at', 'total',
-        'issued_at', 'sent_at', 'accepted_at', 'ready_at',
+        'issued_at', 'sent_at', 'accepted_at', 'ready_at', 'patient_saved_at', 'doctor_seen_at', 'expiry_warned_at', 'files_purged_at',
     ];
 
     protected $casts = [
@@ -44,6 +51,10 @@ class InvestigationOrder extends Model
         'sent_at' => 'datetime',
         'accepted_at' => 'datetime',
         'ready_at' => 'datetime',
+        'patient_saved_at' => 'datetime',
+        'doctor_seen_at' => 'datetime',
+        'expiry_warned_at' => 'datetime',
+        'files_purged_at' => 'datetime',
         'total' => 'float',
     ];
 

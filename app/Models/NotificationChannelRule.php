@@ -165,6 +165,7 @@ class NotificationChannelRule extends Model
             'investigation_received' => ['طلب فحوصات وارد', 'Investigation order received', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'system'],
             'investigation_accepted' => ['قبول طلب الفحوصات', 'Investigation order accepted', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'investigation_declined' => ['اعتذار عن طلب الفحوصات', 'Investigation order declined', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'investigation_files_expiring' => ['احفظ نسخة من نتائجك', 'Save a copy of your results', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'investigation_ready' => ['نتيجة الفحوصات جاهزة', 'Results are ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
 
             // Training: a coach assigns/updates a client's plan (→ the client).

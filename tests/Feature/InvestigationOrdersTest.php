@@ -187,6 +187,113 @@ class InvestigationOrdersTest extends TestCase
         }
     }
 
+    /** @return array{0:User,1:User,2:int} doctor, patient, the id of an order whose results (a photo and a text) are in */
+    private function readyOrderWithPhoto(): array
+    {
+        [$doctor, $patient, $o] = $this->setUpOrder();
+        $lab = $this->user(User::TYPE_BUSINESS, self::LAB, 'Lab');
+        $this->price($lab, $o['cbc'], 100);
+
+        $id = $this->issue($doctor, $patient, [$o['cbc']])->json('data.order.id');
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/investigation-orders/{$id}/send", ['center_id' => $lab->id])->assertOk();
+        Sanctum::actingAs($lab);
+        $this->postJson("/api/v2/business/investigation-orders/{$id}/accept")->assertOk();
+        $item = $this->getJson("/api/v2/investigation-orders/{$id}")->json('data.order.items.0.id');
+        $this->post("/api/v2/business/investigation-orders/{$id}/results", [
+            'texts' => [$item => 'Hb 13'], 'images' => [$this->file('film.png')],
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        return [$doctor, $patient, $id];
+    }
+
+    public function test_result_photos_leave_the_server_once_the_patient_kept_them_and_the_doctor_read_them(): void
+    {
+        [$doctor, $patient, $id] = $this->readyOrderWithPhoto();
+        $service = app(\App\Services\Investigations\InvestigationOrderService::class);
+        $order = fn () => InvestigationOrder::query()->findOrFail($id);
+
+        // nothing kept yet: the sweep leaves it
+        $this->assertSame(['purged' => 0, 'warned' => 0], $service->purgeFiles(now()->addDays(10)));
+        $this->assertCount(1, $order()->images);
+
+        // the patient says he kept a copy; the doctor has NOT read it yet: still there
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/investigation-orders/{$id}/saved")->assertOk()->assertJsonPath('data.order.patient_saved', true);
+        $this->assertSame(0, $service->purgeFiles(now()->addDays(10))['purged']);
+
+        // the doctor opens it
+        Sanctum::actingAs($doctor);
+        $this->getJson("/api/v2/investigation-orders/{$id}")->assertOk();
+        $this->assertNotNull($order()->doctor_seen_at);
+
+        // …and within the grace it is still there; after it, the photo (file and row) goes, the TEXT stays
+        $this->assertSame(0, $service->purgeFiles(now()->addDay())['purged']);
+        $path = $order()->images->first()->image;
+        $this->assertSame(1, $service->purgeFiles(now()->addDays(5))['purged']);
+        $this->assertCount(0, $order()->images()->get());
+        $this->assertFileDoesNotExist(\App\Services\Media\ImageUploadService::privatePath($path));
+
+        Sanctum::actingAs($patient);
+        $row = $this->getJson("/api/v2/investigation-orders/{$id}")->json('data.order');
+        $this->assertTrue($row['files_purged']);
+        $this->assertSame([], $row['result_files']);
+        $this->assertSame('Hb 13', $row['items'][0]['result']);
+    }
+
+    public function test_a_big_result_photo_is_shrunk_where_the_server_can_and_kept_as_it_came_where_it_cannot(): void
+    {
+        $uploads = app(\App\Services\Media\ImageUploadService::class);
+
+        if (! function_exists('imagecreatetruecolor') || ! function_exists('imagejpeg')) {
+            // no image library on this server: the file is stored as it came (the app shrinks before uploading)
+            $path = $uploads->storePrivateShrunk($this->file('film.png'));
+            $this->assertFileExists(\App\Services\Media\ImageUploadService::privatePath($path));
+            $uploads->delete($path);
+
+            return;
+        }
+
+        $big = imagecreatetruecolor(3200, 2400);
+        for ($i = 0; $i < 400; $i++) {
+            imagefilledrectangle($big, random_int(0, 3000), random_int(0, 2200), random_int(0, 3200), random_int(0, 2400), random_int(0, 0xFFFFFF));
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'film') . '.jpg';
+        imagejpeg($big, $tmp, 95);
+        $file = new UploadedFile($tmp, 'film.jpg', 'image/jpeg', null, true);
+        $before = filesize($tmp);
+
+        $path = $uploads->storePrivateShrunk($file);
+        $full = \App\Services\Media\ImageUploadService::privatePath($path);
+
+        [$w, $h] = getimagesize($full);
+        $this->assertLessThanOrEqual(1600, max($w, $h));
+        $this->assertLessThan($before, filesize($full));
+        $uploads->delete($path);
+    }
+
+    public function test_a_photo_nobody_kept_warns_the_patient_once_and_goes_only_after_the_window(): void
+    {
+        [, $patient, $id] = $this->readyOrderWithPhoto();
+        $service = app(\App\Services\Investigations\InvestigationOrderService::class);
+
+        $told = fn () => AppNotification::query()->where('user_id', $patient->id)->where('notifiable_id', $id)->where('notifiable_type', InvestigationOrder::class)->count();
+        $before = $told();
+
+        $r = $service->purgeFiles(now()->addDays(170));
+        $this->assertSame(['purged' => 0, 'warned' => 1], $r);
+        $this->assertSame($before + 1, $told(), 'the patient is told to keep a copy');
+        $this->assertSame(0, $service->purgeFiles(now()->addDays(172))['warned'], 'warned once');
+        $this->assertSame($before + 1, $told());
+        $this->assertCount(1, InvestigationOrder::query()->findOrFail($id)->images);
+
+        $this->assertSame(1, $service->purgeFiles(now()->addDays(181))['purged']);
+
+        // a patient can only say he kept it for his own order, and only once it is ready
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT));
+        $this->postJson("/api/v2/investigation-orders/{$id}/saved")->assertNotFound();
+    }
+
     public function test_a_lab_is_not_offered_the_clinic_or_the_prescriptions(): void
     {
         $lab = $this->user(User::TYPE_BUSINESS, self::LAB, 'Lab');

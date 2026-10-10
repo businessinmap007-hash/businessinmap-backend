@@ -158,6 +158,52 @@ final class ImageUploadService
     }
 
     /**
+     * Store a PHOTO privately, shrunk: the longest side to [maxSide] px and re-encoded as JPEG at [quality] — a phone
+     * photo of 3–8 MB becomes 150–400 KB. Where the server has no image library, or the file is not an image it can
+     * read, it is stored as it came (the app already shrinks before uploading, so this is the second line).
+     */
+    public function storePrivateShrunk(UploadedFile $file, int $maxSide = 1600, int $quality = 75): string
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagejpeg')) {
+            return $this->storePrivate($file);
+        }
+
+        $raw = @file_get_contents($file->getRealPath());
+        $image = $raw === false ? false : @imagecreatefromstring($raw);
+
+        if ($image === false) {
+            return $this->storePrivate($file);
+        }
+
+        $w = imagesx($image);
+        $h = imagesy($image);
+        $scale = min(1, $maxSide / max($w, $h, 1));
+
+        if ($scale < 1) {
+            $resized = imagescale($image, max(1, (int) round($w * $scale)), max(1, (int) round($h * $scale)));
+            if ($resized !== false) {
+                $image = $resized;
+            }
+        }
+
+        $dir = self::privatePath(self::PRIVATE_DIR);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $name = Str::random(40).'.jpg';
+        $ok = imagejpeg($image, $dir.DIRECTORY_SEPARATOR.$name, $quality);
+        // never enlarge: when re-encoding gave a bigger file than the original, keep the original
+        if (! $ok || (is_file($dir.DIRECTORY_SEPARATOR.$name) && filesize($dir.DIRECTORY_SEPARATOR.$name) >= (int) $file->getSize() && $scale >= 1)) {
+            @unlink($dir.DIRECTORY_SEPARATOR.$name);
+
+            return $this->storePrivate($file);
+        }
+
+        return self::PRIVATE_DIR.'/'.$name;
+    }
+
+    /**
      * Delete a stored file. Refuses anything that escapes the upload
      * directory, so a tampered database path cannot unlink arbitrary files.
      */

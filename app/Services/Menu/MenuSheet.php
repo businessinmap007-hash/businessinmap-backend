@@ -297,11 +297,26 @@ final class MenuSheet
             $existing = MenuItem::query()->where('business_id', $business->id)->get(['id', 'name_ar'])
                 ->groupBy(fn ($m) => $this->norm((string) $m->name_ar));
 
-            foreach (array_values($rows) as $i => $raw) {
+            $rows = array_values($rows);
+            $currentSection = null;
+
+            foreach ($rows as $i => $raw) {
                 $row = $this->normaliseKeys((array) $raw);
                 $number = $i + 2; // the sheet's own row number: the header is row 1
                 $errors = [];
                 $warnings = [];
+
+                // «القسم يُكتب في سطر وتحته أصنافه» — a printed menu is typed as it reads: a line with only a name and
+                // no price, followed by priced lines, is a SECTION; the lines under it belong to it until the next.
+                if ($this->isSectionHeader($row, $rows, $i)) {
+                    $currentSection = trim((string) $row['name_ar']);
+                    $report[] = ['row' => $number, 'action' => 'section', 'name' => $currentSection, 'id' => null, 'errors' => [], 'warnings' => []];
+
+                    continue;
+                }
+                if ($currentSection !== null && trim((string) ($row['section'] ?? '')) === '' && trim((string) ($row['line'] ?? '')) === '') {
+                    $row['section'] = $currentSection;
+                }
 
                 // A barcode from the shared catalog links the item to that product — and names it when the
                 // sheet left the name empty.
@@ -423,10 +438,48 @@ final class MenuSheet
 
         $count = fn (string $action) => count(array_filter($report, fn ($r) => $r['action'] === $action));
 
-        return [
-            'summary' => ['create' => $count('create'), 'update' => $count('update'), 'error' => $count('error')],
-            'rows' => $report,
-        ];
+        $summary = ['create' => $count('create'), 'update' => $count('update'), 'error' => $count('error')];
+        // only a sheet that carried section lines says how many — the summary of every other sheet is unchanged
+        if ($count('section') > 0) {
+            $summary['section'] = $count('section');
+        }
+
+        return ['summary' => $summary, 'rows' => $report];
+    }
+
+    /**
+     * A row that only names a section: a name, no price and nothing else, with a priced row coming right after it.
+     * A lone unpriced name at the end of a sheet (or one followed by another unpriced name) stays an ordinary row, so
+     * its «السعر مطلوب» error still shows instead of the row vanishing.
+     *
+     * @param  array<string,mixed>  $row
+     * @param  list<mixed>  $rows
+     */
+    private function isSectionHeader(array $row, array $rows, int $i): bool
+    {
+        if (trim((string) ($row['name_ar'] ?? '')) === '') {
+            return false;
+        }
+
+        foreach ($row as $key => $value) {
+            if ($key === 'name_ar' || $key === 'name_en') {
+                continue;
+            }
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        for ($j = $i + 1; $j < count($rows); $j++) {
+            $next = $this->normaliseKeys((array) $rows[$j]);
+            if (trim((string) ($next['name_ar'] ?? '')) === '' && $this->number($next['price'] ?? '') === null) {
+                continue;
+            }
+
+            return $this->number($next['price'] ?? '') !== null;
+        }
+
+        return false;
     }
 
     /** Through the app's own door — see the class comment. Returns the item id. */

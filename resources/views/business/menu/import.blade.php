@@ -84,7 +84,7 @@
         preview: @json(__('معاينة — لم يتغير شيء بعد')),
         done: @json(__('تم الاستيراد')),
         summary: @json(__('جديد: :c — تحديث: :u — أخطاء: :e')),
-        create: @json(__('جديد')), update: @json(__('تحديث')), error: @json(__('خطأ')),
+        create: @json(__('جديد')), update: @json(__('تحديث')), error: @json(__('خطأ')), section: @json(__('قسم')),
         empty: @json(__('الملف فارغ أو بلا صفوف مقروءة.')),
         failed: @json(__('حدث خطأ ما، حاول مرة أخرى.')),
         typesSheet: @json(__('الأنواع والوحدات')), types: @json(__('النوع')), group: @json(__('المجموعة')), units: @json(__('الوحدات')),
@@ -232,7 +232,7 @@
         document.getElementById('reportSummary').textContent = T.summary
             .replace(':c', report.summary.create).replace(':u', report.summary.update).replace(':e', report.summary.error);
         confirmBtn.style.display = dryRun && (report.summary.create + report.summary.update) > 0 ? '' : 'none';
-        const colors = { create: '#1e8e3e', update: '#1a73e8', error: '#d93025' };
+        const colors = { create: '#1e8e3e', update: '#1a73e8', error: '#d93025', section: '#6b7280' };
         const tbody = document.getElementById('reportRows');
         tbody.innerHTML = '';
         report.rows.forEach(r => {

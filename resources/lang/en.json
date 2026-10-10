@@ -2969,5 +2969,6 @@
     "لا يمكن تنفيذ هذا الآن على هذا الطلب.": "This cannot be done to this request now.",
     "تم إرسال طلبك إلى المستشفى.": "Your request was sent to the hospital.",
     "تمت إضافة الإجراء.": "The procedure was added.",
-    "تم الحفظ.": "Saved."
+    "تم الحفظ.": "Saved.",
+    "قسم": "Section"
 }

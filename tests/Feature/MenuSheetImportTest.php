@@ -129,6 +129,47 @@ class MenuSheetImportTest extends TestCase
         $this->assertStringContainsString('غرفة للتصدير', $csv->getContent());
     }
 
+    public function test_a_printed_menu_typed_as_section_lines_with_their_items_below(): void
+    {
+        $kitchen = User::query()->where('type', 'business')->where('id', '!=', $this->factory->id)->orderByDesc('id')->firstOrFail();
+        DB::table('users')->where('id', $kitchen->id)->update(['category_id' => 16, 'category_child_id' => 245]);
+        Sanctum::actingAs($kitchen->fresh());
+
+        // the shape of a restaurant's printed menu: a heading, then what is under it
+        $report = $this->withHeaders(['Accept-Language' => 'ar'])->postJson('/api/v2/business/menu/import', ['rows' => [
+            ['الاسم عربي' => 'سندوتشات', 'السعر' => ''],
+            ['الاسم عربي' => 'جمبري', 'السعر' => 110],
+            ['الاسم عربي' => 'سبيا', 'السعر' => 120],
+            ['الاسم عربي' => 'مشروبات', 'السعر' => ''],
+            ['الاسم عربي' => 'شاي', 'السعر' => 15],
+            ['الاسم عربي' => 'قهوه', 'السعر' => 20],
+        ], 'dry_run' => false])->assertOk()->json('data');
+
+        $this->assertSame(['create' => 4, 'update' => 0, 'error' => 0, 'section' => 2], $report['summary']);
+        $sandwiches = DB::table('menu_sections')->where('business_id', $kitchen->id)->where('name_ar', 'سندوتشات')->value('id');
+        $drinks = DB::table('menu_sections')->where('business_id', $kitchen->id)->where('name_ar', 'مشروبات')->value('id');
+        $this->assertNotNull($sandwiches);
+        $this->assertNotNull($drinks);
+        $this->assertSame(2, MenuItem::query()->where('business_id', $kitchen->id)->where('menu_section_id', $sandwiches)->count());
+        $this->assertSame(['شاي', 'قهوه'], MenuItem::query()->where('business_id', $kitchen->id)->where('menu_section_id', $drinks)->orderBy('id')->pluck('name_ar')->all());
+    }
+
+    public function test_an_unpriced_name_with_nothing_priced_after_it_is_still_an_error(): void
+    {
+        $kitchen = User::query()->where('type', 'business')->where('id', '!=', $this->factory->id)->orderByDesc('id')->firstOrFail();
+        DB::table('users')->where('id', $kitchen->id)->update(['category_id' => 16, 'category_child_id' => 245]);
+        Sanctum::actingAs($kitchen->fresh());
+
+        $report = $this->withHeaders(['Accept-Language' => 'ar'])->postJson('/api/v2/business/menu/import', ['rows' => [
+            ['الاسم عربي' => 'كباب', 'السعر' => 180],
+            ['الاسم عربي' => 'صنف بلا سعر', 'السعر' => ''],
+        ], 'dry_run' => true])->assertOk()->json('data');
+
+        $this->assertSame(1, $report['summary']['create']);
+        $this->assertSame(1, $report['summary']['error']);
+        $this->assertArrayNotHasKey('section', $report['summary']);
+    }
+
     public function test_a_kitchen_without_types_writes_its_own_sections(): void
     {
         $kitchen = User::query()->where('type', 'business')->where('id', '!=', $this->factory->id)->orderByDesc('id')->firstOrFail();

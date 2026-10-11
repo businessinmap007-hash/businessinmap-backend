@@ -229,9 +229,17 @@ final class AppointmentQueue
             ->whereRaw('COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 30 MINUTE)) > ?', [$day->format('Y-m-d H:i:s')])
             ->orderBy('starts_at')
             ->get(['starts_at', 'ends_at'])
-            ->map(fn ($b) => [
-                Carbon::parse($b->starts_at),
-                $b->ends_at ? Carbon::parse($b->ends_at) : Carbon::parse($b->starts_at)->addMinutes(30),
-            ]);
+            // a booking's times are the shop's wall clock: read them back in the SAME zone as the day being judged,
+            // or a business that is not on UTC would see its own bookings three hours away from the slots
+            ->map(function ($b) use ($day) {
+                $zone = $day->getTimezone();
+                $start = Carbon::createFromFormat('Y-m-d H:i:s', (string) $b->getRawOriginal('starts_at'), $zone);
+                $rawEnd = $b->getRawOriginal('ends_at');
+
+                return [
+                    $start,
+                    $rawEnd ? Carbon::createFromFormat('Y-m-d H:i:s', (string) $rawEnd, $zone) : $start->copy()->addMinutes(30),
+                ];
+            });
     }
 }

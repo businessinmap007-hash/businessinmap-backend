@@ -30,6 +30,19 @@ class User extends Authenticatable
      */
     use \App\Models\Concerns\HasOfferingOptions;
 
+    /**
+     * A business carries a timezone from the day it exists: its hours, bookings and queue are the shop's own clock.
+     * An account that is (or becomes) a business with none gets the platform's business timezone.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $user) {
+            if ($user->type === self::TYPE_BUSINESS && trim((string) $user->timezone) === '') {
+                $user->timezone = \App\Services\BusinessHoursService::defaultTimezone();
+            }
+        });
+    }
+
     public const TYPE_CLIENT   = 'client';
     public const TYPE_BUSINESS = 'business';
     public const TYPE_ADMIN    = 'admin';

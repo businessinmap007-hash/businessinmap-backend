@@ -143,12 +143,32 @@ class BusinessHoursTest extends TestCase
         $this->assertTrue($days[1]['is_closed']);
     }
 
+    public function test_every_business_account_carries_the_business_timezone_from_the_day_it_exists(): void
+    {
+        $shop = $this->makeBusiness();
+        $this->assertSame('Africa/Cairo', (string) $shop->fresh()->timezone);
+
+        // its own choice is kept, and clearing it falls back to Cairo rather than to UTC
+        $shop->forceFill(['timezone' => 'Asia/Riyadh'])->save();
+        $this->assertSame('Asia/Riyadh', (string) $shop->fresh()->timezone);
+        $shop->forceFill(['timezone' => null])->save();
+        $this->assertSame('Africa/Cairo', (string) $shop->fresh()->timezone);
+
+        // a client account is not given one
+        $client = \App\Models\User::create([
+            'name' => 'C', 'email' => 'c' . uniqid() . '@example.test', 'password' => bcrypt('Test1234'),
+            'type' => \App\Models\User::TYPE_CLIENT, 'api_token' => \Illuminate\Support\Str::random(60),
+            'phone' => '010' . random_int(10000000, 99999999),
+        ]);
+        $this->assertEmpty($client->fresh()->timezone);
+    }
+
     public function test_a_business_sets_its_timezone_and_hours_are_judged_in_it(): void
     {
         $shop = $this->makeBusiness();
 
-        // Default is the platform timezone until one is set.
-        $this->assertSame((string) config('app.timezone'), $this->hours->timezoneFor($shop->id));
+        // Default is the platform's business timezone (Cairo) until one is set — a business never sits on UTC.
+        $this->assertSame('Africa/Cairo', $this->hours->timezoneFor($shop->id));
 
         Sanctum::actingAs($shop);
         $this->putJson('/api/v2/business/working-hours', [

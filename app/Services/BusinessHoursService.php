@@ -57,12 +57,18 @@ class BusinessHoursService
         }
     }
 
-    /** The business's own timezone, or the platform default. */
+    /** The timezone of a business that has not set its own: the platform's business timezone (Cairo). */
+    public static function defaultTimezone(): string
+    {
+        return (string) (config('app.business_timezone') ?: config('app.timezone'));
+    }
+
+    /** The business's own timezone, or the platform's business default. */
     public function timezoneFor(int $businessId): string
     {
         $tz = \App\Models\User::query()->whereKey($businessId)->value('timezone');
 
-        return $tz ?: (string) config('app.timezone');
+        return $tz ?: self::defaultTimezone();
     }
 
     /**
@@ -174,7 +180,7 @@ class BusinessHoursService
 
         $map = [];
         foreach ($businessIds as $id) {
-            $moment = $at ?: Carbon::now($zones[$id] ?? config('app.timezone'));
+            $moment = $at ?: Carbon::now(($zones[$id] ?? null) ?: self::defaultTimezone());
             $row = ($rows->get($id) ?? collect())->firstWhere('day_of_week', $moment->dayOfWeek);
 
             $map[$id] = ! $row
@@ -208,7 +214,8 @@ class BusinessHoursService
      */
     public function applyOpenNow($query, string $businessColumn, ?Carbon $at = null)
     {
-        $at = $at ?: Carbon::now();
+        // the SQL filter cannot carry a zone per row: every business is judged on the business clock
+        $at = $at ?: Carbon::now(self::defaultTimezone());
         $dow = $at->dayOfWeek;
         $now = $at->format('H:i:s');
 

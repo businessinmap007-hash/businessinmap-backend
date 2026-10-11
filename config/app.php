@@ -74,6 +74,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Business Timezone
+    |--------------------------------------------------------------------------
+    |
+    | The platform's clock stays UTC (stored instants such as created_at are
+    | UTC), but a business's opening hours, its bookings' wall-clock times and
+    | its queue are the shop's own local time. A business with no timezone of
+    | its own is judged here — Cairo, where the platform runs.
+    |
+    */
+
+    'business_timezone' => env('BUSINESS_TIMEZONE', 'Africa/Cairo'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

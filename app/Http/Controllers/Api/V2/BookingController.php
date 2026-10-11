@@ -518,7 +518,7 @@ final class BookingController extends Controller
             'duration_value' => $data['duration_value'] ?? null,
             'duration_unit' => $data['duration_unit'] ?? null,
             'all_day' => (bool) ($data['all_day'] ?? false),
-            'timezone' => $data['timezone'] ?? config('app.timezone'),
+            'timezone' => $data['timezone'] ?? app(\App\Services\BusinessHoursService::class)->timezoneFor((int) $data['business_id']),
             'quantity' => $quantity,
             'party_size' => $data['party_size'] ?? null,
             'notes' => $data['notes'] ?? null,

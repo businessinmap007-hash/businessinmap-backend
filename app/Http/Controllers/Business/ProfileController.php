@@ -72,7 +72,7 @@ class ProfileController extends Controller
         ];
 
         return collect($common)
-            ->merge([(string) config('app.timezone'), (string) ($business->timezone ?? '')])
+            ->merge([\App\Services\BusinessHoursService::defaultTimezone(), (string) config('app.timezone'), (string) ($business->timezone ?? '')])
             ->filter()->unique()->values()->all();
     }
 

@@ -200,6 +200,80 @@ class UnitDiscoveryTest extends TestCase
         $this->assertNotNull($kind['units'][0]['reason']);
     }
 
+    /** «ملاعب وقاعات»: the day as a grid of start times, each with how many units are still free. */
+    public function test_a_day_grid_says_how_many_units_are_free_at_each_start_time(): void
+    {
+        $this->price(200, $this->doubleRoomId);
+        $a = $this->unit('A', $this->doubleRoomId);
+        $b = $this->unit('B', $this->doubleRoomId);
+
+        $day = now()->addDays(2)->startOfDay();
+        DB::table('business_working_hours')->where('business_id', $this->businessId)->delete();
+        DB::table('business_working_hours')->insert([
+            'business_id' => $this->businessId, 'day_of_week' => $day->dayOfWeek, 'is_closed' => 0,
+            'open_time' => '16:00:00', 'close_time' => '22:00:00', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // unit A is held from 18:00 to 20:00
+        DB::table('bookable_item_blocked_slots')->insert([
+            'bookable_item_id' => $a->id,
+            'starts_at' => $day->copy()->setTime(18, 0), 'ends_at' => $day->copy()->setTime(20, 0),
+            'is_active' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $grid = $this->getJson("/api/v2/discovery/units/{$this->businessId}/day-grid?date={$day->toDateString()}&duration_minutes=120&step_minutes=60")
+            ->assertOk()->json('data');
+
+        $this->assertFalse($grid['closed']);
+        $this->assertTrue($grid['hours_known']);
+        $this->assertSame(2, $grid['units_total']);
+
+        $free = collect($grid['slots'])->mapWithKeys(fn ($s) => [substr($s['starts_at'], 11, 5) => $s['free']])->all();
+        // 16:00–18:00 is clear for both; 17:00 and 19:00 touch A's hold; 20:00–22:00 is the last slot that fits
+        $this->assertSame(['16:00' => 2, '17:00' => 1, '18:00' => 1, '19:00' => 1, '20:00' => 2], $free);
+        $this->assertNotContains($a->id, collect($grid['slots'])->firstWhere('starts_at', $day->copy()->setTime(18, 0)->format('Y-m-d H:i:s'))['unit_ids']);
+        $this->assertContains($b->id, collect($grid['slots'])->firstWhere('starts_at', $day->copy()->setTime(18, 0)->format('Y-m-d H:i:s'))['unit_ids']);
+    }
+
+    public function test_a_closed_day_has_no_slots_and_a_past_day_is_refused(): void
+    {
+        $this->price(200, $this->doubleRoomId);
+        $this->unit('A', $this->doubleRoomId);
+
+        $day = now()->addDays(3)->startOfDay();
+        DB::table('business_working_hours')->where('business_id', $this->businessId)->delete();
+        DB::table('business_working_hours')->insert([
+            'business_id' => $this->businessId, 'day_of_week' => $day->dayOfWeek, 'is_closed' => 1,
+            'open_time' => null, 'close_time' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $grid = $this->getJson("/api/v2/discovery/units/{$this->businessId}/day-grid?date={$day->toDateString()}")->assertOk()->json('data');
+        $this->assertTrue($grid['closed']);
+        $this->assertSame([], $grid['slots']);
+
+        $this->getJson("/api/v2/discovery/units/{$this->businessId}/day-grid?date=" . now()->subDays(2)->toDateString())->assertStatus(422);
+        $this->getJson("/api/v2/discovery/units/{$this->businessId}/day-grid")->assertStatus(422);
+    }
+
+    public function test_the_party_size_keeps_only_the_units_that_seat_it(): void
+    {
+        $this->price(0, $this->doubleRoomId);
+        $small = $this->unit('T1', $this->doubleRoomId);
+        $big = $this->unit('T2', $this->doubleRoomId);
+        $small->update(['capacity' => 2]);
+        $big->update(['capacity' => 6]);
+
+        $day = now()->addDays(2)->startOfDay();
+        DB::table('business_working_hours')->where('business_id', $this->businessId)->delete();
+
+        $grid = $this->getJson("/api/v2/discovery/units/{$this->businessId}/day-grid?date={$day->toDateString()}&duration_minutes=60&step_minutes=60&party_size=4")
+            ->assertOk()->json('data');
+
+        $this->assertFalse($grid['hours_known']);
+        $this->assertSame(1, $grid['units_total']);
+        $this->assertSame([$big->id], $grid['slots'][0]['unit_ids']);
+    }
+
     /**
      * A kind nobody priced still has to appear — it is the business's own
      * unfinished work, and hiding it makes a missing price look like a missing

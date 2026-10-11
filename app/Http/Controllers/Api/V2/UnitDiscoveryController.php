@@ -132,6 +132,122 @@ final class UnitDiscoveryController extends Controller
     }
 
     /**
+     * GET /api/v2/discovery/units/{business}/day-grid
+     *
+     * «ملاعب وقاعات — بالساعة» and «طاولة»: one day as a grid of start times, each saying how many of the business's
+     * units are still free for `duration_minutes` from that time. The customer picks a day and a time and sees at once
+     * which times are taken — instead of choosing a date-time and learning at booking that it was not free.
+     *
+     * Uses the very service the engine books with (`BookableAvailabilityService::check`: working hours, blocked
+     * slots and live bookings), so a free time here cannot be refused for a reason this never saw.
+     */
+    public function dayGrid(Request $request, int $business)
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:720'],
+            'step_minutes' => ['nullable', 'integer', 'in:15,30,60'],
+            'party_size' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'service_id' => ['nullable', 'integer'],
+            'item_type' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $biz = User::query()->where('type', 'business')->find($business, ['id']);
+
+        if (! $biz) {
+            return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
+        }
+
+        $hours = app(\App\Services\BusinessHoursService::class);
+        $tz = $hours->timezoneFor((int) $biz->id);
+        $day = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $data['date'], $tz)->startOfDay();
+        $now = \Illuminate\Support\Carbon::now($tz);
+
+        if ($day->lt($now->copy()->startOfDay()) || $day->gt($now->copy()->addDays(120))) {
+            return response()->json(['success' => false, 'message' => __('اختر يومًا من الأيام القادمة.')], 422);
+        }
+
+        $duration = (int) ($data['duration_minutes'] ?? 60);
+        $step = (int) ($data['step_minutes'] ?? 60);
+        $serviceId = (int) ($data['service_id'] ?? 0)
+            ?: (int) PlatformService::query()->where('key', PlatformService::KEY_BOOKING)->value('id');
+
+        $units = BookableItem::query()
+            ->where('business_id', $biz->id)
+            ->where('is_active', 1)
+            ->when($serviceId > 0, fn ($q) => $q->where('service_id', $serviceId))
+            ->when(! empty($data['item_type']), fn ($q) => $q->where('item_type', $data['item_type']))
+            ->when(! empty($data['party_size']), fn ($q) => $q->where(fn ($w) => $w->whereNull('capacity')->orWhere('capacity', '>=', (int) $data['party_size'])))
+            ->orderBy('code')->orderBy('id')
+            ->limit(60)
+            ->get();
+
+        // the day's opening window; a business that never described its week is judged open 08:00–23:00
+        $row = $hours->hoursFor((int) $biz->id)->get($day->dayOfWeek);
+        $known = $hours->hoursFor((int) $biz->id)->isNotEmpty() && $row !== null;
+        $closed = $known && ($row->is_closed || ! $row->open_time || ! $row->close_time);
+
+        $open = $known && ! $closed ? (string) $row->open_time : '08:00:00';
+        $close = $known && ! $closed ? (string) $row->close_time : '23:00:00';
+
+        $payload = [
+            'date' => $day->toDateString(),
+            'duration_minutes' => $duration,
+            'step_minutes' => $step,
+            'hours_known' => $known && ! $closed,
+            'closed' => $closed,
+            'opens' => substr($open, 0, 5),
+            'closes' => substr($close, 0, 5),
+            'units_total' => $units->count(),
+            'slots' => [],
+        ];
+
+        if ($closed || $units->isEmpty()) {
+            return response()->json(['success' => true, 'data' => $payload]);
+        }
+
+        $from = $day->copy()->setTimeFromTimeString($open);
+        $until = $day->copy()->setTimeFromTimeString($close);
+        if ($until->lte($from)) {
+            $until->addDay();
+        }
+
+        // start times on the step's own boundaries (a grid of :00 and :30, never :17)
+        $minutes = ($from->hour * 60) + $from->minute;
+        $remainder = $minutes % $step;
+        if ($remainder !== 0) {
+            $from->addMinutes($step - $remainder);
+        }
+
+        $slots = [];
+        for ($t = $from->copy(); $t->copy()->addMinutes($duration)->lte($until) && count($slots) < 48; $t->addMinutes($step)) {
+            $end = $t->copy()->addMinutes($duration);
+            $free = [];
+
+            // a time that has passed is shown, but nothing is free in it
+            if ($t->gt($now)) {
+                foreach ($units as $unit) {
+                    $check = $this->availability->check($unit, $t->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'));
+                    if ($check['available']) {
+                        $free[] = (int) $unit->id;
+                    }
+                }
+            }
+
+            $slots[] = [
+                'starts_at' => $t->format('Y-m-d H:i:s'),
+                'ends_at' => $end->format('Y-m-d H:i:s'),
+                'free' => count($free),
+                'unit_ids' => $free,
+            ];
+        }
+
+        $payload['slots'] = $slots;
+
+        return response()->json(['success' => true, 'data' => $payload]);
+    }
+
+    /**
      * غرفةٌ كما تُعرض فى قائمة: صورةٌ ووصفٌ وسعرُها هى.
      *
      * كانت رقمًا وسعة — لا صورةَ ولا كلمة — فقائمةُ الغرف لا تشبه المنيو فى

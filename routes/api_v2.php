@@ -231,6 +231,7 @@ Route::prefix('v2')->group(function () {
         // by kind with each kind's price. 21 children refuse a booking without a
         // named unit and nothing told the client what the ids were.
         Route::get('units/{business}', [UnitDiscoveryController::class, 'show'])->whereNumber('business');
+        Route::get('units/{business}/day-grid', [UnitDiscoveryController::class, 'dayGrid'])->whereNumber('business');
     });
 
     // Jobs: a business posts a vacancy in any field, a client applies. Public

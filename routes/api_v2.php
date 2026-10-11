@@ -1029,6 +1029,7 @@ Route::prefix('v2')->group(function () {
         // «كرسي وعليه الحلاق»: the business's own chairs, and the queue it runs from them.
         Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('business/chairs', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'index']);
+            Route::get('business/chairs/staff', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'staff']);
             Route::post('business/chairs', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'store']);
             Route::post('business/chairs/{chair}', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'update'])->whereNumber('chair');
             Route::delete('business/chairs/{chair}', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'destroy'])->whereNumber('chair');

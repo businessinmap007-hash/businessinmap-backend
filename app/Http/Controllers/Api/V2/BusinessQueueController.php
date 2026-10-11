@@ -35,7 +35,7 @@ final class BusinessQueueController extends Controller
             ->orderBy('starts_at')->orderBy('id')
             ->get();
 
-        $chairs = ServiceChair::query()->where('business_id', $business)->where('is_active', true)
+        $chairs = ServiceChair::query()->with('staff:id,name,logo')->where('business_id', $business)->where('is_active', true)
             ->orderBy('sort_order')->orderBy('id')->get();
 
         return response()->json(['success' => true, 'data' => [

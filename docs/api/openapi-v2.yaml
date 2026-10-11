@@ -3778,6 +3778,8 @@ paths:
   /business/chairs:
     get: { tags: [Bookings], summary: "The business's own chairs (active or not).", responses: { '200': { description: OK } } }
     post: { tags: [Bookings], summary: 'Add a chair — multipart: name?, person_name? (one of the two), photo?.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/chairs/staff:
+    get: { tags: [Bookings], summary: "The staff the business may seat at a chair: accepted, active members `{user_id, name, photo, title}` — a customer account taken on as staff shows its own photo and name on the chair.", responses: { '200': { description: OK } } }
   /business/chairs/{chair}:
     post: { tags: [Bookings], summary: 'Change a chair — multipart (a file cannot ride a PUT): the fields sent change; `remove_photo`, `is_active`.', parameters: [{ name: chair, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
     delete: { tags: [Bookings], summary: 'Remove a chair; one that ever held a booking is closed instead (`closed: true`).', parameters: [{ name: chair, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }

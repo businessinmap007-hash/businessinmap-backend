@@ -1240,14 +1240,14 @@ final class BookingController extends Controller
             $notices = \App\Services\ArrivalNotice::forBusinesses([(int) $subject->business_id]);
             $subject->setAttribute('arrival_notice', $notices[(int) $subject->business_id] ?? null);
             $subject->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($subject));
-            $subject->setAttribute('chair', $subject->chair_id ? optional(\App\Models\ServiceChair::query()->find($subject->chair_id))->payload() : null);
+            $subject->setAttribute('chair', $subject->chair_id ? optional(\App\Models\ServiceChair::query()->with('staff:id,name,logo')->find($subject->chair_id))->payload() : null);
 
             return $this->hideRoomInternals($subject->append('title'));
         }
 
         $items = $subject instanceof \Illuminate\Contracts\Pagination\Paginator ? $subject->getCollection() : $subject;
         $notices = \App\Services\ArrivalNotice::forBusinesses($items->pluck('business_id')->all());
-        $chairsById = \App\Models\ServiceChair::query()->whereIn('id', $items->pluck('chair_id')->filter()->unique()->all())->get()->keyBy('id');
+        $chairsById = \App\Models\ServiceChair::query()->with('staff:id,name,logo')->whereIn('id', $items->pluck('chair_id')->filter()->unique()->all())->get()->keyBy('id');
         $items->each(function (Booking $booking) use ($notices, $chairsById) {
             $booking->setAttribute('arrival_notice', $notices[(int) $booking->business_id] ?? null);
             $booking->setAttribute('chair', $booking->chair_id ? optional($chairsById->get($booking->chair_id))->payload() : null);

@@ -115,7 +115,43 @@ class ChairsAndCallNextTest extends TestCase
         $this->getJson("/api/v2/discovery/appointments/{$this->salon->id}/chairs")->assertOk()->assertJsonCount(1, 'data.chairs');
 
         app(ImageUploadService::class)->delete($path);
-        $this->assertSame($one, (int) ServiceChair::query()->where('person_name', 'أحمد')->value('id'));
+        $this->assertSame($one, (int) ServiceChair::query()->where('business_id', $this->salon->id)->where('person_name', 'أحمد')->value('id'));
+    }
+
+    public function test_a_staff_account_sits_at_a_chair_with_its_own_name_and_photo(): void
+    {
+        $barber = $this->account(User::TYPE_CLIENT, 'Barber', null, null);
+        $barber->forceFill(['name' => 'أحمد الحلاق', 'logo' => 'files/uploads/ahmed.png'])->save();
+        $stranger = $this->account(User::TYPE_CLIENT, 'Stranger');
+
+        \App\Models\BusinessStaff::create([
+            'business_id' => $this->salon->id, 'user_id' => $barber->id, 'title' => 'حلاق',
+            'capabilities' => ['bookings'], 'is_active' => true, 'status' => \App\Models\BusinessStaff::STATUS_ACCEPTED,
+        ]);
+
+        Sanctum::actingAs($this->salon);
+
+        // the staff the business may seat
+        $this->getJson('/api/v2/business/chairs/staff')->assertOk()
+            ->assertJsonPath('data.staff.0.user_id', $barber->id)
+            ->assertJsonPath('data.staff.0.name', 'أحمد الحلاق');
+
+        // only one of its own staff
+        $this->postJson('/api/v2/business/chairs', ['name' => 'كرسي 1', 'staff_user_id' => $stranger->id])->assertStatus(422);
+
+        $this->postJson('/api/v2/business/chairs', ['staff_user_id' => $barber->id])->assertCreated()
+            ->assertJsonPath('data.chair.staff_user_id', $barber->id);
+
+        // the customer sees the account's own name and photo
+        $this->getJson("/api/v2/discovery/appointments/{$this->salon->id}/chairs")->assertOk()
+            ->assertJsonPath('data.chairs.0.person_name', 'أحمد الحلاق')
+            ->assertJsonPath('data.chairs.0.photo', 'files/uploads/ahmed.png');
+
+        // a name written on the chair wins over the account's
+        $id = ServiceChair::query()->where('staff_user_id', $barber->id)->value('id');
+        $this->post("/api/v2/business/chairs/{$id}", ['person_name' => 'أبو علي'], ['Accept' => 'application/json'])->assertOk();
+        $this->getJson("/api/v2/discovery/appointments/{$this->salon->id}/chairs")->assertOk()
+            ->assertJsonPath('data.chairs.0.person_name', 'أبو علي');
     }
 
     public function test_each_chair_is_its_own_line_and_no_preference_takes_the_one_free_soonest(): void

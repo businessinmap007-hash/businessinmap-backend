@@ -48,6 +48,7 @@ class Booking extends Model
         'bookable_type',
         'bookable_id',
         'course_group_id',
+        'queue_turn',
         'meta',
     ];
 

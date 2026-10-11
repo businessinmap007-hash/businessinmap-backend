@@ -234,6 +234,8 @@ Route::prefix('v2')->group(function () {
         Route::get('units/{business}/day-grid', [UnitDiscoveryController::class, 'dayGrid'])->whereNumber('business');
         // «موعد»: the day as start times for a service of the business itself — no units
         Route::get('appointments/{business}/day-grid', [UnitDiscoveryController::class, 'appointmentGrid'])->whereNumber('business');
+        // «بالدور»: the turn a customer would get on a day, and when it should come
+        Route::get('appointments/{business}/queue', [UnitDiscoveryController::class, 'appointmentQueue'])->whereNumber('business');
         // «كورس»: the groups each course runs in, with the seats left
         Route::get('courses/{business}', [\App\Http\Controllers\Api\V2\CourseGroupController::class, 'discover'])->whereNumber('business');
     });
@@ -1037,6 +1039,9 @@ Route::prefix('v2')->group(function () {
             // «يجب التواجد قبل الموعد بـ ١٥ دقيقة»: the business's own notice on its bookings and appointments
             Route::get('arrival-notice', [\App\Http\Controllers\Api\V2\BusinessArrivalNoticeController::class, 'show']);
             Route::put('arrival-notice', [\App\Http\Controllers\Api\V2\BusinessArrivalNoticeController::class, 'update']);
+            // «بالموعد أم بالدور»
+            Route::get('flow', [\App\Http\Controllers\Api\V2\BusinessBookingFlowController::class, 'show']);
+            Route::put('flow', [\App\Http\Controllers\Api\V2\BusinessBookingFlowController::class, 'update']);
         });
 
         // The rooms behind a room type (the hotel's own list) and putting a stay in one.
@@ -1191,6 +1196,8 @@ Route::prefix('v2')->group(function () {
             Route::get('pending-settlements', [BookingController::class, 'pendingSettlements']);
             // Owe a ruling, start no new business until it is met.
             Route::post('/', [BookingController::class, 'store'])->middleware('dispute.settled');
+            // «بالدور»: the day is named, the business gives the turn and the time
+            Route::post('queue', [BookingController::class, 'queue'])->middleware('dispute.settled');
             Route::get('{booking}', [BookingController::class, 'show'])->whereNumber('booking');
             Route::get('{booking}/financial-preview', [BookingController::class, 'financialPreview'])->whereNumber('booking');
             // the guest's two buttons during a running hotel stay: «بلّغ عن مشكلة» / «اطلب خدمة»

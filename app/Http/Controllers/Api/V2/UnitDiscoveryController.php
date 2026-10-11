@@ -125,6 +125,8 @@ final class UnitDiscoveryController extends Controller
                 'starts_at' => $window[0] ?? null,
                 'ends_at' => $window[1] ?? null,
                 'kinds' => $groups,
+                // «بالموعد» or «بالدور»: how this business takes its appointments
+                'flow' => \App\Services\AppointmentQueue::flowOf((int) $biz->id),
                 // «أشكال الحجز»: how this trade page is drawn (sections or a flat list, what is shown, in what order).
                 // null for a trade nobody has put on a shape — the client draws what it always drew.
                 'shape' => app(\App\Services\BookingShapes::class)->payload(app(\App\Services\BookingShapes::class)->forBusiness((int) $biz->id)),
@@ -352,6 +354,43 @@ final class UnitDiscoveryController extends Controller
         $payload['slots'] = $slots;
 
         return response()->json(['success' => true, 'data' => $payload]);
+    }
+
+    /**
+     * GET /api/v2/discovery/appointments/{business}/queue — «بالدور»: the turn a customer would get on a day, and the
+     * time it should come to. Public; nothing is taken until the booking is made (`POST /bookings/queue`).
+     */
+    public function appointmentQueue(Request $request, int $business)
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'offering_id' => ['nullable', 'integer'],
+        ]);
+
+        abort_unless(User::query()->where('type', 'business')->whereKey($business)->exists(), 404, __('النشاط غير موجود.'));
+
+        $tz = app(\App\Services\BusinessHoursService::class)->timezoneFor($business);
+        $day = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $data['date'], $tz)->startOfDay();
+        $today = \Illuminate\Support\Carbon::now($tz)->startOfDay();
+
+        if ($day->lt($today) || $day->gt($today->copy()->addDays(30))) {
+            return response()->json(['success' => false, 'message' => __('اختر يومًا من الأيام القادمة.')], 422);
+        }
+
+        $minutes = \App\Services\AppointmentQueue::serviceMinutes($business, ! empty($data['offering_id']) ? (int) $data['offering_id'] : null);
+        $next = app(\App\Services\AppointmentQueue::class)->next($business, $day, $minutes);
+
+        return response()->json(['success' => true, 'data' => [
+            'flow' => \App\Services\AppointmentQueue::flowOf($business),
+            'date' => $day->toDateString(),
+            'duration_minutes' => $minutes,
+            'closed' => $next['closed'],
+            'full' => $next['full'],
+            'turn' => $next['turn'],
+            'ahead' => $next['ahead'],
+            'expected_at' => $next['starts_at']?->format('Y-m-d H:i:s'),
+            'ends_at' => $next['ends_at']?->format('Y-m-d H:i:s'),
+        ]]);
     }
 
     /**

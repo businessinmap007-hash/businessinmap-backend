@@ -530,6 +530,8 @@ final class BookingController extends Controller
             'offering_id' => $offering
                 ? (int) $offering->id
                 : optional($calc['business_price'] ?? null)?->id,
+            // «بالدور»: the number the business gave it (only through bookings/queue)
+            'queue_turn' => $request->attributes->get('queue_turn'),
         ];
 
         if ($bookable instanceof BookableItem) {
@@ -594,6 +596,56 @@ final class BookingController extends Controller
                 'booking' => $this->titled($booking),
             ],
         ], 201);
+    }
+
+    /**
+     * POST /api/v2/bookings/queue — «بالدور»: the same booking, but the customer names the DAY and the business gives
+     * the turn and the time. The number is taken under a lock on the business, so two customers never get the same one.
+     */
+    public function queue(Request $request)
+    {
+        $data = $request->validate([
+            'business_id' => ['required', 'integer', 'min:1'],
+            'service_id' => ['required', 'integer', 'min:1'],
+            'offering_id' => ['required', 'integer', 'min:1'],
+            'date' => ['required', 'date_format:Y-m-d'],
+        ]);
+
+        $businessId = (int) $data['business_id'];
+
+        if (\App\Services\AppointmentQueue::flowOf($businessId) !== \App\Services\AppointmentQueue::FLOW_QUEUE) {
+            return $this->error(__('هذا النشاط يحجز بالموعد لا بالدور.'), 422);
+        }
+
+        $day = Carbon::createFromFormat('Y-m-d', $data['date'], app(\App\Services\BusinessHoursService::class)->timezoneFor($businessId))->startOfDay();
+        $today = Carbon::now($day->getTimezone())->startOfDay();
+
+        if ($day->lt($today) || $day->gt($today->copy()->addDays(30))) {
+            return $this->error(__('اختر يومًا من الأيام القادمة.'), 422);
+        }
+
+        $minutes = \App\Services\AppointmentQueue::serviceMinutes($businessId, (int) $data['offering_id']);
+
+        return DB::transaction(function () use ($request, $businessId, $day, $minutes) {
+            // one customer at a time takes a number of this business's day
+            User::query()->whereKey($businessId)->lockForUpdate()->first(['id']);
+
+            $next = app(\App\Services\AppointmentQueue::class)->next($businessId, $day, $minutes);
+
+            if ($next['full']) {
+                return $this->error($next['closed'] ? __('النشاط مغلق في هذا اليوم.') : __('اكتمل دور هذا اليوم.'), 422);
+            }
+
+            $request->merge([
+                'starts_at' => $next['starts_at']->format('Y-m-d H:i:s'),
+                'ends_at' => $next['ends_at']->format('Y-m-d H:i:s'),
+                'all_day' => false,
+                'offering_type' => $request->input('offering_type', 'service_price'),
+            ]);
+            $request->attributes->set('queue_turn', (int) $next['turn']);
+
+            return $this->store($request);
+        });
     }
 
     public function show(Request $request, Booking $booking)
@@ -1149,6 +1201,7 @@ final class BookingController extends Controller
         if ($subject instanceof Booking) {
             $notices = \App\Services\ArrivalNotice::forBusinesses([(int) $subject->business_id]);
             $subject->setAttribute('arrival_notice', $notices[(int) $subject->business_id] ?? null);
+            $subject->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($subject));
 
             return $this->hideRoomInternals($subject->append('title'));
         }
@@ -1157,6 +1210,7 @@ final class BookingController extends Controller
         $notices = \App\Services\ArrivalNotice::forBusinesses($items->pluck('business_id')->all());
         $items->each(function (Booking $booking) use ($notices) {
             $booking->setAttribute('arrival_notice', $notices[(int) $booking->business_id] ?? null);
+            $booking->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($booking));
             $this->hideRoomInternals($booking->append('title'));
         });
 

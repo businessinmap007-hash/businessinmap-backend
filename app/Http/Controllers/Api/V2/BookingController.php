@@ -70,7 +70,11 @@ final class BookingController extends Controller
         if (! $shape) {
             return response()->json([
                 'success' => true,
-                'data' => ['business_id' => (int) $target->id, 'shape' => null],
+                'data' => [
+                    'business_id' => (int) $target->id,
+                    'shape' => null,
+                    'arrival_notice' => \App\Services\ArrivalNotice::forBusiness((int) $target->id),
+                ],
             ]);
         }
 

@@ -39,6 +39,7 @@ final class CourseGroupController extends Controller
         $courses = $this->coursesOf($business)->map(function (BusinessServicePrice $course) use ($groups) {
             return [
                 'id' => (int) $course->id,
+                'service_id' => (int) $course->service_id,
                 'name' => $this->nameOf($course),
                 'price' => (float) $course->price,
                 'currency' => $course->currency ?: 'EGP',

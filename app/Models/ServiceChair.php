@@ -14,6 +14,30 @@ class ServiceChair extends Model
 
     protected $casts = ['is_active' => 'boolean', 'sort_order' => 'integer'];
 
+    /** Ids of the active chairs this account sits at, in one business — in display order. @return list<int> */
+    public static function idsOf(int $business, int $userId): array
+    {
+        return self::query()->where('business_id', $business)->where('staff_user_id', $userId)->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * The chairs the caller is held to, or null when the whole line is theirs. A staff member who sits at a chair works
+     * from that chair alone — «الحلاق بكرسيه فقط»; the owner, and a staff member with no chair, see the whole business.
+     *
+     * @return list<int>|null
+     */
+    public static function restrictedTo(\Illuminate\Http\Request $request): ?array
+    {
+        if (\App\Support\BusinessContext::isOwner($request) || ! $request->user()) {
+            return null;
+        }
+
+        $own = self::idsOf(\App\Support\BusinessContext::id($request), (int) $request->user()->id);
+
+        return $own === [] ? null : $own;
+    }
+
     /** The staff member at this chair, when the person is an account of the business. */
     public function staff(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {

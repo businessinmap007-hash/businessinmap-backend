@@ -232,6 +232,110 @@ class ChairsAndCallNextTest extends TestCase
         $this->postJson("/api/v2/business/queue/{$id}/call")->assertForbidden();
     }
 
+    /** A barber account: accepted staff of the salon with NO capability at all, sitting at the given chair. */
+    private function barberAt(ServiceChair $chair, array $capabilities = []): User
+    {
+        $barber = $this->account(User::TYPE_CLIENT, 'Barber');
+        \App\Models\BusinessStaff::create([
+            'business_id' => $this->salon->id, 'user_id' => $barber->id, 'title' => 'حلاق',
+            'capabilities' => $capabilities, 'is_active' => true, 'status' => \App\Models\BusinessStaff::STATUS_ACCEPTED,
+        ]);
+        $chair->forceFill(['staff_user_id' => $barber->id])->save();
+
+        return $barber;
+    }
+
+    public function test_a_barber_runs_his_own_chair_and_only_that_chair(): void
+    {
+        $ahmed = $this->chair('أحمد', 1);
+        $mahmoud = $this->chair('محمود', 2);
+        $this->queueOn();
+
+        $mine = $this->take($this->account(User::TYPE_CLIENT, 'A'), $ahmed->id)->assertCreated()->json('data.booking.id');
+        $theirs = $this->take($this->account(User::TYPE_CLIENT, 'B'), $mahmoud->id)->assertCreated()->json('data.booking.id');
+
+        $barber = $this->barberAt($ahmed); // no capability: the chair is the grant
+        Sanctum::actingAs($barber);
+
+        // his line is his chair's, and nothing of the other chair
+        $queue = $this->getJson('/api/v2/business/queue?business_id=' . $this->salon->id . '&date=' . $this->day->toDateString())
+            ->assertOk();
+        $this->assertSame([$ahmed->id], array_column($queue->json('data.chairs'), 'id'));
+        $this->assertSame([$mine], array_column($queue->json('data.items'), 'id'));
+
+        // he calls his own customer
+        $this->postJson("/api/v2/business/queue/{$mine}/call?business_id={$this->salon->id}")->assertOk();
+
+        // but not the customer of another chair
+        $this->postJson("/api/v2/business/queue/{$theirs}/call?business_id={$this->salon->id}")->assertForbidden();
+        $this->postJson("/api/v2/business/queue/{$theirs}/start?business_id={$this->salon->id}")->assertForbidden();
+        $this->assertNull(Booking::query()->findOrFail($theirs)->called_at);
+
+        // the day's count is his chair's own
+        $this->assertSame(0, $this->getJson('/api/v2/business/queue?business_id=' . $this->salon->id . '&date=' . $this->day->toDateString())->json('data.served'));
+
+        // the house's booking list is a `bookings` capability: a chair alone does not open it …
+        $this->getJson('/api/v2/business/bookings?business_id=' . $this->salon->id)->assertForbidden();
+
+        // … and with the capability it is still cut to his chair
+        \App\Models\BusinessStaff::query()->where('user_id', $barber->id)->update(['capabilities' => ['bookings']]);
+        $listed = array_column($this->getJson('/api/v2/business/bookings?business_id=' . $this->salon->id)->assertOk()->json('data.bookings.data'), 'id');
+        $this->assertSame([$mine], $listed);
+    }
+
+    public function test_a_barbers_walk_in_lands_on_his_chair(): void
+    {
+        $ahmed = $this->chair('أحمد', 1);
+        $mahmoud = $this->chair('محمود', 2);
+        $barber = $this->barberAt($mahmoud);
+
+        Sanctum::actingAs($barber);
+        $row = $this->postJson('/api/v2/business/queue/walk-in?business_id=' . $this->salon->id, [
+            'name' => 'عم سعيد', 'offering_id' => $this->service->id,
+        ])->assertCreated();
+        $this->assertSame($mahmoud->id, $row->json('data.chair_id'));
+
+        // he serves him from start to finish — and the day's count follows
+        $id = $row->json('data.id');
+        $this->postJson("/api/v2/business/queue/{$id}/start?business_id={$this->salon->id}")->assertOk();
+        $this->postJson("/api/v2/business/queue/{$id}/finish?business_id={$this->salon->id}")->assertOk();
+        $this->assertSame(1, $this->getJson('/api/v2/business/queue?business_id=' . $this->salon->id)->json('data.served'));
+
+        // naming another chair is refused
+        $this->postJson('/api/v2/business/queue/walk-in?business_id=' . $this->salon->id, [
+            'name' => 'x', 'offering_id' => $this->service->id, 'chair_id' => $ahmed->id,
+        ])->assertForbidden();
+    }
+
+    public function test_the_barbers_memberships_name_his_chair_and_a_stranger_with_no_chair_needs_the_capability(): void
+    {
+        $ahmed = $this->chair('أحمد', 1);
+        $barber = $this->barberAt($ahmed);
+
+        Sanctum::actingAs($barber);
+        $this->getJson('/api/v2/business/memberships')->assertOk()
+            ->assertJsonPath('data.memberships.0.business.id', $this->salon->id)
+            ->assertJsonPath('data.memberships.0.chairs.0.id', $ahmed->id)
+            ->assertJsonPath('data.memberships.0.chairs.0.person_name', 'أحمد');
+
+        // staff with no chair and no `bookings` capability cannot open the line
+        $clerk = $this->account(User::TYPE_CLIENT, 'Clerk');
+        \App\Models\BusinessStaff::create([
+            'business_id' => $this->salon->id, 'user_id' => $clerk->id, 'title' => 'سكرتير',
+            'capabilities' => [], 'is_active' => true, 'status' => \App\Models\BusinessStaff::STATUS_ACCEPTED,
+        ]);
+        Sanctum::actingAs($clerk);
+        $this->getJson('/api/v2/business/queue?business_id=' . $this->salon->id)->assertForbidden();
+
+        // …and with it, sees the whole line (no chair restricts him)
+        \App\Models\BusinessStaff::query()->where('user_id', $clerk->id)->update(['capabilities' => ['bookings']]);
+        $this->getJson('/api/v2/business/queue?business_id=' . $this->salon->id)->assertOk();
+
+        // an owner asking for «mine» sits at no chair
+        Sanctum::actingAs($this->salon);
+        $this->getJson('/api/v2/business/queue?mine=1')->assertOk()->assertJsonCount(0, 'data.chairs')->assertJsonCount(0, 'data.items');
+    }
+
     public function test_the_staff_add_a_customer_with_no_booking_and_he_moves_through_the_line(): void
     {
         $this->chair('أحمد', 1);

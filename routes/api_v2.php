@@ -1033,6 +1033,11 @@ Route::prefix('v2')->group(function () {
             Route::post('business/chairs', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'store']);
             Route::post('business/chairs/{chair}', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'update'])->whereNumber('chair');
             Route::delete('business/chairs/{chair}', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'destroy'])->whereNumber('chair');
+        });
+
+        // The queue itself is open to any member of the business: a barber runs his own chair with no capability at all
+        // (the chair is the grant), anyone else needs `bookings` — BusinessQueueController::lineOf() decides.
+        Route::middleware('business.member')->group(function () {
             Route::get('business/queue', [\App\Http\Controllers\Api\V2\BusinessQueueController::class, 'index']);
             Route::post('business/queue/walk-in', [\App\Http\Controllers\Api\V2\BusinessQueueController::class, 'walkIn']);
             Route::post('business/queue/{booking}/call', [\App\Http\Controllers\Api\V2\BusinessQueueController::class, 'call'])->whereNumber('booking');

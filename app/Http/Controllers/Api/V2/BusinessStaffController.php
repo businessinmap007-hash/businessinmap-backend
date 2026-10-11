@@ -484,7 +484,15 @@ class BusinessStaffController extends Controller
     /** GET /api/v2/business/memberships — businesses I may manage as staff. */
     public function memberships(Request $request)
     {
-        $rows = $this->access->membershipsFor((int) $request->user()->id)
+        $memberships = $this->access->membershipsFor((int) $request->user()->id);
+
+        // the chairs this person sits at, per business — «كرسيي»
+        $chairs = \App\Models\ServiceChair::query()->with('staff:id,name,logo')
+            ->where('staff_user_id', (int) $request->user()->id)->where('is_active', true)
+            ->whereIn('business_id', $memberships->pluck('business_id')->all())
+            ->orderBy('sort_order')->orderBy('id')->get()->groupBy('business_id');
+
+        $rows = $memberships
             ->map(fn (BusinessStaff $s) => [
                 'business' => $s->business ? [
                     'id' => (int) $s->business->id,
@@ -496,6 +504,7 @@ class BusinessStaffController extends Controller
                 // Tells the app whether checking in for THIS membership needs
                 // a QR scan + GPS first (StaffAttendanceController::checkIn).
                 'attendance_verification_enabled' => (bool) ($s->business?->attendance_verification_enabled ?? false),
+                'chairs' => ($chairs[$s->business_id] ?? collect())->map->payload()->values(),
             ]);
 
         return response()->json(['success' => true, 'data' => ['memberships' => $rows]]);

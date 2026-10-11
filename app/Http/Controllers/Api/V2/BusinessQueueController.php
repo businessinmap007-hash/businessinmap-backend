@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\ServiceChair;
 use App\Services\AppointmentQueue;
 use App\Services\BusinessHoursService;
+use App\Support\BusinessCapability;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -18,10 +19,46 @@ use Illuminate\Support\Facades\DB;
  */
 final class BusinessQueueController extends Controller
 {
-    /** GET /api/v2/business/queue?date= — the live bookings of a day (today by default), by chair then by time. */
+    /**
+     * Who may run this queue, and from which chairs. A staff member who sits at a chair runs that chair's line and no
+     * other — and the chair itself is the grant (no `bookings` capability is needed for it); any other staff member
+     * needs the capability; the owner runs it all. Null = the whole day, a list = only these chairs.
+     *
+     * @return list<int>|null
+     */
+    private function lineOf(Request $request): ?array
+    {
+        $own = ServiceChair::restrictedTo($request);
+
+        if ($own === null && ! BusinessContext::isOwner($request)) {
+            abort_unless(in_array(BusinessCapability::BOOKINGS, BusinessContext::capabilities($request), true), 403, __('لا تملك صلاحية تنفيذ هذا الإجراء.'));
+        }
+
+        return $own;
+    }
+
+    /** A turn belongs to this business, and — for a barber — to a chair of his own. */
+    private function mayServe(Request $request, Booking $booking): void
+    {
+        abort_unless((int) $booking->business_id === (int) BusinessContext::id($request), 403, 'Booking does not belong to this business account.');
+
+        $own = $this->lineOf($request);
+
+        abort_if($own !== null && ! in_array((int) $booking->chair_id, $own, true), 403, __('هذا الدور على كرسيّ آخر.'));
+    }
+
+    /**
+     * GET /api/v2/business/queue?date=&mine= — the live bookings of a day (today by default), by chair then by time.
+     * `mine=1` is «كرسيي»: only the chairs this account sits at (a staff member who sits at one gets that always).
+     */
     public function index(Request $request)
     {
         $business = BusinessContext::id($request);
+        $scope = $this->lineOf($request);
+
+        if ($scope === null && $request->boolean('mine')) {
+            $scope = ServiceChair::idsOf($business, (int) $request->user()->id);
+        }
         $tz = app(BusinessHoursService::class)->timezoneFor($business);
         $day = $request->filled('date')
             ? Carbon::createFromFormat('Y-m-d', (string) $request->input('date'), $tz)->startOfDay()
@@ -32,16 +69,24 @@ final class BusinessQueueController extends Controller
             ->where('business_id', $business)
             ->whereDate('starts_at', $day->toDateString())
             ->whereIn('status', [Booking::STATUS_PENDING, Booking::STATUS_ACCEPTED, Booking::STATUS_IN_PROGRESS])
+            ->when($scope !== null, fn ($q) => $q->whereIn('chair_id', $scope))
             ->orderBy('starts_at')->orderBy('id')
             ->get();
 
         $chairs = ServiceChair::query()->with('staff:id,name,logo')->where('business_id', $business)->where('is_active', true)
+            ->when($scope !== null, fn ($q) => $q->whereIn('id', $scope))
             ->orderBy('sort_order')->orderBy('id')->get();
+
+        $served = Booking::query()->where('business_id', $business)->whereDate('starts_at', $day->toDateString())
+            ->where('status', Booking::STATUS_COMPLETED)
+            ->when($scope !== null, fn ($q) => $q->whereIn('chair_id', $scope))
+            ->count();
 
         return response()->json(['success' => true, 'data' => [
             'date' => $day->toDateString(),
             'flow' => AppointmentQueue::flowOf($business),
             'chairs' => $chairs->map->payload()->values(),
+            'served' => $served,
             'items' => $rows->map(fn (Booking $b) => [
                 'id' => (int) $b->id,
                 'turn' => $b->queue_turn !== null ? (int) $b->queue_turn : null,
@@ -69,6 +114,7 @@ final class BusinessQueueController extends Controller
     public function walkIn(Request $request)
     {
         $business = BusinessContext::id($request);
+        $own = $this->lineOf($request);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -84,12 +130,33 @@ final class BusinessQueueController extends Controller
         $day = Carbon::now($tz)->startOfDay();
         $minutes = AppointmentQueue::serviceMinutes($business, (int) $price->id);
 
-        $booking = DB::transaction(function () use ($business, $data, $price, $day, $minutes, $tz) {
+        $wanted = ! empty($data['chair_id']) ? (int) $data['chair_id'] : null;
+
+        // a barber's walk-in sits at one of his own chairs: the one he named, else whichever of his can take it soonest
+        abort_if($own !== null && $wanted !== null && ! in_array($wanted, $own, true), 403, __('هذا الدور على كرسيّ آخر.'));
+        $candidates = $own === null ? [$wanted] : ($wanted !== null ? [$wanted] : $own);
+
+        $booking = DB::transaction(function () use ($business, $price, $day, $minutes, $tz, $candidates, $data) {
             \App\Models\User::query()->whereKey($business)->lockForUpdate()->first(['id']);
 
-            $next = app(AppointmentQueue::class)->next($business, $day, $minutes, ! empty($data['chair_id']) ? (int) $data['chair_id'] : null, true);
+            $next = null;
+            $refused = null;
 
-            abort_if($next['full'], 422, $next['closed'] ? __('النشاط مغلق في هذا اليوم.') : __('اكتمل دور هذا اليوم.'));
+            foreach ($candidates as $candidate) {
+                $try = app(AppointmentQueue::class)->next($business, $day, $minutes, $candidate, true);
+
+                if ($try['full']) {
+                    $refused = $try;
+
+                    continue;
+                }
+
+                if ($next === null || $try['starts_at']->lt($next['starts_at'])) {
+                    $next = $try;
+                }
+            }
+
+            abort_if($next === null, 422, ($refused['closed'] ?? false) ? __('النشاط مغلق في هذا اليوم.') : __('اكتمل دور هذا اليوم.'));
 
             return Booking::query()->create([
                 // the account of the business itself stands in for a customer with none; the name is on the turn
@@ -127,7 +194,7 @@ final class BusinessQueueController extends Controller
      */
     public function start(Request $request, Booking $booking)
     {
-        abort_unless((int) $booking->business_id === (int) BusinessContext::id($request), 403, 'Booking does not belong to this business account.');
+        $this->mayServe($request, $booking);
 
         if (data_get($booking->meta, 'walk_in')) {
             if (! in_array($booking->status, [Booking::STATUS_PENDING, Booking::STATUS_ACCEPTED], true)) {
@@ -145,7 +212,7 @@ final class BusinessQueueController extends Controller
     /** POST /api/v2/business/queue/{booking}/finish — the service is done; the line moves up. */
     public function finish(Request $request, Booking $booking)
     {
-        abort_unless((int) $booking->business_id === (int) BusinessContext::id($request), 403, 'Booking does not belong to this business account.');
+        $this->mayServe($request, $booking);
 
         if (data_get($booking->meta, 'walk_in')) {
             if ($booking->status !== Booking::STATUS_IN_PROGRESS) {
@@ -166,7 +233,7 @@ final class BusinessQueueController extends Controller
      */
     public function call(Request $request, Booking $booking)
     {
-        abort_unless((int) $booking->business_id === (int) BusinessContext::id($request), 403, 'Booking does not belong to this business account.');
+        $this->mayServe($request, $booking);
 
         if (! in_array($booking->status, [Booking::STATUS_PENDING, Booking::STATUS_ACCEPTED], true)) {
             return response()->json(['success' => false, 'message' => __('لا يمكن نداء هذا الدور الآن.')], 422);

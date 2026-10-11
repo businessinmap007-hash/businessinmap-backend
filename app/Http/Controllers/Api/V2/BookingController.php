@@ -394,6 +394,8 @@ final class BookingController extends Controller
         $query = Booking::query()
             ->with($this->relations())
             ->where('business_id', BusinessContext::id($request))
+            // a barber sees the bookings of the chair he sits at, not the whole house
+            ->when(($own = \App\Models\ServiceChair::restrictedTo($request)) !== null, fn ($q) => $q->whereIn('chair_id', $own))
             ->latest('id');
 
         if ($status !== '') {

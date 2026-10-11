@@ -234,6 +234,8 @@ Route::prefix('v2')->group(function () {
         Route::get('units/{business}/day-grid', [UnitDiscoveryController::class, 'dayGrid'])->whereNumber('business');
         // «موعد»: the day as start times for a service of the business itself — no units
         Route::get('appointments/{business}/day-grid', [UnitDiscoveryController::class, 'appointmentGrid'])->whereNumber('business');
+        // the chairs of a salon with the person at each — what a customer picks from
+        Route::get('appointments/{business}/chairs', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'discover'])->whereNumber('business');
         // «بالدور»: the turn a customer would get on a day, and when it should come
         Route::get('appointments/{business}/queue', [UnitDiscoveryController::class, 'appointmentQueue'])->whereNumber('business');
         // «كورس»: the groups each course runs in, with the seats left
@@ -1022,6 +1024,19 @@ Route::prefix('v2')->group(function () {
             Route::delete('{item}', [BusinessBookableItemController::class, 'destroy'])->whereNumber('item');
             Route::post('{item}/images', [BusinessBookableItemController::class, 'storeImages'])->whereNumber('item');
             Route::delete('{item}/images/{image}', [BusinessBookableItemController::class, 'destroyImage'])->whereNumber(['item', 'image']);
+        });
+
+        // «كرسي وعليه الحلاق»: the business's own chairs, and the queue it runs from them.
+        Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
+            Route::get('business/chairs', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'index']);
+            Route::post('business/chairs', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'store']);
+            Route::post('business/chairs/{chair}', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'update'])->whereNumber('chair');
+            Route::delete('business/chairs/{chair}', [\App\Http\Controllers\Api\V2\ServiceChairController::class, 'destroy'])->whereNumber('chair');
+            Route::get('business/queue', [\App\Http\Controllers\Api\V2\BusinessQueueController::class, 'index']);
+            Route::post('business/queue/walk-in', [\App\Http\Controllers\Api\V2\BusinessQueueController::class, 'walkIn']);
+            Route::post('business/queue/{booking}/call', [\App\Http\Controllers\Api\V2\BusinessQueueController::class, 'call'])->whereNumber('booking');
+            Route::post('business/queue/{booking}/start', [\App\Http\Controllers\Api\V2\BusinessQueueController::class, 'start'])->whereNumber('booking');
+            Route::post('business/queue/{booking}/finish', [\App\Http\Controllers\Api\V2\BusinessQueueController::class, 'finish'])->whereNumber('booking');
         });
 
         // «كورس»: the business's own groups — when each starts, when it meets, how many seats.

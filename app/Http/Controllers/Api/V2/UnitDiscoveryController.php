@@ -265,6 +265,7 @@ final class UnitDiscoveryController extends Controller
         $data = $request->validate([
             'date' => ['required', 'date_format:Y-m-d'],
             'offering_id' => ['nullable', 'integer'],
+            'chair_id' => ['nullable', 'integer'],
         ]);
 
         $biz = User::query()->where('type', 'business')->find($business, ['id']);
@@ -324,24 +325,22 @@ final class UnitDiscoveryController extends Controller
             $until->addDay();
         }
 
-        // what the business already holds across this day (a booking without an end holds its own duration)
-        $held = Booking::query()
-            ->where('business_id', $biz->id)
-            ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
-            ->whereNotNull('starts_at')
-            ->where('starts_at', '<', $until->format('Y-m-d H:i:s'))
-            ->whereRaw('COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 30 MINUTE)) > ?', [$from->format('Y-m-d H:i:s')])
-            ->get(['starts_at', 'ends_at'])
-            ->map(fn ($b) => [
-                \Illuminate\Support\Carbon::parse($b->starts_at),
-                $b->ends_at ? \Illuminate\Support\Carbon::parse($b->ends_at) : \Illuminate\Support\Carbon::parse($b->starts_at)->addMinutes(30),
-            ]);
+        // what the business already holds across this day (a booking without an end holds its own duration) — with
+        // chairs, per chair: a time is free when some candidate chair has nothing across it
+        $queue = app(\App\Services\AppointmentQueue::class);
+        $chairs = \App\Services\AppointmentQueue::chairsOf((int) $biz->id);
+        $askedChair = ! empty($data['chair_id']) ? (int) $data['chair_id'] : null;
+        $lines = $chairs->isEmpty()
+            ? [$queue->heldOn((int) $biz->id, $day, $until, null)]
+            : ($askedChair !== null ? $chairs->where('id', $askedChair) : $chairs)
+                ->map(fn ($c) => $queue->heldOn((int) $biz->id, $day, $until, (int) $c->id))->values()->all();
 
         $slots = [];
         for ($t = $from->copy(); $t->copy()->addMinutes($minutes)->lte($until) && count($slots) < 48; $t->addMinutes($step)) {
             $end = $t->copy()->addMinutes($minutes);
-            $free = $t->gt($now->copy()->addMinutes($lead))
-                && $held->every(fn ($h) => ! ($h[0]->lt($end) && $h[1]->gt($t)));
+            $free = $t->gt($now->copy()->addMinutes($lead)) && collect($lines)->contains(
+                fn ($held) => $held->every(fn ($h) => ! ($h[0]->lt($end) && $h[1]->gt($t)))
+            );
 
             $slots[] = [
                 'starts_at' => $t->format('Y-m-d H:i:s'),
@@ -365,6 +364,7 @@ final class UnitDiscoveryController extends Controller
         $data = $request->validate([
             'date' => ['required', 'date_format:Y-m-d'],
             'offering_id' => ['nullable', 'integer'],
+            'chair_id' => ['nullable', 'integer'],
         ]);
 
         abort_unless(User::query()->where('type', 'business')->whereKey($business)->exists(), 404, __('النشاط غير موجود.'));
@@ -378,9 +378,10 @@ final class UnitDiscoveryController extends Controller
         }
 
         $minutes = \App\Services\AppointmentQueue::serviceMinutes($business, ! empty($data['offering_id']) ? (int) $data['offering_id'] : null);
-        $next = app(\App\Services\AppointmentQueue::class)->next($business, $day, $minutes);
+        $next = app(\App\Services\AppointmentQueue::class)->next($business, $day, $minutes, ! empty($data['chair_id']) ? (int) $data['chair_id'] : null);
 
         return response()->json(['success' => true, 'data' => [
+            'chair_id' => $next['chair_id'],
             'flow' => \App\Services\AppointmentQueue::flowOf($business),
             'date' => $day->toDateString(),
             'duration_minutes' => $minutes,

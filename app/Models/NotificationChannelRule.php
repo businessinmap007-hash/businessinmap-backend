@@ -102,6 +102,8 @@ class NotificationChannelRule extends Model
             'booking.deposit_payment_declined' => ['لم يُعتمد الديبوزت كدفعة', 'Deposit not taken as a payment', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             // In-stay requests: a guest's issue / order reaches the hotel, and the hotel's progress reaches the guest.
             'booking.stay_request_created' => ['طلب جديد من نزيل', 'New request from a guest', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
+            // «نداء الدور التالي»: the customer is called in
+            'booking.turn_called' => ['حان دورك', "It's your turn", AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'booking.stay_request_updated' => ['تحديث على طلبك', 'Update on your request', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'wallet_deposit' => ['إيداع في المحفظة', 'Wallet deposit', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, false, false, false, false, 0, 'wallet'],
             'wallet_withdraw' => ['خصم من المحفظة', 'Wallet withdraw', AppNotification::TYPE_WALLET, AppNotification::PRIORITY_NORMAL, true, false, true, false, false, false, 0, 'wallet'],

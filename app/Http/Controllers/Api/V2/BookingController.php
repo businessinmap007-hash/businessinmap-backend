@@ -569,6 +569,40 @@ final class BookingController extends Controller
                 $payload['course_group_id'] = (int) $group->id;
             }
 
+            // a business with chairs gives each appointment a chair that is free for it — the one asked for, or the first free
+            $chairs = \App\Services\AppointmentQueue::chairsOf((int) $data['business_id']);
+            if ($chairs->isNotEmpty() && empty($payload['bookable_id']) && ! empty($payload['starts_at'])) {
+                User::query()->whereKey((int) $data['business_id'])->lockForUpdate()->first(['id']);
+
+                $asked = ! empty($data['chair_id']) ? (int) $data['chair_id'] : null;
+                $candidates = $asked !== null ? $chairs->where('id', $asked) : $chairs;
+
+                if ($asked !== null && $candidates->isEmpty()) {
+                    throw ValidationException::withMessages(['chair_id' => __('هذا الكرسي غير متاح.')]);
+                }
+
+                $start = Carbon::parse($payload['starts_at']);
+                $end = ! empty($payload['ends_at']) ? Carbon::parse($payload['ends_at']) : $start->copy()->addMinutes(30);
+
+                $free = $candidates->first(function ($chair) use ($data, $start, $end) {
+                    return ! Booking::query()
+                        ->where('business_id', (int) $data['business_id'])->where('chair_id', $chair->id)
+                        ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
+                        ->whereNotNull('starts_at')
+                        ->where('starts_at', '<', $end->format('Y-m-d H:i:s'))
+                        ->whereRaw('COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 30 MINUTE)) > ?', [$start->format('Y-m-d H:i:s')])
+                        ->exists();
+                });
+
+                if (! $free) {
+                    throw ValidationException::withMessages([
+                        'chair_id' => $asked !== null ? __('هذا الكرسي محجوز في هذا الوقت.') : __('لا يوجد كرسي متاح في هذا الوقت.'),
+                    ]);
+                }
+
+                $payload['chair_id'] = (int) $free->id;
+            }
+
             $booking = Booking::query()->create($payload);
 
             if ($allocation) {
@@ -609,6 +643,7 @@ final class BookingController extends Controller
             'service_id' => ['required', 'integer', 'min:1'],
             'offering_id' => ['required', 'integer', 'min:1'],
             'date' => ['required', 'date_format:Y-m-d'],
+            'chair_id' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $businessId = (int) $data['business_id'];
@@ -626,11 +661,13 @@ final class BookingController extends Controller
 
         $minutes = \App\Services\AppointmentQueue::serviceMinutes($businessId, (int) $data['offering_id']);
 
-        return DB::transaction(function () use ($request, $businessId, $day, $minutes) {
+        $chairId = ! empty($data['chair_id']) ? (int) $data['chair_id'] : null;
+
+        return DB::transaction(function () use ($request, $businessId, $day, $minutes, $chairId) {
             // one customer at a time takes a number of this business's day
             User::query()->whereKey($businessId)->lockForUpdate()->first(['id']);
 
-            $next = app(\App\Services\AppointmentQueue::class)->next($businessId, $day, $minutes);
+            $next = app(\App\Services\AppointmentQueue::class)->next($businessId, $day, $minutes, $chairId);
 
             if ($next['full']) {
                 return $this->error($next['closed'] ? __('النشاط مغلق في هذا اليوم.') : __('اكتمل دور هذا اليوم.'), 422);
@@ -641,6 +678,7 @@ final class BookingController extends Controller
                 'ends_at' => $next['ends_at']->format('Y-m-d H:i:s'),
                 'all_day' => false,
                 'offering_type' => $request->input('offering_type', 'service_price'),
+                'chair_id' => $next['chair_id'],
             ]);
             $request->attributes->set('queue_turn', (int) $next['turn']);
 
@@ -1202,14 +1240,17 @@ final class BookingController extends Controller
             $notices = \App\Services\ArrivalNotice::forBusinesses([(int) $subject->business_id]);
             $subject->setAttribute('arrival_notice', $notices[(int) $subject->business_id] ?? null);
             $subject->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($subject));
+            $subject->setAttribute('chair', $subject->chair_id ? optional(\App\Models\ServiceChair::query()->find($subject->chair_id))->payload() : null);
 
             return $this->hideRoomInternals($subject->append('title'));
         }
 
         $items = $subject instanceof \Illuminate\Contracts\Pagination\Paginator ? $subject->getCollection() : $subject;
         $notices = \App\Services\ArrivalNotice::forBusinesses($items->pluck('business_id')->all());
-        $items->each(function (Booking $booking) use ($notices) {
+        $chairsById = \App\Models\ServiceChair::query()->whereIn('id', $items->pluck('chair_id')->filter()->unique()->all())->get()->keyBy('id');
+        $items->each(function (Booking $booking) use ($notices, $chairsById) {
             $booking->setAttribute('arrival_notice', $notices[(int) $booking->business_id] ?? null);
+            $booking->setAttribute('chair', $booking->chair_id ? optional($chairsById->get($booking->chair_id))->payload() : null);
             $booking->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($booking));
             $this->hideRoomInternals($booking->append('title'));
         });
@@ -1340,6 +1381,8 @@ final class BookingController extends Controller
             'day_use' => ['nullable', 'boolean'],
             // «كورس»: the group joined — the booking is the enrolment, and it takes one of the group's seats.
             'course_group_id' => ['nullable', 'integer', 'min:1'],
+            // «كرسي وعليه الحلاق»: the chair the customer chose; none = whichever is free.
+            'chair_id' => ['nullable', 'integer', 'min:1'],
         ];
     }
 

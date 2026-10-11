@@ -67,12 +67,49 @@ final class AppointmentQueue
         ];
     }
 
+    /** The chairs a business takes bookings on (active, in the order it set); empty = one line, as it always was. */
+    public static function chairsOf(int $businessId)
+    {
+        return \App\Models\ServiceChair::query()->where('business_id', $businessId)->where('is_active', true)
+            ->orderBy('sort_order')->orderBy('id')->get();
+    }
+
     /**
-     * The next turn of a day: its number, when it should come, and how many are ahead.
+     * The next turn of a day: its number, when it should come, and how many are ahead. With chairs, each chair is a
+     * line of its own: the customer's chair, or — when he has no preference — the one that can take him soonest.
      *
-     * @return array{full:bool,closed:bool,turn:int,starts_at:?Carbon,ends_at:?Carbon,ahead:int,duration:int}
+     * @return array{full:bool,closed:bool,turn:int,starts_at:?Carbon,ends_at:?Carbon,ahead:int,duration:int,chair_id:?int}
      */
-    public function next(int $businessId, Carbon $day, int $minutes): array
+    public function next(int $businessId, Carbon $day, int $minutes, ?int $chairId = null, bool $ignoreLead = false): array
+    {
+        $chairs = self::chairsOf($businessId);
+
+        if ($chairs->isEmpty()) {
+            return $this->nextOnLine($businessId, $day, $minutes, null, $ignoreLead) + ['chair_id' => null];
+        }
+
+        $candidates = $chairId ? $chairs->where('id', $chairId) : $chairs;
+        $best = null;
+
+        foreach ($candidates as $chair) {
+            $one = $this->nextOnLine($businessId, $day, $minutes, (int) $chair->id, $ignoreLead) + ['chair_id' => (int) $chair->id];
+
+            if ($one['full']) {
+                $best ??= $one;
+
+                continue;
+            }
+
+            if ($best === null || $best['full'] || $one['starts_at']->lt($best['starts_at'])) {
+                $best = $one;
+            }
+        }
+
+        return $best ?? ['full' => true, 'closed' => false, 'turn' => 1, 'starts_at' => null, 'ends_at' => null, 'ahead' => 0, 'duration' => $minutes, 'chair_id' => null];
+    }
+
+    /** @return array{full:bool,closed:bool,turn:int,starts_at:?Carbon,ends_at:?Carbon,ahead:int,duration:int} */
+    private function nextOnLine(int $businessId, Carbon $day, int $minutes, ?int $chairId, bool $ignoreLead = false): array
     {
         $tz = app(BusinessHoursService::class)->timezoneFor($businessId);
         $day = $day->copy()->setTimezone($tz)->startOfDay();
@@ -97,7 +134,8 @@ final class AppointmentQueue
             $until->addDay();
         }
 
-        $lead = max((int) DB::table('business_booking_settings')->where('business_id', $businessId)->value('lead_time_minutes'), 0);
+        // a customer already at the door needs no notice period
+        $lead = $ignoreLead ? 0 : max((int) DB::table('business_booking_settings')->where('business_id', $businessId)->value('lead_time_minutes'), 0);
         $cursor = $from->copy();
         if ($day->isSameDay($now) && $now->copy()->addMinutes($lead)->gt($cursor)) {
             $cursor = $now->copy()->addMinutes($lead);
@@ -105,7 +143,7 @@ final class AppointmentQueue
             $cursor->setSecond(0)->addMinutes((5 - ($cursor->minute % 5)) % 5);
         }
 
-        $held = $this->heldOn($businessId, $day, $until);
+        $held = $this->heldOn($businessId, $day, $until, $chairId);
 
         // the earliest gap the service fits in, after what is already held
         foreach ($held as [$start, $end]) {
@@ -163,6 +201,7 @@ final class AppointmentQueue
             ->where('business_id', $businessId)
             ->whereDate('starts_at', $day->toDateString())
             ->whereNotNull('queue_turn')->where('queue_turn', '<', $booking->queue_turn)
+            ->when($booking->chair_id !== null, fn ($q) => $q->where('chair_id', $booking->chair_id))
             ->whereIn('status', [Booking::STATUS_PENDING, Booking::STATUS_ACCEPTED, Booking::STATUS_IN_PROGRESS])
             ->get(['starts_at', 'ends_at']);
 
@@ -179,10 +218,11 @@ final class AppointmentQueue
     }
 
     /** @return \Illuminate\Support\Collection<int,array{0:Carbon,1:Carbon}> sorted by start */
-    private function heldOn(int $businessId, Carbon $day, Carbon $until)
+    public function heldOn(int $businessId, Carbon $day, Carbon $until, ?int $chairId = null)
     {
         return Booking::query()
             ->where('business_id', $businessId)
+            ->when($chairId !== null, fn ($q) => $q->where('chair_id', $chairId))
             ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
             ->whereNotNull('starts_at')
             ->where('starts_at', '<', $until->format('Y-m-d H:i:s'))

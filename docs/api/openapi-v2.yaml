@@ -3773,6 +3773,24 @@ paths:
     put: { tags: [Bookings], summary: 'Choose how appointments are taken — {flow: slots|queue}.', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /bookings/queue:
     post: { tags: [Bookings], summary: "«بالدور»: book by turn — {business_id, service_id, offering_id, date, notes?, meta?…}; the same booking as `POST /bookings` but the business names the time: the booking carries `queue_turn` and a live `queue {turn, ahead, expected_at}` while it waits. The number is taken under a lock on the business. 422 when the business does not book by turn, when the day is closed or its turns are used up.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /discovery/appointments/{business}/chairs:
+    get: { tags: [Discovery], summary: "The active chairs of a business with the person at each (public) — `{id, name, person_name, photo}`; what a customer picks from («احجز مع أحمد»). Empty = the business has one line.", security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/chairs:
+    get: { tags: [Bookings], summary: "The business's own chairs (active or not).", responses: { '200': { description: OK } } }
+    post: { tags: [Bookings], summary: 'Add a chair — multipart: name?, person_name? (one of the two), photo?.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/chairs/{chair}:
+    post: { tags: [Bookings], summary: 'Change a chair — multipart (a file cannot ride a PUT): the fields sent change; `remove_photo`, `is_active`.', parameters: [{ name: chair, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Bookings], summary: 'Remove a chair; one that ever held a booking is closed instead (`closed: true`).', parameters: [{ name: chair, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/queue:
+    get: { tags: [Bookings], summary: "«نداء الدور التالي»: the day's live bookings (pending, accepted, in progress) by chair then time — `{date, flow, chairs, items: [{id, turn, status, called_at, starts_at, chair_id, customer, title}]}`; ?date= (today by default).", parameters: [{ name: date, in: query, schema: { type: string, format: date } }], responses: { '200': { description: OK } } }
+  /business/queue/walk-in:
+    post: { tags: [Bookings], summary: "«جاء عميل بدون حجز»: the staff add a turn for a customer with no account — {name, phone?, offering_id, chair_id?}. He joins the end of the line (the chosen chair's, or the one that can take him soonest) with no notice period; the turn is accepted at once and is not charged through the wallets. 422 when the day is full or closed.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/queue/{booking}/start:
+    post: { tags: [Bookings], summary: "The customer sits down — a walk-in turn goes in progress by itself; an online booking goes through the booking engine start.", parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not a booking of this business }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/queue/{booking}/finish:
+    post: { tags: [Bookings], summary: "The service is done — a walk-in turn completes by itself; an online booking goes through the engine complete.", parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not a booking of this business }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/queue/{booking}/call:
+    post: { tags: [Bookings], summary: "Call a turn: the customer is told it is their turn (`called_at` set). A booking still pending is accepted by the call. Starting and finishing go through the existing start/complete.", parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not this business's booking }, '422': { $ref: '#/components/responses/Validation' } } }
   /discovery/retail/filters:
     get: { tags: [Discovery], summary: 'Retail filters (public). open_now=1 narrows every facet count to shops open now.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
   /discovery/retail/products:

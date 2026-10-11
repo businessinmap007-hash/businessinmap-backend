@@ -49,6 +49,8 @@ class Booking extends Model
         'bookable_id',
         'course_group_id',
         'queue_turn',
+        'chair_id',
+        'called_at',
         'meta',
     ];
 
@@ -60,6 +62,7 @@ class Booking extends Model
         'payment_settled_at' => 'datetime',
         'ends_at' => 'datetime',
         'all_day' => 'boolean',
+        'called_at' => 'datetime',
         'price' => 'decimal:2',
         'quantity' => 'integer',
         'party_size' => 'integer',

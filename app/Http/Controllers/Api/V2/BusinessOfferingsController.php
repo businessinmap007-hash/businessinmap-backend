@@ -142,6 +142,8 @@ final class BusinessOfferingsController extends Controller
                 ->map(fn ($m) => ['id' => (int) $m->id, 'name' => $this->name($m)])->values(),
             'price' => (float) $row->price,
             'currency' => $row->currency ?: 'EGP',
+            // how long this service takes (minutes), when the business wrote it — what an appointment grid steps by
+            'duration_minutes' => ! empty($row->duration_minutes) ? (int) $row->duration_minutes : null,
             'service_id' => $row->service_id ? (int) $row->service_id : null,
             'service_key' => $key,
             'item_type' => $row->bookable_item_type,

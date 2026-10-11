@@ -274,6 +274,56 @@ class UnitDiscoveryTest extends TestCase
         $this->assertSame([$big->id], $grid['slots'][0]['unit_ids']);
     }
 
+    /** «موعد»: a salon's day as start times as long as the service, taken where the business already holds a booking. */
+    public function test_an_appointment_grid_steps_by_the_service_length_and_marks_what_is_held(): void
+    {
+        $row = $this->price(150, null);
+        $row->update(['duration_minutes' => 45, 'bookable_item_type' => 'booking_appointment']);
+
+        $day = now()->addDays(2)->startOfDay();
+        DB::table('business_working_hours')->where('business_id', $this->businessId)->delete();
+        DB::table('business_working_hours')->insert([
+            'business_id' => $this->businessId, 'day_of_week' => $day->dayOfWeek, 'is_closed' => 0,
+            'open_time' => '10:00:00', 'close_time' => '13:00:00', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // someone already holds 10:45–11:30
+        $held = $day->copy()->setTime(10, 45);
+        DB::table('bookings')->insert([
+            'user_id' => User::query()->where('type', '!=', 'business')->value('id'),
+            'business_id' => $this->businessId, 'service_id' => $this->serviceId,
+            'starts_at' => $held, 'ends_at' => $held->copy()->addMinutes(45),
+            'date' => $held->toDateString(), 'time' => $held->format('H:i:s'),
+            'status' => 'accepted', 'price' => 150, 'quantity' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $grid = $this->getJson("/api/v2/discovery/appointments/{$this->businessId}/day-grid?date={$day->toDateString()}&offering_id={$row->id}")
+            ->assertOk()->json('data');
+
+        $this->assertSame(45, $grid['duration_minutes']);
+        $free = collect($grid['slots'])->mapWithKeys(fn ($s) => [substr($s['starts_at'], 11, 5) => $s['free']])->all();
+        // 10:00, 10:45, 11:30, 12:15 — each 45 minutes inside 10:00–13:00; only the held one is taken
+        $this->assertSame(['10:00' => 1, '10:45' => 0, '11:30' => 1, '12:15' => 1], $free);
+        $this->assertSame([], $grid['slots'][0]['unit_ids']);
+    }
+
+    public function test_an_appointment_grid_on_a_closed_or_past_day(): void
+    {
+        $day = now()->addDays(3)->startOfDay();
+        DB::table('business_working_hours')->where('business_id', $this->businessId)->delete();
+        DB::table('business_working_hours')->insert([
+            'business_id' => $this->businessId, 'day_of_week' => $day->dayOfWeek, 'is_closed' => 1,
+            'open_time' => null, 'close_time' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $closed = $this->getJson("/api/v2/discovery/appointments/{$this->businessId}/day-grid?date={$day->toDateString()}")->assertOk()->json('data');
+        $this->assertTrue($closed['closed']);
+        $this->assertSame([], $closed['slots']);
+
+        $this->getJson("/api/v2/discovery/appointments/{$this->businessId}/day-grid?date=" . now()->subDay()->toDateString())->assertStatus(422);
+        $this->getJson('/api/v2/discovery/appointments/999999999/day-grid?date=' . $day->toDateString())->assertNotFound();
+    }
+
     /**
      * A kind nobody priced still has to appear — it is the business's own
      * unfinished work, and hiding it makes a missing price look like a missing

@@ -232,6 +232,8 @@ Route::prefix('v2')->group(function () {
         // named unit and nothing told the client what the ids were.
         Route::get('units/{business}', [UnitDiscoveryController::class, 'show'])->whereNumber('business');
         Route::get('units/{business}/day-grid', [UnitDiscoveryController::class, 'dayGrid'])->whereNumber('business');
+        // «موعد»: the day as start times for a service of the business itself — no units
+        Route::get('appointments/{business}/day-grid', [UnitDiscoveryController::class, 'appointmentGrid'])->whereNumber('business');
     });
 
     // Jobs: a business posts a vacancy in any field, a client applies. Public

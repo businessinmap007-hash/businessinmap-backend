@@ -409,6 +409,7 @@ class OfferingDiscovery
                 'p.service_id',
                 'p.bookable_item_type',
                 'p.currency',
+                'p.duration_minutes',
                 DB::raw('COALESCE(p.price, m.base_price) as price'),
                 DB::raw('COALESCE(m.name_ar, "") as menu_name_ar'),
                 DB::raw('COALESCE(m.name_en, "") as menu_name_en'),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\BookableItem;
+use App\Models\Booking;
 use App\Models\BusinessServicePrice;
 use App\Models\OfferingOption;
 use App\Models\PlatformService;
@@ -239,6 +240,112 @@ final class UnitDiscoveryController extends Controller
                 'ends_at' => $end->format('Y-m-d H:i:s'),
                 'free' => count($free),
                 'unit_ids' => $free,
+            ];
+        }
+
+        $payload['slots'] = $slots;
+
+        return response()->json(['success' => true, 'data' => $payload]);
+    }
+
+    /**
+     * GET /api/v2/discovery/appointments/{business}/day-grid
+     *
+     * «موعد»: a salon, a craftsman, a shop that books time with the business itself — no units, no photos, no
+     * add-ons. One day as a grid of start times, each as long as the chosen service (`offering_id`, a priced row of
+     * this business; its `duration_minutes`), taken when the business already holds a live booking across it.
+     *
+     * One appointment at a time: the business has not said how many it serves together, and a grid that offers a
+     * time the owner cannot keep is worse than one that offers fewer.
+     */
+    public function appointmentGrid(Request $request, int $business)
+    {
+        $data = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d'],
+            'offering_id' => ['nullable', 'integer'],
+        ]);
+
+        $biz = User::query()->where('type', 'business')->find($business, ['id']);
+
+        if (! $biz) {
+            return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
+        }
+
+        $hours = app(\App\Services\BusinessHoursService::class);
+        $tz = $hours->timezoneFor((int) $biz->id);
+        $day = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $data['date'], $tz)->startOfDay();
+        $now = \Illuminate\Support\Carbon::now($tz);
+
+        if ($day->lt($now->copy()->startOfDay()) || $day->gt($now->copy()->addDays(120))) {
+            return response()->json(['success' => false, 'message' => __('اختر يومًا من الأيام القادمة.')], 422);
+        }
+
+        // how long the service takes: its own row, else the business's slot setting, else half an hour
+        $settings = \Illuminate\Support\Facades\DB::table('business_booking_settings')->where('business_id', $biz->id)->first();
+        $minutes = 0;
+        if (! empty($data['offering_id'])) {
+            $minutes = (int) BusinessServicePrice::query()
+                ->where('business_id', $biz->id)->whereKey((int) $data['offering_id'])->value('duration_minutes');
+        }
+        if ($minutes <= 0) {
+            $minutes = (int) ($settings->slot_minutes ?? 0);
+        }
+        $minutes = $minutes > 0 ? min(max($minutes, 5), 480) : 30;
+        $step = max($minutes, 15);
+        $lead = max((int) ($settings->lead_time_minutes ?? 0), 0);
+
+        $row = $hours->hoursFor((int) $biz->id)->get($day->dayOfWeek);
+        $known = $hours->hoursFor((int) $biz->id)->isNotEmpty() && $row !== null;
+        $closed = $known && ($row->is_closed || ! $row->open_time || ! $row->close_time);
+        $open = $known && ! $closed ? (string) $row->open_time : '09:00:00';
+        $close = $known && ! $closed ? (string) $row->close_time : '21:00:00';
+
+        $payload = [
+            'date' => $day->toDateString(),
+            'duration_minutes' => $minutes,
+            'step_minutes' => $step,
+            'hours_known' => $known && ! $closed,
+            'closed' => $closed,
+            'opens' => substr($open, 0, 5),
+            'closes' => substr($close, 0, 5),
+            'units_total' => 0,
+            'slots' => [],
+        ];
+
+        if ($closed) {
+            return response()->json(['success' => true, 'data' => $payload]);
+        }
+
+        $from = $day->copy()->setTimeFromTimeString($open);
+        $until = $day->copy()->setTimeFromTimeString($close);
+        if ($until->lte($from)) {
+            $until->addDay();
+        }
+
+        // what the business already holds across this day (a booking without an end holds its own duration)
+        $held = Booking::query()
+            ->where('business_id', $biz->id)
+            ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
+            ->whereNotNull('starts_at')
+            ->where('starts_at', '<', $until->format('Y-m-d H:i:s'))
+            ->whereRaw('COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 30 MINUTE)) > ?', [$from->format('Y-m-d H:i:s')])
+            ->get(['starts_at', 'ends_at'])
+            ->map(fn ($b) => [
+                \Illuminate\Support\Carbon::parse($b->starts_at),
+                $b->ends_at ? \Illuminate\Support\Carbon::parse($b->ends_at) : \Illuminate\Support\Carbon::parse($b->starts_at)->addMinutes(30),
+            ]);
+
+        $slots = [];
+        for ($t = $from->copy(); $t->copy()->addMinutes($minutes)->lte($until) && count($slots) < 48; $t->addMinutes($step)) {
+            $end = $t->copy()->addMinutes($minutes);
+            $free = $t->gt($now->copy()->addMinutes($lead))
+                && $held->every(fn ($h) => ! ($h[0]->lt($end) && $h[1]->gt($t)));
+
+            $slots[] = [
+                'starts_at' => $t->format('Y-m-d H:i:s'),
+                'ends_at' => $end->format('Y-m-d H:i:s'),
+                'free' => $free ? 1 : 0,
+                'unit_ids' => [],
             ];
         }
 

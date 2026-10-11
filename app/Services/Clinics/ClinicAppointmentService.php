@@ -421,6 +421,13 @@ class ClinicAppointmentService
 
     private function remindPatient(ClinicAppointment $appointment, string $bodyAr, string $bodyEn): void
     {
+        // the clinic's own «be there N minutes early» rides on every reminder
+        $notice = \App\Services\ArrivalNotice::forBusiness((int) $appointment->clinic_id);
+        if ($notice) {
+            $bodyAr .= ' ' . \App\Services\ArrivalNotice::message($notice['minutes'], $notice['text'], 'ar');
+            $bodyEn .= ' ' . \App\Services\ArrivalNotice::message($notice['minutes'], $notice['text'], 'en');
+        }
+
         $this->notify('appointment_reminder', (int) $appointment->patient_id, $appointment,
             'تذكير بالموعد', 'Appointment reminder', $bodyAr, $bodyEn);
     }

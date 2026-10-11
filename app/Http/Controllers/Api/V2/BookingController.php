@@ -99,6 +99,8 @@ final class BookingController extends Controller
                 'channels' => $shape['channels'],
                 'notes_label' => $shape['notes_label'] ?: __('booking.field.notes'),
             ],
+            // «يجب التواجد قبل الموعد بـ ١٥ دقيقة» — the business's own words, shown before the customer confirms
+            'arrival_notice' => \App\Services\ArrivalNotice::forBusiness((int) $target->id),
             // الوحدات لا تُعرض إلا حين يكون لها معنى فى هذا الشكل.
             'units' => $shape['unit'] === \App\Enums\BookingPattern::UNIT_NEVER ? [] : $this->unitsOf($target),
             // وما يزيده مُوصِّفٌ على السعر: «شاشة كبيرة +٢٠». يصل مسعَّرًا حتى
@@ -542,7 +544,25 @@ final class BookingController extends Controller
 
         $allocation = $calc['allocation'] ?? null;
 
-        $booking = DB::transaction(function () use ($payload, $allocation, $quantity) {
+        $courseGroupId = ! empty($data['course_group_id']) ? (int) $data['course_group_id'] : null;
+
+        $booking = DB::transaction(function () use ($payload, $allocation, $quantity, $courseGroupId, $data) {
+            if ($courseGroupId !== null) {
+                // the seat is taken under a lock on the group, so the last one is never sold twice
+                $group = \App\Models\CourseGroup::query()->whereKey($courseGroupId)->lockForUpdate()->first();
+
+                if (! $group || ! $group->is_active || (int) $group->business_id !== (int) $data['business_id']
+                    || (int) $group->offering_id !== (int) ($payload['offering_id'] ?? 0)) {
+                    throw ValidationException::withMessages(['course_group_id' => __('هذه المجموعة غير متاحة.')]);
+                }
+
+                if ($group->seatsLeft() < 1) {
+                    throw ValidationException::withMessages(['course_group_id' => __('اكتملت مقاعد هذه المجموعة.')]);
+                }
+
+                $payload['course_group_id'] = (int) $group->id;
+            }
+
             $booking = Booking::query()->create($payload);
 
             if ($allocation) {
@@ -1123,11 +1143,18 @@ final class BookingController extends Controller
     private function titled($subject)
     {
         if ($subject instanceof Booking) {
+            $notices = \App\Services\ArrivalNotice::forBusinesses([(int) $subject->business_id]);
+            $subject->setAttribute('arrival_notice', $notices[(int) $subject->business_id] ?? null);
+
             return $this->hideRoomInternals($subject->append('title'));
         }
 
         $items = $subject instanceof \Illuminate\Contracts\Pagination\Paginator ? $subject->getCollection() : $subject;
-        $items->each(fn (Booking $booking) => $this->hideRoomInternals($booking->append('title')));
+        $notices = \App\Services\ArrivalNotice::forBusinesses($items->pluck('business_id')->all());
+        $items->each(function (Booking $booking) use ($notices) {
+            $booking->setAttribute('arrival_notice', $notices[(int) $booking->business_id] ?? null);
+            $this->hideRoomInternals($booking->append('title'));
+        });
 
         return $subject;
     }
@@ -1253,6 +1280,8 @@ final class BookingController extends Controller
             'option_ids.*' => ['integer'],
             // «Day use»: a hotel room for the day — send `date`, the room type's own window follows.
             'day_use' => ['nullable', 'boolean'],
+            // «كورس»: the group joined — the booking is the enrolment, and it takes one of the group's seats.
+            'course_group_id' => ['nullable', 'integer', 'min:1'],
         ];
     }
 

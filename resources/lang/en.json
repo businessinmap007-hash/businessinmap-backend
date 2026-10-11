@@ -2974,6 +2974,13 @@
     "نتيجة لفحص ليس في هذا الطلب.": "A result for a test that is not in this order.",
     "اكتب نتيجة فحص واحد على الأقل أو أرفق صورة أو ملف PDF.": "Write at least one test result or attach a photo or a PDF.",
     "اختر يومًا من الأيام القادمة.": "Pick one of the coming days.",
+    "يجب التواجد قبل الموعد بـ :minutes دقيقة.": "Please arrive :minutes minutes before the appointment.",
+    "هذه المجموعة غير متاحة.": "This group is not available.",
+    "اكتملت مقاعد هذه المجموعة.": "This group is full.",
+    "عدد المقاعد أقل من المحجوز بالفعل.": "The seats cannot be fewer than those already taken.",
+    "انضم إلى هذه المجموعة طلاب — أغلقها بدل حذفها.": "Students joined this group — close it instead of deleting it.",
+    "اختر كورسًا من كورسات نشاطك.": "Pick one of your business's courses.",
+    "كورس": "Course",
     "الملف المرفق ليس PDF.": "The attached file is not a PDF.",
     "اكتب نتيجة فحص واحد على الأقل أو أرفق صورة.": "Write at least one test result or attach a photo."
 }

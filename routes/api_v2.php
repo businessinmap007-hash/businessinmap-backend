@@ -234,6 +234,8 @@ Route::prefix('v2')->group(function () {
         Route::get('units/{business}/day-grid', [UnitDiscoveryController::class, 'dayGrid'])->whereNumber('business');
         // «موعد»: the day as start times for a service of the business itself — no units
         Route::get('appointments/{business}/day-grid', [UnitDiscoveryController::class, 'appointmentGrid'])->whereNumber('business');
+        // «كورس»: the groups each course runs in, with the seats left
+        Route::get('courses/{business}', [\App\Http\Controllers\Api\V2\CourseGroupController::class, 'discover'])->whereNumber('business');
     });
 
     // Jobs: a business posts a vacancy in any field, a client applies. Public
@@ -1020,10 +1022,21 @@ Route::prefix('v2')->group(function () {
             Route::delete('{item}/images/{image}', [BusinessBookableItemController::class, 'destroyImage'])->whereNumber(['item', 'image']);
         });
 
+        // «كورس»: the business's own groups — when each starts, when it meets, how many seats.
+        Route::prefix('business/course-groups')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\V2\CourseGroupController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Api\V2\CourseGroupController::class, 'store']);
+            Route::put('{group}', [\App\Http\Controllers\Api\V2\CourseGroupController::class, 'update'])->whereNumber('group');
+            Route::delete('{group}', [\App\Http\Controllers\Api\V2\CourseGroupController::class, 'destroy'])->whereNumber('group');
+        });
+
         // A stay's own check-in/check-out clock (business_booking_settings).
         Route::prefix('business/booking-settings')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('check-times', [BusinessBookingCheckTimesController::class, 'show']);
             Route::put('check-times', [BusinessBookingCheckTimesController::class, 'update']);
+            // «يجب التواجد قبل الموعد بـ ١٥ دقيقة»: the business's own notice on its bookings and appointments
+            Route::get('arrival-notice', [\App\Http\Controllers\Api\V2\BusinessArrivalNoticeController::class, 'show']);
+            Route::put('arrival-notice', [\App\Http\Controllers\Api\V2\BusinessArrivalNoticeController::class, 'update']);
         });
 
         // The rooms behind a room type (the hotel's own list) and putting a stay in one.

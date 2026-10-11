@@ -47,6 +47,7 @@ class Booking extends Model
         'party_size',
         'bookable_type',
         'bookable_id',
+        'course_group_id',
         'meta',
     ];
 

@@ -191,6 +191,8 @@ class ClinicAppointmentController extends Controller
             'service_price_id' => $a->service_price_id ? (int) $a->service_price_id : null,
             'reason' => $a->reason,
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
+            // «يجب التواجد قبل الموعد بـ ١٥ دقيقة» — the clinic's own words
+            'arrival_notice' => \App\Services\ArrivalNotice::forBusiness((int) $a->clinic_id),
             'prescription_id' => $a->relationLoaded('prescription') && $a->prescription
                 ? (int) $a->prescription->id : null,
             'clinic' => $a->relationLoaded('clinic') && $a->clinic

@@ -937,6 +937,11 @@ class ServiceExecutionEngine
     ): array {
         $quantity = max($quantity, 1);
 
+        // «١٦٠٠ للكورس»: a course is sold whole, however many days it runs — never a day price × its length
+        if ($businessPrice && $businessPrice->bookable_item_type === 'book_a_course') {
+            $until = null;
+        }
+
         if ($allocation) {
             return $this->resolveAllocationPriceBreakdown($allocation, $bookable, $quantity, $pricingDate, $until);
         }

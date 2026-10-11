@@ -237,10 +237,12 @@ class InvestigationOrderController extends Controller
             'texts.*' => ['nullable', 'string', 'max:4000'],
             'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ImageUploadService::validationRules(),
+            'documents' => ['nullable', 'array', 'max:5'],
+            'documents.*' => ['file', 'mimes:pdf', 'max:10240'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $row = $this->service->attachResults($row, $request->file('images', []), $data['note'] ?? null, $data['texts'] ?? []);
+        $row = $this->service->attachResults($row, $request->file('images', []), $data['note'] ?? null, $data['texts'] ?? [], $request->file('documents', []));
 
         return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row->load(['patient:id,name', 'images']), $request->user())]]);
     }
@@ -257,7 +259,13 @@ class InvestigationOrderController extends Controller
         $full = ImageUploadService::privatePath($row->image);
         abort_unless(is_file($full), 404);
 
-        return response()->file($full, ['Cache-Control' => 'private, max-age=21600', 'X-Content-Type-Options' => 'nosniff']);
+        $headers = ['Cache-Control' => 'private, max-age=21600', 'X-Content-Type-Options' => 'nosniff'];
+        if (str_ends_with(strtolower($full), '.pdf')) {
+            $headers['Content-Type'] = 'application/pdf';
+            $headers['Content-Disposition'] = 'inline; filename="report.pdf"';
+        }
+
+        return response()->file($full, $headers);
     }
 
     // ───────────────────────── helpers ─────────────────────────

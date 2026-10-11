@@ -95,12 +95,13 @@ class InvestigationOrder extends Model
         return InvestigationFileUrl::for($image);
     }
 
-    /** @return list<array{id:int,image:string}> */
+    /** @return list<array{id:int,image:string,type:string}> `type` is `pdf` for a printed report, `image` otherwise */
     public function filesOf(string $purpose): array
     {
         return $this->images->where('purpose', $purpose)->map(fn (Image $i) => [
             'id' => (int) $i->id,
             'image' => $this->imageAddress($i),
+            'type' => str_ends_with(strtolower((string) $i->image), '.pdf') ? 'pdf' : 'image',
         ])->values()->all();
     }
 }

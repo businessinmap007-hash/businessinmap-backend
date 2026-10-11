@@ -15,6 +15,13 @@ class MedicalBackupTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // the sealed text is a private file: never write the real disk from a test
+        \Illuminate\Support\Facades\Storage::fake('local');
+    }
+
     private function blob(int $iterations = 310000): string
     {
         return json_encode(['v' => 1, 'kdf' => 'pbkdf2-sha256', 'iterations' => $iterations, 'salt' => base64_encode(random_bytes(16)), 'data' => base64_encode(random_bytes(120))]);
@@ -56,5 +63,27 @@ class MedicalBackupTest extends TestCase
         $this->putJson('/api/v2/medical-backup', ['blob' => 'plain text anyone could read'])->assertUnprocessable();
         $this->putJson('/api/v2/medical-backup', ['blob' => $this->blob(1000)])->assertUnprocessable();
         $this->putJson('/api/v2/medical-backup', ['blob' => str_repeat('x', 700000)])->assertUnprocessable();
+    }
+
+    public function test_a_backup_up_to_five_megabytes_is_kept_as_a_private_file_and_a_larger_one_is_refused(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $me = User::query()->where('type', '!=', 'business')->orderBy('id')->firstOrFail();
+        Sanctum::actingAs($me);
+
+        $big = json_encode(['v' => 1, 'kdf' => 'pbkdf2-sha256', 'iterations' => 310000, 'salt' => base64_encode(random_bytes(16)), 'data' => base64_encode(random_bytes(1_500_000))]);
+        $this->assertGreaterThan(1_000_000, strlen($big));
+        $this->putJson('/api/v2/medical-backup', ['blob' => $big])->assertOk();
+
+        $row = DB::table('medical_backups')->where('user_id', $me->id)->first();
+        $this->assertNull($row->blob, 'not in a column');
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($row->path);
+        $this->assertSame($big, $this->getJson('/api/v2/medical-backup')->assertOk()->json('data.blob'));
+
+        $tooBig = json_encode(['v' => 1, 'kdf' => 'pbkdf2-sha256', 'iterations' => 310000, 'salt' => 'x', 'data' => str_repeat('A', 5_100_000)]);
+        $this->putJson('/api/v2/medical-backup', ['blob' => $tooBig])->assertUnprocessable();
+
+        $this->deleteJson('/api/v2/medical-backup')->assertOk();
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($row->path);
     }
 }

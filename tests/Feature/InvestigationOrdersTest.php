@@ -241,6 +241,39 @@ class InvestigationOrdersTest extends TestCase
         $this->assertSame('Hb 13', $row['items'][0]['result']);
     }
 
+    public function test_a_printed_report_is_taken_as_a_pdf_checked_by_its_content_and_goes_with_the_photos(): void
+    {
+        [$doctor, $patient, $id] = $this->readyOrderWithPhoto();
+        $lab = User::query()->where('category_child_id', self::LAB)->latest('id')->firstOrFail();
+        $fake = UploadedFile::fake()->createWithContent('report.pdf', 'not really a pdf at all');
+        $real = UploadedFile::fake()->createWithContent('report.pdf', "%PDF-1.4
+1 0 obj<<>>endobj
+trailer<<>>
+%%EOF");
+
+        Sanctum::actingAs($lab);
+        $this->post("/api/v2/business/investigation-orders/{$id}/results", ['documents' => [$fake]], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+
+        $this->post("/api/v2/business/investigation-orders/{$id}/results", ['documents' => [$real]], ['Accept' => 'application/json'])
+            ->assertOk();
+
+        Sanctum::actingAs($patient);
+        $files = $this->getJson("/api/v2/investigation-orders/{$id}")->assertOk()->json('data.order.result_files');
+        $this->assertSame(['image', 'pdf'], collect($files)->pluck('type')->sort()->values()->all());
+
+        // the report is served inline as a PDF through its signed link
+        $pdf = collect($files)->firstWhere('type', 'pdf');
+        $this->get($pdf['image'])->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+        // …and leaves with the photos once the patient kept a copy and the doctor read them
+        $this->postJson("/api/v2/investigation-orders/{$id}/saved")->assertOk();
+        Sanctum::actingAs($doctor);
+        $this->getJson("/api/v2/investigation-orders/{$id}")->assertOk();
+        $this->assertSame(1, app(\App\Services\Investigations\InvestigationOrderService::class)->purgeFiles(now()->addDays(5))['purged']);
+        $this->assertCount(0, InvestigationOrder::query()->findOrFail($id)->images()->get());
+    }
+
     public function test_a_big_result_photo_is_shrunk_where_the_server_can_and_kept_as_it_came_where_it_cannot(): void
     {
         $uploads = app(\App\Services\Media\ImageUploadService::class);

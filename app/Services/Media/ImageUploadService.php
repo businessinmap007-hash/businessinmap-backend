@@ -158,6 +158,26 @@ final class ImageUploadService
     }
 
     /**
+     * Store a PDF privately (a lab's printed report). The content must really be a PDF (`%PDF-` header) — the client's
+     * name and mime are never trusted — and it is stored under a random `.pdf` name. Returns the relative path.
+     */
+    public function storePrivateDocument(UploadedFile $file): string
+    {
+        $head = (string) @file_get_contents($file->getRealPath(), false, null, 0, 5);
+        abort_unless($head === '%PDF-', 422, __('الملف المرفق ليس PDF.'));
+
+        $dir = self::privatePath(self::PRIVATE_DIR);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $name = Str::random(40).'.pdf';
+        $file->move($dir, $name);
+
+        return self::PRIVATE_DIR.'/'.$name;
+    }
+
+    /**
      * Store a PHOTO privately, shrunk: the longest side to [maxSide] px and re-encoded as JPEG at [quality] — a phone
      * photo of 3–8 MB becomes 150–400 KB. Where the server has no image library, or the file is not an image it can
      * read, it is stored as it came (the app already shrinks before uploading, so this is the second line).

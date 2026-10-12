@@ -68,7 +68,8 @@ class BookingReminder extends Model
     {
         return $query
             ->pending()
-            ->where('scheduled_at', '<=', now());
+            // scheduled_at is the shop's wall-clock time (the booking's own minus its lead)
+            ->where('scheduled_at', '<=', \App\Support\WallClock::now());
     }
 
     public function scopeForBooking(Builder $query, int $bookingId): Builder

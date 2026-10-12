@@ -220,7 +220,8 @@ class ClinicAppointmentService
         $created = 0;
         $skipped = 0;
         $closed = 0;
-        $today = Carbon::today();
+        $today = \App\Support\WallClock::today((int) $clinic->id);
+        $wallNow = \App\Support\WallClock::now((int) $clinic->id);
         $hours = app(BusinessHoursService::class);
 
         for ($d = 0; $d <= $days; $d++) {
@@ -232,7 +233,7 @@ class ClinicAppointmentService
             foreach ($times as $time) {
                 [$h, $m] = array_map('intval', explode(':', $time));
                 $at = $date->copy()->setTime($h, $m, 0);
-                if ($at->isPast()) {
+                if ($at->lte($wallNow)) {
                     continue;
                 }
 
@@ -371,12 +372,15 @@ class ClinicAppointmentService
      */
     public function sendDueReminders(int $limit = 200): int
     {
-        $now = Carbon::now();
+        // scheduled_at is the clinic's wall clock: the window is cut on that, and each appointment is judged on its own
+        // clinic's «now» below. `$stamp` is the true instant the markers record.
+        $wallNow = \App\Support\WallClock::now();
+        $stamp = Carbon::now();
 
         $due = ClinicAppointment::query()
             ->where('status', ClinicAppointment::STATUS_CONFIRMED)
-            ->where('scheduled_at', '>', $now)
-            ->where('scheduled_at', '<=', $now->copy()->addMinutes(ReminderPreference::MAX_FIRST_LEAD))
+            ->where('scheduled_at', '>', $wallNow)
+            ->where('scheduled_at', '<=', $wallNow->copy()->addMinutes(ReminderPreference::MAX_FIRST_LEAD))
             ->where(fn ($q) => $q->whereNull('reminded_day_at')->orWhereNull('reminded_soon_at'))
             ->orderBy('scheduled_at')
             ->limit($limit)
@@ -392,6 +396,12 @@ class ClinicAppointmentService
             $first = $pref->firstLead();
             $second = $pref->secondLead();
             $when = $appointment->scheduled_at;
+            $now = \App\Support\WallClock::now((int) $appointment->clinic_id);
+
+            // already begun on its clinic's clock: nothing to remind about
+            if ($now->gte($when)) {
+                continue;
+            }
 
             $secondDue = $second !== null && $now->gte($when->copy()->subMinutes($second));
             $firstDue = $now->gte($when->copy()->subMinutes($first));
@@ -402,15 +412,15 @@ class ClinicAppointmentService
                 $this->remindPatient($appointment,
                     'تذكير: موعدك قريبًا، في ' . $when->format('Y-m-d H:i') . '.',
                     'Reminder: your appointment is soon, at ' . $when->format('Y-m-d H:i') . '.');
-                $appointment->reminded_soon_at = $now;
-                $appointment->reminded_day_at = $appointment->reminded_day_at ?? $now;
+                $appointment->reminded_soon_at = $stamp;
+                $appointment->reminded_day_at = $appointment->reminded_day_at ?? $stamp;
                 $appointment->save();
                 $sent++;
             } elseif ($appointment->reminded_day_at === null && $firstDue) {
                 $this->remindPatient($appointment,
                     'تذكير: لديك موعد قادم في ' . $when->format('Y-m-d H:i') . '.',
                     'Reminder: you have an upcoming appointment on ' . $when->format('Y-m-d H:i') . '.');
-                $appointment->reminded_day_at = $now;
+                $appointment->reminded_day_at = $stamp;
                 $appointment->save();
                 $sent++;
             }
@@ -526,13 +536,14 @@ class ClinicAppointmentService
     {
         [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $data);
         $now = Carbon::now();
+        $wallNow = \App\Support\WallClock::now((int) $clinic->id);
 
         $appointment = ClinicAppointment::create([
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
             'service_price_id' => $priceId,
             'created_by' => (int) $clinic->id,
-            'scheduled_at' => $now,
+            'scheduled_at' => $wallNow,
             'duration_minutes' => $duration,
             'status' => ClinicAppointment::STATUS_CONFIRMED,
             'reason' => $data['reason'] ?? null,
@@ -653,7 +664,7 @@ class ClinicAppointmentService
         $servedToday = ClinicAppointment::query()
             ->where('clinic_id', (int) $clinic->id)
             ->where('status', ClinicAppointment::STATUS_COMPLETED)
-            ->whereDate('checked_in_at', Carbon::today())
+            ->whereBetween('checked_in_at', \App\Support\WallClock::instantBounds((int) $clinic->id))
             ->count();
 
         $desiredKind = $pattern[$servedToday % count($pattern)];

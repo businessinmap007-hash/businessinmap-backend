@@ -253,7 +253,7 @@ class ClinicAppointmentFlowTest extends TestCase
 
         $appointment = ClinicAppointment::create([
             'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
-            'scheduled_at' => Carbon::now()->addHours(6), 'duration_minutes' => 30,
+            'scheduled_at' => \App\Support\WallClock::now()->addHours(6), 'duration_minutes' => 30,
             'status' => ClinicAppointment::STATUS_CONFIRMED,
         ]);
 
@@ -270,7 +270,7 @@ class ClinicAppointmentFlowTest extends TestCase
             ->where('title_ar', 'تذكير بالموعد')->exists());
 
         // Move the appointment to 1h out → now the 2h reminder is due (once).
-        $appointment->update(['scheduled_at' => Carbon::now()->addHour()]);
+        $appointment->update(['scheduled_at' => \App\Support\WallClock::now()->addHour()]);
         $this->assertSame(1, $service->sendDueReminders());
         $this->assertNotNull($appointment->fresh()->reminded_soon_at);
         $this->assertSame(0, $service->sendDueReminders());

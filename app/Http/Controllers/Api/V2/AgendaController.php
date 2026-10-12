@@ -25,7 +25,7 @@ class AgendaController extends Controller
     {
         $date = $request->filled('date')
             ? Carbon::parse($request->get('date'))
-            : Carbon::today();
+            : \App\Support\WallClock::today();
 
         $items = $this->agenda->forDay((int) $request->user()->id, $date)
             ->map(fn (AgendaItem $i) => $this->serialize($i))
@@ -44,7 +44,7 @@ class AgendaController extends Controller
      */
     public function week(Request $request)
     {
-        $anchor = $request->filled('date') ? Carbon::parse($request->get('date')) : Carbon::today();
+        $anchor = $request->filled('date') ? Carbon::parse($request->get('date')) : \App\Support\WallClock::today();
         $start = $anchor->copy()->startOfWeek(Carbon::SATURDAY);
         $end = $start->copy()->addDays(6)->endOfDay();
 
@@ -75,9 +75,9 @@ class AgendaController extends Controller
     public function upcoming(Request $request)
     {
         $days = min(max((int) $request->get('days', 14), 1), 60);
-        $from = Carbon::today()->subDay();
+        $from = \App\Support\WallClock::today()->subDay();
 
-        $items = $this->agenda->forRange((int) $request->user()->id, $from, Carbon::today()->addDays($days)->endOfDay())
+        $items = $this->agenda->forRange((int) $request->user()->id, $from, \App\Support\WallClock::today()->addDays($days)->endOfDay())
             ->where('remind', true)
             ->map(fn (AgendaItem $i) => $this->serialize($i))
             ->values()
@@ -93,7 +93,7 @@ class AgendaController extends Controller
     public function ics(Request $request)
     {
         $days = min(max((int) $request->get('days', 90), 1), 365);
-        $from = Carbon::today();
+        $from = \App\Support\WallClock::today();
         $to = $from->copy()->addDays($days)->endOfDay();
 
         $body = $this->agenda->icsForUser((int) $request->user()->id, $from, $to);
@@ -134,7 +134,7 @@ class AgendaController extends Controller
     {
         $row = AgendaFeedToken::query()->where('token', $token)->first();
 
-        $from = Carbon::today();
+        $from = \App\Support\WallClock::today();
         $to = $from->copy()->addDays(90)->endOfDay();
         $body = $row
             ? $this->agenda->icsForUser((int) $row->user_id, $from, $to)

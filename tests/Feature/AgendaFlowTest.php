@@ -394,14 +394,14 @@ class AgendaFlowTest extends TestCase
         // 3h out: with the default 24h lead this would fire, but not with 60 min.
         $appt = ClinicAppointment::create([
             'clinic_id' => $clinic->id, 'patient_id' => $patient->id, 'created_by' => $clinic->id,
-            'scheduled_at' => Carbon::now()->addHours(3), 'duration_minutes' => 30,
+            'scheduled_at' => \App\Support\WallClock::now()->addHours(3), 'duration_minutes' => 30,
             'status' => ClinicAppointment::STATUS_CONFIRMED,
         ]);
         $this->assertSame(0, $service->sendDueReminders());
         $this->assertNull($appt->fresh()->reminded_day_at);
 
         // Move it to 30 min out → now within the 60-minute lead → fires once.
-        $appt->update(['scheduled_at' => Carbon::now()->addMinutes(30)]);
+        $appt->update(['scheduled_at' => \App\Support\WallClock::now()->addMinutes(30)]);
         $this->assertSame(1, $service->sendDueReminders());
         $this->assertNotNull($appt->fresh()->reminded_day_at);
         // Second is disabled → soon marker stays null even though it's close.

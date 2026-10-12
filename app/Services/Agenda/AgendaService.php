@@ -221,7 +221,8 @@ class AgendaService
         $created = 0;
         $skipped = 0;
         $ids = [];
-        $today = Carbon::today();
+        $today = \App\Support\WallClock::today();
+        $wallNow = \App\Support\WallClock::now();
 
         for ($d = 0; $d <= $days; $d++) {
             $date = $today->copy()->addDays($d);
@@ -231,7 +232,7 @@ class AgendaService
             }
 
             $start = $date->copy()->setTime($hour, $minute, 0);
-            if ($start->isPast()) {
+            if ($start->lte($wallNow)) {
                 continue;
             }
 
@@ -281,7 +282,9 @@ class AgendaService
      */
     public function sendDueReminders(int $limit = 300): int
     {
-        $now = Carbon::now();
+        // an agenda time is the person's wall clock (Cairo): "now" is written the same way; `$stamp` is the true instant
+        $now = \App\Support\WallClock::now();
+        $stamp = Carbon::now();
 
         // Candidates: due within the largest possible lead, not long-missed.
         $candidates = AgendaItem::query()
@@ -314,7 +317,7 @@ class AgendaService
                 $isMed ? 'Medication reminder' : ($isInstalment ? 'Instalment reminder' : 'Task reminder'),
                 $item->title, $item->title);
 
-            $item->update(['reminded_at' => $now]);
+            $item->update(['reminded_at' => $stamp]);
             $sent++;
         }
 

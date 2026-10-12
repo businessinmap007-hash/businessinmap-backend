@@ -62,7 +62,7 @@ class BookingReminderService
 
         DB::transaction(function () use ($booking, $rows) {
             foreach ($rows as $row) {
-                if ($row['scheduled_at']->lessThanOrEqualTo(now())) {
+                if ($row['scheduled_at']->lessThanOrEqualTo(\App\Support\WallClock::now((int) $booking->business_id))) {
                     continue;
                 }
 
@@ -121,6 +121,11 @@ class BookingReminderService
 
                 if (! $booking || $booking->isFinalStatus()) {
                     $reminder->cancel();
+                    continue;
+                }
+
+                // a business on another zone than the platform's is judged on its own clock
+                if (\App\Support\WallClock::now((int) $booking->business_id)->lt($reminder->scheduled_at)) {
                     continue;
                 }
 

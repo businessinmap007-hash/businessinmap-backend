@@ -36,7 +36,8 @@ class MedicationScheduleService
 
         $this->clearExisting($prescription);
 
-        $now = Carbon::now();
+        // doses sit at the patient's wall-clock hours: «has today's dose time passed?» is judged on that clock
+        $now = \App\Support\WallClock::now();
         $placed = 0;
 
         foreach ($prescription->items as $item) {

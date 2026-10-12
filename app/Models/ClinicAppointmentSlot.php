@@ -44,12 +44,12 @@ class ClinicAppointmentSlot extends Model
 
     public function isOpen(): bool
     {
-        return $this->appointment_id === null && $this->starts_at && $this->starts_at->isFuture();
+        return $this->appointment_id === null && $this->starts_at && $this->starts_at->gt(\App\Support\WallClock::now((int) $this->clinic_id));
     }
 
     /** Open, still-future slots. */
     public function scopeOpen($query)
     {
-        return $query->whereNull('appointment_id')->where('starts_at', '>', now());
+        return $query->whereNull('appointment_id')->where('starts_at', '>', \App\Support\WallClock::now());
     }
 }

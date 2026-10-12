@@ -94,7 +94,8 @@ final class BookingDayUseService
         $start = $day->copy()->setTimeFromTimeString($offer['from']);
         $end = $day->copy()->setTimeFromTimeString($offer['to']);
 
-        if ($start->lte(now())) {
+        // $start is the shop's wall clock: judged against the shop's own «now», not UTC's
+        if ($start->lte(\App\Support\WallClock::now((int) $item->business_id))) {
             throw ValidationException::withMessages(['date' => __('اختر موعدًا لم يبدأ بعد.')]);
         }
 

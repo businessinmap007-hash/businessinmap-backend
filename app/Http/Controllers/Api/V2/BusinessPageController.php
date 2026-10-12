@@ -64,6 +64,10 @@ final class BusinessPageController extends Controller
             ->where('s.key', '!=', 'delivery')
             ->exists();
 
+        // A dental clinic that listed its services shows them as a tab.
+        $dentalServices = app(\App\Services\Clinics\DentalServicesService::class);
+        $hasDental = $dentalServices->isDentalClinic($model) && $dentalServices->hasOffers($model);
+
         // A business that sells bookings (a hotel's rooms, a hall, a pitch) shows a «الحجز» tab beside its posts, the
         // way a menu business shows its menu: it has an active price on the booking service.
         $hasBooking = DB::table('business_service_prices as p')
@@ -168,6 +172,8 @@ final class BusinessPageController extends Controller
                     'menu' => $hasMenu,
                     'services' => $hasServices,
                     'booking' => $hasBooking,
+                    // a dental clinic that listed its services shows them as a tab
+                    'dental' => $hasDental,
                 ],
                 // Which fulfillment methods the unified entry point should
                 // offer above the menu — see Order::FULFILLMENT_* and

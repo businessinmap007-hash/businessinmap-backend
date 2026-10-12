@@ -56,6 +56,7 @@ use App\Http\Controllers\Api\V2\TrainingChatController;
 use App\Http\Controllers\Api\V2\TrainingPlanController;
 use App\Http\Controllers\Api\V2\ExerciseLibraryController;
 use App\Http\Controllers\Api\V2\HospitalDoctorController;
+use App\Http\Controllers\Api\V2\DentalServiceController;
 use App\Http\Controllers\Api\V2\HospitalProcedureController;
 use App\Http\Controllers\Api\V2\InvestigationOrderController;
 use App\Http\Controllers\Api\V2\FoodLibraryController;
@@ -587,6 +588,8 @@ Route::prefix('v2')->group(function () {
         Route::post('procedure-requests', [HospitalProcedureController::class, 'store'])->middleware('throttle:30,1');
         Route::get('procedure-requests', [HospitalProcedureController::class, 'index']);
         Route::post('procedure-requests/{row}/cancel', [HospitalProcedureController::class, 'cancel'])->whereNumber('row');
+        // «خدمات عيادة الأسنان»: what a dental clinic offers (cleaning, fillings, root canals…), with its own prices.
+        Route::get('clinics/{clinic}/dental-services', [DentalServiceController::class, 'offered'])->whereNumber('clinic');
         Route::post('clinic-slots/{slot}/book', [ClinicAppointmentController::class, 'bookSlot'])->whereNumber('slot');
 
         // Pharmacy side: incoming prescriptions + dispensing lifecycle.
@@ -1409,6 +1412,12 @@ Route::prefix('v2')->group(function () {
             Route::post('{row}/accept', [HospitalProcedureController::class, 'accept'])->whereNumber('row');
             Route::post('{row}/decline', [HospitalProcedureController::class, 'decline'])->whereNumber('row');
             Route::post('{row}/complete', [HospitalProcedureController::class, 'complete'])->whereNumber('row');
+        });
+        Route::prefix('business/dental-services')->middleware('business.member:' . BusinessCapability::PRICES)->group(function () {
+            Route::get('/', [DentalServiceController::class, 'catalog']);
+            Route::put('/', [DentalServiceController::class, 'save']);
+            Route::post('custom', [DentalServiceController::class, 'addCustom']);
+            Route::delete('custom/{service}', [DentalServiceController::class, 'deleteCustom'])->whereNumber('service');
         });
         Route::prefix('business/hospital-invitations')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
             Route::get('/', [HospitalDoctorController::class, 'invitations']);

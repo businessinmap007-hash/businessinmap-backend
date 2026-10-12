@@ -47,6 +47,8 @@ class AccountResource extends JsonResource
             'social' => $this->socialLinks(),
             // Business only: what the account still has to set up before it can show products («اكتمال الحساب»).
             'setup' => $this->isBusiness() ? $this->setupState() : null,
+            // Business only: a clinic that ticked «أسنان» has its own services list (DentalServicesService).
+            'dental_clinic' => $this->isBusiness() && app(\App\Services\Clinics\DentalServicesService::class)->isDentalClinic($this->resource),
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];
     }

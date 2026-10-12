@@ -3041,6 +3041,7 @@
     "يحتاج إصلاحًا": "Needs fixing",
     "تنبيه": "Warning",
     "معلومة": "Info",
+    "هذا الموعد محجوز. اختر وقتًا آخر.": "This time is already booked. Pick another.",
     "الملف المرفق ليس PDF.": "The attached file is not a PDF.",
     "اكتب نتيجة فحص واحد على الأقل أو أرفق صورة.": "Write at least one test result or attach a photo."
 }

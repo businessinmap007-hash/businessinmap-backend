@@ -605,6 +605,35 @@ final class BookingController extends Controller
                 $payload['chair_id'] = (int) $free->id;
             }
 
+            // An appointment with the business itself that has no chairs and no unit is ONE line: a time can be held
+            // once. The grid already hides a held time; this is what stops two customers (or a direct API call) taking
+            // it in the same moment — judged under the same lock on the business as the chairs above.
+            if ($chairs->isEmpty()
+                && empty($payload['bookable_id'])
+                && ! empty($payload['starts_at'])
+                && $courseGroupId === null
+                && optional(app(\App\Services\BookingShapes::class)->forBusiness((int) $data['business_id']))->code === 'appointment') {
+                User::query()->whereKey((int) $data['business_id'])->lockForUpdate()->first(['id']);
+
+                $start = Carbon::parse($payload['starts_at']);
+                $end = ! empty($payload['ends_at'])
+                    ? Carbon::parse($payload['ends_at'])
+                    : $start->copy()->addMinutes(\App\Services\AppointmentQueue::serviceMinutes((int) $data['business_id'], (int) ($payload['offering_id'] ?? 0)));
+
+                $held = Booking::query()
+                    ->where('business_id', (int) $data['business_id'])
+                    ->whereNull('bookable_id')->whereNull('chair_id')
+                    ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
+                    ->whereNotNull('starts_at')
+                    ->where('starts_at', '<', $end->format('Y-m-d H:i:s'))
+                    ->whereRaw('COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 30 MINUTE)) > ?', [$start->format('Y-m-d H:i:s')])
+                    ->exists();
+
+                if ($held) {
+                    throw ValidationException::withMessages(['starts_at' => __('هذا الموعد محجوز. اختر وقتًا آخر.')]);
+                }
+            }
+
             $booking = Booking::query()->create($payload);
 
             if ($allocation) {

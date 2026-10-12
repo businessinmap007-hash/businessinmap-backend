@@ -163,23 +163,23 @@ class ChairsAndCallNextTest extends TestCase
         // the customer who wants the first barber gets his first time
         $a = $this->take($this->account(User::TYPE_CLIENT, 'A'), $one->id)->assertCreated();
         $this->assertSame($one->id, $a->json('data.booking.chair_id'));
-        $this->assertSame('10:00', substr($a->json('data.booking.starts_at'), 11, 5));
+        $this->assertSame('10:00', \Illuminate\Support\Carbon::parse($a->json('data.booking.starts_at'))->setTimezone('Africa/Cairo')->format('H:i'));
 
         // no preference: the first chair is busy at 10:00, the second is free then
         $b = $this->take($this->account(User::TYPE_CLIENT, 'B'))->assertCreated();
         $this->assertSame($two->id, $b->json('data.booking.chair_id'));
-        $this->assertSame('10:00', substr($b->json('data.booking.starts_at'), 11, 5));
+        $this->assertSame('10:00', \Illuminate\Support\Carbon::parse($b->json('data.booking.starts_at'))->setTimezone('Africa/Cairo')->format('H:i'));
 
         // both busy until 10:45: the lower chair takes the next, and the ticket number runs on across chairs
         $c = $this->take($this->account(User::TYPE_CLIENT, 'C'))->assertCreated();
         $this->assertSame($one->id, $c->json('data.booking.chair_id'));
-        $this->assertSame('10:45', substr($c->json('data.booking.starts_at'), 11, 5));
+        $this->assertSame('10:45', \Illuminate\Support\Carbon::parse($c->json('data.booking.starts_at'))->setTimezone('Africa/Cairo')->format('H:i'));
         $this->assertSame(3, $c->json('data.booking.queue_turn'));
         $this->assertSame('أحمد', $c->json('data.booking.chair.person_name'));
 
         // the customer who wants the second barber waits behind that barber's own line
         $d = $this->take($this->account(User::TYPE_CLIENT, 'D'), $two->id)->assertCreated();
-        $this->assertSame('10:45', substr($d->json('data.booking.starts_at'), 11, 5));
+        $this->assertSame('10:45', \Illuminate\Support\Carbon::parse($d->json('data.booking.starts_at'))->setTimezone('Africa/Cairo')->format('H:i'));
     }
 
     public function test_a_chair_is_never_booked_twice_at_one_time(): void

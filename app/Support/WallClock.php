@@ -8,14 +8,11 @@ use Illuminate\Support\Carbon;
 /**
  * «الآن» بساعة الجدار.
  *
- * The platform's own clock is UTC, but every time a business or a customer WRITES — a booking's start, a clinic
- * appointment, an agenda task, a reminder's due time — is stored as the shop's wall-clock digits and comes back from
- * the models as a Carbon whose digits are those (zone: app, i.e. UTC). `now()` is a true instant: setting the two side
- * by side judges "has it started?" three hours wrong in Cairo (a 1-hour reminder for a 7 PM visit fired at 9 PM).
- *
- * `WallClock::now()` is the current moment written in that same notation — the digits on a Cairo wall clock, in a
- * Carbon the models' own times compare with, and a string a SQL bound can take. Use it for ANY comparison between "now"
- * and a stored shop/customer time. Keep `now()` for true instants (created_at, expires_at the server set, sent_at).
+ * The platform runs on Cairo's clock (config app.timezone), so for the usual business `now()` and the wall clock
+ * agree. This helper stays the one place that says WHICH clock a stored shop/customer time is written on: a business
+ * that chose another zone of its own (a hotel in Dubai) has its bookings, hours and queue written in THAT zone, and
+ * `WallClock::now($businessId)` is the current moment in it, as the digits a stored time is compared with. Use it for
+ * ANY comparison between "now" and a stored shop/customer time; keep `now()` for true instants (created_at, sent_at).
  */
 final class WallClock
 {
@@ -42,8 +39,9 @@ final class WallClock
     }
 
     /**
-     * The UTC instants that bound the shop's local day `$day` (default today) — for a column that holds a TRUE instant
-     * (checked_in_at, created_at) and is asked "which local day was this?".
+     * The bounds, in the app zone, of the shop's local day `$day` (default today) — for a column that holds a TRUE
+     * instant (checked_in_at, created_at: written in the app zone) and is asked "which local day was this?". Equal to the
+     * wall-clock day for a Cairo shop; shifted for a shop on another zone.
      *
      * @return array{0:Carbon,1:Carbon} [start, end]
      */
@@ -52,9 +50,12 @@ final class WallClock
         $zone = self::zone($businessId);
         $date = ($day ?: self::today($businessId))->format('Y-m-d');
 
+        $app = (string) config('app.timezone');
+
+        // set the zone, then re-read the digits as app-zone digits: that is how an instant is stored
         return [
-            Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 00:00:00', $zone)->utc(),
-            Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 23:59:59', $zone)->utc(),
+            Carbon::parse(Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 00:00:00', $zone)->setTimezone($app)->format('Y-m-d H:i:s')),
+            Carbon::parse(Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 23:59:59', $zone)->setTimezone($app)->format('Y-m-d H:i:s')),
         ];
     }
 }

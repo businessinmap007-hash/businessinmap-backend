@@ -35,6 +35,17 @@ class WallClockTest extends TestCase
         return $user;
     }
 
+    public function test_the_platform_runs_on_cairos_clock(): void
+    {
+        $this->assertSame('Africa/Cairo', config('app.timezone'));
+        $this->assertSame('Africa/Cairo', now()->timezoneName);
+        $this->assertSame('Africa/Cairo', date_default_timezone_get());
+
+        // a stored time and a JSON date agree on the instant: 10:00 on Cairo's wall is 07:00 UTC in October (EEST, +3)
+        $at = Carbon::parse('2026-10-14 10:00:00');
+        $this->assertSame('2026-10-14T07:00:00.000000Z', $at->toJSON());
+    }
+
     public function test_now_is_the_wall_clock_of_the_shop_not_utc(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-10-12 16:30:00', 'UTC')); // 19:30 in Cairo
@@ -53,15 +64,20 @@ class WallClockTest extends TestCase
         Carbon::setTestNow();
     }
 
-    public function test_the_instants_of_a_local_day_are_its_utc_bounds(): void
+    public function test_the_instants_of_a_local_day_are_its_bounds_in_the_app_zone(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-10-12 22:30:00', 'UTC')); // 13 Oct 00:30 Cairo
+        Carbon::setTestNow(Carbon::parse('2026-10-12 22:30:00', 'UTC')); // 13 Oct 01:30 Cairo
 
+        // the platform runs on Cairo's clock: a Cairo shop's day is that calendar day in the zone instants are stored in
         [$start, $end] = WallClock::instantBounds();
+        $this->assertSame('2026-10-13 00:00:00', $start->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-13 23:59:59', $end->format('Y-m-d H:i:s'));
 
-        // Cairo is +3 in October: its 13th runs from 12th 21:00 UTC to 13th 20:59:59 UTC
-        $this->assertSame('2026-10-12 21:00:00', $start->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-10-13 20:59:59', $end->format('Y-m-d H:i:s'));
+        // a shop in Tokyo (+9, no DST) has its 13th start at 18:00 Cairo time of the 12th
+        $tokyo = $this->business('Asia/Tokyo');
+        [$start, $end] = WallClock::instantBounds($tokyo->id, Carbon::parse('2026-10-13'));
+        $this->assertSame('2026-10-12 18:00:00', $start->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-13 17:59:59', $end->format('Y-m-d H:i:s'));
 
         Carbon::setTestNow();
     }

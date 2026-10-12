@@ -94,7 +94,7 @@ class AppointmentQueueTest extends TestCase
         foreach (['A', 'B', 'C', 'D'] as $i => $tag) {
             $response = $this->take($this->account(User::TYPE_CLIENT, $tag))->assertCreated();
             $this->assertSame($i + 1, $response->json('data.booking.queue_turn'));
-            $times[] = substr($response->json('data.booking.starts_at'), 11, 5);
+            $times[] = \Illuminate\Support\Carbon::parse($response->json('data.booking.starts_at'))->setTimezone('Africa/Cairo')->format('H:i');
         }
 
         // 45 minutes each from opening: 10:00, 10:45, 11:30, 12:15 — and the fifth does not fit before 13:00

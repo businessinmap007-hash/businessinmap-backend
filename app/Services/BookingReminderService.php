@@ -124,8 +124,17 @@ class BookingReminderService
                     continue;
                 }
 
+                $wallNow = \App\Support\WallClock::now((int) $booking->business_id);
+
                 // a business on another zone than the platform's is judged on its own clock
-                if (\App\Support\WallClock::now((int) $booking->business_id)->lt($reminder->scheduled_at)) {
+                if ($wallNow->lt($reminder->scheduled_at)) {
+                    continue;
+                }
+
+                // «the visit is in an hour» is no longer true once it began: a reminder that waited for a worker that was
+                // not running is dropped, not sent months late
+                if ($booking->starts_at && $booking->starts_at->lte($wallNow)) {
+                    $reminder->cancel();
                     continue;
                 }
 

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\ClinicAppointment;
+use App\Models\ClinicAppointmentSlot;
 use App\Models\DentalService;
 use App\Models\Option;
 use App\Models\User;
@@ -215,6 +217,101 @@ class DentalServicesTest extends TestCase
         Sanctum::actingAs($skin);
         $this->getJson('/api/v2/auth/me')->assertOk()->assertJsonPath('data.dental_clinic', false);
         $this->assertFalse((bool) $this->getJson("/api/v2/businesses/{$skin->id}")->json('data.sections.dental'));
+    }
+
+    private function slot(User $clinic, int $hour = 11): ClinicAppointmentSlot
+    {
+        return ClinicAppointmentSlot::create([
+            'clinic_id' => $clinic->id, 'starts_at' => now()->addDays(2)->setHour($hour)->setMinute(0)->setSecond(0), 'duration_minutes' => 30,
+        ]);
+    }
+
+    private function offer(User $clinic, string $name, ?float $price): int
+    {
+        $id = $this->platform($name);
+        Sanctum::actingAs($clinic);
+        $this->putJson('/api/v2/business/dental-services', ['items' => [['service_id' => $id, 'offered' => true, 'price' => $price]]])->assertOk();
+
+        return $id;
+    }
+
+    public function test_a_patient_names_the_dental_service_when_booking_a_slot_and_both_sides_read_it(): void
+    {
+        $clinic = $this->clinic();
+        $cleaning = $this->offer($clinic, 'تنظيف الأسنان وإزالة الجير', 400);
+        $slot = $this->slot($clinic);
+
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['dental_service_id' => $cleaning])
+            ->assertCreated()
+            ->assertJsonPath('data.appointment.dental_service.id', $cleaning)
+            ->assertJsonPath('data.appointment.dental_service.name', DentalService::query()->find($cleaning)->label());
+
+        $mine = $this->getJson('/api/v2/clinic-appointments')->assertOk()->json('data.data');
+        $this->assertSame(DentalService::query()->find($cleaning)->label(), $mine[0]['dental_service']['name']);
+
+        Sanctum::actingAs($clinic);
+        $rows = $this->getJson('/api/v2/business/clinic-appointments')->assertOk()->json('data.data');
+        $this->assertSame(DentalService::query()->find($cleaning)->label(), $rows[0]['dental_service']['name']);
+        $this->assertEquals(400, $rows[0]['dental_service']['price']);
+    }
+
+    public function test_the_booked_service_keeps_its_name_and_price_when_the_clinic_reprices_or_drops_it(): void
+    {
+        $clinic = $this->clinic();
+        $implant = $this->offer($clinic, 'زراعة سن', 9000);
+        $slot = $this->slot($clinic);
+
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, null, 'Patient'));
+        $id = $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['dental_service_id' => $implant])->assertCreated()->json('data.appointment.id');
+
+        Sanctum::actingAs($clinic);
+        $this->putJson('/api/v2/business/dental-services', ['items' => [['service_id' => $implant, 'offered' => true, 'price' => 12000]]])->assertOk();
+        $this->assertEquals(9000, ClinicAppointment::query()->find($id)->service_price, 'kept as asked');
+
+        $this->putJson('/api/v2/business/dental-services', ['items' => [['service_id' => $implant, 'offered' => false]]])->assertOk();
+        $this->assertSame('زراعة سن', ClinicAppointment::query()->find($id)->service_name);
+    }
+
+    public function test_a_service_the_clinic_does_not_offer_is_refused_and_the_slot_stays_open(): void
+    {
+        $clinic = $this->clinic();
+        $other = $this->clinic();
+        $this->offer($clinic, 'تقويم معدني', 6000);
+        $theirs = $this->offer($other, 'زراعة سن', 9000);
+        $slot = $this->slot($clinic);
+
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, null, 'Patient'));
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['dental_service_id' => $theirs])
+            ->assertStatus(422)->assertJsonValidationErrors('dental_service_id');
+
+        $this->assertNull($slot->fresh()->appointment_id, 'the slot was not taken');
+    }
+
+    public function test_a_clinic_that_is_not_dental_takes_no_service_but_books_as_before(): void
+    {
+        $skin = $this->clinic(false);
+        $dentist = $this->clinic();
+        $service = $this->offer($dentist, 'تنظيف الأسنان وإزالة الجير', 400);
+        $slot = $this->slot($skin);
+
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, null, 'Patient'));
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['dental_service_id' => $service])->assertStatus(422);
+
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['reason' => 'جلد'])
+            ->assertCreated()->assertJsonPath('data.appointment.dental_service', null);
+    }
+
+    public function test_a_requested_appointment_can_name_the_service_too(): void
+    {
+        $clinic = $this->clinic();
+        $braces = $this->offer($clinic, 'تقويم معدني', 6500);
+
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, null, 'Patient'));
+        $this->postJson('/api/v2/clinic-appointments', [
+            'clinic_id' => $clinic->id, 'scheduled_at' => now()->addDays(3)->toDateTimeString(), 'dental_service_id' => $braces,
+        ])->assertCreated()->assertJsonPath('data.appointment.dental_service.name', DentalService::query()->find($braces)->label());
     }
 
     public function test_the_seeder_is_add_only_and_idempotent(): void

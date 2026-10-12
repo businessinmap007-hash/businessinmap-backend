@@ -6,6 +6,7 @@ use App\Models\AgendaItem;
 use App\Models\ClinicAppointment;
 use App\Models\BusinessServicePrice;
 use App\Models\ClinicAppointmentSlot;
+use App\Models\ClinicDentalService;
 use App\Models\ReminderPreference;
 use App\Models\User;
 use App\Services\Agenda\AgendaService;
@@ -70,6 +71,40 @@ class ClinicAppointmentService
         return [(int) $minutes, $price?->id];
     }
 
+    /**
+     * The dental service the patient named, as the clinic offers it now: its id, and the name and price to keep.
+     * Nothing named is nothing kept; a service the clinic does not offer (another clinic's, or asked of a clinic that
+     * is not a dental one) names no visit here.
+     *
+     * @param  array<string,mixed>  $data
+     * @return array{dental_service_id:?int,service_name:?string,service_price:?float}
+     */
+    public function resolveDentalService(int $clinicId, array $data): array
+    {
+        $none = ['dental_service_id' => null, 'service_name' => null, 'service_price' => null];
+        $id = (int) ($data['dental_service_id'] ?? 0);
+
+        if ($id <= 0) {
+            return $none;
+        }
+
+        $offer = ClinicDentalService::query()->where('clinic_id', $clinicId)->where('dental_service_id', $id)->with('service')->first();
+        $clinic = User::query()->find($clinicId);
+
+        if (! $offer || ! $offer->service || ! $clinic || ! app(DentalServicesService::class)->isDentalClinic($clinic)) {
+            throw ValidationException::withMessages([
+                'dental_service_id' => __('هذه الخدمة غير متاحة لدى هذه العيادة.'),
+            ]);
+        }
+
+        return [
+            'dental_service_id' => (int) $offer->dental_service_id,
+            // the platform's own wording; a reader gets the live, localized name while the service exists
+            'service_name' => $offer->service->name_ar,
+            'service_price' => $offer->price,
+        ];
+    }
+
     /** «لشخص آخر»: who will actually walk in when the account that books is not the patient. */
     private function attendeeName(array $data): ?string
     {
@@ -88,6 +123,7 @@ class ClinicAppointmentService
             'patient_id' => (int) $patient->id,
             'service_price_id' => $priceId,
             'created_by' => (int) $patient->id,
+            ...$this->resolveDentalService((int) $clinic->id, $data),
             'scheduled_at' => $data['scheduled_at'],
             'duration_minutes' => $duration,
             'status' => ClinicAppointment::STATUS_REQUESTED,
@@ -342,6 +378,8 @@ class ClinicAppointmentService
                 // may lengthen or relabel it.
                 'service_price_id' => $slot->service_price_id,
                 'created_by' => (int) $patient->id,
+                // what he came for, from the clinic's own dental list (the slot only says the kind of visit)
+                ...$this->resolveDentalService((int) $slot->clinic_id, $data),
                 'scheduled_at' => $slot->starts_at,
                 'duration_minutes' => (int) $slot->duration_minutes,
                 'status' => ClinicAppointment::STATUS_CONFIRMED,

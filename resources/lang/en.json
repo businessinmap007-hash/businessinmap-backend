@@ -3044,5 +3044,11 @@
     "هذا الموعد محجوز. اختر وقتًا آخر.": "This time is already booked. Pick another.",
     "الملف المرفق ليس بصيغة DICOM.": "The attached file is not a DICOM file.",
     "الملف المرفق ليس PDF.": "The attached file is not a PDF.",
-    "اكتب نتيجة فحص واحد على الأقل أو أرفق صورة.": "Write at least one test result or attach a photo."
+    "اكتب نتيجة فحص واحد على الأقل أو أرفق صورة.": "Write at least one test result or attach a photo.",
+    "هذه الخدمة غير متاحة لدى هذه العيادة.": "This service is not offered by this clinic.",
+    "خدمة غير موجودة في القائمة.": "That service is not in the list.",
+    "اكتب اسم الخدمة واختر قسمها.": "Write the service name and choose its section.",
+    "هذه الخدمة موجودة في القائمة.": "This service is already in the list.",
+    "قائمة خدمات الأسنان لعيادات الأسنان فقط.": "The dental services list is for dental clinics only.",
+    "تمت إضافة الخدمة.": "The service was added."
 }

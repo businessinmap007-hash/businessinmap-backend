@@ -46,6 +46,8 @@ class ClinicAppointmentController extends Controller
             // Naming the visit sets its length from what the clinic priced —
             // the patient's own duration is only the fallback.
             'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
+            // what he came for, from the clinic's dental list (ClinicAppointmentService::resolveDentalService)
+            'dental_service_id' => ['nullable', 'integer', 'exists:dental_services,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'reason' => ['nullable', 'string', 'max:255'],
             'for_name' => ['nullable', 'string', 'max:120'],
@@ -167,6 +169,7 @@ class ClinicAppointmentController extends Controller
     {
         $data = $request->validate([
             'reason' => ['nullable', 'string', 'max:255'],
+            'dental_service_id' => ['nullable', 'integer', 'exists:dental_services,id'],
             'for_name' => ['nullable', 'string', 'max:120'],
             'for_phone' => ['nullable', 'string', 'max:30'],
         ]);
@@ -190,6 +193,7 @@ class ClinicAppointmentController extends Controller
             'duration_minutes' => (int) $a->duration_minutes,
             'service_price_id' => $a->service_price_id ? (int) $a->service_price_id : null,
             'reason' => $a->reason,
+            'dental_service' => $a->dentalServiceSummary(),
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
             // «يجب التواجد قبل الموعد بـ ١٥ دقيقة» — the clinic's own words
             'arrival_notice' => \App\Services\ArrivalNotice::forBusiness((int) $a->clinic_id),

@@ -35,6 +35,10 @@ class ChairsAndCallNextTest extends TestCase
     {
         parent::setUp();
 
+        // «a walk-in joins today's line»: judged at ten in the morning whenever the suite happens to run — late in the
+        // evening a 45-minute turn no longer fits before closing, and the test would depend on the hour it ran at
+        Carbon::setTestNow(Carbon::now()->setTime(10, 0, 0));
+
         $this->salon = $this->account(User::TYPE_BUSINESS, 'Salon', 23, 51);
         $this->service = BusinessServicePrice::create([
             'business_id' => $this->salon->id, 'service_id' => 1, 'child_id' => 51,
@@ -53,6 +57,13 @@ class ChairsAndCallNextTest extends TestCase
         }
         DB::table('business_working_hours')->where('business_id', $this->salon->id)->where('day_of_week', $this->day->dayOfWeek)
             ->update(['open_time' => '10:00:00', 'close_time' => '13:00:00']);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     private function account(string $type, string $tag, ?int $category = null, ?int $child = null): User

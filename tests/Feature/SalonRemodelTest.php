@@ -52,7 +52,8 @@ class SalonRemodelTest extends TestCase
 
         $children = DB::table('category_parent_child')->where('parent_id', self::RETIRED_ROOT)->pluck('child_id');
 
-        $this->assertCount(2, $children, 'the restored root lost its children');
+        // the two hairdressers, and «مركز تجميل وسبا» (BeautyCenterChildSeeder, 2026-10-12)
+        $this->assertCount(3, $children, 'the restored root lost its children');
 
         // Restored MUTE is the failure mode: the detach deleted their option and
         // service rows, and only deactivated the configs.

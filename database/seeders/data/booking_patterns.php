@@ -182,6 +182,7 @@ return [
     136   => ['appointment'],                           // كوافير [مهن وحرفيين]
     164   => ['appointment'],                           // كوافير حريمى [كوافير]
     184   => ['appointment'],                           // كوافير رجالي [كوافير]
+    554   => ['appointment'],                           // مركز تجميل وسبا [كوافير] — BeautyCenterChildSeeder::CHILD_ID
     280   => ['appointment'],                           // لعب أطفال [شركات، معارض]
     9     => ['appointment'],                           // لوازم ستائر [شركات]
     178   => ['appointment'],                           // مأذون شرعى [مكاتب]

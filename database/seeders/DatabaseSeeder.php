@@ -131,6 +131,8 @@ class DatabaseSeeder extends Seeder
            // none of them was a butcher. After the vocabularies, whose two
            // lists it borrows whole.
            ButcherChildSeeder::class,
+           // مراكز التجميل والسبا + سحب رموش/أظافر/حنة من الكوافير الرجالي — قبل أنماط الحجز وأشكاله
+           BeautyCenterChildSeeder::class,
 
            // Four accessory children become one, and what KIND of accessory
            // becomes an option. After the remodel, before the detachments.

@@ -24,6 +24,26 @@ class AppServiceProvider extends ServiceProvider
         // would be empty every time and the feed would go back to a query
         // per linked post.
         $this->app->singleton(PostSubjectService::class);
+
+        $this->pinDatabaseClock();
+    }
+
+    /**
+     * The database session runs on the platform's clock, wherever the database server sits.
+     *
+     * PHP writes every time as Cairo's digits (config app.timezone). A MySQL server in another country (or a managed
+     * one that is simply on UTC) would evaluate its own NOW(), CURRENT_TIMESTAMP defaults and TIMESTAMP columns on ITS
+     * clock — three hours off what Laravel wrote, and the offset changes with Egypt's daylight saving. So each
+     * connection is told the current offset of the platform's zone when it opens (`SET time_zone`), computed at boot —
+     * not frozen in a cached config. DB_TIMEZONE overrides it.
+     */
+    private function pinDatabaseClock(): void
+    {
+        foreach (['mysql', 'mariadb'] as $name) {
+            if (config("database.connections.{$name}") && ! config("database.connections.{$name}.timezone")) {
+                config(["database.connections.{$name}.timezone" => Carbon::now((string) config('app.timezone'))->format('P')]);
+            }
+        }
     }
 
     public function boot(): void

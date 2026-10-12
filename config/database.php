@@ -57,6 +57,9 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
+            // the session's clock: left empty it is set at boot to the platform's offset (AppServiceProvider), so the
+            // database's own NOW()/defaults agree with what Laravel writes whatever zone the DB server sits in
+            'timezone' => env('DB_TIMEZONE'),
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),

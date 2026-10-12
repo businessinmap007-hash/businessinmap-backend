@@ -81,11 +81,13 @@ tags:
       Medical procedures of a hospital («إجراء طبي»): surgeries, endoscopies and treatment procedures picked from the platform's list (or added by the
       hospital itself, seen by it alone), each with the hospital's OWN price (none = «السعر بعد التقييم»). A patient asks for one; the hospital accepts
       it with a date (quoting a price when it had none — a listed price is never overwritten), declines it, and marks it done.
-  - name: DentalServices
+  - name: SpecialtyServices
     description: >-
-      Services of a dental clinic («خدمات عيادة الأسنان»): cleaning, fillings, root canals, implants, braces… picked from the platform's list (or
-      added by the clinic itself, seen by it alone), each with the clinic's OWN price (none = «السعر بعد الكشف»). Only a single clinic or a medical
-      centre that ticked the «أسنان» specialty has the list. A patient names the service he came for when booking (`dental_service_id`).
+      Services of a specialty clinic («خدمات التخصص»): a dental clinic's cleaning, fillings, root canals, implants, braces…; a dermatology and
+      cosmetic clinic's fillers, botox, laser, scar treatment, non-surgical lifting… — picked from the platform's list for the specialty (or
+      added by the clinic itself, seen by it alone), each with the clinic's OWN price (none = «السعر بعد الكشف»). Only a single clinic or a
+      medical centre that ticked the specialty («أسنان» · «جلديه وتناسليه» / «جراحة تجميل») has its list; a clinic with both has both in one.
+      A patient names the service he came for when booking (`specialty_service_id`).
   - name: HospitalDoctors
     description: >-
       Doctors under a hospital's departments («الأطباء تحت الأقسام»): the departments are the medical specialties a hospital or medical centre
@@ -5061,7 +5063,7 @@ paths:
   /clinic-slots/{slot}/book:
     post:
       tags: [Clinic Appointments]
-      summary: Book an open slot in one tap (confirmed at once; notifies the clinic). Optional `dental_service_id` names what a dental clinic's patient came for (422 when the clinic does not offer it); the appointment then carries `dental_service` {id, name, price}.
+      summary: Book an open slot in one tap (confirmed at once; notifies the clinic). Optional `specialty_service_id` names what a specialty clinic's patient came for (422 when the clinic does not offer it); the appointment then carries `specialty_service` {id, name, price}.
       parameters: [{ name: slot, in: path, required: true, schema: { type: integer } }]
       requestBody:
         content:
@@ -5201,15 +5203,15 @@ paths:
     post: { tags: [HospitalProcedures], summary: 'Decline a requested procedure — {note?}; the patient is told.', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/procedure-requests/{row}/complete:
     post: { tags: [HospitalProcedures], summary: 'Mark an accepted procedure done.', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
-  /clinics/{clinic}/dental-services:
-    get: { tags: [DentalServices], summary: 'What a dental clinic offers, by kind: {id (the service a patient names when booking), name, price (null = after the exam)}; kinds with nothing offered are left out. 404 for a business that is not a dental clinic.', parameters: [{ name: clinic, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
-  /business/dental-services:
-    get: { tags: [DentalServices], summary: "The clinic's own view: the platform list and its own entries by kind, each with `offered` and its price.", responses: { '200': { description: OK }, '403': { description: 'Not a dental clinic' } } }
-    put: { tags: [DentalServices], summary: "Save what the clinic offers — {items: [{service_id, offered, price|null}]}. A price of 0 or null means after the exam. Only the platform's list and the clinic's own entries are accepted.", responses: { '200': { description: OK }, '403': { description: 'Not a dental clinic' }, '422': { $ref: '#/components/responses/Validation' } } }
-  /business/dental-services/custom:
-    post: { tags: [DentalServices], summary: 'Add a service the platform list does not have — {kind, name}; visible to this clinic alone and offered at once.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
-  /business/dental-services/custom/{service}:
-    delete: { tags: [DentalServices], summary: "Remove one of the clinic's own entries (404 for the platform list or another clinic's).", parameters: [{ name: service, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /clinics/{clinic}/specialty-services:
+    get: { tags: [SpecialtyServices], summary: 'What a specialty clinic offers, by kind (dental: checkup, preventive, restorative, endodontic, periodontal, surgical, prosthetic, orthodontic, cosmetic, pediatric · skin: injectables, face_lifting, laser, scars, peels, skin_disease, hair, body): {id (the service a patient names when booking), name, price (null = after the exam)}; kinds with nothing offered are left out. 404 for a business that has no list.', parameters: [{ name: clinic, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/specialty-services:
+    get: { tags: [SpecialtyServices], summary: "The clinic's own view: the platform lists of its specialties and its own entries by kind, each with `offered` and its price.", responses: { '200': { description: OK }, '403': { description: 'No specialty list for this account' } } }
+    put: { tags: [SpecialtyServices], summary: "Save what the clinic offers — {items: [{service_id, offered, price|null}]}. A price of 0 or null means after the exam. Only the lists of the clinic's own specialties and its own entries are accepted.", responses: { '200': { description: OK }, '403': { description: 'No specialty list for this account' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/specialty-services/custom:
+    post: { tags: [SpecialtyServices], summary: 'Add a service the platform list does not have — {kind (one of the kinds of the clinic specialties), name}; visible to this clinic alone and offered at once.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/specialty-services/custom/{service}:
+    delete: { tags: [SpecialtyServices], summary: "Remove one of the clinic's own entries (404 for the platform list or another clinic's).", parameters: [{ name: service, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /prescriptions:
     get:
       tags: [Prescriptions]

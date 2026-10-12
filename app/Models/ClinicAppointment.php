@@ -33,7 +33,7 @@ class ClinicAppointment extends Model
         'clinic_id',
         'patient_id',
         'service_price_id',
-        'dental_service_id',
+        'specialty_service_id',
         'service_name',
         'service_price',
         'created_by',
@@ -53,7 +53,7 @@ class ClinicAppointment extends Model
         'scheduled_at' => 'datetime',
         'duration_minutes' => 'integer',
         'service_price_id' => 'integer',
-        'dental_service_id' => 'integer',
+        'specialty_service_id' => 'integer',
         'service_price' => 'float',
         'reminded_day_at' => 'datetime',
         'reminded_soon_at' => 'datetime',
@@ -82,27 +82,27 @@ class ClinicAppointment extends Model
         return $this->belongsTo(BusinessServicePrice::class, 'service_price_id');
     }
 
-    /** The dental service the patient named when booking, if any (kept in `service_name` / `service_price` too). */
-    public function dentalService(): BelongsTo
+    /** The service the patient named when booking, if any (kept in `service_name` / `service_price` too). */
+    public function specialtyService(): BelongsTo
     {
-        return $this->belongsTo(DentalService::class, 'dental_service_id');
+        return $this->belongsTo(SpecialtyService::class, 'specialty_service_id');
     }
 
     /**
-     * The booked dental service as both sides read it: the live (localized) name while the service exists, the name kept
+     * The booked service (dental, dermatology…) as both sides read it: the live (localized) name while the service exists, the name kept
      * at booking once it is gone; the price is always the one asked. Null when none was named.
      *
      * @return array{id:?int,name:?string,price:?float}|null
      */
-    public function dentalServiceSummary(): ?array
+    public function serviceSummary(): ?array
     {
-        if (! $this->dental_service_id && ! $this->service_name) {
+        if (! $this->specialty_service_id && ! $this->service_name) {
             return null;
         }
 
         return [
-            'id' => $this->dental_service_id ? (int) $this->dental_service_id : null,
-            'name' => $this->dentalService?->label() ?: $this->service_name,
+            'id' => $this->specialty_service_id ? (int) $this->specialty_service_id : null,
+            'name' => $this->specialtyService?->label() ?: $this->service_name,
             'price' => $this->service_price,
         ];
     }

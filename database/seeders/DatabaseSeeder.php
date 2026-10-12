@@ -406,7 +406,7 @@ class DatabaseSeeder extends Seeder
            // Add-only; a specialist's own entries are never touched.
            FoodLibrarySeeder::class,
            MedicalProceduresSeeder::class,
-           DentalServicesSeeder::class,
+           SpecialtyServicesSeeder::class,
            TherapeuticExercisesSeeder::class,
 
             //  EgyptCountriesSeeder::class,

@@ -274,6 +274,55 @@ trailer<<>>
         $this->assertCount(0, InvestigationOrder::query()->findOrFail($id)->images()->get());
     }
 
+    public function test_a_scan_is_taken_as_dicom_checked_by_its_content_and_served_as_a_file(): void
+    {
+        [$doctor, $patient, $id] = $this->readyOrderWithPhoto();
+        $lab = User::query()->where('category_child_id', self::LAB)->latest('id')->firstOrFail();
+
+        // a real Part 10 file: a 128-byte preamble, then the DICM marker (named like a scanner names them: no extension)
+        $real = UploadedFile::fake()->createWithContent('IM0001', str_repeat("\0", 128) . 'DICM' . str_repeat("\x08", 64));
+        // a picture renamed .dcm is not a scan
+        $fake = UploadedFile::fake()->createWithContent('scan.dcm', 'GIF89a not dicom at all');
+
+        Sanctum::actingAs($lab);
+        $this->post("/api/v2/business/investigation-orders/{$id}/results", ['dicoms' => [$fake]], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+
+        $this->post("/api/v2/business/investigation-orders/{$id}/results", ['dicoms' => [$real]], ['Accept' => 'application/json'])
+            ->assertOk();
+
+        Sanctum::actingAs($patient);
+        $files = $this->getJson("/api/v2/investigation-orders/{$id}")->assertOk()->json('data.order.result_files');
+        $this->assertSame(['dicom', 'image'], collect($files)->pluck('type')->sort()->values()->all());
+
+        // handed over as a file for a DICOM viewer — never rendered inline
+        $dicom = collect($files)->firstWhere('type', 'dicom');
+        $response = $this->get($dicom['image'])->assertOk();
+        $response->assertHeader('Content-Type', 'application/dicom');
+        $this->assertStringContainsString('attachment', (string) $response->headers->get('Content-Disposition'));
+
+        // it leaves with the photos under the same retention rules
+        $this->postJson("/api/v2/investigation-orders/{$id}/saved")->assertOk();
+        Sanctum::actingAs($doctor);
+        $this->getJson("/api/v2/investigation-orders/{$id}")->assertOk();
+        app(\App\Services\Investigations\InvestigationOrderService::class)->purgeFiles(now()->addDays(5));
+        $this->assertCount(0, InvestigationOrder::query()->findOrFail($id)->images()->get());
+    }
+
+    public function test_a_centre_may_send_only_a_scan_as_its_result(): void
+    {
+        [, , $id] = $this->readyOrderWithPhoto();
+        $lab = User::query()->where('category_child_id', self::LAB)->latest('id')->firstOrFail();
+
+        Sanctum::actingAs($lab);
+        // nothing at all is still refused
+        $this->post("/api/v2/business/investigation-orders/{$id}/results", [], ['Accept' => 'application/json'])->assertStatus(422);
+
+        $real = UploadedFile::fake()->createWithContent('study.dcm', str_repeat("\0", 128) . 'DICM');
+        $this->post("/api/v2/business/investigation-orders/{$id}/results", ['dicoms' => [$real]], ['Accept' => 'application/json'])
+            ->assertOk();
+    }
+
     public function test_a_big_result_photo_is_shrunk_where_the_server_can_and_kept_as_it_came_where_it_cannot(): void
     {
         $uploads = app(\App\Services\Media\ImageUploadService::class);

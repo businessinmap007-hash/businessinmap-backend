@@ -178,6 +178,28 @@ final class ImageUploadService
     }
 
     /**
+     * Store a DICOM study file (a radiology centre's scan) privately, as it came. The content must really be DICOM —
+     * the 4-byte `DICM` marker at offset 128 of a Part 10 file — whatever the client called it (scanners name files
+     * `IM0001`, with no extension). Stored under a random `.dcm` name. The app does not render DICOM: the patient
+     * opens it in a viewer of their own.
+     */
+    public function storePrivateDicom(UploadedFile $file): string
+    {
+        $head = (string) @file_get_contents($file->getRealPath(), false, null, 128, 4);
+        abort_unless($head === 'DICM', 422, __('الملف المرفق ليس بصيغة DICOM.'));
+
+        $dir = self::privatePath(self::PRIVATE_DIR);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $name = Str::random(40).'.dcm';
+        $file->move($dir, $name);
+
+        return self::PRIVATE_DIR.'/'.$name;
+    }
+
+    /**
      * Store a PHOTO privately, shrunk: the longest side to [maxSide] px and re-encoded as JPEG at [quality] — a phone
      * photo of 3–8 MB becomes 150–400 KB. Where the server has no image library, or the file is not an image it can
      * read, it is stored as it came (the app already shrinks before uploading, so this is the second line).

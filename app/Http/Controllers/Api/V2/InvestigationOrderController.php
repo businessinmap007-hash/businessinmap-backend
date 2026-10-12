@@ -239,10 +239,13 @@ class InvestigationOrderController extends Controller
             'images.*' => ImageUploadService::validationRules(),
             'documents' => ['nullable', 'array', 'max:5'],
             'documents.*' => ['file', 'mimes:pdf', 'max:10240'],
+            // a scan: checked by content (the DICM marker), not by name or mime — 50 MB each
+            'dicoms' => ['nullable', 'array', 'max:20'],
+            'dicoms.*' => ['file', 'max:51200'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $row = $this->service->attachResults($row, $request->file('images', []), $data['note'] ?? null, $data['texts'] ?? [], $request->file('documents', []));
+        $row = $this->service->attachResults($row, $request->file('images', []), $data['note'] ?? null, $data['texts'] ?? [], $request->file('documents', []), $request->file('dicoms', []));
 
         return response()->json(['success' => true, 'data' => ['order' => $this->serialize($row->load(['patient:id,name', 'images']), $request->user())]]);
     }
@@ -263,6 +266,10 @@ class InvestigationOrderController extends Controller
         if (str_ends_with(strtolower($full), '.pdf')) {
             $headers['Content-Type'] = 'application/pdf';
             $headers['Content-Disposition'] = 'inline; filename="report.pdf"';
+        } elseif (str_ends_with(strtolower($full), '.dcm')) {
+            // never shown in a browser: handed over as a file for a DICOM viewer
+            $headers['Content-Type'] = 'application/dicom';
+            $headers['Content-Disposition'] = 'attachment; filename="study-' . $image . '.dcm"';
         }
 
         return response()->file($full, $headers);

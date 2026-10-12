@@ -148,6 +148,8 @@ final class BusinessPageController extends Controller
                 'social' => $this->socialLinks($model),
                 'rating' => $this->ratings->summaryFor((int) $model->id, UserOperationRating::ROLE_BUSINESS),
                 'open_now' => $this->hours->isOpenNow((int) $model->id),
+                // the week the business wrote (null while it has written none): «عن النشاط» shows it to the customer
+                'working_hours' => $this->workingHours((int) $model->id),
                 // «سبت واتنين واربعاء عيادة دمياط... حد وتلاتة وخميس عيادة
                 // القاهرة»: a doctor running more than one linked clinic
                 // account shows the whole group here, each with its own
@@ -216,6 +218,34 @@ final class BusinessPageController extends Controller
     }
 
     /** Mirrors AddressResource::nameOf() — id + both languages, not just one. */
+    /**
+     * The business's weekly opening hours as the customer reads them — null when it never wrote a week.
+     *
+     * @return array{timezone:string,days:list<array{day:int,is_closed:?bool,open:?string,close:?string}>}|null
+     */
+    private function workingHours(int $businessId): ?array
+    {
+        $rows = $this->hours->hoursFor($businessId);
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'timezone' => $this->hours->timezoneFor($businessId),
+            'days' => collect(\App\Services\BusinessHoursService::DAYS)->map(function (int $day) use ($rows) {
+                $row = $rows->get($day);
+
+                return [
+                    'day' => $day,
+                    'is_closed' => $row ? (bool) $row->is_closed : null,
+                    'open' => $row && $row->open_time ? substr((string) $row->open_time, 0, 5) : null,
+                    'close' => $row && $row->close_time ? substr((string) $row->close_time, 0, 5) : null,
+                ];
+            })->values()->all(),
+        ];
+    }
+
     private function nameOf(?Model $relation): ?array
     {
         if (! $relation) {

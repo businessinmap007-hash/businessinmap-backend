@@ -376,7 +376,7 @@ final class InvestigationOrderService
      * @param  list<UploadedFile>  $files
      * @param  array<int|string,string|null>  $texts  item id => the result as written
      */
-    public function attachResults(InvestigationOrder $order, array $files, ?string $note, array $texts = [], array $documents = []): InvestigationOrder
+    public function attachResults(InvestigationOrder $order, array $files, ?string $note, array $texts = [], array $documents = [], array $dicoms = []): InvestigationOrder
     {
         $this->assertStatus($order, [InvestigationOrder::STATUS_ACCEPTED, InvestigationOrder::STATUS_READY]);
 
@@ -394,11 +394,11 @@ final class InvestigationOrderService
             $written[(int) $itemId] = $text;
         }
 
-        if ($written === [] && $files === [] && $documents === []) {
+        if ($written === [] && $files === [] && $documents === [] && $dicoms === []) {
             throw ValidationException::withMessages(['texts' => __('اكتب نتيجة فحص واحد على الأقل أو أرفق صورة أو ملف PDF.')]);
         }
 
-        DB::transaction(function () use ($order, $files, $documents, $note, $written) {
+        DB::transaction(function () use ($order, $files, $documents, $dicoms, $note, $written) {
             foreach ($written as $itemId => $text) {
                 $order->items->firstWhere('id', $itemId)?->update(['result_text' => $text]);
             }
@@ -415,6 +415,14 @@ final class InvestigationOrderService
                 // a printed report (PDF) as it came — no shrinking; deleted with the photos under the same rules
                 $order->images()->create([
                     'image' => app(ImageUploadService::class)->storePrivateDocument($document),
+                    'source' => Image::SOURCE_UPLOAD, 'purpose' => InvestigationOrder::PURPOSE_RESULT,
+                ]);
+            }
+
+            foreach ($dicoms as $dicom) {
+                // a scan as the machine wrote it: opened in a DICOM viewer, never shrunk or re-encoded
+                $order->images()->create([
+                    'image' => app(ImageUploadService::class)->storePrivateDicom($dicom),
                     'source' => Image::SOURCE_UPLOAD, 'purpose' => InvestigationOrder::PURPOSE_RESULT,
                 ]);
             }

@@ -95,13 +95,20 @@ class InvestigationOrder extends Model
         return InvestigationFileUrl::for($image);
     }
 
-    /** @return list<array{id:int,image:string,type:string}> `type` is `pdf` for a printed report, `image` otherwise */
+    /**
+     * @return list<array{id:int,image:string,type:string}> `type` is `pdf` for a printed report, `dicom` for a scan
+     *         (opened in a viewer outside the app), `image` otherwise
+     */
     public function filesOf(string $purpose): array
     {
-        return $this->images->where('purpose', $purpose)->map(fn (Image $i) => [
-            'id' => (int) $i->id,
-            'image' => $this->imageAddress($i),
-            'type' => str_ends_with(strtolower((string) $i->image), '.pdf') ? 'pdf' : 'image',
-        ])->values()->all();
+        return $this->images->where('purpose', $purpose)->map(function (Image $i) {
+            $path = strtolower((string) $i->image);
+
+            return [
+                'id' => (int) $i->id,
+                'image' => $this->imageAddress($i),
+                'type' => str_ends_with($path, '.pdf') ? 'pdf' : (str_ends_with($path, '.dcm') ? 'dicom' : 'image'),
+            ];
+        })->values()->all();
     }
 }

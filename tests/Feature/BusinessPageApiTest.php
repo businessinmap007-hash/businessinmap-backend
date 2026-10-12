@@ -94,6 +94,27 @@ class BusinessPageApiTest extends TestCase
         $this->getJson('/api/v2/businesses/' . $this->biz->id)->assertOk()->assertJsonPath('data.sections.booking', false);
     }
 
+    public function test_the_business_page_carries_the_week_the_business_wrote(): void
+    {
+        // none written yet → null, so the client simply shows no hours card
+        $this->getJson('/api/v2/businesses/' . $this->biz->id)->assertOk()->assertJsonPath('data.working_hours', null);
+
+        $hours = app(\App\Services\BusinessHoursService::class);
+        $hours->save($this->biz->id, [
+            ['day' => 0, 'is_closed' => false, 'open' => '10:00', 'close' => '22:00'],
+            ['day' => 5, 'is_closed' => true],
+        ]);
+
+        $page = $this->getJson('/api/v2/businesses/' . $this->biz->id)->assertOk();
+        $page->assertJsonPath('data.working_hours.timezone', 'Africa/Cairo');
+        $page->assertJsonCount(7, 'data.working_hours.days');
+        $page->assertJsonPath('data.working_hours.days.0.open', '10:00');
+        $page->assertJsonPath('data.working_hours.days.0.close', '22:00');
+        $page->assertJsonPath('data.working_hours.days.5.is_closed', true);
+        // a day the business never wrote is unknown, not closed
+        $page->assertJsonPath('data.working_hours.days.2.is_closed', null);
+    }
+
     public function test_the_business_page_includes_governorate_and_city_names(): void
     {
         $city = \App\Models\City::query()->whereNotNull('governorate_id')->firstOrFail();

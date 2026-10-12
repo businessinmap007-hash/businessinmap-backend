@@ -86,6 +86,27 @@ class CustomerProjectFollowTest extends TestCase
         $this->assertSame('camera', $res->json('data.tasks.0.photos.0.source'));
     }
 
+    public function test_a_booking_says_whether_it_has_a_timeline_so_the_button_shows_only_then(): void
+    {
+        Sanctum::actingAs($this->client);
+        $this->getJson("/api/v2/bookings/{$this->booking->id}")->assertOk()->assertJsonPath('data.booking.has_project', false);
+
+        Sanctum::actingAs($this->business);
+        $this->postJson('/api/v2/business/projects', [
+            'title' => 'Bedroom set build',
+            'operation_type' => 'booking',
+            'operation_id' => $this->booking->id,
+        ])->assertCreated();
+
+        Sanctum::actingAs($this->client);
+        $this->getJson("/api/v2/bookings/{$this->booking->id}")->assertOk()->assertJsonPath('data.booking.has_project', true);
+
+        // and in the list the customer reads
+        $row = collect($this->getJson('/api/v2/bookings?scope=client&per_page=100')->assertOk()->json('data.bookings.data'))
+            ->firstWhere('id', (int) $this->booking->id);
+        $this->assertTrue($row === null || $row['has_project'] === true);
+    }
+
     public function test_a_stranger_cannot_read_the_operations_progress(): void
     {
         Sanctum::actingAs($this->business);

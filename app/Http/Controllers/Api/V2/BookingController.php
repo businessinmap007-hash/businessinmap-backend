@@ -1270,6 +1270,9 @@ final class BookingController extends Controller
         if ($subject instanceof Booking) {
             $notices = \App\Services\ArrivalNotice::forBusinesses([(int) $subject->business_id]);
             $subject->setAttribute('arrival_notice', $notices[(int) $subject->business_id] ?? null);
+            // «متابعة التنفيذ» is offered only when the business actually linked a timeline to this booking
+            $subject->setAttribute('has_project', \App\Models\Project::query()
+                ->where('operation_type', (new Booking())->getMorphClass())->where('operation_id', (int) $subject->id)->exists());
             $subject->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($subject));
             $subject->setAttribute('chair', $subject->chair_id ? optional(\App\Models\ServiceChair::query()->with('staff:id,name,logo')->find($subject->chair_id))->payload() : null);
 
@@ -1279,8 +1282,12 @@ final class BookingController extends Controller
         $items = $subject instanceof \Illuminate\Contracts\Pagination\Paginator ? $subject->getCollection() : $subject;
         $notices = \App\Services\ArrivalNotice::forBusinesses($items->pluck('business_id')->all());
         $chairsById = \App\Models\ServiceChair::query()->with('staff:id,name,logo')->whereIn('id', $items->pluck('chair_id')->filter()->unique()->all())->get()->keyBy('id');
-        $items->each(function (Booking $booking) use ($notices, $chairsById) {
+        $withProject = \App\Models\Project::query()
+            ->where('operation_type', (new Booking())->getMorphClass())->whereIn('operation_id', $items->pluck('id')->all())
+            ->pluck('operation_id')->map(fn ($id) => (int) $id)->flip();
+        $items->each(function (Booking $booking) use ($notices, $chairsById, $withProject) {
             $booking->setAttribute('arrival_notice', $notices[(int) $booking->business_id] ?? null);
+            $booking->setAttribute('has_project', $withProject->has((int) $booking->id));
             $booking->setAttribute('chair', $booking->chair_id ? optional($chairsById->get($booking->chair_id))->payload() : null);
             $booking->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($booking));
             $this->hideRoomInternals($booking->append('title'));

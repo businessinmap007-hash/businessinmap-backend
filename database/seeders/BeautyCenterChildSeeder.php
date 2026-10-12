@@ -57,10 +57,23 @@ class BeautyCenterChildSeeder extends Seeder
 
     private const LINE_GROUP = 'خدمات الكوافير والتجميل';
 
-    /** What a centre sells that a hairdresser's list never had. */
+    /**
+     * What a centre sells that a hairdresser's list never had.
+     *
+     * «تنظيف أسنان» / «تبييض أسنان» are NOT here, by the owner's ruling (2026-10-12): teeth cleaning is a dental clinic's
+     * service, never a beauty centre's — and nothing in this list is a medical procedure (no botox, fillers or
+     * mesotherapy: those are a dermatology clinic's).
+     */
     private const NEW_LINES = [
         'مساج وتدليك' => 'Massage',
         'تنظيف بشرة وفيشل' => 'Facial cleansing',
+        'ليزر لإزالة الشعر' => 'Laser hair removal',
+        'تقشير بشرة' => 'Skin peeling',
+        'تشكيل وتنظيف الحواجب' => 'Eyebrow shaping',
+        'ميكروبليدنج وتاتو حواجب' => 'Microblading',
+        'علاج وتغذية الشعر' => 'Hair treatment and nourishing',
+        'ساونا وجاكوزي' => 'Sauna and jacuzzi',
+        'تنحيف وشد الجسم' => 'Body slimming and contouring',
     ];
 
     /** Men's barbering: a barber's own words, not a centre's. */

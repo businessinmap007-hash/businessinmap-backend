@@ -53,8 +53,15 @@ class BeautyCenterChildTest extends TestCase
         $this->assertContains('مانيكير وباديكير', $lines);
         $this->assertContains('تركيب أظافر', $lines);
         $this->assertContains('حمام مغربي وسبا', $lines);
-        $this->assertContains('مساج وتدليك', $lines);
-        $this->assertContains('تنظيف بشرة وفيشل', $lines);
+        foreach (['مساج وتدليك', 'تنظيف بشرة وفيشل', 'ليزر لإزالة الشعر', 'تقشير بشرة', 'تشكيل وتنظيف الحواجب',
+            'ميكروبليدنج وتاتو حواجب', 'علاج وتغذية الشعر', 'ساونا وجاكوزي', 'تنحيف وشد الجسم'] as $name) {
+            $this->assertContains($name, $lines);
+        }
+
+        // teeth cleaning is a dental clinic's service — never offered by a beauty centre
+        foreach ($lines as $name) {
+            $this->assertStringNotContainsString('أسنان', $name);
+        }
 
         $this->assertNotContains('حلاقة ذقن وتهذيب', $lines);
         $this->assertNotContains('عناية بالشعر للرجال', $lines);
@@ -66,7 +73,7 @@ class BeautyCenterChildTest extends TestCase
 
         $group = (int) DB::table('option_groups')->where('name_ar', 'خدمات الكوافير والتجميل')->value('id');
 
-        foreach (['مساج وتدليك', 'تنظيف بشرة وفيشل'] as $name) {
+        foreach (['مساج وتدليك', 'تنظيف بشرة وفيشل', 'ليزر لإزالة الشعر', 'ساونا وجاكوزي'] as $name) {
             $this->assertSame($group, (int) DB::table('options')->where('name_ar', $name)->value('group_id'));
         }
     }
@@ -125,6 +132,6 @@ class BeautyCenterChildTest extends TestCase
 
         $this->assertSame($links, DB::table('category_child_option')->where('child_id', $first)->count());
         $this->assertSame(1, DB::table('category_children_master')->where('name_ar', 'مركز تجميل وسبا')->count());
-        $this->assertSame(2, DB::table('options')->whereIn('name_ar', ['مساج وتدليك', 'تنظيف بشرة وفيشل'])->count());
+        $this->assertSame(1, DB::table('options')->where('name_ar', 'مساج وتدليك')->count());
     }
 }

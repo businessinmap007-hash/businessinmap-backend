@@ -690,6 +690,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('can:' . AdminAbility::SETTINGS)->group(function () {
             Route::get('chat-access-settings', [ChatAccessSettingsController::class, 'edit'])->name('chat-access-settings.edit');
             Route::put('chat-access-settings', [ChatAccessSettingsController::class, 'update'])->name('chat-access-settings.update');
+
+            // The platform's timezone and a picture of the server it runs on.
+            Route::get('platform-settings', [\App\Http\Controllers\AdminV2\PlatformSettingsController::class, 'edit'])->name('platform-settings.edit');
+            Route::put('platform-settings', [\App\Http\Controllers\AdminV2\PlatformSettingsController::class, 'update'])->name('platform-settings.update');
         });
 
         // Who may do what. Its own ability, NOT SETTINGS: whoever can hand out

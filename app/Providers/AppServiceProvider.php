@@ -25,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
         // per linked post.
         $this->app->singleton(PostSubjectService::class);
 
+        // the zone an admin chose on «إعدادات المنصة» (a file: it must be known before the DB clock is pinned below)
+        \App\Support\PlatformSettings::applyTimezone();
+
         $this->pinDatabaseClock();
     }
 

@@ -158,7 +158,8 @@ class ClinicAppointmentController extends Controller
             'duration_minutes' => (int) $s->duration_minutes,
             // What the patient is booking, not just how long it takes.
             'visit_kind' => $s->servicePrice?->offeringLabel($s->servicePrice->bookable_item_type),
-            'price' => $s->servicePrice?->price,
+            // a number, not the decimal's string: the app reads it as one
+            'price' => $s->servicePrice !== null ? (float) $s->servicePrice->price : null,
         ]);
 
         return response()->json(['success' => true, 'data' => $rows]);

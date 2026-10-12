@@ -406,6 +406,28 @@ class SpecialtyServicesTest extends TestCase
 
     // ───────────────────────── the seeder ─────────────────────────
 
+    public function test_a_slots_price_is_a_number_not_a_string(): void
+    {
+        $clinic = $this->skin();
+        $priceId = (int) \App\Models\BusinessServicePrice::query()->create([
+            'business_id' => $clinic->id, 'service_id' => (int) DB::table('platform_services')->where('key', 'booking')->value('id'),
+            'child_id' => 514, 'bookable_item_type' => 'booking_examination', 'line_option_id' => 0, 'price' => 400,
+            'currency' => 'EGP', 'is_active' => 1, 'duration_minutes' => 30,
+        ])->id;
+
+        ClinicAppointmentSlot::create([
+            'clinic_id' => $clinic->id, 'starts_at' => now()->addDays(2)->setHour(11)->setMinute(0)->setSecond(0),
+            'duration_minutes' => 30, 'service_price_id' => $priceId,
+        ]);
+
+        Sanctum::actingAs($this->patient());
+        $row = $this->getJson("/api/v2/clinics/{$clinic->id}/slots")->assertOk()->json('data.data.0');
+
+        // JSON has one number type: 400, never «400.00»
+        $this->assertFalse(is_string($row['price']));
+        $this->assertEquals(400, $row['price']);
+    }
+
     public function test_the_seeder_is_add_only_idempotent_and_refiles_by_name(): void
     {
         $before = SpecialtyService::query()->whereNull('owner_id')->count();

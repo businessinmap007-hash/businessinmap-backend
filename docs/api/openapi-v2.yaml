@@ -5180,7 +5180,7 @@ paths:
   /business/hospital-invitations/{row}:
     delete: { tags: [HospitalDoctors], summary: 'Decline an invitation, or leave a department the doctor is listed under.', parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /hospitals/{hospital}/procedures:
-    get: { tags: [HospitalProcedures], summary: 'What a hospital offers, by kind (surgery / endoscopy / procedure): {id (the offering a patient asks for), name, price (null = after assessment), notes}. 404 for a business that is not a hospital or medical centre.', parameters: [{ name: hospital, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    get: { tags: [HospitalProcedures], summary: 'What a hospital offers, by kind (a surgical specialty — surgery, orthopedic, obstetrics, urology, ent, ophthalmology, cardiac, neuro, plastic, pediatric, oncology, bariatric, maxillofacial — then endoscopy and procedure): {id (the offering a patient asks for), name, price (null = after assessment), notes}. 404 for a business that is not a hospital or medical centre.', parameters: [{ name: hospital, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /procedure-requests:
     get: { tags: [HospitalProcedures], summary: "The caller's own procedure requests as a patient (paginated, newest first).", responses: { '200': { description: OK } } }
     post: { tags: [HospitalProcedures], summary: 'Ask a hospital for a procedure it offers — {hospital_procedure_id, preferred_date?, notes?}. The name and price are kept as asked.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
@@ -5190,7 +5190,7 @@ paths:
     get: { tags: [HospitalProcedures], summary: "The hospital's own view: the platform list and its own entries by kind, each with `offered` and its price.", responses: { '200': { description: OK }, '403': { description: 'Not a hospital or medical centre' } } }
     put: { tags: [HospitalProcedures], summary: "Save what the hospital offers — {items: [{procedure_id, offered, price|null}]}. Only the platform's list and the hospital's own entries are accepted.", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/hospital-procedures/custom:
-    post: { tags: [HospitalProcedures], summary: "Add a procedure the platform list does not have — {kind: surgery|endoscopy|procedure, name}; visible to this hospital alone and offered at once.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [HospitalProcedures], summary: "Add a procedure the platform list does not have — {kind: any of the kinds above, name}; visible to this hospital alone and offered at once.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/hospital-procedures/custom/{procedure}:
     delete: { tags: [HospitalProcedures], summary: "Remove one of the hospital's own entries (404 for the platform list or another hospital's).", parameters: [{ name: procedure, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
   /business/procedure-requests:

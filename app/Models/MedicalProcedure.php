@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * One surgery, endoscopy or treatment procedure. `owner_id` NULL is the platform's list a hospital picks from; a hospital's
+ * One operation, endoscopy or treatment procedure, filed under its specialty (`kind`). `owner_id` NULL is the platform's list a hospital picks from; a hospital's
  * own entry (`owner_id` set) is seen and offered by that hospital alone — see the create migration.
  */
 class MedicalProcedure extends Model
@@ -15,7 +15,14 @@ class MedicalProcedure extends Model
     public const KIND_ENDOSCOPY = 'endoscopy';
     public const KIND_PROCEDURE = 'procedure';
 
-    public const KINDS = [self::KIND_SURGERY, self::KIND_ENDOSCOPY, self::KIND_PROCEDURE];
+    /**
+     * In the order a patient reads them: the surgical specialties (`surgery` is the general one), then the endoscopies
+     * and the treatment procedures. A hospital picks what it performs from each and may add its own under any.
+     */
+    public const KINDS = [
+        self::KIND_SURGERY, 'orthopedic', 'obstetrics', 'urology', 'ent', 'ophthalmology', 'cardiac', 'neuro',
+        'plastic', 'pediatric', 'oncology', 'bariatric', 'maxillofacial', self::KIND_ENDOSCOPY, self::KIND_PROCEDURE,
+    ];
 
     protected $fillable = ['kind', 'name_ar', 'name_en', 'owner_id', 'sort_order'];
 

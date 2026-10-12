@@ -213,4 +213,103 @@ class HospitalProceduresTest extends TestCase
         $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['for_name' => '   '])
             ->assertCreated()->assertJsonPath('data.appointment.attendee', null);
     }
+
+    public function test_the_list_covers_the_known_specialties_and_every_kind_has_operations(): void
+    {
+        $perKind = MedicalProcedure::query()->whereNull('owner_id')->selectRaw('kind, count(*) as n')->groupBy('kind')->pluck('n', 'kind');
+
+        foreach (MedicalProcedure::KINDS as $kind) {
+            $this->assertGreaterThanOrEqual(4, (int) ($perKind[$kind] ?? 0), $kind);
+        }
+
+        // the operations a hospital is asked about most
+        foreach (['ولادة طبيعية', 'استئصال البروستاتا', 'تغيير صمام القلب', 'زراعة القرنية', 'تحويل مسار المعدة', 'تجميل الأنف', 'استئصال الثدي'] as $name) {
+            $this->platform($name);
+        }
+
+        // no half-filled rows
+        $this->assertSame(0, MedicalProcedure::query()->whereNull('owner_id')->where(fn ($q) => $q->whereNull('name_en')->orWhere('name_en', ''))->count());
+    }
+
+    public function test_the_first_rows_kept_their_ids_and_moved_to_their_specialty(): void
+    {
+        $filed = [
+            'ولادة قيصرية' => 'obstetrics',
+            'عملية المياه البيضاء' => 'ophthalmology',
+            'تغيير مفصل الركبة' => 'orthopedic',
+            'استئصال اللوزتين' => 'ent',
+            'جراحة القلب المفتوح' => 'cardiac',
+            'جراحة الانزلاق الغضروفي' => 'neuro',
+            'جراحة السمنة (تكميم المعدة)' => 'bariatric',
+            'استئصال الزائدة الدودية' => 'surgery',
+            'منظار المعدة' => 'endoscopy',
+        ];
+
+        foreach ($filed as $name => $kind) {
+            $row = MedicalProcedure::query()->whereNull('owner_id')->where('name_ar', $name)->first();
+            $this->assertNotNull($row, $name);
+            $this->assertSame($kind, $row->kind, $name);
+            $this->assertSame(1, MedicalProcedure::query()->whereNull('owner_id')->where('name_ar', $name)->count(), 'never twice: ' . $name);
+        }
+    }
+
+    public function test_the_seeder_refiles_a_row_by_name_and_keeps_what_a_hospital_chose(): void
+    {
+        $hospital = $this->hospital();
+        $cesarean = $this->platform('ولادة قيصرية');
+
+        // as an older run left it: under the old general kind, already offered by a hospital with its price
+        MedicalProcedure::query()->whereKey($cesarean)->update(['kind' => 'surgery']);
+        Sanctum::actingAs($hospital);
+        $this->putJson('/api/v2/business/hospital-procedures', ['items' => [['procedure_id' => $cesarean, 'offered' => true, 'price' => 20000]]])->assertOk();
+
+        $this->seed(\Database\Seeders\MedicalProceduresSeeder::class);
+
+        $row = MedicalProcedure::query()->find($cesarean);
+        $this->assertSame('obstetrics', $row->kind);
+        $this->assertSame(1, MedicalProcedure::query()->whereNull('owner_id')->where('name_ar', 'ولادة قيصرية')->count());
+
+        $kinds = collect($this->getJson('/api/v2/business/hospital-procedures')->assertOk()->json('data.kinds'));
+        $entry = collect($kinds->firstWhere('kind', 'obstetrics')['procedures'])->firstWhere('id', $cesarean);
+        $this->assertTrue($entry['offered']);
+        $this->assertEquals(20000, $entry['price']);
+
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, null, 'Patient'));
+        $seen = collect($this->getJson("/api/v2/hospitals/{$hospital->id}/procedures")->assertOk()->json('data.kinds'));
+        $this->assertSame(['obstetrics'], $seen->pluck('kind')->all());
+    }
+
+    public function test_a_hospital_picks_across_specialties_and_a_patient_reads_them_in_order(): void
+    {
+        $hospital = $this->hospital();
+        $ids = [
+            $this->platform('جراحة القلب المفتوح'),
+            $this->platform('ولادة طبيعية'),
+            $this->platform('استئصال الزائدة الدودية'),
+            $this->platform('غسيل كلى'),
+        ];
+
+        Sanctum::actingAs($hospital);
+        $this->putJson('/api/v2/business/hospital-procedures', ['items' => array_map(fn ($id) => ['procedure_id' => $id, 'offered' => true], $ids)])->assertOk();
+
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, null, 'Patient'));
+        $seen = collect($this->getJson("/api/v2/hospitals/{$hospital->id}/procedures")->assertOk()->json('data.kinds'))->pluck('kind')->all();
+
+        // the order of MedicalProcedure::KINDS, not alphabetical
+        $this->assertSame(['surgery', 'obstetrics', 'cardiac', 'procedure'], $seen);
+    }
+
+    public function test_a_hospital_adds_its_own_operation_under_a_new_specialty_and_an_unknown_one_is_refused(): void
+    {
+        $hospital = $this->hospital();
+
+        Sanctum::actingAs($hospital);
+        $this->postJson('/api/v2/business/hospital-procedures/custom', ['kind' => 'ophthalmology', 'name' => 'عملية خاصة بالعين'])->assertCreated();
+        $this->postJson('/api/v2/business/hospital-procedures/custom', ['kind' => 'astrology', 'name' => 'x'])->assertStatus(422);
+
+        $kinds = collect($this->getJson('/api/v2/business/hospital-procedures')->json('data.kinds'));
+        $own = collect($kinds->firstWhere('kind', 'ophthalmology')['procedures'])->firstWhere('name', 'عملية خاصة بالعين');
+        $this->assertTrue($own['own']);
+        $this->assertTrue($own['offered']);
+    }
 }

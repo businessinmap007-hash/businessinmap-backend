@@ -1185,7 +1185,8 @@ class BookingController extends Controller
         $data['all_day'] = (int) $request->boolean('all_day');
 
         if (empty($data['timezone'])) {
-            $data['timezone'] = 'Africa/Cairo';
+            // the platform's own zone (Cairo unless an admin moved it), not a hard-coded one
+            $data['timezone'] = (string) config('app.timezone');
         }
 
         $data['meta'] = is_array($request->input('meta')) ? $request->input('meta') : [];
@@ -1227,8 +1228,11 @@ class BookingController extends Controller
                 };
             }
 
-            $data['starts_at'] = $start->copy()->utc();
-            $data['ends_at'] = $end ? $end->copy()->utc() : null;
+            // A booking's start is the shop's wall clock — the same digits the app writes and every reader compares
+            // with WallClock::now(). It used to be converted to UTC here, so a booking made from this screen sat
+            // three hours away from one made from the app and from the grids that read it.
+            $data['starts_at'] = $start->copy();
+            $data['ends_at'] = $end ? $end->copy() : null;
             $data['date'] = $start->toDateString();
             $data['time'] = $start->format('H:i:s');
 

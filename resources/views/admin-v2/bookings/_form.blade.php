@@ -29,7 +29,8 @@
         }
     }
 
-    $bookingTimezone = 'Africa/Cairo';
+    // the zone this booking's wall-clock times are written in (its own, else the platform's)
+    $bookingTimezone = ($booking->timezone ?? null) ?: config('app.timezone');
 
     $parseDate = function ($value, $fallback = null, ?string $timezone = null) {
         if (!$value) {
@@ -54,7 +55,7 @@
     if (old('starts_at')) {
         $startCarbon = $parseDate(old('starts_at'), null, null);
     } elseif (! empty($booking->starts_at)) {
-        $startCarbon = $parseDate($booking->starts_at, null, $bookingTimezone);
+        $startCarbon = $parseDate($booking->starts_at, null, null);
     } else {
         $startCarbon = $parseDate(
             old('date', $booking->date ?? null),
@@ -70,7 +71,7 @@
     if (old('ends_at')) {
         $endCarbon = $parseDate(old('ends_at'), null, null);
     } elseif (! empty($booking->ends_at)) {
-        $endCarbon = $parseDate($booking->ends_at, null, $bookingTimezone);
+        $endCarbon = $parseDate($booking->ends_at, null, null);
     } else {
         $endCarbon = null;
     }

@@ -1748,7 +1748,7 @@ paths:
   /business/working-hours:
     get:
       tags: [Business Hours]
-      summary: My weekly opening hours + whether I'm open now
+      summary: My weekly opening hours + whether I'm open now (each day carries is_24h)
       responses: { '200': { description: OK } }
     put:
       tags: [Business Hours]
@@ -1775,6 +1775,7 @@ paths:
                     properties:
                       day: { type: integer, minimum: 0, maximum: 6 }
                       is_closed: { type: boolean }
+                      is_24h: { type: boolean, description: 'Open the whole day (stored as 00:00-23:59:59; sending open 00:00 and close 23:59 means the same)' }
                       open: { type: string, example: '09:00' }
                       close: { type: string, example: '22:00' }
       responses:

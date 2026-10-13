@@ -123,6 +123,67 @@ class BusinessHoursTest extends TestCase
             ->assertJsonPath('data.business.is_open_now', true);
     }
 
+    public function test_a_day_open_all_day_is_open_at_every_moment_and_says_so(): void
+    {
+        $shop = $this->makeBusiness();
+        Sanctum::actingAs($shop);
+
+        // the flag, the way the app writes it
+        $this->putJson('/api/v2/business/working-hours', ['bulk' => ['all' => true, 'is_24h' => true]])
+            ->assertOk()
+            ->assertJsonPath('data.days.0.is_24h', true)
+            ->assertJsonPath('data.days.6.is_24h', true);
+
+        foreach (['00:00:00', '03:15:00', '12:00:00', '23:59:30'] as $time) {
+            $this->assertTrue(
+                $this->hours->isOpenNow($shop->id, Carbon::parse('2026-07-27 ' . $time)),
+                "open all day must be open at {$time}"
+            );
+        }
+
+        // the search filter agrees, at the very end of the day too
+        $ids = User::query()->whereKey($shop->id)
+            ->tap(fn ($q) => $this->hours->filterOpenNow($q, Carbon::parse('2026-07-27 23:59:00')))
+            ->pluck('id')->all();
+        $this->assertSame([(int) $shop->id], array_map('intval', $ids));
+
+        // a booking window anywhere in the day fits
+        $this->assertTrue($this->hours->isOpenThroughout(
+            $shop->id,
+            Carbon::parse('2026-07-27 02:00:00'),
+            Carbon::parse('2026-07-27 05:30:00')
+        ));
+    }
+
+    public function test_a_plain_00_00_to_23_59_is_read_as_open_all_day(): void
+    {
+        $shop = $this->makeBusiness();
+        Sanctum::actingAs($shop);
+
+        // the web panel's time fields cannot say "24 hours" — 00:00 to 23:59 is how it asks
+        $this->putJson('/api/v2/business/working-hours', [
+            'days' => [
+                ['day' => 2, 'open' => '00:00', 'close' => '23:59'],
+                ['day' => 3, 'open' => '09:00', 'close' => '17:00'],
+            ],
+        ])->assertOk();
+
+        $days = collect($this->getJson('/api/v2/business/working-hours')->assertOk()->json('data.days'))->keyBy('day');
+        $this->assertTrue($days[2]['is_24h']);
+        $this->assertFalse($days[3]['is_24h']);
+        $this->assertSame('09:00', $days[3]['open']);
+
+        // the customer's page carries it too
+        $pub = collect($this->getJson('/api/v2/businesses/' . $shop->id)->assertOk()->json('data.working_hours.days'))->keyBy('day');
+        $this->assertTrue($pub[2]['is_24h']);
+        $this->assertFalse($pub[3]['is_24h']);
+
+        // and a day edited back to a normal window is no longer all day
+        $this->putJson('/api/v2/business/working-hours', ['days' => [['day' => 2, 'open' => '08:00', 'close' => '20:00']]])->assertOk();
+        $again = collect($this->getJson('/api/v2/business/working-hours')->json('data.days'))->keyBy('day');
+        $this->assertFalse($again[2]['is_24h']);
+    }
+
     public function test_a_business_sets_and_reads_its_own_hours(): void
     {
         $shop = $this->makeBusiness();

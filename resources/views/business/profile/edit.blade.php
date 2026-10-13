@@ -176,6 +176,9 @@
 
             <button type="button" class="a2-btn" id="bh_apply">{{ __('طبّق على الأسبوع') }}</button>
 
+            {{-- «مفتوح 24 ساعة»: 00:00 – 23:59 على كل يوم غير مغلق — الخادم يحفظه يومًا كاملًا. يملأ ولا يحفظ. --}}
+            <button type="button" class="a2-btn" id="bh_24h">{{ __('مفتوح 24 ساعة') }}</button>
+
             <span class="a2-hint">{{ __('يملأ الجدول فقط — عدّل أي يوم بعدها، ثم احفظ.') }}</span>
         </div>
 
@@ -259,6 +262,23 @@
                 }
             });
         });
+
+        var all = document.getElementById('bh_24h');
+
+        if (all) {
+            all.addEventListener('click', function () {
+                document.querySelectorAll('.bh-row').forEach(function (row) {
+                    var closed = row.querySelector('.bh-closed');
+
+                    if (closed && closed.checked) {
+                        return;
+                    }
+
+                    row.querySelector('.bh-open').value = '00:00';
+                    row.querySelector('.bh-close').value = '23:59';
+                });
+            });
+        }
 
         // …ويبهت اليومُ لحظةَ تحديده مغلقًا، لا بعد الحفظ.
         document.querySelectorAll('.bh-closed').forEach(function (box) {

@@ -32,6 +32,7 @@ class BusinessHoursController extends Controller
                 'is_closed' => $row ? (bool) $row->is_closed : null,
                 'open' => $row && $row->open_time ? substr((string) $row->open_time, 0, 5) : null,
                 'close' => $row && $row->close_time ? substr((string) $row->close_time, 0, 5) : null,
+                'is_24h' => $row ? BusinessHoursService::isAllDay((string) $row->open_time, (string) $row->close_time) : false,
             ];
         })->values();
 
@@ -59,6 +60,7 @@ class BusinessHoursController extends Controller
             'days' => ['nullable', 'array', 'max:7'],
             'days.*.day' => ['required_with:days', 'integer', 'between:0,6'],
             'days.*.is_closed' => ['nullable', 'boolean'],
+            'days.*.is_24h' => ['nullable', 'boolean'],
             'days.*.open' => ['nullable', 'date_format:H:i'],
             'days.*.close' => ['nullable', 'date_format:H:i'],
 
@@ -67,6 +69,7 @@ class BusinessHoursController extends Controller
             'bulk.days' => ['nullable', 'array'],
             'bulk.days.*' => ['integer', 'between:0,6'],
             'bulk.is_closed' => ['nullable', 'boolean'],
+            'bulk.is_24h' => ['nullable', 'boolean'],
             'bulk.open' => ['nullable', 'date_format:H:i'],
             'bulk.close' => ['nullable', 'date_format:H:i'],
 
@@ -91,6 +94,7 @@ class BusinessHoursController extends Controller
                 $entries[] = [
                     'day' => (int) $day,
                     'is_closed' => (bool) ($bulk['is_closed'] ?? false),
+                    'is_24h' => (bool) ($bulk['is_24h'] ?? false),
                     'open' => $bulk['open'] ?? null,
                     'close' => $bulk['close'] ?? null,
                 ];

@@ -227,7 +227,7 @@ final class BusinessPageController extends Controller
     /**
      * The business's weekly opening hours as the customer reads them — null when it never wrote a week.
      *
-     * @return array{timezone:string,days:list<array{day:int,is_closed:?bool,open:?string,close:?string}>}|null
+     * @return array{timezone:string,days:list<array{day:int,is_closed:?bool,open:?string,close:?string,is_24h:bool}>}|null
      */
     private function workingHours(int $businessId): ?array
     {
@@ -247,6 +247,7 @@ final class BusinessPageController extends Controller
                     'is_closed' => $row ? (bool) $row->is_closed : null,
                     'open' => $row && $row->open_time ? substr((string) $row->open_time, 0, 5) : null,
                     'close' => $row && $row->close_time ? substr((string) $row->close_time, 0, 5) : null,
+                    'is_24h' => $row ? \App\Services\BusinessHoursService::isAllDay((string) $row->open_time, (string) $row->close_time) : false,
                 ];
             })->values()->all(),
         ];

@@ -21,6 +21,22 @@ class BusinessHoursService
     /** 0..6 = Sunday..Saturday, matching Carbon::dayOfWeek. */
     public const DAYS = [0, 1, 2, 3, 4, 5, 6];
 
+    /**
+     * «مفتوح 24 ساعة»: a day open the whole day is stored as the window 00:00:00 – 23:59:59, so every consumer that
+     * reads open_time/close_time (search, booking grids, queues) keeps working with no second representation. The
+     * last second of the day is the only instant a naive reading would call closed; {@see withinWindow()} closes it.
+     */
+    public const ALL_DAY_OPEN = '00:00:00';
+    public const ALL_DAY_CLOSE = '23:59:59';
+
+    /** Is this stored window the all-day one? */
+    public static function isAllDay(?string $open, ?string $close): bool
+    {
+        return $open !== null && $close !== null
+            && substr($open, 0, 8) === self::ALL_DAY_OPEN
+            && substr($close, 0, 5) === '23:59';
+    }
+
     /** @return Collection<int,BusinessWorkingHour> keyed by day_of_week */
     public function hoursFor(int $businessId): Collection
     {
@@ -49,6 +65,12 @@ class BusinessHoursService
             $closed = (bool) ($entry['is_closed'] ?? false);
             $open = $closed ? null : $this->normalize($entry['open'] ?? null);
             $close = $closed ? null : $this->normalize($entry['close'] ?? null);
+
+            // all day: the flag, or the 00:00 – 23:59 a plain time field writes
+            if (! $closed && (! empty($entry['is_24h']) || ($open === '00:00:00' && $close === '23:59:00'))) {
+                $open = self::ALL_DAY_OPEN;
+                $close = self::ALL_DAY_CLOSE;
+            }
 
             BusinessWorkingHour::query()->updateOrCreate(
                 ['business_id' => $businessId, 'day_of_week' => $day],
@@ -249,6 +271,10 @@ class BusinessHoursService
 
     private function withinWindow(string $now, string $open, string $close): bool
     {
+        if (self::isAllDay($open, $close)) {
+            return true;
+        }
+
         if ($open <= $close) {
             return $now >= $open && $now < $close;
         }

@@ -1367,6 +1367,10 @@ Route::prefix('v2')->group(function () {
 
         // Clinic appointments — the clinic's side (a delegate = the secretary).
         Route::prefix('business/clinic-appointments')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
+            // the money of a visit: payments (the visit fee, a service, instalments) and a service's final price
+            Route::post('{appointment}/payments', [BusinessClinicAppointmentController::class, 'recordPayment'])->whereNumber('appointment');
+            Route::delete('{appointment}/payments/{payment}', [BusinessClinicAppointmentController::class, 'removePayment'])->whereNumber(['appointment', 'payment']);
+            Route::put('{appointment}/items/{item}', [BusinessClinicAppointmentController::class, 'setFinalPrice'])->whereNumber(['appointment', 'item']);
             Route::get('/', [BusinessClinicAppointmentController::class, 'index']);
             Route::post('/', [BusinessClinicAppointmentController::class, 'store']);
             Route::post('{appointment}/confirm', [BusinessClinicAppointmentController::class, 'confirm'])->whereNumber('appointment');

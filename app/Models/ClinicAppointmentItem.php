@@ -13,9 +13,9 @@ class ClinicAppointmentItem extends Model
 {
     protected $table = 'clinic_appointment_items';
 
-    protected $fillable = ['clinic_appointment_id', 'specialty_service_id', 'name', 'price', 'sort_order'];
+    protected $fillable = ['clinic_appointment_id', 'specialty_service_id', 'name', 'price', 'final_price', 'sort_order'];
 
-    protected $casts = ['price' => 'float'];
+    protected $casts = ['price' => 'float', 'final_price' => 'float'];
 
     public function service(): BelongsTo
     {

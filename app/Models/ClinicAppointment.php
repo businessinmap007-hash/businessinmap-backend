@@ -34,6 +34,7 @@ class ClinicAppointment extends Model
         'clinic_id',
         'patient_id',
         'service_price_id',
+        'visit_fee',
         'created_by',
         'scheduled_at',
         'duration_minutes',
@@ -51,6 +52,7 @@ class ClinicAppointment extends Model
         'scheduled_at' => 'datetime',
         'duration_minutes' => 'integer',
         'service_price_id' => 'integer',
+        'visit_fee' => 'float',
         'reminded_day_at' => 'datetime',
         'reminded_soon_at' => 'datetime',
         'checked_in_at' => 'datetime',
@@ -82,6 +84,12 @@ class ClinicAppointment extends Model
     public function items(): HasMany
     {
         return $this->hasMany(ClinicAppointmentItem::class, 'clinic_appointment_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /** What the clinic recorded as paid against this visit, in the order paid. */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(ClinicAppointmentPayment::class, 'clinic_appointment_id')->orderBy('paid_at')->orderBy('id');
     }
 
     /**

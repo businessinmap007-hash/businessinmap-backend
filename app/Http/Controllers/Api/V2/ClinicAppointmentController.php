@@ -159,7 +159,7 @@ class ClinicAppointmentController extends Controller
             'starts_at' => optional($s->starts_at)->toIso8601String(),
             'duration_minutes' => (int) $s->duration_minutes,
             // What the patient is booking, not just how long it takes.
-            'visit_kind' => $s->servicePrice?->offeringLabel($s->servicePrice->bookable_item_type),
+            'visit_kind' => $s->servicePrice?->offeringLabel($this->kindName((string) $s->servicePrice->bookable_item_type)),
             // a number, not the decimal's string: the app reads it as one
             'price' => $s->servicePrice !== null ? (float) $s->servicePrice->price : null,
         ]);
@@ -189,6 +189,19 @@ class ClinicAppointmentController extends Controller
         ], 201);
     }
 
+    /** The visit kind's own name in the caller's language («كشف»), not its key («booking_examination»). */
+    private function kindName(string $key): string
+    {
+        $type = \App\Models\PlatformServiceItemType::query()->where('key', $key)->first();
+        if (! $type) {
+            return $key;
+        }
+
+        $name = app()->getLocale() === 'en' ? trim((string) $type->name_en) : trim((string) $type->name_ar);
+
+        return $name !== '' ? $name : (trim((string) $type->name_ar) ?: $key);
+    }
+
     private function serialize(ClinicAppointment $a): array
     {
         return [
@@ -199,6 +212,7 @@ class ClinicAppointmentController extends Controller
             'service_price_id' => $a->service_price_id ? (int) $a->service_price_id : null,
             'reason' => $a->reason,
             'specialty_services' => $a->servicesSummary(),
+            'billing' => app(\App\Services\Clinics\ClinicBillingService::class)->summary($a),
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
             // «يجب التواجد قبل الموعد بـ ١٥ دقيقة» — the clinic's own words
             'arrival_notice' => \App\Services\ArrivalNotice::forBusiness((int) $a->clinic_id),

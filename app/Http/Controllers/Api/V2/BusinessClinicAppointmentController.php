@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ClinicAppointment;
 use App\Models\ClinicAppointmentSlot;
 use App\Models\User;
+use App\Models\ClinicAppointmentItem;
+use App\Models\ClinicAppointmentPayment;
 use App\Services\Clinics\ClinicAppointmentService;
+use App\Services\Clinics\ClinicBillingService;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -19,7 +22,7 @@ use Illuminate\Validation\Rule;
  */
 class BusinessClinicAppointmentController extends Controller
 {
-    public function __construct(private readonly ClinicAppointmentService $service)
+    public function __construct(private readonly ClinicAppointmentService $service, private readonly ClinicBillingService $billing)
     {
     }
 
@@ -473,6 +476,49 @@ class BusinessClinicAppointmentController extends Controller
         ]);
     }
 
+    /** POST /api/v2/business/clinic-appointments/{id}/payments — {amount, kind: visit_fee|service, note?} */
+    public function recordPayment(Request $request, int $appointment)
+    {
+        $row = $this->ownedOrFail($request, $appointment);
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:10000000'],
+            'kind' => ['required', Rule::in(ClinicAppointmentPayment::KINDS)],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $this->billing->recordPayment($row, $request->user(), (float) $data['amount'], $data['kind'], $data['note'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تسجيل الدفعة.'),
+            'data' => ['billing' => $this->billing->summary($row->refresh())],
+        ], 201);
+    }
+
+    /** DELETE /api/v2/business/clinic-appointments/{id}/payments/{payment} */
+    public function removePayment(Request $request, int $appointment, int $payment)
+    {
+        $row = $this->ownedOrFail($request, $appointment);
+        $this->billing->removePayment($row, ClinicAppointmentPayment::query()->findOrFail($payment));
+
+        return response()->json(['success' => true, 'data' => ['billing' => $this->billing->summary($row->refresh())]]);
+    }
+
+    /** PUT /api/v2/business/clinic-appointments/{id}/items/{item} — {final_price: number|null} */
+    public function setFinalPrice(Request $request, int $appointment, int $item)
+    {
+        $row = $this->ownedOrFail($request, $appointment);
+        $data = $request->validate(['final_price' => ['present', 'nullable', 'numeric', 'min:0', 'max:10000000']]);
+
+        $this->billing->setFinalPrice(
+            $row,
+            ClinicAppointmentItem::query()->findOrFail($item),
+            $data['final_price'] === null ? null : (float) $data['final_price'],
+        );
+
+        return response()->json(['success' => true, 'message' => __('تم الحفظ.'), 'data' => ['billing' => $this->billing->summary($row->refresh())]]);
+    }
+
     private function ownedOrFail(Request $request, int $id): ClinicAppointment
     {
         return ClinicAppointment::query()
@@ -490,6 +536,7 @@ class BusinessClinicAppointmentController extends Controller
             'duration_minutes' => (int) $a->duration_minutes,
             'reason' => $a->reason,
             'specialty_services' => $a->servicesSummary(),
+            'billing' => app(ClinicBillingService::class)->summary($a),
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
             'notes' => $a->notes,
             'prescription_id' => $a->relationLoaded('prescription') && $a->prescription

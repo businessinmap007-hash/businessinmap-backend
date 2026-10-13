@@ -128,6 +128,18 @@ class ClinicAppointmentService
         }
     }
 
+    /** The fee of the visit kind a visit is booked under, kept as it is today (paid on arrival). */
+    private function visitFeeOf(?int $priceId): ?float
+    {
+        if (! $priceId) {
+            return null;
+        }
+
+        $price = BusinessServicePrice::query()->whereKey($priceId)->value('price');
+
+        return $price === null ? null : (float) $price;
+    }
+
     /** «لشخص آخر»: who will actually walk in when the account that books is not the patient. */
     private function attendeeName(array $data): ?string
     {
@@ -147,6 +159,7 @@ class ClinicAppointmentService
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
             'service_price_id' => $priceId,
+            'visit_fee' => $this->visitFeeOf($priceId),
             'created_by' => (int) $patient->id,
             'scheduled_at' => $data['scheduled_at'],
             'duration_minutes' => $duration,
@@ -178,6 +191,7 @@ class ClinicAppointmentService
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
             'service_price_id' => $priceId,
+            'visit_fee' => $this->visitFeeOf($priceId),
             'created_by' => (int) $clinic->id,
             'scheduled_at' => $start,
             'duration_minutes' => $duration,
@@ -405,6 +419,7 @@ class ClinicAppointmentService
                 // the patient took what the clinic offered, so nothing he posts
                 // may lengthen or relabel it.
                 'service_price_id' => $slot->service_price_id,
+                'visit_fee' => $this->visitFeeOf($slot->service_price_id),
                 'created_by' => (int) $patient->id,
                 'scheduled_at' => $slot->starts_at,
                 'duration_minutes' => (int) $slot->duration_minutes,
@@ -607,6 +622,7 @@ class ClinicAppointmentService
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
             'service_price_id' => $priceId,
+            'visit_fee' => $this->visitFeeOf($priceId),
             'created_by' => (int) $clinic->id,
             'scheduled_at' => $wallNow,
             'duration_minutes' => $duration,

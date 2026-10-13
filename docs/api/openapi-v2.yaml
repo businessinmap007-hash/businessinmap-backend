@@ -5212,6 +5212,12 @@ paths:
     post: { tags: [SpecialtyServices], summary: 'Add a service the platform list does not have — {kind (one of the kinds of the clinic specialties), name}; visible to this clinic alone and offered at once.', responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/specialty-services/custom/{service}:
     delete: { tags: [SpecialtyServices], summary: "Remove one of the clinic's own entries (404 for the platform list or another clinic's).", parameters: [{ name: service, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/clinic-appointments/{appointment}/payments:
+    post: { tags: [Clinic Appointments], summary: 'Record a payment against a visit — {amount, kind: visit_fee|service, note?}; the visit fee is the base (paid on arrival), a service is paid after it is done, and a treatment may be paid in instalments. Both the patient and the doctor read the payments in `billing`. Only for a confirmed or finished visit.', parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/clinic-appointments/{appointment}/payments/{payment}:
+    delete: { tags: [Clinic Appointments], summary: 'Take back a payment recorded by mistake.', parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }, { name: payment, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/clinic-appointments/{appointment}/items/{item}:
+    put: { tags: [Clinic Appointments], summary: 'Set what a named service is charged once it is done — {final_price: number|null}; null puts it back to the listed price. The clinic may raise or lower it.', parameters: [{ name: appointment, in: path, required: true, schema: { type: integer } }, { name: item, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /prescriptions:
     get:
       tags: [Prescriptions]

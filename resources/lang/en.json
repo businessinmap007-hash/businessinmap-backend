@@ -3051,5 +3051,8 @@
     "هذه الخدمة موجودة في القائمة.": "This service is already in the list.",
     "قائمة خدمات الأسنان لعيادات الأسنان فقط.": "The dental services list is for dental clinics only.",
     "تمت إضافة الخدمة.": "The service was added.",
-    "قائمة الخدمات لعيادات الأسنان والجلدية والتجميل فقط.": "The services list is for dental, dermatology and cosmetic clinics only."
+    "قائمة الخدمات لعيادات الأسنان والجلدية والتجميل فقط.": "The services list is for dental, dermatology and cosmetic clinics only.",
+    "اكتب مبلغًا صحيحًا.": "Enter a valid amount.",
+    "لا يُسجَّل دفع إلا لموعد مؤكد أو منتهٍ.": "A payment can only be recorded for a confirmed or finished visit.",
+    "تم تسجيل الدفعة.": "The payment was recorded."
 }

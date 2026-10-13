@@ -81,6 +81,8 @@ return [
             'booking_online_consultation' => ['حجز استشارة أونلاين', 'Online Consultation'],
             'booking_home_sample' => ['حجز سحب عينة بالمنزل', 'Home Sample Collection'],
             'booking_home_visit' => ['حجز زيارة منزلية', 'Home Visit'],
+            // a course of treatment is booked a session at a time (laser, fillers, braces adjustments, physio)
+            'booking_session' => ['حجز جلسة', 'Session'],
 
             /*
              * Added in the admin panel on 2026-08-14 and written down here on
@@ -181,7 +183,12 @@ return [
              * from the bulk screen, kept: a clinic offering a paid opinion
              * alongside كشف/متابعة is a real, distinct thing to book.
              */
-            514 => ['booking_consultation', 'booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // عيادة
+            /*
+             * Owner 2026-10-14: a clinic's visits are كشف · استشارة · متابعة/إعادة · إجراء طبي. «إجراء طبي» was missing here
+             * (the hospital and the medical centre had it), and «جلسة» is added for a treatment sold a session at a time.
+             * Online consultation and home visit were already there.
+             */
+            514 => ['booking_consultation', 'booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_session', 'booking_online_consultation', 'booking_home_visit'], // عيادة
             /*
              * The hospital gained «استشارة» on 2026-08-07 — the owner's own
              * edit, kept because a hospital really does sell an opinion that is
@@ -202,7 +209,7 @@ return [
              * No «سحب عينة بالمنزل»: a cupping session at home is a visit, not a
              * sample. Same four the clinic carries.
              */
-            542 => ['booking_consultation', 'booking_examination', 'booking_follow_up', 'booking_online_consultation', 'booking_home_visit'], // مركز حجامة
+            542 => ['booking_consultation', 'booking_examination', 'booking_follow_up', 'booking_procedure', 'booking_session', 'booking_online_consultation', 'booking_home_visit'], // مركز حجامة
 
             /*
              * A lab keeps the plain appointment — coming in to give a sample is

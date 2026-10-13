@@ -46,7 +46,9 @@ class ClinicAppointmentController extends Controller
             // Naming the visit sets its length from what the clinic priced —
             // the patient's own duration is only the fallback.
             'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
-            // what he came for, from the clinic's own list (ClinicAppointmentService::resolveSpecialtyService)
+            // what he came for, from the clinic's own list: several may be named (resolveSpecialtyServices)
+            'specialty_service_ids' => ['nullable', 'array', 'max:10'],
+            'specialty_service_ids.*' => ['integer', 'distinct', 'exists:specialty_services,id'],
             'specialty_service_id' => ['nullable', 'integer', 'exists:specialty_services,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'reason' => ['nullable', 'string', 'max:255'],
@@ -170,6 +172,8 @@ class ClinicAppointmentController extends Controller
     {
         $data = $request->validate([
             'reason' => ['nullable', 'string', 'max:255'],
+            'specialty_service_ids' => ['nullable', 'array', 'max:10'],
+            'specialty_service_ids.*' => ['integer', 'distinct', 'exists:specialty_services,id'],
             'specialty_service_id' => ['nullable', 'integer', 'exists:specialty_services,id'],
             'for_name' => ['nullable', 'string', 'max:120'],
             'for_phone' => ['nullable', 'string', 'max:30'],
@@ -194,7 +198,7 @@ class ClinicAppointmentController extends Controller
             'duration_minutes' => (int) $a->duration_minutes,
             'service_price_id' => $a->service_price_id ? (int) $a->service_price_id : null,
             'reason' => $a->reason,
-            'specialty_service' => $a->serviceSummary(),
+            'specialty_services' => $a->servicesSummary(),
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
             // «يجب التواجد قبل الموعد بـ ١٥ دقيقة» — the clinic's own words
             'arrival_notice' => \App\Services\ArrivalNotice::forBusiness((int) $a->clinic_id),

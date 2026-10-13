@@ -61,6 +61,7 @@ return [
     'booking_examination' => ['unit' => 'minute', 'slot_minutes' => 20, 'all_day' => false],
     'booking_follow_up' => ['unit' => 'minute', 'slot_minutes' => 15, 'all_day' => false],
     'booking_procedure' => ['unit' => 'minute', 'slot_minutes' => 60, 'all_day' => false],
+    'booking_session' => ['unit' => 'minute', 'slot_minutes' => 45, 'all_day' => false],
     'booking_online_consultation' => ['unit' => 'minute', 'slot_minutes' => 30, 'all_day' => false],
 
     // A visit to the customer's home: the window has to cover the travel too.

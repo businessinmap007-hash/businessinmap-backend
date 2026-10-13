@@ -316,18 +316,18 @@ class SpecialtyServicesTest extends TestCase
         $slot = $this->slot($clinic);
 
         Sanctum::actingAs($this->patient());
-        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_id' => $filler])
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$filler]])
             ->assertCreated()
-            ->assertJsonPath('data.appointment.specialty_service.id', $filler)
-            ->assertJsonPath('data.appointment.specialty_service.name', SpecialtyService::query()->find($filler)->label());
+            ->assertJsonPath('data.appointment.specialty_services.0.id', $filler)
+            ->assertJsonPath('data.appointment.specialty_services.0.name', SpecialtyService::query()->find($filler)->label());
 
         $mine = $this->getJson('/api/v2/clinic-appointments')->assertOk()->json('data.data');
-        $this->assertSame(SpecialtyService::query()->find($filler)->label(), $mine[0]['specialty_service']['name']);
+        $this->assertSame(SpecialtyService::query()->find($filler)->label(), $mine[0]['specialty_services'][0]['name']);
 
         Sanctum::actingAs($clinic);
         $rows = $this->getJson('/api/v2/business/clinic-appointments')->assertOk()->json('data.data');
-        $this->assertSame(SpecialtyService::query()->find($filler)->label(), $rows[0]['specialty_service']['name']);
-        $this->assertEquals(3500, $rows[0]['specialty_service']['price']);
+        $this->assertSame(SpecialtyService::query()->find($filler)->label(), $rows[0]['specialty_services'][0]['name']);
+        $this->assertEquals(3500, $rows[0]['specialty_services'][0]['price']);
     }
 
     public function test_the_booked_service_keeps_its_name_and_price_when_the_clinic_reprices_or_drops_it(): void
@@ -337,14 +337,14 @@ class SpecialtyServicesTest extends TestCase
         $slot = $this->slot($clinic);
 
         Sanctum::actingAs($this->patient());
-        $id = $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_id' => $implant])->assertCreated()->json('data.appointment.id');
+        $id = $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$implant]])->assertCreated()->json('data.appointment.id');
 
         Sanctum::actingAs($clinic);
         $this->putJson('/api/v2/business/specialty-services', ['items' => [['service_id' => $implant, 'offered' => true, 'price' => 12000]]])->assertOk();
-        $this->assertEquals(9000, ClinicAppointment::query()->find($id)->service_price, 'kept as asked');
+        $this->assertEquals(9000, ClinicAppointment::query()->find($id)->items->first()->price, 'kept as asked');
 
         $this->putJson('/api/v2/business/specialty-services', ['items' => [['service_id' => $implant, 'offered' => false]]])->assertOk();
-        $this->assertSame('زراعة سن', ClinicAppointment::query()->find($id)->service_name);
+        $this->assertSame('زراعة سن', ClinicAppointment::query()->find($id)->items->first()->name);
     }
 
     public function test_a_service_the_clinic_does_not_offer_is_refused_and_the_slot_stays_open(): void
@@ -359,9 +359,9 @@ class SpecialtyServicesTest extends TestCase
 
         Sanctum::actingAs($this->patient());
         // another clinic's offer, and another specialty's — neither is this clinic's
-        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_id' => $theirs])
-            ->assertStatus(422)->assertJsonValidationErrors('specialty_service_id');
-        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_id' => $filler])->assertStatus(422);
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$theirs]])
+            ->assertStatus(422)->assertJsonValidationErrors('specialty_service_ids');
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$filler]])->assertStatus(422);
 
         $this->assertNull($slot->fresh()->appointment_id, 'the slot was not taken');
     }
@@ -374,10 +374,10 @@ class SpecialtyServicesTest extends TestCase
         $slot = $this->slot($internal);
 
         Sanctum::actingAs($this->patient());
-        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_id' => $service])->assertStatus(422);
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$service]])->assertStatus(422);
 
         $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['reason' => 'ضغط'])
-            ->assertCreated()->assertJsonPath('data.appointment.specialty_service', null);
+            ->assertCreated()->assertJsonPath('data.appointment.specialty_services', []);
     }
 
     public function test_unticking_the_specialty_hides_the_list_and_refuses_a_booking_with_it(): void
@@ -390,7 +390,7 @@ class SpecialtyServicesTest extends TestCase
 
         Sanctum::actingAs($this->patient());
         $this->getJson("/api/v2/clinics/{$clinic->id}/specialty-services")->assertNotFound();
-        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_id' => $cleaning])->assertStatus(422);
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$cleaning]])->assertStatus(422);
     }
 
     public function test_a_requested_appointment_can_name_the_service_too(): void
@@ -400,11 +400,78 @@ class SpecialtyServicesTest extends TestCase
 
         Sanctum::actingAs($this->patient());
         $this->postJson('/api/v2/clinic-appointments', [
-            'clinic_id' => $clinic->id, 'scheduled_at' => now()->addDays(3)->toDateTimeString(), 'specialty_service_id' => $laser,
-        ])->assertCreated()->assertJsonPath('data.appointment.specialty_service.name', SpecialtyService::query()->find($laser)->label());
+            'clinic_id' => $clinic->id, 'scheduled_at' => now()->addDays(3)->toDateTimeString(), 'specialty_service_ids' => [$laser],
+        ])->assertCreated()->assertJsonPath('data.appointment.specialty_services.0.name', SpecialtyService::query()->find($laser)->label());
     }
 
     // ───────────────────────── the seeder ─────────────────────────
+
+    public function test_a_visit_may_name_several_services_and_both_sides_read_them_in_order(): void
+    {
+        $clinic = $this->clinic(['أسنان', 'جلديه وتناسليه']);
+        $cleaning = $this->offer($clinic, 'تنظيف الأسنان وإزالة الجير', 400);
+        $filler = $this->offer($clinic, 'فيلر الشفاه', 3500);
+        $laser = $this->offer($clinic, 'ليزر إزالة الشعر', null);
+        $slot = $this->slot($clinic);
+
+        Sanctum::actingAs($this->patient());
+        $res = $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$filler, $cleaning, $laser]])->assertCreated();
+
+        $this->assertSame([$filler, $cleaning, $laser], array_column($res->json('data.appointment.specialty_services'), 'id'), 'in the order named');
+        $this->assertNull($res->json('data.appointment.specialty_services.2.price'), 'after the exam');
+
+        Sanctum::actingAs($clinic);
+        $rows = $this->getJson('/api/v2/business/clinic-appointments')->assertOk()->json('data.data');
+        $this->assertCount(3, $rows[0]['specialty_services']);
+        $this->assertEquals(3500, $rows[0]['specialty_services'][0]['price']);
+    }
+
+    public function test_one_refused_service_refuses_the_whole_booking_and_the_slot_stays_open(): void
+    {
+        $clinic = $this->skin();
+        $mine = $this->offer($clinic, 'فيلر الشفاه', 3500);
+        $other = $this->dentist();
+        $theirs = $this->offer($other, 'زراعة سن', 9000);
+        $slot = $this->slot($clinic);
+
+        Sanctum::actingAs($this->patient());
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$mine, $theirs]])->assertStatus(422);
+
+        $this->assertNull($slot->fresh()->appointment_id);
+        $this->assertSame(0, ClinicAppointment::query()->where('clinic_id', $clinic->id)->count());
+    }
+
+    public function test_the_list_is_capped_distinct_and_the_single_id_still_works(): void
+    {
+        $clinic = $this->skin();
+        $filler = $this->offer($clinic, 'فيلر الشفاه', 3500);
+
+        Sanctum::actingAs($this->patient());
+
+        $slot = $this->slot($clinic, 11);
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => [$filler, $filler]])
+            ->assertStatus(422)->assertJsonValidationErrors('specialty_service_ids.0');
+
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_ids' => range(1, 11)])
+            ->assertStatus(422)->assertJsonValidationErrors('specialty_service_ids');
+
+        // the older single field is read as a list of one
+        $this->postJson("/api/v2/clinic-slots/{$slot->id}/book", ['specialty_service_id' => $filler])
+            ->assertCreated()->assertJsonPath('data.appointment.specialty_services.0.id', $filler);
+    }
+
+    public function test_the_visit_kinds_of_a_clinic_are_exam_consultation_follow_up_procedure_and_session(): void
+    {
+        $config = json_decode((string) DB::table('category_service_configs as c')
+            ->join('platform_services as s', 's.id', '=', 'c.platform_service_id')
+            ->where('s.key', 'booking')->where('c.child_id', self::CLINIC)->where('c.is_active', 1)->value('c.config'), true);
+
+        foreach (['booking_examination', 'booking_consultation', 'booking_follow_up', 'booking_procedure', 'booking_session'] as $kind) {
+            $this->assertContains($kind, $config['allowed_item_types'], $kind);
+        }
+
+        $this->assertSame(1, (int) DB::table('platform_service_item_types')->where('key', 'booking_session')->where('is_active', 1)->count());
+    }
 
     public function test_a_slots_price_is_a_number_not_a_string(): void
     {

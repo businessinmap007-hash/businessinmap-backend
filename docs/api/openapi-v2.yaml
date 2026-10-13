@@ -5063,7 +5063,7 @@ paths:
   /clinic-slots/{slot}/book:
     post:
       tags: [Clinic Appointments]
-      summary: Book an open slot in one tap (confirmed at once; notifies the clinic). Optional `specialty_service_id` names what a specialty clinic's patient came for (422 when the clinic does not offer it); the appointment then carries `specialty_service` {id, name, price}.
+      summary: Book an open slot in one tap (confirmed at once; notifies the clinic). Optional `specialty_service_ids` (up to 10) name what a specialty clinic's patient came for (422 when the clinic does not offer one of them); the appointment then carries `specialty_services` [{id, name, price}].
       parameters: [{ name: slot, in: path, required: true, schema: { type: integer } }]
       requestBody:
         content:

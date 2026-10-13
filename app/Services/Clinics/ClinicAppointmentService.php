@@ -6,7 +6,7 @@ use App\Models\AgendaItem;
 use App\Models\ClinicAppointment;
 use App\Models\BusinessServicePrice;
 use App\Models\ClinicAppointmentSlot;
-use App\Models\ClinicSpecialtyService;
+use App\Models\ClinicAppointmentItem;
 use App\Models\ReminderPreference;
 use App\Models\User;
 use App\Services\Agenda\AgendaService;
@@ -72,37 +72,60 @@ class ClinicAppointmentService
     }
 
     /**
-     * The service the patient named (dental, dermatology…), as the clinic offers it now: its id, and the name and price to
-     * keep. Nothing named is nothing kept; a service the clinic does not offer (another clinic's, or asked of a clinic whose
-     * specialty is not the one it belongs to) names no visit here.
+     * The services the patient named (dental, dermatology…), as the clinic offers them now: each one's id, and the name
+     * and price to keep. Nothing named is nothing kept; a service the clinic does not offer (another clinic's, or one of a
+     * specialty it no longer has) names no visit here, and one refused refuses the whole booking.
+     *
+     * Accepts `specialty_service_ids` (a list) and, for older callers, a single `specialty_service_id`.
      *
      * @param  array<string,mixed>  $data
-     * @return array{specialty_service_id:?int,service_name:?string,service_price:?float}
+     * @return list<array{specialty_service_id:int,name:string,price:?float}>
      */
-    public function resolveSpecialtyService(int $clinicId, array $data): array
+    public function resolveSpecialtyServices(int $clinicId, array $data): array
     {
-        $none = ['specialty_service_id' => null, 'service_name' => null, 'service_price' => null];
-        $id = (int) ($data['specialty_service_id'] ?? 0);
+        $ids = array_merge((array) ($data['specialty_service_ids'] ?? []), isset($data['specialty_service_id']) ? [$data['specialty_service_id']] : []);
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn (int $i) => $i > 0)));
 
-        if ($id <= 0) {
-            return $none;
+        if ($ids === []) {
+            return [];
         }
 
         $clinic = User::query()->find($clinicId);
-        $offer = $clinic ? app(SpecialtyServicesService::class)->isOffered($clinic, $id) : null;
+        $services = app(SpecialtyServicesService::class);
+        $out = [];
 
-        if (! $offer) {
-            throw ValidationException::withMessages([
-                'specialty_service_id' => __('هذه الخدمة غير متاحة لدى هذه العيادة.'),
-            ]);
+        foreach ($ids as $id) {
+            $offer = $clinic ? $services->isOffered($clinic, $id) : null;
+
+            if (! $offer) {
+                throw ValidationException::withMessages([
+                    'specialty_service_ids' => __('هذه الخدمة غير متاحة لدى هذه العيادة.'),
+                ]);
+            }
+
+            $out[] = [
+                'specialty_service_id' => (int) $offer->specialty_service_id,
+                // the platform's own wording; a reader gets the live, localized name while the service exists
+                'name' => (string) $offer->service->name_ar,
+                'price' => $offer->price,
+            ];
         }
 
-        return [
-            'specialty_service_id' => (int) $offer->specialty_service_id,
-            // the platform's own wording; a reader gets the live, localized name while the service exists
-            'service_name' => $offer->service->name_ar,
-            'service_price' => $offer->price,
-        ];
+        return $out;
+    }
+
+    /** Keep the named services on the appointment, in the order named. */
+    private function attachServices(ClinicAppointment $appointment, array $rows): void
+    {
+        foreach ($rows as $i => $row) {
+            ClinicAppointmentItem::query()->create([
+                'clinic_appointment_id' => (int) $appointment->id,
+                'specialty_service_id' => $row['specialty_service_id'],
+                'name' => $row['name'],
+                'price' => $row['price'],
+                'sort_order' => $i,
+            ]);
+        }
     }
 
     /** «لشخص آخر»: who will actually walk in when the account that books is not the patient. */
@@ -118,12 +141,13 @@ class ClinicAppointmentService
     {
         [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $data);
 
+        $services = $this->resolveSpecialtyServices((int) $clinic->id, $data);
+
         $appointment = ClinicAppointment::create([
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
             'service_price_id' => $priceId,
             'created_by' => (int) $patient->id,
-            ...$this->resolveSpecialtyService((int) $clinic->id, $data),
             'scheduled_at' => $data['scheduled_at'],
             'duration_minutes' => $duration,
             'status' => ClinicAppointment::STATUS_REQUESTED,
@@ -131,6 +155,8 @@ class ClinicAppointmentService
             'attendee_name' => $this->attendeeName($data),
             'attendee_phone' => $this->attendeeName($data) ? ($data['for_phone'] ?? null) : null,
         ]);
+
+        $this->attachServices($appointment, $services);
 
         $this->notify('appointment_requested', (int) $clinic->id, $appointment,
             'طلب موعد جديد', 'New appointment request',
@@ -370,6 +396,8 @@ class ClinicAppointmentService
             $this->assertNoConflict((int) $slot->clinic_id, $slot->starts_at, (int) $slot->duration_minutes, null);
             $this->agenda->assertFree((int) $patient->id, $slot->starts_at, $slot->starts_at->copy()->addMinutes((int) $slot->duration_minutes));
 
+            $services = $this->resolveSpecialtyServices((int) $slot->clinic_id, $data);
+
             $appointment = ClinicAppointment::create([
                 'clinic_id' => (int) $slot->clinic_id,
                 'patient_id' => (int) $patient->id,
@@ -378,8 +406,6 @@ class ClinicAppointmentService
                 // may lengthen or relabel it.
                 'service_price_id' => $slot->service_price_id,
                 'created_by' => (int) $patient->id,
-                // what he came for, from the clinic's own list (the slot only says the kind of visit)
-                ...$this->resolveSpecialtyService((int) $slot->clinic_id, $data),
                 'scheduled_at' => $slot->starts_at,
                 'duration_minutes' => (int) $slot->duration_minutes,
                 'status' => ClinicAppointment::STATUS_CONFIRMED,
@@ -388,6 +414,7 @@ class ClinicAppointmentService
                 'attendee_phone' => $this->attendeeName($data) ? ($data['for_phone'] ?? null) : null,
             ]);
 
+            $this->attachServices($appointment, $services);
             $slot->update(['appointment_id' => (int) $appointment->id]);
             $this->syncAgenda($appointment);
 

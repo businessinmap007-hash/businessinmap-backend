@@ -187,6 +187,111 @@ class ClinicBillingTest extends TestCase
         $this->postJson("/api/v2/business/clinic-appointments/{$id}/payments", ['amount' => 100, 'kind' => 'service'])->assertStatus(422);
     }
 
+    public function test_a_recorded_payment_waits_for_the_patient_and_what_he_confirmed_stays(): void
+    {
+        [$clinic, $patient, $id] = $this->booked();
+
+        Sanctum::actingAs($clinic);
+        $payId = $this->postJson("/api/v2/business/clinic-appointments/{$id}/payments", ['amount' => 300, 'kind' => 'visit_fee'])
+            ->assertCreated()->json('data.billing.payments.0.id');
+
+        $b = $this->billingAs($patient, $id);
+        $this->assertSame('pending', $b['payments'][0]['confirmation']);
+        $this->assertSame(1, $b['awaiting_confirmation']);
+
+        // the patient says yes: both sides now read it as confirmed, and the clinic can no longer take it back
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/clinic-appointments/{$id}/payments/{$payId}/confirm")->assertOk();
+
+        $b = $this->billingAs($clinic, $id);
+        $this->assertSame('confirmed', $b['payments'][0]['confirmation']);
+        $this->assertFalse($b['payments'][0]['can_remove']);
+
+        Sanctum::actingAs($clinic);
+        $this->deleteJson("/api/v2/business/clinic-appointments/{$id}/payments/{$payId}")->assertStatus(422);
+
+        // and he cannot turn around and deny it
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/clinic-appointments/{$id}/payments/{$payId}/dispute", ['note' => 'x'])->assertStatus(422);
+    }
+
+    public function test_a_patient_may_dispute_a_payment_and_the_clinic_sees_it_on_the_record(): void
+    {
+        [$clinic, $patient, $id] = $this->booked();
+
+        Sanctum::actingAs($clinic);
+        $payId = $this->postJson("/api/v2/business/clinic-appointments/{$id}/payments", ['amount' => 700, 'kind' => 'service'])
+            ->assertCreated()->json('data.billing.payments.0.id');
+
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/clinic-appointments/{$id}/payments/{$payId}/dispute", ['note' => 'paid only 500'])->assertOk();
+
+        $p = $this->billingAs($clinic, $id)['payments'][0];
+        $this->assertSame('disputed', $p['confirmation']);
+        $this->assertSame('paid only 500', $p['dispute_note']);
+        $this->assertTrue($p['can_remove'], 'a disputed one may be corrected by the clinic');
+
+        // a stranger cannot confirm or dispute it
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, null, 'Other'));
+        $this->postJson("/api/v2/clinic-appointments/{$id}/payments/{$payId}/confirm")->assertNotFound();
+    }
+
+    public function test_the_instalment_is_asked_with_the_next_session(): void
+    {
+        [$clinic, $patient, $id] = $this->booked();
+
+        // a finished visit with 3200 due and 1000 paid; the clinic asks 700 at the next session
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$id}/complete")->assertOk();
+        $this->postJson("/api/v2/business/clinic-appointments/{$id}/payments", ['amount' => 1000, 'kind' => 'service'])->assertCreated();
+        $this->putJson("/api/v2/business/clinic-appointments/{$id}/installment", ['amount' => 700])->assertOk()
+            ->assertJsonPath('data.billing.installment_amount', 700);
+
+        // the patient books the next session at the same clinic
+        $price = (int) BusinessServicePrice::query()->where('business_id', $clinic->id)->value('id');
+        $next = ClinicAppointmentSlot::create([
+            'clinic_id' => $clinic->id, 'starts_at' => now()->addDays(9)->setHour(11)->setMinute(0)->setSecond(0),
+            'duration_minutes' => 30, 'service_price_id' => $price,
+        ]);
+
+        Sanctum::actingAs($patient);
+        $nextId = (int) $this->postJson("/api/v2/clinic-slots/{$next->id}/book")->assertCreated()->json('data.appointment.id');
+
+        // 3200 - 1000 = 2200 is owed; 700 is what is asked with the next visit
+        $carried = $this->billingAs($patient, $nextId)['carried_over'];
+        $this->assertEquals(2200, $carried['amount']);
+        $this->assertEquals(700, $carried['due']);
+
+        // the clinic reads the same on its card, and the booking board tells the patient before he books
+        $this->assertEquals(700, $this->billingAs($clinic, $nextId)['carried_over']['due']);
+
+        Sanctum::actingAs($patient);
+        $res = $this->getJson("/api/v2/clinics/{$clinic->id}/visit-kinds")->assertOk();
+        $this->assertEquals(2200, $res->json('data.my_balance.amount'));
+        $this->assertEquals(700, $res->json('data.my_balance.due'));
+    }
+
+    public function test_every_visit_kind_the_clinic_prices_is_offered_as_a_choice(): void
+    {
+        [$clinic] = $this->booked();
+
+        // the clinic also prices a consultation and a medical procedure
+        foreach (['booking_consultation' => 200, 'booking_procedure' => 800] as $kind => $p) {
+            BusinessServicePrice::create([
+                'business_id' => $clinic->id, 'service_id' => (int) DB::table('platform_services')->where('key', 'booking')->value('id'),
+                'child_id' => 514, 'bookable_item_type' => $kind, 'line_option_id' => 0, 'price' => $p,
+                'currency' => 'EGP', 'is_active' => 1, 'duration_minutes' => 30,
+            ]);
+        }
+
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, null, 'Patient'));
+        $kinds = collect($this->getJson("/api/v2/clinics/{$clinic->id}/visit-kinds")->assertOk()->json('data.kinds'));
+
+        $this->assertSame(['booking_examination', 'booking_consultation', 'booking_procedure'], $kinds->pluck('key')->all(), 'in the clinic order');
+        $this->assertStringNotContainsString('booking_', (string) $kinds[0]['name']);
+        $this->assertEquals(800, $kinds->firstWhere('key', 'booking_procedure')['price']);
+    }
+
     public function test_a_slots_visit_kind_reads_as_its_name_not_its_key(): void
     {
         [$clinic] = $this->booked();

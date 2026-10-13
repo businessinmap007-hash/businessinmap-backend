@@ -180,6 +180,9 @@ class NotificationChannelRule extends Model
             // Clinic appointments: a patient requests one (→ clinic); the clinic
             // confirms it (→ patient).
             'appointment_requested' => ['طلب موعد جديد', 'New appointment request', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'booking_new'],
+            // The clinic recorded a payment against a visit (→ the patient, who confirms it), and the patient disputed one (→ the clinic).
+            'appointment_payment_recorded' => ['تسجيل دفعة', 'Payment recorded', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'appointment_payment_disputed' => ['اعتراض على دفعة', 'Payment disputed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
             'appointment_confirmed' => ['تأكيد الموعد', 'Appointment confirmed', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
             // A pre-visit reminder for a confirmed appointment (→ the patient).
             'appointment_reminder' => ['تذكير بالموعد', 'Appointment reminder', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_reminder'],

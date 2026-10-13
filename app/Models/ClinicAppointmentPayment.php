@@ -14,9 +14,17 @@ class ClinicAppointmentPayment extends Model
 
     protected $table = 'clinic_appointment_payments';
 
-    protected $fillable = ['clinic_appointment_id', 'amount', 'kind', 'note', 'recorded_by', 'paid_at'];
+    protected $fillable = [
+        'clinic_appointment_id', 'amount', 'kind', 'note', 'recorded_by', 'paid_at', 'patient_confirmed_at', 'disputed_at', 'dispute_note',
+    ];
 
-    protected $casts = ['amount' => 'float', 'paid_at' => 'datetime'];
+    protected $casts = ['amount' => 'float', 'paid_at' => 'datetime', 'patient_confirmed_at' => 'datetime', 'disputed_at' => 'datetime'];
+
+    /** pending (the patient has not answered) | confirmed | disputed */
+    public function confirmation(): string
+    {
+        return $this->patient_confirmed_at ? 'confirmed' : ($this->disputed_at ? 'disputed' : 'pending');
+    }
 
     public function appointment(): BelongsTo
     {

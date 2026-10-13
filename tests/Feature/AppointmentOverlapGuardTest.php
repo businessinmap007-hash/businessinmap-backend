@@ -70,6 +70,22 @@ class AppointmentOverlapGuardTest extends TestCase
         ]));
     }
 
+    public function test_any_account_books_as_a_customer_a_doctor_a_merchant_a_business(): void
+    {
+        // «كل من له حساب يمكنه استخدام الخدمات بكل أنواعها؛ العميل يستخدم الخدمات فقط» — المالك، 2026-10-15
+        $doctor = $this->account(User::TYPE_BUSINESS, 20, 514);
+        $merchant = $this->account(User::TYPE_BUSINESS, 23, 51);
+
+        $this->book($this->at, $this->at->copy()->addMinutes(45), $doctor)->assertCreated();
+        $this->book($this->at->copy()->addMinutes(45), $this->at->copy()->addMinutes(90), $merchant)->assertCreated();
+    }
+
+    public function test_a_business_cannot_book_at_itself(): void
+    {
+        $this->book($this->at, $this->at->copy()->addMinutes(45), $this->salon)
+            ->assertStatus(422)->assertJsonValidationErrors('business_id');
+    }
+
     public function test_the_same_time_is_held_once(): void
     {
         $this->book($this->at, $this->at->copy()->addMinutes(45))->assertCreated();

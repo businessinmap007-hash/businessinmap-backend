@@ -139,14 +139,16 @@ class BookingApiTest extends TestCase
 
     // ---- store -----------------------------------------------------------
 
-    public function test_store_requires_a_client_account(): void
+    public function test_a_business_cannot_book_itself(): void
     {
+        // any account may book as a customer (owner 2026-10-15) — the one booking refused is the business at itself
         $this->actingAs($this->business, 'sanctum')
             ->postJson('/api/v2/bookings', [
                 'business_id' => $this->business->id,
                 'service_id' => $this->serviceId,
             ])
-            ->assertForbidden();
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('business_id');
     }
 
     public function test_store_validates_required_fields(): void

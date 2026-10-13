@@ -582,6 +582,10 @@ Route::prefix('v2')->group(function () {
         Route::get('clinic-appointments/{appointment}/checkin-token', [ClinicAppointmentController::class, 'checkinToken'])->whereNumber('appointment');
         // Published open slots: browse a clinic's, then book one in a tap.
         Route::get('clinics/{clinic}/slots', [ClinicAppointmentController::class, 'slots'])->whereNumber('clinic');
+        Route::get('clinics/{clinic}/visit-kinds', [ClinicAppointmentController::class, 'visitKinds'])->whereNumber('clinic');
+        // the patient's word on what the clinic recorded as paid
+        Route::post('clinic-appointments/{appointment}/payments/{payment}/confirm', [ClinicAppointmentController::class, 'confirmPayment'])->whereNumber(['appointment', 'payment']);
+        Route::post('clinic-appointments/{appointment}/payments/{payment}/dispute', [ClinicAppointmentController::class, 'disputePayment'])->whereNumber(['appointment', 'payment']);
         Route::get('hospitals/{hospital}/departments', [HospitalDoctorController::class, 'departments'])->whereNumber('hospital');
         // «إجراء طبي في المستشفى»: what a hospital offers (surgeries, endoscopies, treatments) and the patient's request.
         Route::get('hospitals/{hospital}/procedures', [HospitalProcedureController::class, 'offered'])->whereNumber('hospital');
@@ -1371,6 +1375,7 @@ Route::prefix('v2')->group(function () {
             Route::post('{appointment}/payments', [BusinessClinicAppointmentController::class, 'recordPayment'])->whereNumber('appointment');
             Route::delete('{appointment}/payments/{payment}', [BusinessClinicAppointmentController::class, 'removePayment'])->whereNumber(['appointment', 'payment']);
             Route::put('{appointment}/items/{item}', [BusinessClinicAppointmentController::class, 'setFinalPrice'])->whereNumber(['appointment', 'item']);
+            Route::put('{appointment}/installment', [BusinessClinicAppointmentController::class, 'setInstallment'])->whereNumber('appointment');
             Route::get('/', [BusinessClinicAppointmentController::class, 'index']);
             Route::post('/', [BusinessClinicAppointmentController::class, 'store']);
             Route::post('{appointment}/confirm', [BusinessClinicAppointmentController::class, 'confirm'])->whereNumber('appointment');

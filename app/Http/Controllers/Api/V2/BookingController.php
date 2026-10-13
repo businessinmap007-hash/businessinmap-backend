@@ -414,8 +414,10 @@ final class BookingController extends Controller
     {
         $user = $request->user();
 
-        if (! $user || ! $user->isClient()) {
-            return $this->error(__('لا يمكن الحجز إلا بحساب عميل.'), 403);
+        // «كل من له حساب يمكنه استخدام الخدمات بكل أنواعها» — المالك، 2026-10-15: a doctor, a merchant, any business with
+        // an account books at another business as a customer does. The one thing it cannot book is itself.
+        if (! $user) {
+            return $this->error(__('يجب تسجيل الدخول للحجز.'), 401);
         }
 
         $data = $request->validate($this->storeRules());
@@ -428,6 +430,12 @@ final class BookingController extends Controller
         if (! $business) {
             throw ValidationException::withMessages([
                 'business_id' => __('البزنس غير موجود أو غير صحيح.'),
+            ]);
+        }
+
+        if ((int) $business->id === (int) $user->id) {
+            throw ValidationException::withMessages([
+                'business_id' => __('لا يمكنك الحجز لدى نشاطك نفسه.'),
             ]);
         }
 

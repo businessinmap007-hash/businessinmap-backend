@@ -3054,5 +3054,9 @@
     "قائمة الخدمات لعيادات الأسنان والجلدية والتجميل فقط.": "The services list is for dental, dermatology and cosmetic clinics only.",
     "اكتب مبلغًا صحيحًا.": "Enter a valid amount.",
     "لا يُسجَّل دفع إلا لموعد مؤكد أو منتهٍ.": "A payment can only be recorded for a confirmed or finished visit.",
-    "تم تسجيل الدفعة.": "The payment was recorded."
+    "تم تسجيل الدفعة.": "The payment was recorded.",
+    "دفعة أكّدتها لا يمكن الاعتراض عليها.": "A payment you confirmed cannot be disputed.",
+    "دفعة أكّدها المريض لا تُحذف.": "A payment the patient confirmed cannot be removed.",
+    "تم تأكيد الدفع.": "The payment was confirmed.",
+    "سُجّل اعتراضك.": "Your objection was recorded."
 }

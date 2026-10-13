@@ -495,6 +495,17 @@ class BusinessClinicAppointmentController extends Controller
         ], 201);
     }
 
+    /** PUT /api/v2/business/clinic-appointments/{id}/installment — {amount: number|null}: what is asked at the next session. */
+    public function setInstallment(Request $request, int $appointment)
+    {
+        $row = $this->ownedOrFail($request, $appointment);
+        $data = $request->validate(['amount' => ['present', 'nullable', 'numeric', 'min:0', 'max:10000000']]);
+
+        $this->billing->setInstallment($row, $data['amount'] === null ? null : (float) $data['amount']);
+
+        return response()->json(['success' => true, 'message' => __('تم الحفظ.'), 'data' => ['billing' => $this->billing->summary($row->refresh())]]);
+    }
+
     /** DELETE /api/v2/business/clinic-appointments/{id}/payments/{payment} */
     public function removePayment(Request $request, int $appointment, int $payment)
     {

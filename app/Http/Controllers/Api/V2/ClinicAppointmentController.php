@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClinicAppointment;
+use App\Models\ClinicAppointmentPayment;
 use App\Models\ClinicAppointmentSlot;
 use App\Models\User;
 use App\Services\Clinics\ClinicAppointmentService;
@@ -135,6 +136,65 @@ class ClinicAppointmentController extends Controller
         return response()->json(['success' => true, 'data' => ['checkin_token' => $token]]);
     }
 
+    /** POST /api/v2/clinic-appointments/{appointment}/payments/{payment}/confirm — «نعم، دفعت هذا المبلغ». */
+    public function confirmPayment(Request $request, int $appointment, int $payment)
+    {
+        $a = $this->mineOrFail($request, $appointment);
+        $p = ClinicAppointmentPayment::query()->findOrFail($payment);
+
+        app(\App\Services\Clinics\ClinicBillingService::class)->confirmPayment($a, $p);
+
+        return response()->json(['success' => true, 'message' => __('تم تأكيد الدفع.'), 'data' => ['appointment' => $this->serialize($a->refresh())]]);
+    }
+
+    /** POST /api/v2/clinic-appointments/{appointment}/payments/{payment}/dispute — {note?}: «لم أدفع هذا المبلغ». */
+    public function disputePayment(Request $request, int $appointment, int $payment)
+    {
+        $a = $this->mineOrFail($request, $appointment);
+        $p = ClinicAppointmentPayment::query()->findOrFail($payment);
+        $data = $request->validate(['note' => ['nullable', 'string', 'max:255']]);
+
+        app(\App\Services\Clinics\ClinicBillingService::class)->disputePayment($a, $p, $data['note'] ?? null);
+
+        return response()->json(['success' => true, 'message' => __('سُجّل اعتراضك.'), 'data' => ['appointment' => $this->serialize($a->refresh())]]);
+    }
+
+    private function mineOrFail(Request $request, int $id): ClinicAppointment
+    {
+        return ClinicAppointment::query()->where('id', $id)->where('patient_id', (int) $request->user()->id)->firstOrFail();
+    }
+
+    /**
+     * GET /api/v2/clinics/{clinic}/visit-kinds — every visit kind the clinic prices (كشف، استشارة، متابعة، إجراء طبي…) with
+     * its fee, whether or not it has an open slot today, and what the caller still owes the clinic from earlier visits.
+     */
+    public function visitKinds(Request $request, int $clinic)
+    {
+        $clinicUser = User::query()->findOrFail($clinic);
+        abort_unless($clinicUser->isBusiness(), 404);
+
+        $order = ['booking_examination', 'booking_consultation', 'booking_follow_up', 'booking_procedure', 'booking_session', 'booking_online_consultation', 'booking_home_visit'];
+
+        $rows = \App\Models\BusinessServicePrice::query()
+            ->where('business_id', $clinic)->where('is_active', 1)->where('line_option_id', 0)
+            ->whereIn('bookable_item_type', $order)
+            ->get()
+            ->sortBy(fn ($r) => array_search($r->bookable_item_type, $order, true))
+            ->values();
+
+        $kinds = $rows->map(fn ($r) => [
+            'key' => (string) $r->bookable_item_type,
+            'name' => $this->kindName((string) $r->bookable_item_type),
+            'price' => (float) $r->price,
+            'duration_minutes' => $r->duration_minutes !== null ? (int) $r->duration_minutes : null,
+        ])->all();
+
+        return response()->json(['success' => true, 'data' => [
+            'kinds' => $kinds,
+            'my_balance' => app(\App\Services\Clinics\ClinicBillingService::class)->owedBy((int) $request->user()->id, $clinic),
+        ]]);
+    }
+
     /** GET /api/v2/clinics/{clinic}/slots — a clinic's open, still-future slots. */
     public function slots(Request $request, int $clinic)
     {
@@ -160,6 +220,7 @@ class ClinicAppointmentController extends Controller
             'duration_minutes' => (int) $s->duration_minutes,
             // What the patient is booking, not just how long it takes.
             'visit_kind' => $s->servicePrice?->offeringLabel($this->kindName((string) $s->servicePrice->bookable_item_type)),
+            'visit_kind_key' => $s->servicePrice?->bookable_item_type,
             // a number, not the decimal's string: the app reads it as one
             'price' => $s->servicePrice !== null ? (float) $s->servicePrice->price : null,
         ]);

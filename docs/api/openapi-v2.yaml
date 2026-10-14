@@ -5055,6 +5055,27 @@ paths:
               properties:
                 pattern: { type: array, items: { type: string } }
       responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
+  /businesses/{business}/providers:
+    get:
+      tags: [Assignments]
+      summary: "«نظام التعيين»: the people who serve customers at ANY business (staff the owner marked is_provider, and its physicians): {id, name, title, logo}. The title is the person's own at that business."
+      parameters: [{ name: business, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+  /business/providers:
+    get:
+      tags: [Assignments]
+      summary: "Who this business may assign work to (acting business via X-Business-Id / business_id for a delegate): {id, name, title, logo, is_physician}."
+      responses: { '200': { description: OK } }
+  /business/bookings/{booking}/assignee:
+    put:
+      tags: [Assignments]
+      summary: "Hand a booking to a provider of the business (assignee_id), or take it back (null). The assignee is told once. 422 when the person is not a provider of this business; 403 for a provider himself (he works his own list). Every booking reply carries `assignee` {id, name, title, logo} or null; a provider's GET /business/bookings lists only his own, and `assignee_id` filters the owner's list."
+      parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { assignee_id: { type: integer, nullable: true } } }
+      responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }
   /clinics/{clinic}/physicians:
     get:
       tags: [Clinic Appointments]

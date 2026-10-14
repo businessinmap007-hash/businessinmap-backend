@@ -188,6 +188,10 @@ class NotificationChannelRule extends Model
             'appointment_reminder' => ['تذكير بالموعد', 'Appointment reminder', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_reminder'],
             // The patient moved their appointment to a new time (→ the clinic).
             'appointment_rescheduled' => ['إعادة جدولة موعد', 'Appointment rescheduled', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
+            // The patient cancelled an appointment (→ the clinic, and the physician it was with).
+            'appointment_cancelled' => ['إلغاء موعد', 'Appointment cancelled', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
+            // A business handed an item (a booking…) to one of its staff (→ that staff member).
+            'assignment_assigned' => ['تعيين على عمل', 'Job assigned', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
             // A due medication dose from the agenda (→ the patient).
             'medication_reminder' => ['تذكير بالدواء', 'Medication reminder', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             // A due personal task from the agenda (→ the owner).

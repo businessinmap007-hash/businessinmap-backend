@@ -24,6 +24,7 @@ class BusinessStaff extends Model
         'capabilities',
         'is_active',
         'is_physician',
+        'is_provider',
         'status',
     ];
 
@@ -31,6 +32,7 @@ class BusinessStaff extends Model
         'capabilities' => 'array',
         'is_active' => 'boolean',
         'is_physician' => 'boolean',
+        'is_provider' => 'boolean',
     ];
 
     public function business(): BelongsTo

@@ -396,6 +396,10 @@ final class BookingController extends Controller
             ->where('business_id', BusinessContext::id($request))
             // a barber sees the bookings of the chair he sits at, not the whole house
             ->when(($own = \App\Models\ServiceChair::restrictedTo($request)) !== null, fn ($q) => $q->whereIn('chair_id', $own))
+            // a provider (a trainer, a barber without a chair…) sees the bookings assigned to him; the owner / reception may
+            // ask for one person's list
+            ->when(($mine = \App\Support\Providers::actingId($request)) !== null, fn ($q) => $q->assignedTo($mine))
+            ->when(($mine ?? null) === null && $request->filled('assignee_id'), fn ($q) => $q->assignedTo((int) $request->get('assignee_id')))
             ->latest('id');
 
         if ($status !== '') {
@@ -1120,6 +1124,13 @@ final class BookingController extends Controller
         if ((int) $booking->business_id !== \App\Support\BusinessContext::id($request)) {
             abort(403, 'Booking does not belong to this business account.');
         }
+
+        // a provider works from his own list: a colleague's booking is not his to confirm, start or close
+        if (($mine = \App\Support\Providers::actingId($request)) !== null
+            && app(\App\Services\Assignments\AssignmentService::class)->assigneeOf($booking) !== $mine
+            && \App\Models\ServiceChair::restrictedTo($request) === null) {
+            abort(403, __('هذا الحجز ليس من أعمالك.'));
+        }
     }
 
     private function eventPayload(Booking $booking, string $source): array
@@ -1283,6 +1294,7 @@ final class BookingController extends Controller
                 ->where('operation_type', (new Booking())->getMorphClass())->where('operation_id', (int) $subject->id)->exists());
             $subject->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($subject));
             $subject->setAttribute('chair', $subject->chair_id ? optional(\App\Models\ServiceChair::query()->with('staff:id,name,logo')->find($subject->chair_id))->payload() : null);
+            $subject->setAttribute('assignee', $this->assigneesFor((int) $subject->business_id, [$subject])[(int) $subject->id] ?? null);
 
             return $this->hideRoomInternals($subject->append('title'));
         }
@@ -1293,7 +1305,12 @@ final class BookingController extends Controller
         $withProject = \App\Models\Project::query()
             ->where('operation_type', (new Booking())->getMorphClass())->whereIn('operation_id', $items->pluck('id')->all())
             ->pluck('operation_id')->map(fn ($id) => (int) $id)->flip();
-        $items->each(function (Booking $booking) use ($notices, $chairsById, $withProject) {
+        $assignees = [];
+        foreach ($items->groupBy('business_id') as $businessId => $group) {
+            $assignees += $this->assigneesFor((int) $businessId, $group->all());
+        }
+        $items->each(function (Booking $booking) use ($notices, $chairsById, $withProject, $assignees) {
+            $booking->setAttribute('assignee', $assignees[(int) $booking->id] ?? null);
             $booking->setAttribute('arrival_notice', $notices[(int) $booking->business_id] ?? null);
             $booking->setAttribute('has_project', $withProject->has((int) $booking->id));
             $booking->setAttribute('chair', $booking->chair_id ? optional($chairsById->get($booking->chair_id))->payload() : null);
@@ -1302,6 +1319,24 @@ final class BookingController extends Controller
         });
 
         return $subject;
+    }
+
+    /**
+     * «نظام التعيين»: who is responsible for each booking — name + his title at that business — in two queries for the
+     * whole page. @param  array<int,Booking>  $bookings  of ONE business  @return array<int,?array> booking id → person
+     */
+    private function assigneesFor(int $businessId, array $bookings): array
+    {
+        $map = app(\App\Services\Assignments\AssignmentService::class)
+            ->assigneesOf((new Booking())->getMorphClass(), array_map(fn ($b) => (int) $b->id, $bookings));
+
+        if ($map === []) {
+            return [];
+        }
+
+        $parties = \App\Support\Providers::parties($businessId, array_values($map));
+
+        return array_map(fn (int $userId) => $parties[$userId] ?? null, $map);
     }
 
     /**

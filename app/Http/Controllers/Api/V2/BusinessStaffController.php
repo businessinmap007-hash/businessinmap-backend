@@ -74,6 +74,7 @@ class BusinessStaffController extends Controller
             'capabilities.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
             'is_physician' => ['nullable', 'boolean'],
+            'is_provider' => ['nullable', 'boolean'],
         ]);
 
         $user = $this->resolveUser($data, $businessId);
@@ -91,6 +92,7 @@ class BusinessStaffController extends Controller
         );
 
         $this->markPhysician($request, $staff, $data);
+        $this->markProvider($staff, $data);
 
         // A person needs to confirm their own invitation before it activates
         // (see resolveContext()'s status gate) - notify only while it's
@@ -121,6 +123,7 @@ class BusinessStaffController extends Controller
             'capabilities.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
             'is_physician' => ['nullable', 'boolean'],
+            'is_provider' => ['nullable', 'boolean'],
         ]);
 
         $existing = BusinessStaff::query()
@@ -137,6 +140,7 @@ class BusinessStaffController extends Controller
         );
 
         $this->markPhysician($request, $staff, $data);
+        $this->markProvider($staff, $data);
 
         return response()->json([
             'success' => true,
@@ -163,7 +167,27 @@ class BusinessStaffController extends Controller
             abort(422, __('تحديد الطبيب متاح لحسابات العيادات والمستشفيات والمراكز الطبية فقط.'));
         }
 
-        $staff->forceFill(['is_physician' => $want])->save();
+        // a physician is a provider with a medical role: marking him one makes him assignable, un-marking leaves the
+        // owner's separate «مقدّم خدمة» choice alone
+        $staff->forceFill($want ? ['is_physician' => true, 'is_provider' => true] : ['is_physician' => false])->save();
+    }
+
+    /**
+     * «مقدّم خدمة» — any business: this staff member serves customers directly, so work can be assigned to him and
+     * he sees his own list (App\Support\Providers).
+     *
+     * @param  array<string,mixed>  $data
+     */
+    private function markProvider(BusinessStaff $staff, array $data): void
+    {
+        if (! array_key_exists('is_provider', $data)) {
+            return;
+        }
+
+        $want = (bool) $data['is_provider'];
+
+        // a physician stays assignable: he cannot be switched off while he is still marked one
+        $staff->forceFill(['is_provider' => $want || (bool) $staff->is_physician])->save();
     }
 
     /** DELETE /api/v2/business/staff/{user} — revoke a staff member. */
@@ -528,6 +552,7 @@ class BusinessStaffController extends Controller
                 ] : ['id' => (int) $s->business_id],
                 'title' => $s->title,
                 'is_physician' => (bool) $s->is_physician,
+                'is_provider' => (bool) $s->is_provider || (bool) $s->is_physician,
                 'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
                 // Tells the app whether checking in for THIS membership needs
                 // a QR scan + GPS first (StaffAttendanceController::checkIn).
@@ -561,6 +586,7 @@ class BusinessStaffController extends Controller
             ] : ['id' => (int) $s->user_id],
             'title' => $s->title,
             'is_physician' => (bool) $s->is_physician,
+            'is_provider' => (bool) $s->is_provider || (bool) $s->is_physician,
             'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
             'is_active' => (bool) $s->is_active,
             'status' => (string) $s->status,

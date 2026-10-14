@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 class Booking extends Model
 {
     use SoftDeletes;
+    use \App\Models\Concerns\HasAssignee;
 
     protected $table = 'bookings';
 

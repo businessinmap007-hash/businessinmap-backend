@@ -204,6 +204,14 @@ class ClinicAppointmentService
         $this->syncAgenda($appointment);
         $this->notifyConfirmed($appointment);
 
+        // the clinic booked it for a physician: he learns it is on his list
+        if ($physicianId !== null && $physicianId !== (int) $clinic->id) {
+            $this->notifyPhysician($appointment, 'appointment_requested',
+                'موعد جديد في جدولك', 'New appointment in your schedule',
+                'حُجز لك موعد في ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.',
+                'An appointment was booked for you on ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.');
+        }
+
         return $appointment;
     }
 
@@ -267,6 +275,12 @@ class ClinicAppointmentService
 
         $appointment->update(['status' => ClinicAppointment::STATUS_CANCELLED]);
         $this->agenda->closeForSource($appointment, AgendaItem::STATUS_CANCELLED);
+
+        // the clinic (and the physician it was with) is told: a freed time is only useful when it is known
+        $this->notify('appointment_cancelled', (int) $appointment->clinic_id, $appointment,
+            'إلغاء موعد', 'Appointment cancelled',
+            'ألغى المريض موعده في ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.',
+            'The patient cancelled the appointment on ' . $appointment->scheduled_at->format('Y-m-d H:i') . '.');
 
         return $appointment;
     }
@@ -835,6 +849,26 @@ class ClinicAppointmentService
     }
 
     private function notify(string $eventKey, int $userId, ClinicAppointment $appointment, string $titleAr, string $titleEn, string $bodyAr, string $bodyEn): void
+    {
+        $this->send($eventKey, $userId, $appointment, $titleAr, $titleEn, $bodyAr, $bodyEn);
+
+        // what the clinic is told about its patient, the physician the visit is with is told too
+        if ($appointment->physician_id && $userId === (int) $appointment->clinic_id) {
+            $this->notifyPhysician($appointment, $eventKey, $titleAr, $titleEn, $bodyAr, $bodyEn);
+        }
+    }
+
+    /** A hospital's staff physician hears about his own appointments, not the whole house's. */
+    private function notifyPhysician(ClinicAppointment $appointment, string $eventKey, string $titleAr, string $titleEn, string $bodyAr, string $bodyEn): void
+    {
+        $physician = (int) $appointment->physician_id;
+
+        if ($physician > 0 && $physician !== (int) $appointment->clinic_id) {
+            $this->send($eventKey, $physician, $appointment, $titleAr, $titleEn, $bodyAr, $bodyEn);
+        }
+    }
+
+    private function send(string $eventKey, int $userId, ClinicAppointment $appointment, string $titleAr, string $titleEn, string $bodyAr, string $bodyEn): void
     {
         try {
             $this->notifications->dispatch($eventKey, $userId, [

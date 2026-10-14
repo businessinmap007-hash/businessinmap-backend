@@ -584,6 +584,8 @@ Route::prefix('v2')->group(function () {
         Route::get('clinics/{clinic}/slots', [ClinicAppointmentController::class, 'slots'])->whereNumber('clinic');
         Route::get('clinics/{clinic}/visit-kinds', [ClinicAppointmentController::class, 'visitKinds'])->whereNumber('clinic');
         Route::get('clinics/{clinic}/physicians', [ClinicAppointmentController::class, 'physicians'])->whereNumber('clinic');
+        // «نظام التعيين»: the people a customer may see at any business (name + title)
+        Route::get('businesses/{business}/providers', [\App\Http\Controllers\Api\V2\AssignmentController::class, 'publicProviders'])->whereNumber('business');
         // the patient's word on what the clinic recorded as paid
         Route::post('clinic-appointments/{appointment}/payments/{payment}/confirm', [ClinicAppointmentController::class, 'confirmPayment'])->whereNumber(['appointment', 'payment']);
         Route::post('clinic-appointments/{appointment}/payments/{payment}/dispute', [ClinicAppointmentController::class, 'disputePayment'])->whereNumber(['appointment', 'payment']);
@@ -1020,6 +1022,9 @@ Route::prefix('v2')->group(function () {
         Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('business/bookings', [BookingController::class, 'businessIndex']);
             Route::post('business/bookings/{booking}/confirm-payment', [BookingController::class, 'businessConfirmPayment'])->whereNumber('booking');
+            // «نظام التعيين»: who can be assigned here, and handing a booking to one of them
+            Route::get('business/providers', [\App\Http\Controllers\Api\V2\AssignmentController::class, 'providers']);
+            Route::put('business/bookings/{booking}/assignee', [\App\Http\Controllers\Api\V2\AssignmentController::class, 'assignBooking'])->whereNumber('booking');
         });
 
         // Business bookable items: the units customers book (booking service).

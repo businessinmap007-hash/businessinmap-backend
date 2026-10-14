@@ -128,10 +128,24 @@ class ClinicHoursAndVisitDurationTest extends TestCase
         $this->assertSame(['open' => '09:00', 'close' => '17:00'], $tuesday['hours']);
         $this->assertSame(8, $tuesday['slots']);
 
-        // beyond the ten days that have times, the days are still listed — open, with nothing left
+        // beyond the ten days that have times, the days are still listed — open, with nothing left and nothing
+        // published, which is what tells the app the doctor is not there that day
         $last = $strip->last();
         $this->assertSame(0, $last['slots']);
+        $this->assertSame(0, $last['published']);
         $this->assertCount(14, $byDate);
+
+        // a day whose every time is taken is published, with none left: shown as full, not hidden
+        $takenDay = Carbon::today()->addDays(2);
+        \App\Models\ClinicAppointmentSlot::query()
+            ->where('clinic_id', $clinic->id)
+            ->whereDate('starts_at', $takenDay->toDateString())
+            ->update(['appointment_id' => \App\Models\ClinicAppointment::query()->value('id')]);
+
+        $again = collect($this->getJson("/api/v2/clinics/{$clinic->id}/slots")->assertOk()->json('data.days'))
+            ->firstWhere('date', $takenDay->toDateString());
+        $this->assertSame(0, $again['slots']);
+        $this->assertSame(8, $again['published']);
     }
 
     public function test_an_appointment_that_runs_past_closing_is_refused(): void

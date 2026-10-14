@@ -225,6 +225,14 @@ class ClinicAppointmentController extends Controller
         // it never wrote counts as open) and how many open times are left
         $week = $hours->hoursFor((int) $clinic);
         $perDay = $rows->getCollection()->countBy(fn (ClinicAppointmentSlot $s) => $s->starts_at->toDateString());
+        // every time the clinic PUBLISHED that day — booked ones too: a day with none is a day the doctor is not there
+        // (a leave, a conference) and the app does not show it at all; a day with all of them taken shows as full
+        $publishedPerDay = ClinicAppointmentSlot::query()
+            ->where('clinic_id', $clinic)
+            ->where('starts_at', '>=', $from)
+            ->where('starts_at', '<', $to)
+            ->get(['starts_at'])
+            ->countBy(fn (ClinicAppointmentSlot $s) => $s->starts_at->toDateString());
         $strip = [];
         for ($i = 0; $i < $days; $i++) {
             $day = $from->copy()->addDays($i);
@@ -236,6 +244,7 @@ class ClinicAppointmentController extends Controller
                 'open' => (bool) $open,
                 'hours' => $open && $row ? ['open' => substr((string) $row->open_time, 0, 5), 'close' => substr((string) $row->close_time, 0, 5)] : null,
                 'slots' => (int) ($perDay[$day->toDateString()] ?? 0),
+                'published' => (int) ($publishedPerDay[$day->toDateString()] ?? 0),
             ];
         }
 

@@ -195,6 +195,35 @@ class ClinicAppointmentController extends Controller
         ]]);
     }
 
+    /**
+     * GET /api/v2/clinics/{clinic}/physicians — the physicians who work for this hospital / centre and have times to
+     * book (name + his title there). Empty for a clinic with no staff physicians: its board is one board.
+     */
+    public function physicians(Request $request, int $clinic)
+    {
+        abort_unless(User::query()->whereKey($clinic)->where('type', User::TYPE_BUSINESS)->exists(), 404);
+
+        $withTimes = ClinicAppointmentSlot::query()
+            ->where('clinic_id', $clinic)
+            ->whereNotNull('physician_id')
+            ->open()
+            ->select('physician_id', \DB::raw('count(*) as n'), \DB::raw('min(starts_at) as next_at'))
+            ->groupBy('physician_id')
+            ->get()
+            ->keyBy('physician_id');
+
+        $rows = \App\Support\Physicians::of($clinic)->map(function (array $p) use ($withTimes) {
+            $row = $withTimes->get($p['id']);
+
+            return $p + [
+                'open_slots' => $row ? (int) $row->n : 0,
+                'next_at' => $row?->next_at ? \Carbon\Carbon::parse($row->next_at)->toIso8601String() : null,
+            ];
+        })->values();
+
+        return response()->json(['success' => true, 'data' => ['physicians' => $rows]]);
+    }
+
     /** GET /api/v2/clinics/{clinic}/slots — a clinic's open, still-future slots. */
     public function slots(Request $request, int $clinic)
     {
@@ -207,8 +236,13 @@ class ClinicAppointmentController extends Controller
         $from = now()->startOfDay();
         $to = $from->copy()->addDays($days)->startOfDay();
 
+        // a hospital's physicians each publish their own times: the patient asks for ONE physician's board (a physician
+        // chosen is the filter; none chosen = the times the hospital itself published without naming one)
+        $physician = $request->filled('physician_id') ? (int) $request->get('physician_id') : null;
+
         $rows = ClinicAppointmentSlot::query()
             ->where('clinic_id', $clinic)
+            ->when($physician, fn ($q) => $q->where('physician_id', $physician), fn ($q) => $q->whereNull('physician_id'))
             ->open()
             ->where('starts_at', '<', $to)
             ->orderBy('starts_at')
@@ -229,6 +263,7 @@ class ClinicAppointmentController extends Controller
         // (a leave, a conference) and the app does not show it at all; a day with all of them taken shows as full
         $publishedPerDay = ClinicAppointmentSlot::query()
             ->where('clinic_id', $clinic)
+            ->when($physician, fn ($q) => $q->where('physician_id', $physician), fn ($q) => $q->whereNull('physician_id'))
             ->where('starts_at', '>=', $from)
             ->where('starts_at', '<', $to)
             ->get(['starts_at'])
@@ -252,6 +287,7 @@ class ClinicAppointmentController extends Controller
             'id' => (int) $s->id,
             'starts_at' => optional($s->starts_at)->toIso8601String(),
             'duration_minutes' => (int) $s->duration_minutes,
+            'physician_id' => $s->physician_id ? (int) $s->physician_id : null,
             // What the patient is booking, not just how long it takes.
             'visit_kind' => $s->servicePrice?->offeringLabel($this->kindName((string) $s->servicePrice->bookable_item_type)),
             'visit_kind_key' => $s->servicePrice?->bookable_item_type,
@@ -309,6 +345,7 @@ class ClinicAppointmentController extends Controller
             'specialty_services' => $a->servicesSummary(),
             'billing' => app(\App\Services\Clinics\ClinicBillingService::class)->summary($a),
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
+            'physician' => \App\Support\Physicians::party($a->physician_id ? (int) $a->physician_id : null, (int) $a->clinic_id),
             // «يجب التواجد قبل الموعد بـ ١٥ دقيقة» — the clinic's own words
             'arrival_notice' => \App\Services\ArrivalNotice::forBusiness((int) $a->clinic_id),
             'prescription_id' => $a->relationLoaded('prescription') && $a->prescription

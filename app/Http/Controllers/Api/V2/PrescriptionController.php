@@ -185,12 +185,22 @@ class PrescriptionController extends Controller
                 422,
                 __('الموعد لا يخص هذه العيادة أو هذا المريض.'),
             );
+
+            // a physician writes for the visits that are his — not for a colleague's patient
+            $mine = \App\Support\Physicians::actingId($request);
+            abort_unless(
+                $mine === null || $appointment->physician_id === null || (int) $appointment->physician_id === $mine,
+                403,
+                __('هذا الموعد لطبيب آخر.'),
+            );
         }
 
         $this->handwritingRequiredOr422($request, $data['items']);
 
         $prescription = $this->service->issue($doctor, $patient, [
             'appointment_id' => $data['appointment_id'] ?? null,
+            // «الطبيب المعالج»: a physician working for the hospital is named on what he writes
+            'physician_id' => \App\Support\Physicians::actingId($request),
             'diagnosis' => $data['diagnosis'] ?? null,
             'patient_condition' => $data['patient_condition'] ?? null,
             'notes' => $data['notes'] ?? null,
@@ -552,6 +562,7 @@ class PrescriptionController extends Controller
             'dispenses_left' => $p->dispensesLeft(),
             'handwritten_image' => optional($p->handwrittenImage())->image,
             'doctor' => $p->doctor_id ? $this->party($p->doctor, $p->doctor_id) : null,
+            'physician' => $p->doctor_id && $p->physician_id ? \App\Support\Physicians::party((int) $p->physician_id, (int) $p->doctor_id) : null,
             'patient' => $this->party($p->patient, $p->patient_id),
             'pharmacy' => $p->pharmacy_id ? $this->party($p->pharmacy, $p->pharmacy_id) : null,
             'shared_with' => $p->relationLoaded('shares')

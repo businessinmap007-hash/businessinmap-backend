@@ -143,6 +143,8 @@ class PrescriptionService
         return DB::transaction(function () use ($doctor, $patient, $header, $items) {
             $prescription = Prescription::create([
                 'doctor_id' => (int) $doctor->id,
+                // the physician who works for this hospital and wrote it (null when the account itself is the doctor)
+                'physician_id' => isset($header['physician_id']) ? (int) $header['physician_id'] : null,
                 'patient_id' => (int) $patient->id,
                 'appointment_id' => isset($header['appointment_id']) ? (int) $header['appointment_id'] : null,
                 'status' => Prescription::STATUS_ISSUED,

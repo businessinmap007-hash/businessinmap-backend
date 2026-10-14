@@ -32,6 +32,7 @@ class ClinicAppointment extends Model
 
     protected $fillable = [
         'clinic_id',
+        'physician_id',
         'patient_id',
         'service_price_id',
         'visit_fee',

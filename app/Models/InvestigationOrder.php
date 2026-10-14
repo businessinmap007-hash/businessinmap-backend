@@ -41,7 +41,8 @@ class InvestigationOrder extends Model
     public const RECEIVE_ONLY_CHILDREN = [163, 252];
 
     protected $fillable = [
-        'doctor_id', 'patient_id', 'center_id', 'status', 'notes', 'center_note', 'appointment_at', 'total',
+        'doctor_id',
+        'physician_id', 'patient_id', 'center_id', 'status', 'notes', 'center_note', 'appointment_at', 'total',
         'issued_at', 'sent_at', 'accepted_at', 'ready_at', 'patient_saved_at', 'doctor_seen_at', 'expiry_warned_at', 'files_purged_at',
     ];
 

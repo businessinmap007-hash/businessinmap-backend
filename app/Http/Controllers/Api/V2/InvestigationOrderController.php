@@ -56,7 +56,7 @@ class InvestigationOrderController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $order = $this->service->issue($doctor, User::query()->findOrFail((int) $data['patient_id']), $data['option_ids'], $data['notes'] ?? null);
+        $order = $this->service->issue($doctor, User::query()->findOrFail((int) $data['patient_id']), $data['option_ids'], $data['notes'] ?? null, \App\Support\Physicians::actingId($request));
 
         return response()->json([
             'success' => true,
@@ -333,6 +333,8 @@ class InvestigationOrderController extends Controller
             'id' => (int) $o->id,
             'status' => (string) $o->status,
             'doctor' => ! $viewerIsCenter && $o->doctor ? ['id' => (int) $o->doctor->id, 'name' => $o->doctor->name] : null,
+            // the patient and the hospital see who ordered it; the centre sees neither the doctor nor the physician
+            'physician' => ! $viewerIsCenter && $o->doctor_id && $o->physician_id ? \App\Support\Physicians::party((int) $o->physician_id, (int) $o->doctor_id) : null,
             'ordered_by_doctor' => $o->doctor_id !== null,
             'patient' => $o->patient ? ['id' => (int) $o->patient->id, 'name' => $o->patient->name] : null,
             'center' => $o->center ? ['id' => (int) $o->center->id, 'name' => $o->center->name] : null,

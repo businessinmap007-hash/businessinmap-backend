@@ -11,6 +11,7 @@ use App\Models\ClinicAppointmentPayment;
 use App\Services\Clinics\ClinicAppointmentService;
 use App\Services\Clinics\ClinicBillingService;
 use App\Support\BusinessContext;
+use App\Support\Physicians;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -29,8 +30,13 @@ class BusinessClinicAppointmentController extends Controller
     /** GET /api/v2/business/clinic-appointments — the clinic's calendar/queue. */
     public function index(Request $request)
     {
+        $mine = Physicians::actingId($request);
+
         $rows = ClinicAppointment::query()
             ->where('clinic_id', BusinessContext::id($request))
+            // «مواعيدي»: a physician working for the hospital sees his own appointments only
+            ->when($mine, fn ($q) => $q->where('physician_id', $mine))
+            ->when(! $mine && $request->filled('physician_id'), fn ($q) => $q->where('physician_id', (int) $request->get('physician_id')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->get('status')))
             ->when($request->filled('date'), fn ($q) => $q->whereDate('scheduled_at', $request->get('date')))
             ->with(['patient:id,name,phone', 'prescription:id,appointment_id'])
@@ -53,7 +59,10 @@ class BusinessClinicAppointmentController extends Controller
             'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'reason' => ['nullable', 'string', 'max:255'],
+            'physician_id' => ['nullable', 'integer'],
         ]);
+
+        $data['physician_id'] = $this->physicianFor($request, $data['physician_id'] ?? null);
 
         $clinic = User::query()->findOrFail($clinicId);
         $patient = User::query()->findOrFail((int) $data['patient_id']);
@@ -139,6 +148,7 @@ class BusinessClinicAppointmentController extends Controller
 
         $waiting = ClinicAppointment::query()
             ->where('clinic_id', $clinic->id)
+            ->when(Physicians::actingId($request), fn ($q, $me) => $q->where('physician_id', $me))
             ->where('status', ClinicAppointment::STATUS_CONFIRMED)
             ->whereNotNull('checked_in_at')
             ->with(['patient:id,name,phone', 'servicePrice'])
@@ -236,6 +246,7 @@ class BusinessClinicAppointmentController extends Controller
     {
         $rows = ClinicAppointmentSlot::query()
             ->where('clinic_id', BusinessContext::id($request))
+            ->when(Physicians::actingId($request), fn ($q, $me) => $q->where('physician_id', $me))
             ->when(! $request->boolean('include_booked'), fn ($q) => $q->open())
             ->orderBy('starts_at')
             ->paginate((int) $request->get('per_page', 30));
@@ -245,6 +256,7 @@ class BusinessClinicAppointmentController extends Controller
             'starts_at' => optional($s->starts_at)->toIso8601String(),
             'duration_minutes' => (int) $s->duration_minutes,
             'service_price_id' => $s->service_price_id ? (int) $s->service_price_id : null,
+            'physician_id' => $s->physician_id ? (int) $s->physician_id : null,
             'visit_kind' => $s->servicePrice?->offeringLabel($s->servicePrice->bookable_item_type),
             'appointment_id' => $s->appointment_id ? (int) $s->appointment_id : null,
             'is_open' => $s->isOpen(),
@@ -265,8 +277,10 @@ class BusinessClinicAppointmentController extends Controller
             'slots.*' => ['date', 'after:now'],
             'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+            'physician_id' => ['nullable', 'integer'],
         ]);
 
+        $physicianId = $this->physicianFor($request, $data['physician_id'] ?? null);
         $clinic = User::query()->findOrFail(BusinessContext::id($request));
 
         // «الكشف ٣٠ والاستشارة ٢٠»: naming the visit is enough — its length comes
@@ -286,7 +300,7 @@ class BusinessClinicAppointmentController extends Controller
                 continue;
             }
 
-            if ($this->service->publishSlot($clinic, $start, $duration, $priceId)) {
+            if ($this->service->publishSlot($clinic, $start, $duration, $priceId, $physicianId)) {
                 $created++;
             }
         }
@@ -316,8 +330,10 @@ class BusinessClinicAppointmentController extends Controller
             'weeks' => ['nullable', 'integer', 'min:1', 'max:12'],
             'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+            'physician_id' => ['nullable', 'integer'],
         ]);
 
+        $physicianId = $this->physicianFor($request, $data['physician_id'] ?? null);
         $times = $this->resolveTimes($data);
         abort_if($times === [], 422, __('حدّد الأوقات.'));
 
@@ -331,6 +347,7 @@ class BusinessClinicAppointmentController extends Controller
             (int) ($data['weeks'] ?? 4) * 7,
             $duration,
             $priceId,
+            $physicianId,
         );
 
         return response()->json([
@@ -354,8 +371,10 @@ class BusinessClinicAppointmentController extends Controller
             'interval_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
             'service_price_id' => ['nullable', 'integer', 'exists:business_service_prices,id'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:480'],
+            'physician_id' => ['nullable', 'integer'],
         ]);
 
+        $physicianId = $this->physicianFor($request, $data['physician_id'] ?? null);
         $clinic = User::query()->findOrFail(BusinessContext::id($request));
 
         $result = $this->service->generateSlotsFromHours(
@@ -363,6 +382,7 @@ class BusinessClinicAppointmentController extends Controller
             (int) ($data['weeks'] ?? 4) * 7,
             isset($data['interval_minutes']) ? (int) $data['interval_minutes'] : null,
             $data,
+            $physicianId,
         );
 
         return response()->json([
@@ -535,7 +555,32 @@ class BusinessClinicAppointmentController extends Controller
         return ClinicAppointment::query()
             ->where('id', $id)
             ->where('clinic_id', BusinessContext::id($request))
+            ->when(Physicians::actingId($request), fn ($q, $me) => $q->where('physician_id', $me))
             ->firstOrFail();
+    }
+
+    /**
+     * Who the slot / appointment belongs to: a physician acting for the hospital is always himself; the owner may name
+     * one of the hospital's physicians (or none = the hospital's general board).
+     */
+    private function physicianFor(Request $request, mixed $named): ?int
+    {
+        $mine = Physicians::actingId($request);
+        if ($mine) {
+            return $mine;
+        }
+
+        if ($named === null || $named === '') {
+            return null;
+        }
+
+        abort_unless(
+            Physicians::isPhysicianOf((int) $named, BusinessContext::id($request)),
+            422,
+            __('هذا الطبيب ليس من أطباء النشاط.')
+        );
+
+        return (int) $named;
     }
 
     private function serialize(ClinicAppointment $a): array
@@ -549,6 +594,7 @@ class BusinessClinicAppointmentController extends Controller
             'specialty_services' => $a->servicesSummary(),
             'billing' => app(ClinicBillingService::class)->summary($a),
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
+            'physician' => Physicians::party($a->physician_id ? (int) $a->physician_id : null, (int) $a->clinic_id),
             'notes' => $a->notes,
             'prescription_id' => $a->relationLoaded('prescription') && $a->prescription
                 ? (int) $a->prescription->id : null,

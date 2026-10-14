@@ -80,6 +80,7 @@ class Prescription extends Model
 
     protected $fillable = [
         'doctor_id',
+        'physician_id',
         'patient_id',
         'appointment_id',
         'revises_prescription_id',

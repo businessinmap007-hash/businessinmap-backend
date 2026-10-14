@@ -13,6 +13,7 @@ class ClinicAppointmentSlot extends Model
 {
     protected $fillable = [
         'clinic_id',
+        'physician_id',
         'service_price_id',
         'appointment_id',
         'created_by',

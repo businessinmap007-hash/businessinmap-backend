@@ -73,6 +73,7 @@ class BusinessStaffController extends Controller
             'capabilities' => ['required', 'array', 'min:1'],
             'capabilities.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
+            'is_physician' => ['nullable', 'boolean'],
         ]);
 
         $user = $this->resolveUser($data, $businessId);
@@ -88,6 +89,8 @@ class BusinessStaffController extends Controller
             BusinessCapability::sanitizeFor($request->user(), $data['capabilities']),
             (bool) ($data['is_active'] ?? true),
         );
+
+        $this->markPhysician($request, $staff, $data);
 
         // A person needs to confirm their own invitation before it activates
         // (see resolveContext()'s status gate) - notify only while it's
@@ -117,6 +120,7 @@ class BusinessStaffController extends Controller
             'capabilities' => ['nullable', 'array', 'min:1'],
             'capabilities.*' => ['string'],
             'is_active' => ['nullable', 'boolean'],
+            'is_physician' => ['nullable', 'boolean'],
         ]);
 
         $existing = BusinessStaff::query()
@@ -132,11 +136,34 @@ class BusinessStaffController extends Controller
             array_key_exists('is_active', $data) ? (bool) $data['is_active'] : (bool) $existing->is_active,
         );
 
+        $this->markPhysician($request, $staff, $data);
+
         return response()->json([
             'success' => true,
             'message' => __('تم تحديث صلاحيات الموظف.'),
             'data' => ['staff' => $this->serialize($staff->fresh('user'))],
         ]);
+    }
+
+    /**
+     * «طبيب» — only an account that treats patients (clinic, hospital, medical centre) may mark a staff member a
+     * physician: it is what puts his name on the visits and prescriptions he handles.
+     *
+     * @param  array<string,mixed>  $data
+     */
+    private function markPhysician(Request $request, BusinessStaff $staff, array $data): void
+    {
+        if (! array_key_exists('is_physician', $data)) {
+            return;
+        }
+
+        $want = (bool) $data['is_physician'];
+
+        if ($want && ! \App\Models\Prescription::isDoctorBusiness($request->user())) {
+            abort(422, __('تحديد الطبيب متاح لحسابات العيادات والمستشفيات والمراكز الطبية فقط.'));
+        }
+
+        $staff->forceFill(['is_physician' => $want])->save();
     }
 
     /** DELETE /api/v2/business/staff/{user} — revoke a staff member. */
@@ -532,6 +559,7 @@ class BusinessStaffController extends Controller
                 'logo' => $s->user->logo,
             ] : ['id' => (int) $s->user_id],
             'title' => $s->title,
+            'is_physician' => (bool) $s->is_physician,
             'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
             'is_active' => (bool) $s->is_active,
             'status' => (string) $s->status,

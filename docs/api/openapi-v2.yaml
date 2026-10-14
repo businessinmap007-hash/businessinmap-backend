@@ -1797,7 +1797,7 @@ paths:
     post:
       tags: [Business Staff]
       summary: Grant a staff member a set of capabilities (owner only)
-      description: Identify the person by user_id or phone. Capabilities are validated against the registry.
+      description: Identify the person by user_id or phone. Capabilities are validated against the registry. `is_physician` (boolean; clinic / hospital / medical-centre accounts only, 422 otherwise) marks the member a treating physician - his name is then recorded on the visits, prescriptions and investigation orders he handles, he publishes his own clinic slots (`physician_id`) and sees only his own appointments.
       requestBody:
         required: true
         content:
@@ -5055,11 +5055,17 @@ paths:
               properties:
                 pattern: { type: array, items: { type: string } }
       responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } }
+  /clinics/{clinic}/physicians:
+    get:
+      tags: [Clinic Appointments]
+      summary: "The physicians who work for this hospital / centre (staff the owner marked is_physician): {id, name, title, logo, open_slots, next_at}. Pick one and ask GET /clinics/{clinic}/slots?physician_id= for HIS times; a slot publishes under a physician, and the appointment, prescription and investigation order carry `physician` (name + title). Empty for a clinic with no staff physicians."
+      parameters: [{ name: clinic, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /clinics/{clinic}/slots:
     get:
       tags: [Clinic Appointments]
       summary: "A clinic's open published slots for the next `days` days (default 14, max 60; not 30 rows). The paginator also carries `days` - one entry per day of the window {date, open (the clinic's weekly hours say it sits that day; a week never written counts as open), hours {open, close}, slots (open times left), published (every time the clinic published that day, booked ones too - 0 means the doctor is not there: the app hides the day)} - so the patient sees only the days the doctor sits."
-      parameters: [{ name: clinic, in: path, required: true, schema: { type: integer } }, { name: days, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 60, default: 14 } }, { $ref: '#/components/parameters/PerPage' }]
+      parameters: [{ name: clinic, in: path, required: true, schema: { type: integer } }, { name: days, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 60, default: 14 } }, { name: physician_id, in: query, required: false, description: 'One physician board; absent = the times the hospital published without naming a physician', schema: { type: integer } }, { $ref: '#/components/parameters/PerPage' }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /clinic-slots/{slot}/book:
     post:

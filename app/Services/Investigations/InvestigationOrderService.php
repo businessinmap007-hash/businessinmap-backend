@@ -97,13 +97,13 @@ final class InvestigationOrderService
 
     // ───────────────────────── issue / request ─────────────────────────
 
-    public function issue(User $doctor, User $patient, array $optionIds, ?string $notes): InvestigationOrder
+    public function issue(User $doctor, User $patient, array $optionIds, ?string $notes, ?int $physicianId = null): InvestigationOrder
     {
         $options = $this->optionsFor($optionIds);
 
-        return DB::transaction(function () use ($doctor, $patient, $options, $notes) {
+        return DB::transaction(function () use ($doctor, $patient, $options, $notes, $physicianId) {
             $order = InvestigationOrder::create([
-                'doctor_id' => (int) $doctor->id, 'patient_id' => (int) $patient->id,
+                'doctor_id' => (int) $doctor->id, 'physician_id' => $physicianId, 'patient_id' => (int) $patient->id,
                 'status' => InvestigationOrder::STATUS_ISSUED, 'notes' => $notes, 'issued_at' => now(),
             ]);
 

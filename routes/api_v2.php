@@ -583,6 +583,7 @@ Route::prefix('v2')->group(function () {
         // Published open slots: browse a clinic's, then book one in a tap.
         Route::get('clinics/{clinic}/slots', [ClinicAppointmentController::class, 'slots'])->whereNumber('clinic');
         Route::get('clinics/{clinic}/visit-kinds', [ClinicAppointmentController::class, 'visitKinds'])->whereNumber('clinic');
+        Route::get('clinics/{clinic}/physicians', [ClinicAppointmentController::class, 'physicians'])->whereNumber('clinic');
         // the patient's word on what the clinic recorded as paid
         Route::post('clinic-appointments/{appointment}/payments/{payment}/confirm', [ClinicAppointmentController::class, 'confirmPayment'])->whereNumber(['appointment', 'payment']);
         Route::post('clinic-appointments/{appointment}/payments/{payment}/dispute', [ClinicAppointmentController::class, 'disputePayment'])->whereNumber(['appointment', 'payment']);

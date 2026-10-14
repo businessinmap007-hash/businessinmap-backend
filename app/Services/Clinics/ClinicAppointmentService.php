@@ -184,11 +184,13 @@ class ClinicAppointmentService
     {
         $start = Carbon::parse($data['scheduled_at']);
         [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $data);
-        $this->assertNoConflict((int) $clinic->id, $start, $duration, null);
+        $physicianId = isset($data['physician_id']) ? (int) $data['physician_id'] : null;
+        $this->assertNoConflict((int) $clinic->id, $start, $duration, null, $physicianId);
         $this->agenda->assertFree((int) $patient->id, $start, $start->copy()->addMinutes($duration));
 
         $appointment = ClinicAppointment::create([
             'clinic_id' => (int) $clinic->id,
+            'physician_id' => $physicianId,
             'patient_id' => (int) $patient->id,
             'service_price_id' => $priceId,
             'visit_fee' => $this->visitFeeOf($priceId),
@@ -217,6 +219,7 @@ class ClinicAppointmentService
             $appointment->scheduled_at,
             (int) $appointment->duration_minutes,
             (int) $appointment->id,
+            $appointment->physician_id ? (int) $appointment->physician_id : null,
         );
         $this->agenda->assertFree(
             (int) $appointment->patient_id,
@@ -272,10 +275,11 @@ class ClinicAppointmentService
      * Clinic publishes one open slot. Silently skips (returns null) a duplicate
      * start time — the (clinic_id, starts_at) unique key makes republishing safe.
      */
-    public function publishSlot(User $clinic, Carbon $start, int $duration = 30, ?int $servicePriceId = null): ?ClinicAppointmentSlot
+    public function publishSlot(User $clinic, Carbon $start, int $duration = 30, ?int $servicePriceId = null, ?int $physicianId = null): ?ClinicAppointmentSlot
     {
+        // two physicians of one hospital may sit at the same minute: the key is (clinic, physician, time)
         $slot = ClinicAppointmentSlot::query()->firstOrCreate(
-            ['clinic_id' => (int) $clinic->id, 'starts_at' => $start],
+            ['clinic_id' => (int) $clinic->id, 'physician_id' => $physicianId, 'starts_at' => $start],
             [
                 'duration_minutes' => $duration,
                 'service_price_id' => $servicePriceId,
@@ -291,7 +295,7 @@ class ClinicAppointmentService
      * the next `$days` whose weekday (Carbon 0=Sun..6=Sat) is selected, open a slot
      * at every listed time. Duplicates are skipped. Returns [created, skipped].
      */
-    public function generateSlots(User $clinic, array $weekdays, array $times, int $days, int $duration = 30, ?int $servicePriceId = null): array
+    public function generateSlots(User $clinic, array $weekdays, array $times, int $days, int $duration = 30, ?int $servicePriceId = null, ?int $physicianId = null): array
     {
         $created = 0;
         $skipped = 0;
@@ -324,7 +328,7 @@ class ClinicAppointmentService
                     continue;
                 }
 
-                $this->publishSlot($clinic, $at, $duration, $servicePriceId) ? $created++ : $skipped++;
+                $this->publishSlot($clinic, $at, $duration, $servicePriceId, $physicianId) ? $created++ : $skipped++;
             }
         }
 
@@ -340,7 +344,7 @@ class ClinicAppointmentService
      * Monday runs 4–9), so this calls generateSlots() once per open day
      * rather than assuming one shared time range for every weekday.
      */
-    public function generateSlotsFromHours(User $clinic, int $days, ?int $intervalMinutes, ?array $slotData): array
+    public function generateSlotsFromHours(User $clinic, int $days, ?int $intervalMinutes, ?array $slotData, ?int $physicianId = null): array
     {
         [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $slotData ?? []);
         $interval = $intervalMinutes ?: $duration;
@@ -359,7 +363,7 @@ class ClinicAppointmentService
                 continue;
             }
 
-            $result = $this->generateSlots($clinic, [(int) $row->day_of_week], $times, $days, $duration, $priceId);
+            $result = $this->generateSlots($clinic, [(int) $row->day_of_week], $times, $days, $duration, $priceId, $physicianId);
             $created += $result['created'];
             $skipped += $result['skipped'];
         }
@@ -407,13 +411,14 @@ class ClinicAppointmentService
                 throw ValidationException::withMessages(['slot' => __('هذه الفتحة لم تعد متاحة.')]);
             }
 
-            $this->assertNoConflict((int) $slot->clinic_id, $slot->starts_at, (int) $slot->duration_minutes, null);
+            $this->assertNoConflict((int) $slot->clinic_id, $slot->starts_at, (int) $slot->duration_minutes, null, $slot->physician_id ? (int) $slot->physician_id : null);
             $this->agenda->assertFree((int) $patient->id, $slot->starts_at, $slot->starts_at->copy()->addMinutes((int) $slot->duration_minutes));
 
             $services = $this->resolveSpecialtyServices((int) $slot->clinic_id, $data);
 
             $appointment = ClinicAppointment::create([
                 'clinic_id' => (int) $slot->clinic_id,
+                'physician_id' => $slot->physician_id ? (int) $slot->physician_id : null,
                 'patient_id' => (int) $patient->id,
                 // The slot already says which visit it is and how long it runs —
                 // the patient took what the clinic offered, so nothing he posts
@@ -570,7 +575,7 @@ class ClinicAppointmentService
         $duration = $duration ?? (int) $appointment->duration_minutes;
 
         if ($appointment->status === ClinicAppointment::STATUS_CONFIRMED) {
-            $this->assertNoConflict((int) $appointment->clinic_id, $newStart, $duration, (int) $appointment->id);
+            $this->assertNoConflict((int) $appointment->clinic_id, $newStart, $duration, (int) $appointment->id, $appointment->physician_id ? (int) $appointment->physician_id : null);
             $this->agenda->assertFree(
                 (int) $appointment->patient_id, $newStart, $newStart->copy()->addMinutes($duration),
                 [$appointment->getMorphClass(), $appointment->getKey()],
@@ -778,7 +783,7 @@ class ClinicAppointmentService
     }
 
     /** True if a confirmed appointment already overlaps the given window. */
-    public function assertNoConflict(int $clinicId, Carbon $start, int $duration, ?int $ignoreId): void
+    public function assertNoConflict(int $clinicId, Carbon $start, int $duration, ?int $ignoreId, ?int $physicianId = null): void
     {
         $end = $start->copy()->addMinutes($duration);
 
@@ -796,6 +801,8 @@ class ClinicAppointmentService
             ->where('clinic_id', $clinicId)
             ->where('status', ClinicAppointment::STATUS_CONFIRMED)
             ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            // a physician sits one patient at a time; the hospital as a whole may have several at once
+            ->when($physicianId, fn ($q) => $q->where('physician_id', $physicianId))
             // overlap: existing.start < newEnd AND existing.end > newStart
             ->where('scheduled_at', '<', $end)
             ->whereRaw('DATE_ADD(scheduled_at, INTERVAL duration_minutes MINUTE) > ?', [$start])

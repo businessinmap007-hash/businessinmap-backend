@@ -23,12 +23,14 @@ class BusinessStaff extends Model
         'title',
         'capabilities',
         'is_active',
+        'is_physician',
         'status',
     ];
 
     protected $casts = [
         'capabilities' => 'array',
         'is_active' => 'boolean',
+        'is_physician' => 'boolean',
     ];
 
     public function business(): BelongsTo

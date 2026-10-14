@@ -527,6 +527,7 @@ class BusinessStaffController extends Controller
                     'logo' => $s->business->logo,
                 ] : ['id' => (int) $s->business_id],
                 'title' => $s->title,
+                'is_physician' => (bool) $s->is_physician,
                 'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
                 // Tells the app whether checking in for THIS membership needs
                 // a QR scan + GPS first (StaffAttendanceController::checkIn).

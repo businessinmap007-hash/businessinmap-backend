@@ -152,6 +152,25 @@ class UnitDiscoveryTest extends TestCase
         }
     }
 
+    /** A title that is only the machine's key + the code («booking_stay 201») is never shown as a room's name. */
+    public function test_a_raw_key_title_falls_back_to_the_kind_and_the_code(): void
+    {
+        $this->price(900, $this->doubleRoomId);
+
+        $unit = $this->unit('201', $this->doubleRoomId);
+        $unit->forceFill(['title' => 'booking_stay 201'])->save();
+
+        $payload = collect($this->browse()->assertOk()->json('data.kinds.0.units'))->firstWhere('id', $unit->id);
+
+        $this->assertNull($payload['title']);
+        $this->assertSame('غرفة مزدوجة — 201', $payload['label']);
+
+        // what the owner really wrote is kept
+        $named = $this->unit('202', $this->doubleRoomId);
+        $payload = collect($this->browse()->json('data.kinds.0.units'))->firstWhere('id', $named->id);
+        $this->assertSame('وحدة 202', $payload['title']);
+    }
+
     /** Without dates the answer is what exists and what it costs, not what is free. */
     public function test_availability_is_only_reported_when_a_window_is_asked_for(): void
     {

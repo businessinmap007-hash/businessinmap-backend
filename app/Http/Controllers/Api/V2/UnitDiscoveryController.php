@@ -414,7 +414,7 @@ final class UnitDiscoveryController extends Controller
         $payload = [
             'id' => (int) $unit->id,
             'code' => $byType ? '' : (string) ($unit->code ?? ''),
-            'title' => $byType ? null : $unit->title,
+            'title' => $byType ? null : $unit->readableTitle(),
             'label' => $byType ? (string) (optional($unit->lineOption)->name_ar ?: optional($unit->lineOption)->name_en ?: $unit->displayLabel()) : $unit->displayLabel(),
             'description' => $unit->description,
             'capacity' => $unit->capacity !== null ? (int) $unit->capacity : null,

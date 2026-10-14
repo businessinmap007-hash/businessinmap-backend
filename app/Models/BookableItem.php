@@ -214,13 +214,33 @@ class BookableItem extends Model
     public function displayLabel(): string
     {
         $kind = (string) (optional($this->lineOption)->name_ar ?: optional($this->lineOption)->name_en ?: '');
-        $unit = (string) ($this->code ?: $this->title);
+        $unit = (string) ($this->code ?: $this->readableTitle());
 
         if ($kind === '') {
             return $unit !== '' ? $unit : ('#' . $this->id);
         }
 
         return $unit !== '' ? ($kind . ' — ' . $unit) : $kind;
+    }
+
+    /**
+     * The title the owner wrote — or null when what is stored is only the machine's own key and the code
+     * («booking_stay 201»), which a guest must never read as a room's name. The caller then falls back to the
+     * kind + code («غرفة مزدوجة — 201»).
+     */
+    public function readableTitle(): ?string
+    {
+        $title = trim((string) $this->title);
+
+        if ($title === '') {
+            return null;
+        }
+
+        if (preg_match('/^(booking|book_a|menu|retail|training|schedule)[a-z_]*(\s|$)/i', $title) === 1) {
+            return null;
+        }
+
+        return $title;
     }
 
     /**

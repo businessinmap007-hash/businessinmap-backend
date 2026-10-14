@@ -1250,6 +1250,7 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/stay-requests/{stayRequest}/cancel', [StayRequestController::class, 'cancel'])->whereNumber(['booking', 'stayRequest']);
             Route::post('{booking}/accept', [BookingController::class, 'accept'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/reject', [BookingController::class, 'reject'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            Route::post('{booking}/reschedule', [BookingController::class, 'reschedule'])->whereNumber('booking');
             Route::post('{booking}/cancel', [BookingController::class, 'cancel'])->whereNumber('booking');
             Route::post('{booking}/client-confirm', [BookingController::class, 'clientConfirm'])->whereNumber('booking');
             Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);

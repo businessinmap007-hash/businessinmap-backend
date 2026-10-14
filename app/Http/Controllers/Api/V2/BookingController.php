@@ -557,6 +557,8 @@ final class BookingController extends Controller
             existingMeta: array_merge($data['meta'] ?? [], [
                 'source' => 'api_v2',
                 'created_by_user_id' => (int) $user->id,
+                // what the customer ticked: a reschedule prices the new window with the same choices
+                'requested_option_ids' => array_values(array_map('intval', $data['option_ids'] ?? [])),
             ]),
             calc: $calc,
             bookable: $bookable
@@ -945,6 +947,158 @@ final class BookingController extends Controller
         app(\App\Services\BookingDepositPaymentService::class)->accept($booking, (int) $booking->business_id);
 
         return $this->bookingResponse($booking->fresh(), 'Deposit taken as a payment.');
+    }
+
+    /**
+     * POST /api/v2/bookings/{booking}/reschedule — {starts_at, ends_at?}
+     * «تغيير موعد الحجز»: the customer moves his own booking, while it is still `pending` or `accepted`, to a new start
+     * (the same length unless ends_at is sent). The new window is judged exactly as a new booking is — his agenda, the
+     * business's hours, the unit / chair / held time — and priced again with the choices he made. An accepted booking
+     * goes back to `pending`: the business answers the new time.
+     */
+    public function reschedule(Request $request, Booking $booking)
+    {
+        $this->authorizeClientBooking($request, $booking);
+
+        $data = $request->validate([
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['nullable', 'date', 'after:starts_at'],
+        ]);
+
+        if (! in_array((string) $booking->status, [Booking::STATUS_PENDING, Booking::STATUS_ACCEPTED], true)) {
+            throw ValidationException::withMessages(['status' => __('لا يمكن تغيير موعد هذا الحجز الآن.')]);
+        }
+
+        if (! $booking->starts_at) {
+            throw ValidationException::withMessages(['starts_at' => __('هذا الحجز بلا موعد محدد لتغييره.')]);
+        }
+
+        $oldStart = Carbon::parse($booking->starts_at);
+        $oldEnd = $booking->ends_at ? Carbon::parse($booking->ends_at) : null;
+        $start = Carbon::parse($data['starts_at']);
+        $end = ! empty($data['ends_at'])
+            ? Carbon::parse($data['ends_at'])
+            : ($oldEnd ? $start->copy()->addSeconds($oldStart->diffInSeconds($oldEnd)) : null);
+
+        if ($start->lte(now())) {
+            throw ValidationException::withMessages(['starts_at' => __('اختر وقتًا قادمًا.')]);
+        }
+
+        $wasAccepted = (string) $booking->status === Booking::STATUS_ACCEPTED;
+
+        DB::transaction(function () use ($booking, $start, $end, $wasAccepted) {
+            $booking = Booking::query()->whereKey($booking->id)->lockForUpdate()->firstOrFail();
+
+            // judged as a NEW booking: this one must not stand in its own way
+            $booking->forceFill(['status' => Booking::STATUS_CANCELLED])->saveQuietly();
+
+            $window = $end ?? $start->copy()->addMinutes(30);
+
+            [$from, $to] = $this->agenda->blockingWindow($start, $end, (bool) $booking->all_day);
+            $this->agenda->assertFree((int) $booking->user_id, $from, $to, [$booking->getMorphClass(), $booking->getKey()], 'starts_at');
+
+            if (! app(\App\Services\BusinessHoursService::class)->isOpenThroughout((int) $booking->business_id, $start, $window)) {
+                throw ValidationException::withMessages(['starts_at' => __('هذا الوقت خارج مواعيد عمل النشاط.')]);
+            }
+
+            $bookable = $booking->bookable_id ? BookableItem::query()->find((int) $booking->bookable_id) : null;
+            $this->serviceExecutionEngine->assertBookableAvailable($bookable, $start, $end);
+            $this->assertTimeHeld($booking, $start, $window);
+
+            $update = [
+                'date' => $start->toDateString(),
+                'time' => $booking->all_day ? '00:00:00' : $start->format('H:i:s'),
+                'starts_at' => $start,
+                'ends_at' => $end,
+                // an accepted booking goes back to the business, which answers the new time
+                'status' => Booking::STATUS_PENDING,
+            ];
+
+            // the price of the new window, with the choices the customer made when he booked
+            $meta = (array) ($booking->meta ?? []);
+
+            if (array_key_exists('requested_option_ids', $meta) && (int) $booking->service_id > 0) {
+                $offering = ($booking->offering_type && $booking->offering_id)
+                    ? $booking->offering_type::query()->find((int) $booking->offering_id)
+                    : null;
+
+                $calc = $this->serviceExecutionEngine->prepare(
+                    businessId: (int) $booking->business_id,
+                    serviceId: (int) $booking->service_id,
+                    bookableId: $booking->bookable_id ? (int) $booking->bookable_id : null,
+                    quantity: max((int) $booking->quantity, 1),
+                    pricingDate: $start,
+                    offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null,
+                    optionIds: (array) $meta['requested_option_ids'],
+                    until: $end,
+                    partySize: max((int) ($booking->party_size ?: 1), 1),
+                    dayUse: (bool) ($meta['day_use'] ?? false),
+                );
+
+                $update['price'] = (float) data_get($calc, 'price_breakdown.final_price', $booking->price);
+                $update['meta'] = $this->serviceExecutionEngine->buildBookingMeta(existingMeta: $meta, calc: $calc, bookable: $calc['bookable'] ?? $bookable);
+            }
+
+            $booking->forceFill($update)->save();
+        });
+
+        $booking = $booking->fresh();
+        $this->bookingReminderService->scheduleForBooking($booking);
+
+        try {
+            app(\App\Services\Notifications\NotificationDispatcherService::class)->dispatch('booking.rescheduled', (int) $booking->business_id, [
+                'title_ar' => 'غيّر العميل موعد حجزه', 'title_en' => 'A customer moved a booking',
+                'body_ar' => 'غيّر العميل موعد حجزه إلى ' . $start->format('Y-m-d H:i') . ($wasAccepted ? ' — بانتظار ردّك.' : '.'),
+                'body_en' => 'A customer moved a booking to ' . $start->format('Y-m-d H:i') . ($wasAccepted ? ' — awaiting your answer.' : '.'),
+                'notifiable_type' => Booking::class, 'notifiable_id' => (int) $booking->id,
+                'source_type' => Booking::class, 'source_id' => (int) $booking->id,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return $this->bookingResponse($booking, 'Booking rescheduled.');
+    }
+
+    /**
+     * The same «a time is held once» rules store() applies to a booking with no unit: a chair has one customer at a time,
+     * and a business of the appointment shape with no chairs and no unit is ONE line. [$booking] is already out of the
+     * way (judged as if cancelled).
+     */
+    private function assertTimeHeld(Booking $booking, Carbon $start, Carbon $end): void
+    {
+        if ($booking->bookable_id || $booking->course_group_id) {
+            return;
+        }
+
+        $businessId = (int) $booking->business_id;
+
+        // a chair has one customer at a time; with no chairs, an appointment-shape business with no unit is ONE line
+        $chaired = $booking->chair_id !== null;
+        $oneLine = ! $chaired
+            && \App\Services\AppointmentQueue::chairsOf($businessId)->isEmpty()
+            && optional(app(\App\Services\BookingShapes::class)->forBusiness($businessId))->code === 'appointment';
+
+        if (! $chaired && ! $oneLine) {
+            return;
+        }
+
+        $held = Booking::query()
+            ->where('business_id', $businessId)
+            ->where('id', '!=', (int) $booking->id)
+            ->whereNull('bookable_id')
+            ->when($chaired, fn ($q) => $q->where('chair_id', (int) $booking->chair_id), fn ($q) => $q->whereNull('chair_id'))
+            ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
+            ->whereNotNull('starts_at')
+            ->where('starts_at', '<', $end->format('Y-m-d H:i:s'))
+            ->whereRaw('COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 30 MINUTE)) > ?', [$start->format('Y-m-d H:i:s')])
+            ->exists();
+
+        if ($held) {
+            throw ValidationException::withMessages(['starts_at' => $chaired
+                ? __('هذا الكرسي محجوز في هذا الوقت.')
+                : __('هذا الموعد محجوز. اختر وقتًا آخر.')]);
+        }
     }
 
     /**

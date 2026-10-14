@@ -73,6 +73,18 @@ class HospitalProcedureController extends Controller
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
+    /** POST /api/v2/procedure-requests/{id}/confirm — the patient accepts his physician's decision. */
+    public function confirm(Request $request, int $row)
+    {
+        $r = ProcedureRequest::query()->where('patient_id', (int) $request->user()->id)->findOrFail($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إرسال طلبك إلى المستشفى.'),
+            'data' => ['request' => $this->serialize($this->service->confirm($r)->load('hospital:id,name,name_en', 'physician:id,name,name_en'))],
+        ]);
+    }
+
     /** POST /api/v2/procedure-requests/{id}/cancel */
     public function cancel(Request $request, int $row)
     {
@@ -124,6 +136,59 @@ class HospitalProcedureController extends Controller
         $this->service->deleteOwn($hospital, MedicalProcedure::query()->findOrFail($procedure));
 
         return response()->json(['success' => true, 'data' => ['kinds' => $this->service->catalogOf($hospital)]]);
+    }
+
+    /**
+     * POST /api/v2/business/procedure-decisions — «قرار إجراء جراحي»: the treating physician (or the owner, naming the
+     * physician) decides a procedure for a patient. {patient_id, hospital_procedure_id, notes?, appointment_id?, physician_id?}
+     */
+    public function decide(Request $request)
+    {
+        $hospital = $this->hospitalOrFail($request);
+        $data = $request->validate([
+            'patient_id' => ['required', 'integer', 'exists:users,id'],
+            'hospital_procedure_id' => ['required', 'integer'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'appointment_id' => ['nullable', 'integer'],
+            'physician_id' => ['nullable', 'integer'],
+        ]);
+
+        // a physician acting for the hospital signs it himself; the owner may name one of his physicians
+        $physician = \App\Support\Physicians::actingId($request);
+        if ($physician === null && ! empty($data['physician_id'])) {
+            abort_unless(\App\Support\Physicians::isPhysicianOf((int) $data['physician_id'], (int) $hospital->id), 422, __('هذا الشخص ليس من أطباء المستشفى.'));
+            $physician = (int) $data['physician_id'];
+        }
+
+        $row = $this->service->advise(
+            $hospital,
+            $physician,
+            (int) $data['patient_id'],
+            (int) $data['hospital_procedure_id'],
+            $data['notes'] ?? null,
+            ! empty($data['appointment_id']) ? (int) $data['appointment_id'] : null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم إرسال القرار إلى المريض.'),
+            'data' => ['request' => $this->serialize($row->load('patient:id,name,phone', 'physician:id,name,name_en'))],
+        ], 201);
+    }
+
+    /** GET /api/v2/business/procedure-decisions — the decisions issued: a physician's own, or all of the hospital's. */
+    public function decisions(Request $request)
+    {
+        $hospital = $this->hospitalOrFail($request);
+        $mine = \App\Support\Physicians::actingId($request);
+
+        $rows = ProcedureRequest::query()->where('hospital_id', (int) $hospital->id)->where('source', 'physician')
+            ->when($mine !== null, fn ($q) => $q->where('physician_id', $mine))
+            ->with('patient:id,name,phone', 'physician:id,name,name_en')->latest('id')->paginate((int) $request->get('per_page', 30));
+
+        $rows->getCollection()->transform(fn (ProcedureRequest $r) => $this->serialize($r));
+
+        return response()->json(['success' => true, 'data' => $rows]);
     }
 
     /** GET /api/v2/business/procedure-requests?tab=incoming|upcoming|done */
@@ -197,6 +262,12 @@ class HospitalProcedureController extends Controller
             'notes' => $r->notes,
             'scheduled_at' => optional($r->scheduled_at)->toIso8601String(),
             'hospital_note' => $r->hospital_note,
+            'source' => (string) ($r->source ?: 'patient'),
+            'appointment_id' => $r->appointment_id ? (int) $r->appointment_id : null,
+            // the treating physician who decided it (name + his title at the hospital), when one did
+            'physician' => $r->physician_id
+                ? (\App\Support\Physicians::party((int) $r->physician_id, (int) $r->hospital_id))
+                : null,
             'created_at' => optional($r->created_at)->toIso8601String(),
             'hospital' => $r->relationLoaded('hospital') && $r->hospital
                 ? ['id' => (int) $r->hospital->id, 'name' => $r->hospital->displayName()]

@@ -190,6 +190,73 @@ class HospitalProcedureService
         return $request;
     }
 
+    /**
+     * «قرار إجراء جراحي»: the treating physician decides the patient needs one of the hospital's procedures. It reaches
+     * the patient as a decision he answers — he confirms (it becomes a request the hospital schedules) or declines.
+     * The hospital hears nothing until the patient confirms.
+     */
+    public function advise(User $hospital, ?int $physicianId, int $patientId, int $hospitalProcedureId, ?string $notes, ?int $appointmentId = null): ProcedureRequest
+    {
+        $offering = HospitalProcedure::query()->with('procedure')
+            ->where('hospital_id', (int) $hospital->id)->find($hospitalProcedureId);
+
+        if (! $offering || ! $offering->procedure) {
+            throw ValidationException::withMessages(['hospital_procedure_id' => __('هذا الإجراء غير متاح لدى المستشفى.')]);
+        }
+
+        if ($patientId === (int) $hospital->id || $patientId === $physicianId) {
+            throw ValidationException::withMessages(['patient_id' => __('اختر المريض.')]);
+        }
+
+        if ($appointmentId !== null) {
+            $visit = \App\Models\ClinicAppointment::query()->find($appointmentId);
+
+            if (! $visit || (int) $visit->clinic_id !== (int) $hospital->id || (int) $visit->patient_id !== $patientId) {
+                throw ValidationException::withMessages(['appointment_id' => __('هذا الموعد لا يخص هذا المريض.')]);
+            }
+        }
+
+        $request = ProcedureRequest::create([
+            'patient_id' => $patientId,
+            'hospital_id' => (int) $hospital->id,
+            'procedure_id' => (int) $offering->procedure_id,
+            'kind' => $offering->procedure->kind,
+            'name' => $offering->procedure->name_ar,
+            'price' => $offering->price,
+            'notes' => $notes ?: null,
+            'status' => ProcedureRequest::STATUS_ADVISED,
+            'physician_id' => $physicianId,
+            'appointment_id' => $appointmentId,
+            'source' => 'physician',
+        ]);
+
+        $this->notify('procedure_advised', $patientId, $request,
+            'قرار إجراء طبي', 'A procedure was advised',
+            'قرر الطبيب لك إجراء «' . $request->name . '». افتح طلباتك لتؤكّد أو تعتذر.',
+            'Your physician advised “' . $request->name . '”. Open your requests to confirm or decline.');
+
+        return $request;
+    }
+
+    /** The patient accepts the physician's decision: it becomes a request the hospital schedules. */
+    public function confirm(ProcedureRequest $request): ProcedureRequest
+    {
+        $this->assertStatus($request, [ProcedureRequest::STATUS_ADVISED]);
+        $request->update(['status' => ProcedureRequest::STATUS_REQUESTED]);
+
+        $this->notify('procedure_requested', (int) $request->hospital_id, $request,
+            'طلب إجراء طبي', 'Procedure request',
+            'أكّد مريض قرار الطبيب بإجراء «' . $request->name . '».', 'A patient confirmed the physician’s decision: “' . $request->name . '”.');
+
+        if ($request->physician_id && (int) $request->physician_id !== (int) $request->hospital_id) {
+            $this->notify('procedure_requested', (int) $request->physician_id, $request,
+                'أكّد المريض قرارك', 'The patient confirmed your decision',
+                'أكّد المريض إجراء «' . $request->name . '».', 'The patient confirmed “' . $request->name . '”.');
+        }
+
+        return $request->fresh();
+    }
+
     public function accept(ProcedureRequest $request, Carbon $at, ?float $price, ?string $note): ProcedureRequest
     {
         $this->assertStatus($request, [ProcedureRequest::STATUS_REQUESTED]);
@@ -232,8 +299,20 @@ class HospitalProcedureService
 
     public function cancel(ProcedureRequest $request): ProcedureRequest
     {
-        $this->assertStatus($request, [ProcedureRequest::STATUS_REQUESTED, ProcedureRequest::STATUS_ACCEPTED]);
+        $this->assertStatus($request, [ProcedureRequest::STATUS_ADVISED, ProcedureRequest::STATUS_REQUESTED, ProcedureRequest::STATUS_ACCEPTED]);
+        $wasAdvised = $request->status === ProcedureRequest::STATUS_ADVISED;
         $request->update(['status' => ProcedureRequest::STATUS_CANCELLED]);
+
+        // declining a physician's decision tells the physician; the hospital never heard of it
+        if ($wasAdvised) {
+            if ($request->physician_id) {
+                $this->notify('procedure_cancelled', (int) $request->physician_id, $request,
+                    'اعتذر المريض عن قرارك', 'The patient declined your decision',
+                    'اعتذر المريض عن «' . $request->name . '».', 'The patient declined “' . $request->name . '”.');
+            }
+
+            return $request->fresh();
+        }
 
         $this->notify('procedure_cancelled', (int) $request->hospital_id, $request,
             'ألغى المريض طلب الإجراء', 'Procedure request cancelled',

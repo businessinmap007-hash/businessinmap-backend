@@ -593,6 +593,7 @@ Route::prefix('v2')->group(function () {
         // «إجراء طبي في المستشفى»: what a hospital offers (surgeries, endoscopies, treatments) and the patient's request.
         Route::get('hospitals/{hospital}/procedures', [HospitalProcedureController::class, 'offered'])->whereNumber('hospital');
         Route::post('procedure-requests', [HospitalProcedureController::class, 'store'])->middleware('throttle:30,1');
+        Route::post('procedure-requests/{row}/confirm', [HospitalProcedureController::class, 'confirm'])->whereNumber('row');
         Route::get('procedure-requests', [HospitalProcedureController::class, 'index']);
         Route::post('procedure-requests/{row}/cancel', [HospitalProcedureController::class, 'cancel'])->whereNumber('row');
         // «خدمات التخصص»: what a dental / dermatology clinic offers (cleaning, fillers, laser…), with its own prices.
@@ -1421,6 +1422,11 @@ Route::prefix('v2')->group(function () {
             Route::put('/', [HospitalProcedureController::class, 'save']);
             Route::post('custom', [HospitalProcedureController::class, 'addCustom']);
             Route::delete('custom/{procedure}', [HospitalProcedureController::class, 'deleteCustom'])->whereNumber('procedure');
+        });
+        // «قرار إجراء جراحي»: the treating physician decides a procedure for a patient, who confirms or declines
+        Route::prefix('business/procedure-decisions')->middleware('business.member:' . BusinessCapability::PROCEDURES)->group(function () {
+            Route::get('/', [HospitalProcedureController::class, 'decisions']);
+            Route::post('/', [HospitalProcedureController::class, 'decide']);
         });
         Route::prefix('business/procedure-requests')->middleware('business.member:' . BusinessCapability::CLINIC)->group(function () {
             Route::get('/', [HospitalProcedureController::class, 'requests']);

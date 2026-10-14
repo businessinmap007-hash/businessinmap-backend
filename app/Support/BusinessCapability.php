@@ -30,6 +30,14 @@ final class BusinessCapability
     public const TRAINING = 'training';
     public const CLINIC = 'clinic';
     public const DRIVERS = 'drivers';
+    public const PROCEDURES = 'procedures';
+
+    /**
+     * «الطبيب المعالج»: what the role carries on its own — the visit, the prescription, the test / radiology orders and
+     * the decision to perform a procedure. Marking a staff member a treating physician grants these (those his account
+     * can hold); the owner adds anything else.
+     */
+    public const PHYSICIAN_BUNDLE = [self::CLINIC, self::PRESCRIPTIONS, self::INVESTIGATIONS, self::PROCEDURES];
 
     /**
      * The registry: key => [ar, en]. Order here is the display order.
@@ -53,6 +61,7 @@ final class BusinessCapability
             self::TRAINING => ['خطط التدريب والتغذية', 'Training & nutrition plans'],
             self::CLINIC => ['مواعيد العيادة', 'Clinic appointments'],
             self::DRIVERS => ['مناديب التوصيل', 'Delivery drivers'],
+            self::PROCEDURES => ['قرارات الإجراءات الجراحية', 'Procedure decisions'],
         ];
     }
 
@@ -110,6 +119,7 @@ final class BusinessCapability
         self::PRESCRIPTIONS,
         self::INVESTIGATIONS,
         self::CLINIC,
+        self::PROCEDURES,
     ];
 
     private const HEALTH_ROOT_SLUG = 'health';
@@ -158,7 +168,7 @@ final class BusinessCapability
             self::registry(),
             function (string $key) use ($services, $isHealth, $trainsPatients, $onlyReceivesTests) {
                 // a lab or a radiology centre only receives orders: no clinic, no prescriptions to issue or fill
-                if ($onlyReceivesTests && in_array($key, [self::CLINIC, self::PRESCRIPTIONS], true)) {
+                if ($onlyReceivesTests && in_array($key, [self::CLINIC, self::PRESCRIPTIONS, self::PROCEDURES], true)) {
                     return false;
                 }
 

@@ -94,6 +94,7 @@ class BusinessStaffController extends Controller
 
         $this->markPhysician($request, $staff, $data);
         $this->markProvider($staff, $data);
+        $this->grantPhysicianBundle($request, $staff);
         $this->placeInDepartment($request, $staff, $data);
 
         // A person needs to confirm their own invitation before it activates
@@ -144,6 +145,7 @@ class BusinessStaffController extends Controller
 
         $this->markPhysician($request, $staff, $data);
         $this->markProvider($staff, $data);
+        $this->grantPhysicianBundle($request, $staff);
         $this->placeInDepartment($request, $staff, $data);
 
         return response()->json([
@@ -174,6 +176,28 @@ class BusinessStaffController extends Controller
         // a physician is a provider with a medical role: marking him one makes him assignable, un-marking leaves the
         // owner's separate «مقدّم خدمة» choice alone
         $staff->forceFill($want ? ['is_physician' => true, 'is_provider' => true] : ['is_physician' => false])->save();
+    }
+
+    /**
+     * «الطبيب المعالج» carries the visit, the prescription, the test orders and the decision to perform a procedure on
+     * its own — so a physician always holds them, whatever the capability list sent (only what this account may grant).
+     */
+    private function grantPhysicianBundle(Request $request, BusinessStaff $staff): void
+    {
+        $staff->refresh();
+
+        if (! $staff->is_physician) {
+            return;
+        }
+
+        $merged = BusinessCapability::sanitizeFor(
+            $request->user(),
+            array_values(array_unique(array_merge((array) $staff->capabilities, BusinessCapability::PHYSICIAN_BUNDLE))),
+        );
+
+        if ($merged !== array_values((array) $staff->capabilities)) {
+            $staff->forceFill(['capabilities' => $merged])->save();
+        }
     }
 
     /**

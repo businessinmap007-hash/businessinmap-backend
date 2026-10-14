@@ -37,17 +37,24 @@ class InvestigationOrder extends Model
     /** Child trades that take these orders: lab, radiology centre, hospital, medical centre. */
     public const CENTER_CHILDREN = [163, 252, 513, 515];
 
+    /** The lab trade — the one that may take a sample from the patient's home. */
+    public const LAB_CHILD = 163;
+
     /** Child trades that only receive (a lab or a radiology centre issues nothing). */
     public const RECEIVE_ONLY_CHILDREN = [163, 252];
 
     protected $fillable = [
         'doctor_id',
         'physician_id', 'patient_id', 'center_id', 'status', 'notes', 'center_note', 'appointment_at', 'total',
+        'requested_at', 'home_collection', 'home_fee',
         'issued_at', 'sent_at', 'accepted_at', 'ready_at', 'patient_saved_at', 'doctor_seen_at', 'expiry_warned_at', 'files_purged_at',
     ];
 
     protected $casts = [
         'appointment_at' => 'datetime',
+        'requested_at' => 'datetime',
+        'home_collection' => 'boolean',
+        'home_fee' => 'float',
         'issued_at' => 'datetime',
         'sent_at' => 'datetime',
         'accepted_at' => 'datetime',

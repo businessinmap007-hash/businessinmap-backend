@@ -39,7 +39,22 @@ class InvestigationOrderController extends Controller
         $business = User::query()->where('type', User::TYPE_BUSINESS)->findOrFail($center);
         abort_unless(InvestigationOrder::isCenter($business), 404);
 
-        return response()->json(['success' => true, 'data' => ['tests' => $this->service->testsOf($business)]]);
+        return response()->json(['success' => true, 'data' => [
+            'tests' => $this->service->testsOf($business),
+            // «باقات» and, for a lab, the fee of taking the sample at the patient's home (null = it does not)
+            'packages' => $this->service->packagesOf($business),
+            'home_fee' => $this->service->homeFeeOf($business),
+        ]]);
+    }
+
+    /** GET /api/v2/investigation-centers/{center}/times?date=Y-m-d — the times a patient may ask for on that day. */
+    public function centerTimes(Request $request, int $center)
+    {
+        $business = User::query()->where('type', User::TYPE_BUSINESS)->findOrFail($center);
+        abort_unless(InvestigationOrder::isCenter($business), 404);
+        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d']]);
+
+        return response()->json(['success' => true, 'data' => $this->service->timesFor($business, $data['date'])]);
     }
 
     // ───────────────────────── the doctor ─────────────────────────
@@ -141,14 +156,21 @@ class InvestigationOrderController extends Controller
     {
         $data = $request->validate([
             'center_id' => ['required', 'integer', 'exists:users,id'],
-            'option_ids' => ['required', 'array', 'min:1', 'max:60'],
+            'option_ids' => ['nullable', 'array', 'max:60'],
             'option_ids.*' => ['integer'],
+            'package_ids' => ['nullable', 'array', 'max:20'],
+            'package_ids.*' => ['integer'],
+            'home_collection' => ['nullable', 'boolean'],
+            // the day and time the patient chose (the centre's own clock), from GET investigation-centers/{id}/times
+            'requested_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'photo' => array_merge(['nullable'], ImageUploadService::validationRules()),
         ]);
 
         $order = $this->service->requestFromCenter(
-            $request->user(), User::query()->findOrFail((int) $data['center_id']), $data['option_ids'], $data['notes'] ?? null, $request->file('photo')
+            $request->user(), User::query()->findOrFail((int) $data['center_id']), $data['option_ids'] ?? [], $data['notes'] ?? null, $request->file('photo'),
+            $data['package_ids'] ?? [], (bool) ($data['home_collection'] ?? false),
+            ! empty($data['requested_at']) ? new \DateTimeImmutable($data['requested_at']) : null,
         );
 
         return response()->json([
@@ -182,6 +204,57 @@ class InvestigationOrderController extends Controller
         $data = $request->validate(['prices' => ['required', 'array', 'max:400'], 'prices.*' => ['nullable', 'numeric', 'min:0', 'max:1000000']]);
 
         return response()->json(['success' => true, 'data' => ['tests' => $this->service->savePrices($center, $data['prices'])]]);
+    }
+
+    // «باقات» and the home sample are the centre's own settings
+
+    /** GET /api/v2/business/investigation-packages */
+    public function packages(Request $request)
+    {
+        $center = $this->centerOrFail($request);
+
+        return response()->json(['success' => true, 'data' => [
+            'packages' => $this->service->packagesOf($center, true),
+            'home_fee' => $this->service->homeFeeOf($center),
+            'can_home' => (int) ($center->category_child_id ?? 0) === InvestigationOrder::LAB_CHILD,
+        ]]);
+    }
+
+    /** POST /api/v2/business/investigation-packages — {id?, name, price, option_ids[], note?, is_active?} */
+    public function savePackage(Request $request)
+    {
+        $center = $this->centerOrFail($request);
+        $data = $request->validate([
+            'id' => ['nullable', 'integer'],
+            'name' => ['required', 'string', 'max:120'],
+            'price' => ['required', 'numeric', 'min:1', 'max:1000000'],
+            'option_ids' => ['required', 'array', 'min:1', 'max:60'],
+            'option_ids.*' => ['integer'],
+            'note' => ['nullable', 'string', 'max:255'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $packages = $this->service->savePackage(
+            $center, $data['id'] ?? null, $data['name'], (float) $data['price'], $data['option_ids'], $data['note'] ?? null, (bool) ($data['is_active'] ?? true)
+        );
+
+        return response()->json(['success' => true, 'data' => ['packages' => $packages]]);
+    }
+
+    /** DELETE /api/v2/business/investigation-packages/{package} */
+    public function deletePackage(Request $request, int $package)
+    {
+        return response()->json(['success' => true, 'data' => ['packages' => $this->service->deletePackage($this->centerOrFail($request), $package)]]);
+    }
+
+    /** PUT /api/v2/business/investigation-home-fee — {home_fee: number|null} (null = the lab does not take samples at home) */
+    public function saveHomeFee(Request $request)
+    {
+        $data = $request->validate(['home_fee' => ['nullable', 'numeric', 'min:0', 'max:100000']]);
+
+        return response()->json(['success' => true, 'data' => [
+            'home_fee' => $this->service->saveHomeFee($this->centerOrFail($request), isset($data['home_fee']) ? (float) $data['home_fee'] : null),
+        ]]);
     }
 
     /** GET /api/v2/business/investigation-orders?tab=incoming|accepted|done */
@@ -338,8 +411,16 @@ class InvestigationOrderController extends Controller
             'ordered_by_doctor' => $o->doctor_id !== null,
             'patient' => $o->patient ? ['id' => (int) $o->patient->id, 'name' => $o->patient->name] : null,
             'center' => $o->center ? ['id' => (int) $o->center->id, 'name' => $o->center->name] : null,
-            'items' => $o->items->map(fn ($i) => ['id' => (int) $i->id, 'kind' => $i->kind, 'name' => $i->name, 'price' => $i->price, 'result' => $i->result_text])->values(),
+            'items' => $o->items->map(fn ($i) => [
+                'id' => (int) $i->id, 'kind' => $i->kind, 'name' => $i->name, 'price' => $i->price, 'result' => $i->result_text,
+                // a package names what it includes
+                'details' => $i->details,
+            ])->values(),
             'total' => $o->total,
+            // the time the patient asked for, and whether the sample is taken at his home (the lab's fee is in the total)
+            'requested_at' => $o->requested_at?->toIso8601String(),
+            'home_collection' => (bool) $o->home_collection,
+            'home_fee' => $o->home_fee,
             'notes' => $o->notes,
             'center_note' => $o->center_note,
             'appointment_at' => $o->appointment_at?->toIso8601String(),

@@ -7,6 +7,7 @@ use App\Models\Image;
 use App\Models\PlatformService;
 use App\Models\InvestigationOrder;
 use App\Models\InvestigationOrderItem;
+use App\Models\InvestigationPackage;
 use App\Models\User;
 use App\Services\Media\ImageUploadService;
 use App\Services\Notifications\NotificationDispatcherService;
@@ -118,18 +119,39 @@ final class InvestigationOrderService
     }
 
     /** The patient asks a centre directly, with no doctor — optionally with a photo of a paper request. */
-    public function requestFromCenter(User $patient, User $center, array $optionIds, ?string $notes, ?UploadedFile $photo): InvestigationOrder
-    {
+    public function requestFromCenter(
+        User $patient,
+        User $center,
+        array $optionIds,
+        ?string $notes,
+        ?UploadedFile $photo,
+        array $packageIds = [],
+        bool $homeCollection = false,
+        ?\DateTimeInterface $requestedAt = null,
+    ): InvestigationOrder {
         $this->assertCenter($center);
-        $options = $this->optionsFor($optionIds);
 
-        return DB::transaction(function () use ($patient, $center, $options, $notes, $photo) {
+        if ($optionIds === [] && $packageIds === []) {
+            throw ValidationException::withMessages(['option_ids' => __('اختر تحليلًا أو باقة.')]);
+        }
+
+        $options = $this->optionsFor($optionIds);
+        $packages = $this->packagesFor($center, $packageIds);
+
+        if ($homeCollection && $this->homeFeeOf($center) === null) {
+            throw ValidationException::withMessages(['home_collection' => __('هذه الجهة لا تسحب العينة من المنزل.')]);
+        }
+
+        $this->assertRequestedTime($center, $requestedAt);
+
+        return DB::transaction(function () use ($patient, $center, $options, $packages, $notes, $photo, $homeCollection, $requestedAt) {
             $order = InvestigationOrder::create([
                 'doctor_id' => null, 'patient_id' => (int) $patient->id,
                 'status' => InvestigationOrder::STATUS_ISSUED, 'notes' => $notes, 'issued_at' => now(),
+                'requested_at' => $requestedAt, 'home_collection' => $homeCollection,
             ]);
 
-            $this->createItems($order, $options);
+            $this->createItems($order, $options, $packages);
 
             if ($photo) {
                 $order->images()->create([
@@ -142,11 +164,212 @@ final class InvestigationOrderService
         });
     }
 
-    /** @param Collection<int,object> $options */
-    private function createItems(InvestigationOrder $order, Collection $options): void
+    /**
+     * @param Collection<int,object> $options
+     * @param Collection<int,InvestigationPackage>|null $packages
+     */
+    private function createItems(InvestigationOrder $order, Collection $options, ?Collection $packages = null): void
     {
-        foreach ($options->values() as $i => $o) {
-            $order->items()->create(['option_id' => $o->id, 'kind' => $o->kind, 'name' => $o->name_ar, 'sort_order' => $i]);
+        $i = 0;
+
+        foreach ($options->values() as $o) {
+            $order->items()->create(['option_id' => $o->id, 'kind' => $o->kind, 'name' => $o->name_ar, 'sort_order' => $i++]);
+        }
+
+        // a package is ONE line at the order — its own price — and names what it includes
+        foreach (($packages ?? collect())->values() as $p) {
+            $order->items()->create([
+                'package_id' => (int) $p->id, 'kind' => InvestigationOrderItem::KIND_PACKAGE, 'name' => $p->name,
+                'details' => $this->includedNames($p), 'sort_order' => $i++,
+            ]);
+        }
+    }
+
+    // ───────────────────────── packages («باقات») ─────────────────────────
+
+    /** The names of the tests a package includes, comma-joined (kept on the order line as they were). */
+    private function includedNames(InvestigationPackage $package): string
+    {
+        $ids = $package->entries()->pluck('option_id')->all();
+
+        return DB::table('options')->whereIn('id', $ids ?: [0])->orderBy('sort_order')->orderBy('id')->pluck('name_ar')->implode('، ');
+    }
+
+    /**
+     * The centre's packages as a patient (active ones) or the centre itself (all) reads them.
+     *
+     * @return list<array{id:int,name:string,note:?string,price:float,is_active:bool,option_ids:list<int>,tests:list<string>}>
+     */
+    public function packagesOf(User $center, bool $forOwner = false): array
+    {
+        $rows = InvestigationPackage::query()->where('center_id', (int) $center->id)
+            ->when(! $forOwner, fn ($q) => $q->where('is_active', true))
+            ->with('entries')->orderBy('id')->get();
+
+        $names = DB::table('options')->whereIn('id', $rows->flatMap(fn ($p) => $p->entries->pluck('option_id'))->unique()->all() ?: [0])
+            ->pluck('name_ar', 'id');
+
+        return $rows->map(fn (InvestigationPackage $p) => [
+            'id' => (int) $p->id,
+            'name' => $p->name,
+            'note' => $p->note,
+            'price' => round((float) $p->price, 2),
+            'is_active' => (bool) $p->is_active,
+            'option_ids' => $p->entries->pluck('option_id')->map(fn ($id) => (int) $id)->values()->all(),
+            'tests' => $p->entries->map(fn ($e) => (string) ($names[$e->option_id] ?? ''))->filter()->values()->all(),
+        ])->values()->all();
+    }
+
+    /** @return Collection<int,InvestigationPackage> */
+    private function packagesFor(User $center, array $packageIds): Collection
+    {
+        $ids = array_values(array_unique(array_map('intval', $packageIds)));
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        $rows = InvestigationPackage::query()->where('center_id', (int) $center->id)->where('is_active', true)->whereIn('id', $ids)->get();
+
+        if ($rows->count() !== count($ids)) {
+            throw ValidationException::withMessages(['package_ids' => __('هذه الباقة غير متاحة لدى الجهة.')]);
+        }
+
+        return $rows->sortBy(fn ($p) => array_search((int) $p->id, $ids, true))->values();
+    }
+
+    /** Creates (or edits, with [$id]) a package of this centre: a name, one price and the tests it includes. */
+    public function savePackage(User $center, ?int $id, string $name, float $price, array $optionIds, ?string $note = null, bool $active = true): array
+    {
+        $this->assertCenter($center);
+        $name = trim($name);
+
+        if ($name === '' || $price <= 0) {
+            throw ValidationException::withMessages(['name' => __('اكتب اسم الباقة وسعرها.')]);
+        }
+
+        $options = $this->optionsFor($optionIds);
+
+        if ($options->isEmpty()) {
+            throw ValidationException::withMessages(['option_ids' => __('اختر تحليلًا واحدًا على الأقل.')]);
+        }
+
+        DB::transaction(function () use ($center, $id, $name, $price, $options, $note, $active) {
+            $package = $id
+                ? InvestigationPackage::query()->where('center_id', (int) $center->id)->findOrFail($id)
+                : new InvestigationPackage(['center_id' => (int) $center->id]);
+
+            $package->fill(['name' => $name, 'note' => $note ?: null, 'price' => round($price, 2), 'is_active' => $active])->save();
+            $package->entries()->delete();
+
+            foreach ($options as $o) {
+                $package->entries()->create(['option_id' => (int) $o->id]);
+            }
+        });
+
+        return $this->packagesOf($center, true);
+    }
+
+    public function deletePackage(User $center, int $id): array
+    {
+        $this->assertCenter($center);
+        InvestigationPackage::query()->where('center_id', (int) $center->id)->findOrFail($id)->delete();
+        DB::table('investigation_package_items')->where('package_id', $id)->delete();
+
+        return $this->packagesOf($center, true);
+    }
+
+    // ───────────────────────── home sample and the time ─────────────────────────
+
+    /** What a lab charges to take a sample at the patient's home — null when it does not. */
+    public function homeFeeOf(User $center): ?float
+    {
+        if ((int) ($center->category_child_id ?? 0) !== InvestigationOrder::LAB_CHILD) {
+            return null;
+        }
+
+        $fee = DB::table('investigation_center_settings')->where('center_id', (int) $center->id)->value('home_fee');
+
+        return $fee !== null ? round((float) $fee, 2) : null;
+    }
+
+    public function saveHomeFee(User $center, ?float $fee): ?float
+    {
+        $this->assertCenter($center);
+
+        if ((int) ($center->category_child_id ?? 0) !== InvestigationOrder::LAB_CHILD) {
+            throw ValidationException::withMessages(['home_fee' => __('سحب العينة من المنزل للمعامل فقط.')]);
+        }
+
+        $fee = $fee !== null && $fee > 0 ? round($fee, 2) : null;
+
+        DB::table('investigation_center_settings')->updateOrInsert(
+            ['center_id' => (int) $center->id],
+            ['home_fee' => $fee, 'updated_at' => now(), 'created_at' => now()],
+        );
+
+        return $fee;
+    }
+
+    /**
+     * The times a patient may ask for on one day: every half hour inside the centre's working hours (a centre that
+     * never wrote its week is judged open 08:00–23:00), and never in the past.
+     *
+     * @return array{date:string,closed:bool,times:list<string>}
+     */
+    public function timesFor(User $center, string $date): array
+    {
+        $hours = app(\App\Services\BusinessHoursService::class);
+        $tz = $hours->timezoneFor((int) $center->id);
+        $day = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $date, $tz)->startOfDay();
+        $now = \Illuminate\Support\Carbon::now($tz);
+
+        if ($day->lt($now->copy()->startOfDay()) || $day->gt($now->copy()->addDays(60))) {
+            throw ValidationException::withMessages(['date' => __('اختر يومًا من الأيام القادمة.')]);
+        }
+
+        $week = $hours->hoursFor((int) $center->id);
+        $row = $week->get($day->dayOfWeek);
+        $known = $week->isNotEmpty() && $row !== null;
+        $closed = $known && ($row->is_closed || ! $row->open_time || ! $row->close_time);
+
+        if ($closed) {
+            return ['date' => $day->toDateString(), 'closed' => true, 'times' => []];
+        }
+
+        $open = $known ? (string) $row->open_time : '08:00:00';
+        $close = $known ? (string) $row->close_time : '23:00:00';
+
+        $cursor = $day->copy()->setTimeFromTimeString($open);
+        $end = $day->copy()->setTimeFromTimeString($close);
+        $times = [];
+
+        for (; $cursor->lt($end); $cursor->addMinutes(30)) {
+            if ($cursor->gt($now)) {
+                $times[] = $cursor->format('H:i');
+            }
+        }
+
+        return ['date' => $day->toDateString(), 'closed' => false, 'times' => $times];
+    }
+
+    private function assertRequestedTime(User $center, ?\DateTimeInterface $at): void
+    {
+        if ($at === null) {
+            return;
+        }
+
+        $hours = app(\App\Services\BusinessHoursService::class);
+        $when = \Illuminate\Support\Carbon::instance($at)->setTimezone($hours->timezoneFor((int) $center->id));
+
+        if ($when->lte(\Illuminate\Support\Carbon::now($when->getTimezone())) || $when->gt(\Illuminate\Support\Carbon::now($when->getTimezone())->addDays(60))) {
+            throw ValidationException::withMessages(['requested_at' => __('اختر وقتًا قادمًا.')]);
+        }
+
+        $allowed = $this->timesFor($center, $when->format('Y-m-d'));
+
+        if (! in_array($when->format('H:i'), $allowed['times'], true)) {
+            throw ValidationException::withMessages(['requested_at' => __('هذا الوقت خارج مواعيد عمل الجهة.')]);
         }
     }
 
@@ -308,7 +531,13 @@ final class InvestigationOrderService
             $covered = 0;
 
             foreach ($order->items as $item) {
-                $price = $item->option_id ? $this->priceAt($center, (int) $item->option_id) : null;
+                if ($item->package_id) {
+                    $package = InvestigationPackage::query()->where('center_id', (int) $center->id)->where('is_active', true)->find($item->package_id);
+                    $price = $package ? round((float) $package->price, 2) : null;
+                } else {
+                    $price = $item->option_id ? $this->priceAt($center, (int) $item->option_id) : null;
+                }
+
                 $item->update(['price' => $price]);
 
                 if ($price !== null) {
@@ -321,9 +550,21 @@ final class InvestigationOrderService
                 throw ValidationException::withMessages(['center_id' => __('هذه الجهة لا تجري أيًّا من هذه الفحوصات.')]);
             }
 
+            // the sample taken at home is the lab's fee on top; a lab that does not do it refuses the request
+            $homeFee = null;
+            if ($order->home_collection) {
+                $homeFee = $this->homeFeeOf($center);
+
+                if ($homeFee === null) {
+                    throw ValidationException::withMessages(['home_collection' => __('هذه الجهة لا تسحب العينة من المنزل.')]);
+                }
+
+                $total += $homeFee;
+            }
+
             $order->update([
                 'center_id' => (int) $center->id, 'status' => InvestigationOrder::STATUS_SENT,
-                'total' => round($total, 2), 'sent_at' => now(),
+                'total' => round($total, 2), 'home_fee' => $homeFee, 'sent_at' => now(),
             ]);
 
             $this->notify('investigation_received', (int) $center->id, $order,
@@ -337,6 +578,9 @@ final class InvestigationOrderService
     public function accept(InvestigationOrder $order, ?\DateTimeInterface $at, ?string $note): InvestigationOrder
     {
         $this->assertStatus($order, [InvestigationOrder::STATUS_SENT]);
+
+        // the day and time the patient chose stand unless the centre proposes another
+        $at = $at ?? $order->requested_at;
 
         $order->update(['status' => InvestigationOrder::STATUS_ACCEPTED, 'appointment_at' => $at, 'center_note' => $note, 'accepted_at' => now()]);
 

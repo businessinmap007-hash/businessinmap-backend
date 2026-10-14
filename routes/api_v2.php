@@ -500,6 +500,7 @@ Route::prefix('v2')->group(function () {
         // attaches the results. Only the doctor, the patient and the centre may read one.
         Route::get('investigations/catalog', [InvestigationOrderController::class, 'catalog']);
         Route::get('investigation-centers/{center}/tests', [InvestigationOrderController::class, 'centerTests'])->whereNumber('center');
+        Route::get('investigation-centers/{center}/times', [InvestigationOrderController::class, 'centerTimes'])->whereNumber('center');
         Route::get('investigation-orders', [InvestigationOrderController::class, 'index']);
         Route::post('investigation-orders/request', [InvestigationOrderController::class, 'requestFromCenter'])->middleware('throttle:30,1');
         Route::middleware('business.member:' . BusinessCapability::INVESTIGATIONS)->group(function () {
@@ -507,6 +508,11 @@ Route::prefix('v2')->group(function () {
             Route::get('investigation-orders/issued', [InvestigationOrderController::class, 'issued']);
             Route::get('business/investigation-prices', [InvestigationOrderController::class, 'priceList']);
             Route::put('business/investigation-prices', [InvestigationOrderController::class, 'savePrices']);
+            // «باقات» and the home sample
+            Route::get('business/investigation-packages', [InvestigationOrderController::class, 'packages']);
+            Route::post('business/investigation-packages', [InvestigationOrderController::class, 'savePackage']);
+            Route::delete('business/investigation-packages/{package}', [InvestigationOrderController::class, 'deletePackage'])->whereNumber('package');
+            Route::put('business/investigation-home-fee', [InvestigationOrderController::class, 'saveHomeFee']);
             Route::prefix('business/investigation-orders')->group(function () {
                 Route::get('/', [InvestigationOrderController::class, 'centerIndex']);
                 Route::post('{order}/accept', [InvestigationOrderController::class, 'accept'])->whereNumber('order');

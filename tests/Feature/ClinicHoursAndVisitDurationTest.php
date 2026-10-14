@@ -87,6 +87,53 @@ class ClinicHoursAndVisitDurationTest extends TestCase
         );
     }
 
+    /** «يظهر كل الأيام … لمدة أسبوعين»: the patient's day strip is the whole window, with the days the clinic sits. */
+    public function test_the_slots_answer_carries_the_two_week_strip_with_the_days_the_clinic_sits(): void
+    {
+        $clinic = $this->clinic();
+        $this->openNineToFive((int) $clinic->id); // closed on Friday (5)
+
+        \App\Models\ClinicAppointmentSlot::query()->where('clinic_id', $clinic->id)->delete();
+
+        // eight half-hour times on each of the next ten days — far more than a thirty-row page
+        for ($d = 1; $d <= 10; $d++) {
+            for ($i = 0; $i < 8; $i++) {
+                \App\Models\ClinicAppointmentSlot::create([
+                    'clinic_id' => $clinic->id,
+                    'starts_at' => Carbon::today()->addDays($d)->setTime(9, 0)->addMinutes(30 * $i),
+                    'duration_minutes' => 30,
+                ]);
+            }
+        }
+
+        $patient = User::query()->where('type', 'client')->where('id', '!=', $clinic->id)->first() ?? $this->markTestSkipped('No client account.');
+        \Laravel\Sanctum\Sanctum::actingAs($patient);
+
+        $data = $this->getJson("/api/v2/clinics/{$clinic->id}/slots")->assertOk()->json('data');
+
+        $strip = collect($data['days']);
+        $this->assertCount(14, $strip, 'two weeks by default');
+        $this->assertSame(Carbon::today()->toDateString(), $strip->first()['date']);
+
+        // more than thirty rows came back: the strip is not cut by the page size
+        $this->assertGreaterThan(30, count($data['data']));
+
+        $byDate = $strip->keyBy('date');
+        $friday = $strip->first(fn ($d) => Carbon::parse($d['date'])->dayOfWeek === 5);
+        $this->assertFalse($friday['open'], 'Friday is closed by the weekly hours');
+        $this->assertSame(0, $friday['slots']);
+
+        $tuesday = $strip->first(fn ($d) => Carbon::parse($d['date'])->dayOfWeek === 2 && $d['slots'] > 0);
+        $this->assertTrue($tuesday['open']);
+        $this->assertSame(['open' => '09:00', 'close' => '17:00'], $tuesday['hours']);
+        $this->assertSame(8, $tuesday['slots']);
+
+        // beyond the ten days that have times, the days are still listed — open, with nothing left
+        $last = $strip->last();
+        $this->assertSame(0, $last['slots']);
+        $this->assertCount(14, $byDate);
+    }
+
     public function test_an_appointment_that_runs_past_closing_is_refused(): void
     {
         $clinic = $this->clinic();

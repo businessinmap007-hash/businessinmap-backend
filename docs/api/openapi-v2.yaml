@@ -5058,8 +5058,8 @@ paths:
   /clinics/{clinic}/slots:
     get:
       tags: [Clinic Appointments]
-      summary: A clinic's open published slots (patient browses)
-      parameters: [{ name: clinic, in: path, required: true, schema: { type: integer } }, { $ref: '#/components/parameters/PerPage' }]
+      summary: "A clinic's open published slots for the next `days` days (default 14, max 60; not 30 rows). The paginator also carries `days` - one entry per day of the window {date, open (the clinic's weekly hours say it sits that day; a week never written counts as open), hours {open, close}, slots (open times left)} - so the patient sees which days the doctor is there and which are closed."
+      parameters: [{ name: clinic, in: path, required: true, schema: { type: integer } }, { name: days, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 60, default: 14 } }, { $ref: '#/components/parameters/PerPage' }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
   /clinic-slots/{slot}/book:
     post:

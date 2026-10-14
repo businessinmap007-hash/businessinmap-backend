@@ -201,11 +201,18 @@ class ClinicAppointmentController extends Controller
         $clinicUser = User::query()->findOrFail($clinic);
         abort_unless($clinicUser->isBusiness(), 404);
 
+        // The whole booking window at once — two weeks by default — not the first thirty rows: with eight slots a day
+        // thirty rows were four days, and a patient could not see that the doctor sits on the other days too.
+        $days = max(1, min(60, (int) $request->get('days', 14)));
+        $from = now()->startOfDay();
+        $to = $from->copy()->addDays($days)->startOfDay();
+
         $rows = ClinicAppointmentSlot::query()
             ->where('clinic_id', $clinic)
             ->open()
+            ->where('starts_at', '<', $to)
             ->orderBy('starts_at')
-            ->paginate((int) $request->get('per_page', 30));
+            ->paginate(max(1, min(1000, (int) $request->get('per_page', 600))));
 
         // «حجوزات العيادات خاضعة لمواعيد عمل العيادات» — المالك: a slot published before the clinic changed its hours
         // is not offered outside them (booking it would be refused anyway).
@@ -213,6 +220,24 @@ class ClinicAppointmentController extends Controller
         $rows->setCollection($rows->getCollection()->filter(
             fn (ClinicAppointmentSlot $s) => $hours->isOpenThroughout((int) $clinic, $s->starts_at, $s->starts_at->copy()->addMinutes((int) $s->duration_minutes))
         )->values());
+
+        // the day strip: every day of the window with whether the clinic sits that day (its weekly hours say so; a week
+        // it never wrote counts as open) and how many open times are left
+        $week = $hours->hoursFor((int) $clinic);
+        $perDay = $rows->getCollection()->countBy(fn (ClinicAppointmentSlot $s) => $s->starts_at->toDateString());
+        $strip = [];
+        for ($i = 0; $i < $days; $i++) {
+            $day = $from->copy()->addDays($i);
+            $row = $week->get($day->dayOfWeek);
+            $open = $row === null || (! $row->is_closed && $row->open_time && $row->close_time);
+
+            $strip[] = [
+                'date' => $day->toDateString(),
+                'open' => (bool) $open,
+                'hours' => $open && $row ? ['open' => substr((string) $row->open_time, 0, 5), 'close' => substr((string) $row->close_time, 0, 5)] : null,
+                'slots' => (int) ($perDay[$day->toDateString()] ?? 0),
+            ];
+        }
 
         $rows->getCollection()->transform(fn (ClinicAppointmentSlot $s) => [
             'id' => (int) $s->id,
@@ -225,7 +250,7 @@ class ClinicAppointmentController extends Controller
             'price' => $s->servicePrice !== null ? (float) $s->servicePrice->price : null,
         ]);
 
-        return response()->json(['success' => true, 'data' => $rows]);
+        return response()->json(['success' => true, 'data' => $rows->toArray() + ['days' => $strip]]);
     }
 
     /** POST /api/v2/clinic-slots/{slot}/book — book an open slot (confirmed at once). */

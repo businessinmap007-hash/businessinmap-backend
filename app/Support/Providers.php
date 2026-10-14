@@ -50,6 +50,10 @@ final class Providers
                 'title' => $s->title,
                 'logo' => $s->user->logo ?: null,
                 'is_physician' => (bool) $s->is_physician,
+                'department_id' => $s->department_option_id ? (int) $s->department_option_id : null,
+                'department' => $s->department_option_id
+                    ? \App\Models\Option::query()->find($s->department_option_id)?->displayName()
+                    : null,
             ])
             ->sortBy('name')
             ->values();

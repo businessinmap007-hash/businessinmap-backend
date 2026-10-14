@@ -75,6 +75,7 @@ class BusinessStaffController extends Controller
             'is_active' => ['nullable', 'boolean'],
             'is_physician' => ['nullable', 'boolean'],
             'is_provider' => ['nullable', 'boolean'],
+            'department_option_id' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $user = $this->resolveUser($data, $businessId);
@@ -93,6 +94,7 @@ class BusinessStaffController extends Controller
 
         $this->markPhysician($request, $staff, $data);
         $this->markProvider($staff, $data);
+        $this->placeInDepartment($request, $staff, $data);
 
         // A person needs to confirm their own invitation before it activates
         // (see resolveContext()'s status gate) - notify only while it's
@@ -124,6 +126,7 @@ class BusinessStaffController extends Controller
             'is_active' => ['nullable', 'boolean'],
             'is_physician' => ['nullable', 'boolean'],
             'is_provider' => ['nullable', 'boolean'],
+            'department_option_id' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $existing = BusinessStaff::query()
@@ -141,6 +144,7 @@ class BusinessStaffController extends Controller
 
         $this->markPhysician($request, $staff, $data);
         $this->markProvider($staff, $data);
+        $this->placeInDepartment($request, $staff, $data);
 
         return response()->json([
             'success' => true,
@@ -188,6 +192,46 @@ class BusinessStaffController extends Controller
 
         // a physician stays assignable: he cannot be switched off while he is still marked one
         $staff->forceFill(['is_provider' => $want || (bool) $staff->is_physician])->save();
+    }
+
+    /**
+     * «القسم» — a hospital places a physician in ONE of the departments it ticked («جراحة عيون»); null takes him out.
+     * Only a physician / provider has one, so un-marking him clears it.
+     *
+     * @param  array<string,mixed>  $data
+     */
+    private function placeInDepartment(Request $request, BusinessStaff $staff, array $data): void
+    {
+        $staff->refresh();
+        $isProvider = (bool) $staff->is_physician || (bool) $staff->is_provider;
+
+        if (! $isProvider) {
+            if ($staff->department_option_id !== null) {
+                $staff->forceFill(['department_option_id' => null])->save();
+            }
+
+            return;
+        }
+
+        if (! array_key_exists('department_option_id', $data)) {
+            return;
+        }
+
+        $id = ! empty($data['department_option_id']) ? (int) $data['department_option_id'] : null;
+
+        if ($id !== null) {
+            $hospital = $request->user();
+
+            if (! \App\Models\HospitalDoctor::isHospital($hospital)) {
+                abort(422, __('الأقسام للمستشفيات والمراكز الطبية فقط.'));
+            }
+
+            if (! in_array($id, app(\App\Services\Hospitals\HospitalDoctorService::class)->departmentOptionIds($hospital), true)) {
+                abort(422, __('هذا القسم غير مفعّل في حسابك.'));
+            }
+        }
+
+        $staff->forceFill(['department_option_id' => $id])->save();
     }
 
     /** DELETE /api/v2/business/staff/{user} — revoke a staff member. */
@@ -553,6 +597,7 @@ class BusinessStaffController extends Controller
                 'title' => $s->title,
                 'is_physician' => (bool) $s->is_physician,
                 'is_provider' => (bool) $s->is_provider || (bool) $s->is_physician,
+                'department' => $this->departmentOf($s),
                 'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
                 // Tells the app whether checking in for THIS membership needs
                 // a QR scan + GPS first (StaffAttendanceController::checkIn).
@@ -561,6 +606,18 @@ class BusinessStaffController extends Controller
             ]);
 
         return response()->json(['success' => true, 'data' => ['memberships' => $rows]]);
+    }
+
+    /** @return array{id:int,name:string}|null */
+    private function departmentOf(BusinessStaff $s): ?array
+    {
+        if (! $s->department_option_id) {
+            return null;
+        }
+
+        $option = \App\Models\Option::query()->find($s->department_option_id);
+
+        return $option ? ['id' => (int) $option->id, 'name' => $option->displayName()] : null;
     }
 
     private function resolveUser(array $data, int $businessId): User
@@ -587,6 +644,7 @@ class BusinessStaffController extends Controller
             'title' => $s->title,
             'is_physician' => (bool) $s->is_physician,
             'is_provider' => (bool) $s->is_provider || (bool) $s->is_physician,
+            'department' => $this->departmentOf($s),
             'capabilities' => BusinessCapability::sanitize((array) $s->capabilities),
             'is_active' => (bool) $s->is_active,
             'status' => (string) $s->status,

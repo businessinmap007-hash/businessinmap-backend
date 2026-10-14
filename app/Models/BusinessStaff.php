@@ -25,6 +25,7 @@ class BusinessStaff extends Model
         'is_active',
         'is_physician',
         'is_provider',
+        'department_option_id',
         'status',
     ];
 

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\BusinessCapability;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -184,5 +185,72 @@ class AssignmentCoreTest extends TestCase
         $this->assertSame(1, $heard('إلغاء موعد'));
         $this->assertSame(1, AppNotification::query()->where('user_id', $hospital->id)->where('source_id', $appointment)->where('title_ar', 'إلغاء موعد')->count());
         $this->assertSame(ClinicAppointment::STATUS_CANCELLED, ClinicAppointment::query()->find($appointment)->status);
+    }
+
+    private function department(string $name): int
+    {
+        $id = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', \App\Models\HospitalDoctor::DEPARTMENT_GROUP)->where('o.name_ar', $name)->value('o.id');
+        $this->assertGreaterThan(0, $id, $name);
+
+        return $id;
+    }
+
+    public function test_a_staff_physician_is_placed_in_one_department_of_his_hospital(): void
+    {
+        $hospital = $this->user(User::TYPE_BUSINESS, 20, 513, 'Hospital');
+        $eyes = $this->department('باطنه');
+        $kids = $this->department('اطفال وحديثي الولادة');
+        $notTicked = $this->department('عيون') ?: $kids;
+        DB::table('option_user')->insert([['user_id' => $hospital->id, 'option_id' => $eyes], ['user_id' => $hospital->id, 'option_id' => $kids]]);
+        $doctor = $this->user(User::TYPE_CLIENT, null, null, 'Doctor');
+        $patient = $this->user(User::TYPE_CLIENT, null, null, 'Patient');
+
+        Sanctum::actingAs($hospital);
+        // not a physician yet: nothing to place
+        $this->postJson('/api/v2/business/staff', [
+            'user_id' => $doctor->id, 'title' => 'استشاري', 'capabilities' => [BusinessCapability::CLINIC],
+            'is_physician' => true, 'department_option_id' => $eyes,
+        ])->assertCreated()->assertJsonPath('data.staff.department.id', $eyes);
+
+        Sanctum::actingAs($doctor);
+        $this->postJson("/api/v2/staff/invitations/{$hospital->id}/accept")->assertOk();
+
+        // he stands under his department, with the board to book from
+        Sanctum::actingAs($patient);
+        $departments = collect($this->getJson("/api/v2/hospitals/{$hospital->id}/departments")->assertOk()->json('data.departments'));
+        $mine = collect($departments->firstWhere('option_id', $eyes)['doctors'])->firstWhere('physician_id', $doctor->id);
+        $this->assertNotNull($mine);
+        $this->assertTrue($mine['staff']);
+        $this->assertSame('استشاري', $mine['title']);
+        $this->assertSame([], $departments->firstWhere('option_id', $kids)['doctors']);
+
+        // the booking board's physician list carries the department too
+        $physician = collect($this->getJson("/api/v2/clinics/{$hospital->id}/physicians")->json('data.physicians'))->first();
+        $this->assertSame($eyes, $physician['department_id']);
+
+        // a department the hospital did not tick is refused; one department, so a move replaces it
+        Sanctum::actingAs($hospital);
+        $unticked = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', \App\Models\HospitalDoctor::DEPARTMENT_GROUP)->whereNotIn('o.id', [$eyes, $kids])->value('o.id');
+        $this->patchJson("/api/v2/business/staff/{$doctor->id}", ['department_option_id' => $unticked])->assertStatus(422);
+        $this->patchJson("/api/v2/business/staff/{$doctor->id}", ['department_option_id' => $kids])
+            ->assertOk()->assertJsonPath('data.staff.department.id', $kids);
+
+        // taking him out of the department, and un-marking him clears it
+        $this->patchJson("/api/v2/business/staff/{$doctor->id}", ['department_option_id' => null])->assertOk()->assertJsonPath('data.staff.department', null);
+        $this->patchJson("/api/v2/business/staff/{$doctor->id}", ['department_option_id' => $eyes])->assertOk();
+        $this->patchJson("/api/v2/business/staff/{$doctor->id}", ['is_physician' => false, 'is_provider' => false])->assertOk();
+        $this->assertNull(BusinessStaff::query()->where('business_id', $hospital->id)->where('user_id', $doctor->id)->value('department_option_id'));
+    }
+
+    public function test_only_a_hospital_has_departments_to_place_a_provider_in(): void
+    {
+        [$salon, $a] = $this->salonWithStaff();
+
+        Sanctum::actingAs($salon);
+        $any = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', \App\Models\HospitalDoctor::DEPARTMENT_GROUP)->value('o.id');
+        $this->patchJson("/api/v2/business/staff/{$a->id}", ['department_option_id' => $any])->assertStatus(422);
     }
 }

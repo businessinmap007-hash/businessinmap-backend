@@ -58,6 +58,11 @@ final class Physicians
                 'name' => (string) $s->user->name,
                 'title' => $s->title,
                 'logo' => $s->user->logo ?: null,
+                // «القسم»: the one department he is placed in at this hospital
+                'department_id' => $s->department_option_id ? (int) $s->department_option_id : null,
+                'department' => $s->department_option_id
+                    ? \App\Models\Option::query()->find($s->department_option_id)?->displayName()
+                    : null,
             ])
             ->sortBy('name')
             ->values();

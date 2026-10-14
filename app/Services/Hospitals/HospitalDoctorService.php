@@ -22,6 +22,12 @@ class HospitalDoctorService
     {
     }
 
+    /** Ids of the departments this hospital ticked — what a staff physician may be placed in. @return list<int> */
+    public function departmentOptionIds(User $hospital): array
+    {
+        return $this->departmentOptions($hospital)->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
     /** The options of «تخصصات طبية» the hospital ticked — its departments, in the platform's order. */
     private function departmentOptions(User $hospital): Collection
     {
@@ -48,10 +54,34 @@ class HospitalDoctorService
             ->get()
             ->groupBy('option_id');
 
+        // a physician who WORKS for the hospital (a staff member marked a physician and placed in one department) stands
+        // under that department too — with his own board to book from, which a listed doctor has not
+        $staff = \App\Models\BusinessStaff::query()
+            ->where('business_id', (int) $hospital->id)
+            ->whereNotNull('department_option_id')
+            ->where(fn ($q) => $q->where('is_physician', true)->orWhere('is_provider', true))
+            ->where('is_active', true)
+            ->where('status', \App\Models\BusinessStaff::STATUS_ACCEPTED)
+            ->with('user:id,name,name_en,medical_title')
+            ->get()
+            ->filter(fn ($s) => $s->user !== null)
+            ->groupBy('department_option_id');
+
         return $this->departmentOptions($hospital)->map(fn (Option $o) => [
             'option_id' => (int) $o->id,
             'name' => $o->displayName(),
-            'doctors' => ($rows->get($o->id) ?? collect())->map(fn (HospitalDoctor $d) => $this->row($d))->values()->all(),
+            'doctors' => ($rows->get($o->id) ?? collect())->map(fn (HospitalDoctor $d) => $this->row($d))
+                ->concat(($staff->get($o->id) ?? collect())->map(fn ($s) => [
+                    'id' => 0,
+                    'name' => $s->user->displayName(),
+                    'title' => $s->title,
+                    'business_id' => null,
+                    // book from HIS board: the hospital page's «الحجز» with this physician chosen
+                    'physician_id' => (int) $s->user_id,
+                    'staff' => true,
+                    'status' => HospitalDoctor::STATUS_ACTIVE,
+                ]))
+                ->values()->all(),
         ])->values()->all();
     }
 

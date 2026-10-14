@@ -49,7 +49,7 @@ class BookingDepositPaymentService
     /** Why this booking cannot take it, or null when it can. */
     private function refusal(Booking $booking): ?string
     {
-        if ((string) $booking->status !== Booking::STATUS_IN_PROGRESS) {
+        if (! in_array((string) $booking->status, [Booking::STATUS_IN_PROGRESS, Booking::STATUS_COMPLETED], true)) {
             return __('لا يمكن ذلك إلا بعد بدء التنفيذ.');
         }
 
@@ -120,8 +120,8 @@ class BookingDepositPaymentService
             throw ValidationException::withMessages(['deposit' => __('هذا الحجز ليس لنشاطك.')]);
         }
 
+        // «قبول العربون» — the business may take it on its own initiative; no request from the customer is needed
         $deposit = $this->assertAllowed($booking);
-        $this->assertRequested($booking);
 
         $amount = (float) $deposit->client_amount;
 

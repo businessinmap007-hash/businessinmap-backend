@@ -119,12 +119,13 @@ class BusinessBookingTermsTest extends TestCase
             ->assertOk()->assertJsonPath('data.guarantee_multiple', 0);
     }
 
-    public function test_the_business_can_declare_that_a_broken_booking_gives_it_the_whole_deposit(): void
+    public function test_a_deposit_is_never_confiscated_so_the_forfeit_term_is_gone(): void
     {
-        $this->save(['forfeit_to_business' => true])->assertOk()->assertJsonPath('data.forfeit_to_business', true);
+        // «لا يصادر العربون» — المالك، 2026-10-19: asking for it changes nothing
+        $this->save(['forfeit_to_business' => true])->assertOk()->assertJsonPath('data.forfeit_to_business', false);
 
         $row = BusinessDepositPolicy::query()->where('business_id', $this->business->id)->firstOrFail();
-        $this->assertTrue($row->forfeit_to_business);
+        $this->assertFalse((bool) $row->forfeit_to_business);
     }
 
     public function test_saving_twice_edits_the_one_row_and_a_customer_cannot_reach_it(): void

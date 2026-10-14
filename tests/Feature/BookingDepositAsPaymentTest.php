@@ -170,14 +170,16 @@ class BookingDepositAsPaymentTest extends TestCase
             ->postJson("/api/v2/bookings/{$this->booking->id}/deposit/request-as-payment")->assertStatus(422);
     }
 
-    public function test_the_business_cannot_accept_what_was_not_asked(): void
+    public function test_the_business_may_take_the_deposit_without_being_asked(): void
     {
+        // «قبول العربون» — the business's own button (2026-10-19): no request from the customer is needed
         $this->policy(true);
         $this->start();
 
         $this->actingAs($this->business, 'sanctum')
             ->postJson("/api/v2/bookings/{$this->booking->id}/deposit/accept-as-payment")
-            ->assertStatus(422);
+            ->assertOk()
+            ->assertJsonPath('data.deposit_as_payment.accepted', true);
     }
 
     public function test_accepting_moves_the_customers_hold_to_the_business_and_returns_its_own(): void

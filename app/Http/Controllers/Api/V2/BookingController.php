@@ -947,6 +947,33 @@ final class BookingController extends Controller
         return $this->bookingResponse($booking->fresh(), 'Deposit taken as a payment.');
     }
 
+    /**
+     * POST /api/v2/business/bookings/{booking}/deposit/confirm-received — {method: cash|transfer, reference?}
+     * «استلمت العربون»: the deposit taken outside the platform arrived; the customer's account works again.
+     */
+    public function confirmExternalDeposit(Request $request, Booking $booking)
+    {
+        $this->authorizeBusinessBooking($request, $booking);
+        $data = $request->validate([
+            'method' => ['required', 'in:cash,transfer'],
+            'reference' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        app(\App\Services\ExternalDepositService::class)->confirmReceived($booking, (int) $booking->business_id, $data['method'], $data['reference'] ?? null);
+
+        return $this->bookingResponse($booking->fresh(), 'Deposit received.');
+    }
+
+    /** POST /api/v2/business/bookings/{booking}/deposit/waive — «قبول العربون»: accepted with no deposit paid outside. */
+    public function waiveExternalDeposit(Request $request, Booking $booking)
+    {
+        $this->authorizeBusinessBooking($request, $booking);
+
+        app(\App\Services\ExternalDepositService::class)->waive($booking, (int) $booking->business_id);
+
+        return $this->bookingResponse($booking->fresh(), 'Booking accepted without a deposit.');
+    }
+
     /** POST /api/v2/bookings/{booking}/deposit/decline-as-payment — the business declines; the deposit stays frozen. */
     public function declineDepositAsPayment(Request $request, Booking $booking)
     {
@@ -1295,6 +1322,8 @@ final class BookingController extends Controller
             $subject->setAttribute('queue', app(\App\Services\AppointmentQueue::class)->estimate($subject));
             $subject->setAttribute('chair', $subject->chair_id ? optional(\App\Models\ServiceChair::query()->with('staff:id,name,logo')->find($subject->chair_id))->payload() : null);
             $subject->setAttribute('assignee', $this->assigneesFor((int) $subject->business_id, [$subject])[(int) $subject->id] ?? null);
+            // the deposit taken outside the platform: owed, and whether the business has said it arrived
+            $subject->setAttribute('external_deposit', app(\App\Services\ExternalDepositService::class)->state($subject));
 
             return $this->hideRoomInternals($subject->append('title'));
         }

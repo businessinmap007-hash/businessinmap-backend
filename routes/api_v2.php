@@ -1102,6 +1102,9 @@ Route::prefix('v2')->group(function () {
         });
         Route::prefix('business/bookings/{booking}')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('booking')->group(function () {
             Route::get('rooms', [BusinessBookableRoomController::class, 'forBooking']);
+            // «العربون خارج المنصة»: received in cash / by transfer, or accepted with no deposit
+            Route::post('deposit/confirm-received', [BookingController::class, 'confirmExternalDeposit']);
+            Route::post('deposit/waive', [BookingController::class, 'waiveExternalDeposit']);
             Route::post('room', [BusinessBookableRoomController::class, 'assign']);
         });
 

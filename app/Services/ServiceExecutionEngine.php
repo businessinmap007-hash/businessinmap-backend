@@ -771,7 +771,7 @@ class ServiceExecutionEngine
                             ]);
                         }
                     }
-                } elseif (! $deposit && $externalRequired) {
+                } elseif (! $deposit && $externalRequired && ! app(ExternalDepositService::class)->isSettled($booking)) {
                     throw ValidationException::withMessages([
                         'deposit' => __('يجب إنشاء سجل العربون الخارجي واعتماده قبل بدء التنفيذ.'),
                     ]);
@@ -780,7 +780,10 @@ class ServiceExecutionEngine
                 if ($externalRequired) {
                     $deposit = $deposit ?: $this->latestDeposit($booking);
 
-                    if (! $deposit || (string) ($deposit->external_deposit_status ?? '') !== 'verified') {
+                    // verified on the deposit row, or the business said «استلمت» / «قبلته بلا عربون» on the booking
+                    $verified = $deposit && (string) ($deposit->external_deposit_status ?? '') === 'verified';
+
+                    if (! $verified && ! app(ExternalDepositService::class)->isSettled($booking)) {
                         throw ValidationException::withMessages([
                             'external_deposit' => __('يجب اعتماد العربون الخارجي قبل بدء التنفيذ.'),
                         ]);

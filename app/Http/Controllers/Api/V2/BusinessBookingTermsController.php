@@ -22,7 +22,8 @@ use Illuminate\Validation\Rule;
  *   deposit_percent, deposit_base   — a share of the day's value or of the whole booking
  *   business_counter_percent        — what the business freezes against the customer's hold
  *   guarantee_multiple              — the guarantee may be asked to stand for N times the day's value
- *   forfeit_to_business             — declared up front: a broken booking gives the whole deposit to the business
+ *   (the deposit is never confiscated: outside the platform the customer's account waits for the business to
+ *    confirm it arrived — see ExternalDepositService)
  *
  * Every booking still waits for the business's approval (accept/reject) — that is not a setting here.
  */
@@ -53,7 +54,6 @@ final class BusinessBookingTermsController extends Controller
             'deposit_base' => ['nullable', Rule::in([Policy::BASE_FIRST_DAY, Policy::BASE_TOTAL])],
             'business_counter_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'guarantee_multiple' => ['nullable', 'numeric', 'min:0', 'max:10'],
-            'forfeit_to_business' => ['nullable', 'boolean'],
             'accept_deposit_as_payment' => ['nullable', 'boolean'],
         ]);
 
@@ -85,7 +85,7 @@ final class BusinessBookingTermsController extends Controller
 
             'client_guarantee_strategy' => $mode === self::MODE_GUARANTEE ? Policy::GUARANTEE_GENERAL : Policy::GUARANTEE_PER_OPERATION_HOLD,
             'guarantee_multiple' => $mode === self::MODE_GUARANTEE ? (float) ($data['guarantee_multiple'] ?? 0) : 0,
-            'forfeit_to_business' => (bool) ($data['forfeit_to_business'] ?? false),
+            'forfeit_to_business' => false,
             // taking the frozen deposit as a payment only exists where a deposit is frozen in the wallet
             'accept_deposit_as_payment' => $mode === self::MODE_DEPOSIT && (bool) ($data['accept_deposit_as_payment'] ?? false),
         ])->save();
@@ -120,7 +120,7 @@ final class BusinessBookingTermsController extends Controller
             'deposit_base' => $row?->calculation_base === Policy::BASE_TOTAL ? Policy::BASE_TOTAL : Policy::BASE_FIRST_DAY,
             'business_counter_percent' => $row ? (float) $row->business_counter_hold_percent : 50.0,
             'guarantee_multiple' => $row ? (float) $row->guarantee_multiple : 0.0,
-            'forfeit_to_business' => (bool) ($row?->forfeit_to_business),
+            'forfeit_to_business' => false,
             'accept_deposit_as_payment' => (bool) ($row?->accept_deposit_as_payment),
             // every booking waits for the business to accept it — shown, never switched
             'confirmation' => 'merchant_approval',

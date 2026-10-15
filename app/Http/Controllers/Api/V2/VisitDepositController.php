@@ -27,6 +27,7 @@ class VisitDepositController extends Controller
         'investigation-order' => InvestigationOrder::class,
         'procedure-request' => ProcedureRequest::class,
         'order' => \App\Models\Order::class,
+        'trip-reservation' => \App\Models\TripReservation::class,
     ];
 
     public function __construct(private readonly VisitDepositService $deposits)

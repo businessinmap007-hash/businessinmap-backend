@@ -50,6 +50,34 @@ class TripReservationApiTest extends TestCase
             UserOperationRating::query()->where('user_id', $uid)->delete();
             RatingOutcomeEvent::query()->where('ratee_user_id', $uid)->delete();
         }
+
+        // the carrier's own per-unit deposit is what these tests are about: no «شروط الحجز» of the dev data, no guarantees
+        \App\Models\BusinessDepositPolicy::query()->where('business_id', $this->business->id)->delete();
+        \App\Models\UserGuarantee::query()->whereIn('user_id', [$this->business->id, $this->client->id])->delete();
+    }
+
+    private function guarantee(User $user, string $target, float $coverage): \App\Models\UserGuarantee
+    {
+        $levelId = (int) \DB::table('guarantee_levels')->value('id');
+
+        if ($levelId <= 0) {
+            $this->markTestSkipped('Needs a guarantee level.');
+        }
+
+        return \App\Models\UserGuarantee::create([
+            'user_id' => $user->id,
+            'target_type' => $target,
+            'purchased_level_id' => $levelId,
+            'effective_level_id' => $levelId,
+            'status' => \App\Models\UserGuarantee::STATUS_ACTIVE,
+            'current_coverage_amount' => $coverage,
+            'used_coverage_amount' => 0,
+        ]);
+    }
+
+    private function wallet(User $user): \App\Models\Wallet
+    {
+        return \App\Models\Wallet::query()->where('user_id', $user->id)->firstOrFail();
     }
 
     private function schedule(int $capacity = 2, float $price = 100, float $depositPerUnit = 0): TripSchedule
@@ -241,7 +269,7 @@ class TripReservationApiTest extends TestCase
         $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 1])->assertNotFound();
     }
 
-    public function test_deposit_is_held_on_reserve_and_released_on_cancel(): void
+    public function test_deposit_is_judged_on_reserve_frozen_on_confirm_and_returned_on_cancel(): void
     {
         $this->fundClientWallet(300);
         $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
@@ -249,19 +277,124 @@ class TripReservationApiTest extends TestCase
         Sanctum::actingAs($this->client);
         $res = $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2]);
         $res->assertCreated();
+        $res->assertJsonPath('data.reservation.deposit.status', 'quoted');
         $this->assertSame(100.0, (float) $res->json('data.reservation.deposit_held'));
         $rid = (int) $res->json('data.reservation.id');
 
-        // 100 moved from balance to locked.
-        $wallet = \App\Models\Wallet::query()->where('user_id', $this->client->id)->first();
-        $this->assertSame(200.0, (float) $wallet->balance);
-        $this->assertSame(100.0, (float) $wallet->locked_balance);
+        // nothing is frozen at the reservation — it is only judged
+        $this->assertEqualsWithDelta(300.0, (float) $this->wallet($this->client)->balance, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $this->wallet($this->client)->locked_balance, 0.001);
 
-        // Cancelling returns the held deposit.
+        // the carrier confirms: now it is frozen
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/confirm")->assertOk()
+            ->assertJsonPath('data.reservation.deposit.status', 'held');
+        $this->assertEqualsWithDelta(200.0, (float) $this->wallet($this->client)->balance, 0.001);
+        $this->assertEqualsWithDelta(100.0, (float) $this->wallet($this->client)->locked_balance, 0.001);
+
+        // cancelling returns everything
+        Sanctum::actingAs($this->client);
         $this->postJson("/api/v2/schedules/reservations/{$rid}/cancel")->assertOk();
-        $wallet->refresh();
-        $this->assertSame(300.0, (float) $wallet->balance);
-        $this->assertSame(0.0, (float) $wallet->locked_balance);
+        $this->assertEqualsWithDelta(300.0, (float) $this->wallet($this->client)->balance, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $this->wallet($this->client)->locked_balance, 0.001);
+    }
+
+    public function test_completing_returns_the_deposit_and_rates_both(): void
+    {
+        $this->fundClientWallet(300);
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $rid = (int) $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 1])->assertCreated()->json('data.reservation.id');
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/confirm")->assertOk();
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/complete")->assertOk();
+
+        $this->assertEqualsWithDelta(300.0, (float) $this->wallet($this->client)->balance, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $this->wallet($this->client)->locked_balance, 0.001);
+        $this->assertSame(1, $this->successCount($this->client->id, UserOperationRating::ROLE_CLIENT));
+    }
+
+    public function test_the_customers_guarantee_comes_first_and_the_wallet_holds_the_rest(): void
+    {
+        $this->fundClientWallet(300);
+        $g = $this->guarantee($this->client, 'client', 30);
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $rid = (int) $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2])->assertCreated()->json('data.reservation.id');
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/confirm")->assertOk()
+            ->assertJsonPath('data.reservation.deposit.guarantee_amount', 30);
+
+        $this->assertEqualsWithDelta(30.0, (float) $g->fresh()->used_coverage_amount, 0.001);
+        $this->assertEqualsWithDelta(70.0, (float) $this->wallet($this->client)->locked_balance, 0.001);
+    }
+
+    public function test_a_customer_with_a_guarantee_and_an_empty_wallet_may_reserve(): void
+    {
+        $this->fundClientWallet(0);
+        $this->guarantee($this->client, 'client', 500);
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2])->assertCreated();
+    }
+
+    public function test_a_short_customer_is_told_how_to_close_the_gap_unless_a_friend_will_stand_for_him(): void
+    {
+        $this->fundClientWallet(40);
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2])
+            ->assertStatus(422)->assertJsonPath('options.add_balance.amount', 60);
+
+        $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2, 'friend_guarantee' => true])->assertCreated();
+    }
+
+    public function test_a_no_show_keeps_the_deposit_held_until_the_carrier_gives_it_back(): void
+    {
+        $this->fundClientWallet(300);
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $rid = (int) $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2])->assertCreated()->json('data.reservation.id');
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/confirm")->assertOk();
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/no-show")->assertOk()
+            ->assertJsonPath('data.reservation.status', 'no_show')
+            ->assertJsonPath('data.reservation.deposit.status', 'held');
+
+        // never confiscated, never an automatic return: the carrier decides
+        $this->assertEqualsWithDelta(100.0, (float) $this->wallet($this->client)->locked_balance, 0.001);
+
+        // and the seats are free again
+        $this->assertSame(5, $this->searchRow($leg->id)['remaining_capacity'] ?? null);
+
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/deposit/give-back")->assertOk()
+            ->assertJsonPath('data.deposit.status', 'refunded');
+        $this->assertEqualsWithDelta(300.0, (float) $this->wallet($this->client)->balance, 0.001);
+    }
+
+    public function test_either_side_may_dispute_a_held_deposit_after_a_no_show(): void
+    {
+        $this->fundClientWallet(300);
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $rid = (int) $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 1])->assertCreated()->json('data.reservation.id');
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/confirm")->assertOk();
+        $this->postJson("/api/v2/business/schedules/reservations/{$rid}/no-show")->assertOk();
+        $this->postJson("/api/v2/visit-deposits/trip-reservation/{$rid}/disputes", ['reason_code' => 'no_show'])
+            ->assertOk();
+
+        $this->assertSame('disputed', \App\Models\VisitDeposit::query()->where('subject_type', TripReservation::class)->where('subject_id', $rid)->value('status'));
     }
 
     public function test_reserve_fails_when_wallet_cannot_cover_the_deposit(): void

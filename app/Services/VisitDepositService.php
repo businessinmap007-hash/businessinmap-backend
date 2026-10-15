@@ -125,6 +125,80 @@ class VisitDepositService
         return $this->policyFor($subject->visitDepositBusinessId(), $subject->visitDepositValue());
     }
 
+    /** The business's «شروط الحجز» applied to an operation of this value (null when it asks nothing). */
+    public function termsFor(int $businessId, float $value): ?array
+    {
+        return $this->policyFor($businessId, $value);
+    }
+
+    /**
+     * A policy that asks the customer's cover for the WHOLE of $amount (the carrier's own per-unit deposit, an order's
+     * threshold…), and — when the business has in-app «شروط الحجز» with a counter share — that share of it from the
+     * business, guarantee first.
+     *
+     * @return array<string,mixed>
+     */
+    public function wholeCoverPolicy(int $businessId, float $amount, string $source): array
+    {
+        $amount = round($amount, 2);
+        $counter = 0.0;
+
+        $business = User::query()->find($businessId);
+        $service = PlatformService::query()->where('key', 'booking')->first();
+
+        if ($business && $service) {
+            $terms = $this->resolver->resolve($business, $service);
+
+            if (($terms['enabled'] ?? false) && ($terms['wallet_hold_enabled'] ?? false) && ($terms['business_counter_hold_enabled'] ?? false)) {
+                $counter = round($amount * max(0.0, min((float) ($terms['business_counter_hold_percent'] ?? 0), 100.0)) / 100, 2);
+            }
+        }
+
+        return [
+            'enabled' => true,
+            'required' => true,
+            'mode' => 'wallet_hold',
+            'amount' => $amount,
+            'hold' => $amount,
+            'configured_percent' => 100,
+            'wallet_hold_required' => true,
+            'wallet_hold_amount' => $amount,
+            'external_deposit_required' => false,
+            'external_deposit_amount' => 0.0,
+            'business_counter_hold_required' => $counter > 0,
+            'business_counter_hold_amount' => $counter,
+            'business_counter_hold_raw_amount' => $counter,
+            'currency' => 'EGP',
+            'source' => $source,
+        ];
+    }
+
+    /**
+     * At the request: refuse — with how the gap may be closed — when the customer's guarantee and wallet cannot stand
+     * for what the operation asks. Nothing is frozen; it is frozen when the business confirms.
+     */
+    public function assertSubjectAffordable(Model $subject): void
+    {
+        $policy = $this->policyOf($subject);
+
+        if (! $policy || ($policy['external_deposit_required'] ?? false)) {
+            return;
+        }
+
+        $a = $this->core->assess($this->operationOf($subject), $policy, false);
+
+        if ($a['client_ready']) {
+            return;
+        }
+
+        $amount = (float) ($policy['wallet_hold_amount'] ?? 0) ?: (float) ($policy['guarantee_hold_amount'] ?? 0);
+
+        $this->refuse(
+            __('هذا النشاط يطلب عربونًا :amount ج لتأكيد الحجز، ورصيدك في المحفظة لا يكفي. اشحن محفظتك ثم أعد المحاولة.', ['amount' => $this->fmt($amount)]),
+            $a['client_options'],
+        );
+    }
+
     /**
      * What the core says of this operation now — both sides' readiness, what is covered by guarantee and what is left
      * for the wallets — or null when it asks for no deposit on the platform.

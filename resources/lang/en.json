@@ -3086,5 +3086,7 @@
     "لتفعيل العربون المجمّد أو ضمان العميل يلزم أن يكون لديك ضمان فعّال يقف خلف نصيبك. اختر «تحويل خارج المنصة» أو فعّل ضمانك أولًا.": "To switch on the frozen deposit or the customer’s guarantee you need an active guarantee of your own standing behind your share. Choose «transfer outside the platform», or activate your guarantee first.",
     "انتهت هذه العملية فلا يمكن دعوة ضامن لها.": "This operation is over, so a guarantor can no longer be invited.",
     "هذه العملية لا تطلب عربونًا على المنصة.": "This operation asks for no deposit on the platform.",
-    "لا يوجد حساب بهذه البيانات.": "There is no account with these details."
+    "لا يوجد حساب بهذه البيانات.": "There is no account with these details.",
+    "لا يمكن تسجيل عدم الحضور إلا لحجز مؤكد.": "A no-show can only be recorded for a confirmed reservation.",
+    "سُجّل عدم الحضور، ويبقى العربون مجمّدًا حتى تعيده أو يُفتح نزاع.": "The no-show was recorded; the deposit stays frozen until you give it back or a dispute is opened."
 }

@@ -1330,6 +1330,11 @@ Route::prefix('v2')->group(function () {
             Route::post('reservations/{reservation}/confirm', [TripReservationController::class, 'confirm'])->whereNumber('reservation');
             Route::post('reservations/{reservation}/complete', [TripReservationController::class, 'complete'])->whereNumber('reservation');
             Route::post('reservations/{reservation}/reject', [TripReservationController::class, 'reject'])->whereNumber('reservation');
+            Route::post('reservations/{reservation}/no-show', [TripReservationController::class, 'noShow'])->whereNumber('reservation');
+            // «عربون الجدية» owed outside the platform / a held one given back after a no-show
+            Route::post('reservations/{subject}/deposit/confirm-received', [VisitDepositController::class, 'confirmReceived'])->defaults('kind', 'trip-reservation')->whereNumber('subject');
+            Route::post('reservations/{subject}/deposit/waive', [VisitDepositController::class, 'waive'])->defaults('kind', 'trip-reservation')->whereNumber('subject');
+            Route::post('reservations/{subject}/deposit/give-back', [VisitDepositController::class, 'giveBack'])->defaults('kind', 'trip-reservation')->whereNumber('subject');
 
             // Live execution of a leg: start a run, then cycle its stops.
             Route::post('{schedule}/runs', [TripRunController::class, 'start'])->whereNumber('schedule');

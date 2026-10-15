@@ -75,35 +75,7 @@ class Order extends Model implements \App\Contracts\HasVisitDeposit, \App\Contra
             return null;
         }
 
-        $counter = 0.0;
-        $business = User::query()->find($this->business_id);
-        $service = \App\Models\PlatformService::query()->where('key', 'booking')->first();
-
-        if ($business && $service) {
-            $terms = app(\App\Services\BookingDepositPolicyResolver::class)->resolve($business, $service);
-
-            if (($terms['enabled'] ?? false) && ($terms['wallet_hold_enabled'] ?? false) && ($terms['business_counter_hold_enabled'] ?? false)) {
-                $counter = round($total * max(0.0, min((float) ($terms['business_counter_hold_percent'] ?? 0), 100.0)) / 100, 2);
-            }
-        }
-
-        return [
-            'enabled' => true,
-            'required' => true,
-            'mode' => 'wallet_hold',
-            'amount' => $total,
-            'hold' => $total,
-            'configured_percent' => 100,
-            'wallet_hold_required' => true,
-            'wallet_hold_amount' => $total,
-            'external_deposit_required' => false,
-            'external_deposit_amount' => 0.0,
-            'business_counter_hold_required' => $counter > 0,
-            'business_counter_hold_amount' => $counter,
-            'business_counter_hold_raw_amount' => $counter,
-            'currency' => 'EGP',
-            'source' => 'order_threshold',
-        ];
+        return app(\App\Services\VisitDepositService::class)->wholeCoverPolicy((int) $this->business_id, $total, 'order_threshold');
     }
 
     /** How the order is fulfilled. dine_in links to a table booking. */

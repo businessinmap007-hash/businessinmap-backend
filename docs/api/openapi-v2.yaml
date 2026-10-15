@@ -6481,3 +6481,11 @@ paths:
       summary: "One co-guarantor request, read by the invited friend or the requester: the requester, the status and the friend's available_coverage."
       parameters: [{ name: guarantor, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '403': { description: Not a party } }
+  /business/schedules/reservations/{reservation}/no-show:
+    post: { tags: [Schedules], summary: "The carrier marks a CONFIRMED reservation «لم يحضر»: the customer's side takes a cancelled mark, the seats are freed, and the deposit stays HELD (never confiscated) until the carrier gives it back or either side disputes.", parameters: [{ name: reservation, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/schedules/reservations/{subject}/deposit/confirm-received:
+    post: { tags: [Schedules], summary: "A reservation's deposit owed outside the platform arrived (method cash|transfer). Never withholds the trip.", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/schedules/reservations/{subject}/deposit/waive:
+    post: { tags: [Schedules], summary: "The carrier accepts the reservation without the deposit owed outside.", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/schedules/reservations/{subject}/deposit/give-back:
+    post: { tags: [Schedules], summary: "The carrier returns a HELD wallet deposit (after a no-show) — both holds and any coverage go back.", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }

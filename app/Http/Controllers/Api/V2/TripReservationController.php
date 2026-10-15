@@ -23,6 +23,8 @@ final class TripReservationController extends Controller
         $data = $request->validate([
             'units' => ['nullable', 'integer', 'min:1'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // short of the deposit and a friend will stand for him: the reservation goes through, the friend is invited next
+            'friend_guarantee' => ['nullable', 'boolean'],
         ]);
 
         $leg = TripSchedule::query()->findOrFail($schedule);
@@ -31,7 +33,8 @@ final class TripReservationController extends Controller
             client: $request->user(),
             schedule: $leg,
             units: (int) ($data['units'] ?? 1),
-            notes: $data['notes'] ?? null
+            notes: $data['notes'] ?? null,
+            friendGuarantee: (bool) ($data['friend_guarantee'] ?? false)
         );
 
         return response()->json([
@@ -136,6 +139,19 @@ final class TripReservationController extends Controller
         ]);
     }
 
+    /** POST business/schedules/reservations/{reservation}/no-show — «لم يحضر»: the deposit stays held. */
+    public function noShow(Request $request, int $reservation, TripReservationService $service)
+    {
+        $row = $this->carrierReservationOrFail($request, $reservation);
+        $service->noShow($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('سُجّل عدم الحضور، ويبقى العربون مجمّدًا حتى تعيده أو يُفتح نزاع.'),
+            'data' => ['reservation' => $this->serialize($row->refresh())],
+        ]);
+    }
+
     public function reject(Request $request, int $reservation, TripReservationService $service)
     {
         $row = $this->carrierReservationOrFail($request, $reservation);
@@ -164,6 +180,8 @@ final class TripReservationController extends Controller
             'unit_price' => $r->unit_price !== null ? (float) $r->unit_price : null,
             'total_price' => $r->total_price !== null ? (float) $r->total_price : null,
             'deposit_held' => (float) $r->deposit_held,
+            // «عربون الجدية»: quoted until the carrier confirms, then held / returned / disputed
+            'deposit' => app(\App\Services\VisitDepositService::class)->stateFor($r),
             'currency' => (string) $r->currency,
             'status' => (string) $r->status,
             'notes' => $r->notes,

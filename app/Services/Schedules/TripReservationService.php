@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserOperationRating;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\Ratings\RatingService;
+use App\Services\VisitDepositService;
 use App\Services\WalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -23,14 +24,15 @@ final class TripReservationService
     public function __construct(
         private readonly RatingService $ratings,
         private readonly WalletService $wallet,
-        private readonly NotificationDispatcherService $notifications
+        private readonly NotificationDispatcherService $notifications,
+        private readonly VisitDepositService $deposits,
     ) {}
 
     /**
      * Reserve `units` on a leg. Capacity is checked under a row lock on the
      * schedule so concurrent reservations can never oversell it.
      */
-    public function reserve(User $client, TripSchedule $schedule, int $units, ?string $notes = null): TripReservation
+    public function reserve(User $client, TripSchedule $schedule, int $units, ?string $notes = null, bool $friendGuarantee = false): TripReservation
     {
         $units = max(1, $units);
 
@@ -42,7 +44,7 @@ final class TripReservationService
             throw ValidationException::withMessages(['schedule' => __('لا يمكنك حجز خط تشغيل تملكه.')]);
         }
 
-        $reservation = DB::transaction(function () use ($client, $schedule, $units, $notes) {
+        $reservation = DB::transaction(function () use ($client, $schedule, $units, $notes, $friendGuarantee) {
             /** @var TripSchedule $locked */
             $locked = TripSchedule::query()->whereKey($schedule->id)->lockForUpdate()->firstOrFail();
 
@@ -63,21 +65,22 @@ final class TripReservationService
                 'notes' => $notes,
             ]);
 
-            // Optional refundable deposit: hold it now (rolls the whole thing
-            // back — no reservation, no held capacity — if funds are short).
-            $deposit = round((float) ($locked->deposit_per_unit ?? 0) * $units, 2);
+            // The deposit (the carrier's own per unit, else its «شروط الحجز»): judged on the deposit core now — his
+            // guarantee first, his wallet for the rest — and FROZEN when the carrier confirms. A customer who cannot
+            // stand for it is refused (rolling the whole reservation back, no capacity taken) unless a friend is to
+            // stand for him. `deposit_held` records the amount asked.
+            $reservation->setRelation('schedule', $locked);
+            $quote = $this->deposits->stateFor($reservation);
 
-            if ($deposit > 0) {
-                $this->wallet->hold(
-                    userId: (int) $client->id,
-                    amount: $deposit,
-                    referenceType: 'trip_reservation',
-                    referenceId: (string) $reservation->id,
-                    note: 'عربون حجز رحلة',
-                    idempotencyKey: 'trip_res_hold_'.$reservation->id
-                );
+            if ($quote !== null) {
+                if (! $friendGuarantee) {
+                    $this->deposits->assertSubjectAffordable($reservation);
+                }
 
-                $reservation->update(['deposit_held' => $deposit]);
+                $reservation->update([
+                    'deposit_held' => (float) $quote['amount'],
+                    'meta' => array_merge((array) ($reservation->meta ?? []), ['deposit_core' => true]),
+                ]);
             }
 
             return $reservation;
@@ -150,7 +153,13 @@ final class TripReservationService
             throw ValidationException::withMessages(['status' => __('لا يمكن تأكيد هذا الحجز في حالته الحالية.')]);
         }
 
-        $reservation->update(['status' => TripReservation::STATUS_CONFIRMED]);
+        DB::transaction(function () use ($reservation) {
+            // frozen (or recorded as owed outside the platform) when the carrier takes the reservation; a short
+            // wallet on either side refuses here with its reason and the reservation stays pending
+            $this->deposits->secure($reservation);
+
+            $reservation->update(['status' => TripReservation::STATUS_CONFIRMED]);
+        });
 
         // Notify the customer their reservation was accepted.
         $this->notify('trip_reservation_confirmed', (int) $reservation->client_id, (int) $reservation->business_id, $reservation);
@@ -171,7 +180,7 @@ final class TripReservationService
         $result = DB::transaction(function () use ($reservation) {
             $reservation->update(['status' => TripReservation::STATUS_COMPLETED]);
 
-            $this->releaseDeposit($reservation);
+            $this->returnDeposit($reservation, completed: true);
 
             $this->ratings->recordForBothParties(
                 businessUserId: (int) $reservation->business_id,
@@ -213,8 +222,8 @@ final class TripReservationService
         $result = DB::transaction(function () use ($reservation, $ledgerCancel) {
             $reservation->update(['status' => TripReservation::STATUS_CANCELLED]);
 
-            // A held deposit is always returned to the client on cancel.
-            $this->releaseDeposit($reservation);
+            // A held deposit is always returned on cancel — and whatever a friend froze for it.
+            $this->returnDeposit($reservation, completed: false);
 
             if ($ledgerCancel) {
                 $this->ratings->recordForBothParties(
@@ -234,6 +243,43 @@ final class TripReservationService
         $this->notify('trip_reservation_cancelled', $recipient, $actorId ?? 0, $reservation);
 
         return $result;
+    }
+
+    /**
+     * The carrier marks a confirmed reservation «لم يحضر». The deposit stays HELD (never confiscated): the carrier may
+     * give it back at once, or either side opens a dispute. Only the customer's side of the record takes the mark.
+     */
+    public function noShow(TripReservation $reservation): TripReservation
+    {
+        if ($reservation->status !== TripReservation::STATUS_CONFIRMED || ! $reservation->client_id) {
+            throw ValidationException::withMessages(['status' => __('لا يمكن تسجيل عدم الحضور إلا لحجز مؤكد.')]);
+        }
+
+        $reservation->update(['status' => TripReservation::STATUS_NO_SHOW]);
+
+        $this->ratings->recordOutcome(
+            (int) $reservation->client_id,
+            UserOperationRating::ROLE_CLIENT,
+            \App\Models\RatingOutcomeEvent::OUTCOME_CANCELLED,
+            TripReservation::OP_TRIP,
+            (int) $reservation->id
+        );
+
+        $this->notify('trip_reservation_cancelled', (int) $reservation->client_id, (int) $reservation->business_id, $reservation);
+
+        return $reservation->refresh();
+    }
+
+    /** The deposit goes back to whoever posted it: through the core for a reservation made on it, else the old wallet hold. */
+    private function returnDeposit(TripReservation $reservation, bool $completed): void
+    {
+        if (data_get($reservation->meta, 'deposit_core')) {
+            $this->deposits->safely(fn () => $completed ? $this->deposits->release($reservation) : $this->deposits->refund($reservation));
+
+            return;
+        }
+
+        $this->releaseDeposit($reservation);
     }
 
     private function releaseDeposit(TripReservation $reservation): void

@@ -108,6 +108,11 @@ class BookingDepositCalculatorTest extends TestCase
         $this->assertTrue($out['client_guarantee_covered']);
         $this->assertFalse($out['wallet_hold_required'], 'a covering guarantee means no wallet hold');
         $this->assertSame(0.0, (float) $out['hold']);
+
+        // …but the guarantee is no longer left idle: it is FROZEN for the operation
+        $this->assertTrue($out['required']);
+        $this->assertTrue($out['guarantee_hold_required']);
+        $this->assertSame(100.0, (float) $out['guarantee_hold_amount']);
     }
 
     public function test_insufficient_guarantee_still_requires_a_hold(): void

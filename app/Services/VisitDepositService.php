@@ -143,6 +143,32 @@ class VisitDepositService
     }
 
     /**
+     * The coverage a friend may still be asked for on this operation: what the customer's own guarantee and wallet leave
+     * uncovered. Null when no deposit is asked.
+     *
+     * @return array{needed:float,deposit:float,combined_coverage:float}|null
+     */
+    public function friendNeed(Model $subject): ?array
+    {
+        $policy = $this->policyOf($subject);
+
+        if (! $policy || ($policy['external_deposit_required'] ?? false)) {
+            return null;
+        }
+
+        $a = $this->core->assess($this->operationOf($subject), $policy, $this->rowFor($subject) !== null);
+        $deposit = (float) $a['client_deposit_required'];
+        $balance = (float) ($a['client_wallet']['balance'] ?? 0);
+
+        return [
+            'deposit' => $deposit,
+            'combined_coverage' => (float) $a['combined_guarantee_coverage'],
+            // what neither his guarantee (with friends) nor his wallet stands for
+            'needed' => round(max($deposit - (float) $a['combined_guarantee_coverage'] - $balance, 0), 2),
+        ];
+    }
+
+    /**
      * What the business's terms ask for a visit of this value, or null when it asks for nothing.
      *
      * @return array{mode:string,amount:float,counter_amount:float,percent:float}|null
@@ -163,7 +189,8 @@ class VisitDepositService
         }
 
         $external = (bool) ($out['external_deposit_required'] ?? false);
-        $amount = (float) ($external ? $out['external_deposit_amount'] : $out['wallet_hold_amount']);
+        // wallet hold, or — a business that requires the guarantee — the guarantee frozen in its place
+        $amount = (float) ($external ? $out['external_deposit_amount'] : ($out['wallet_hold_amount'] > 0 ? $out['wallet_hold_amount'] : ($out['guarantee_hold_amount'] ?? 0)));
 
         if ($amount <= 0) {
             return null;
@@ -368,7 +395,14 @@ class VisitDepositService
     {
         $row = $this->rowFor($subject);
 
-        if (! $row || ! $row->isHeld()) {
+        if (! $row) {
+            // nothing was secured, but a friend may have frozen coverage for it: it goes back
+            $this->core->releaseGuarantees($this->operationOf($subject));
+
+            return null;
+        }
+
+        if (! $row->isHeld()) {
             return $row;
         }
 
@@ -391,6 +425,9 @@ class VisitDepositService
         $row = $this->rowFor($subject);
 
         if (! $row) {
+            // a rejected / cancelled request: whatever a friend froze for it goes back
+            $this->core->releaseGuarantees($this->operationOf($subject));
+
             return null;
         }
 

@@ -563,4 +563,125 @@ class VisitDepositTest extends TestCase
             ->assertJsonPath('options.add_balance.amount', 7)
             ->assertJsonPath('options.upgrade_guarantee', true);
     }
+
+    public function test_a_business_that_requires_the_guarantee_freezes_it_for_the_visit(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $this->terms($clinic);
+        DB::table('business_deposit_policies')->where('business_id', $clinic->id)->update([
+            'client_guarantee_strategy' => BusinessDepositPolicy::GUARANTEE_GENERAL,
+        ]);
+        $this->fund($clinic, 200);
+        $patientGuarantee = $this->guarantee($patient, GuaranteeLevel::TARGET_CLIENT, 500);
+        $this->guarantee($clinic, GuaranteeLevel::TARGET_BUSINESS, 100);
+
+        $appointment = $this->requested($clinic, $patient);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/confirm")
+            ->assertOk()->assertJsonPath('data.appointment.deposit.status', 'held')
+            ->assertJsonPath('data.appointment.deposit.guarantee_amount', 20);
+
+        $this->assertEqualsWithDelta(20.0, (float) $patientGuarantee->fresh()->used_coverage_amount, 0.001);
+        $this->assertEqualsWithDelta(500.0, (float) $this->wallet($patient)->balance, 0.001, 'his wallet is untouched');
+
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/complete")->assertOk();
+        $this->assertEqualsWithDelta(0.0, (float) $patientGuarantee->fresh()->used_coverage_amount, 0.001);
+    }
+
+    // ── a friend stands for the deposit ───────────────────────────────────────────────────────────────────────
+
+    public function test_a_friend_may_stand_for_the_deposit_and_is_released_with_the_visit(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $friend = $this->user(User::TYPE_CLIENT, null, 'Friend');
+        $this->terms($clinic);
+        $this->fund($clinic, 200);
+        $this->fund($patient, 0);
+        $friendGuarantee = $this->guarantee($friend, GuaranteeLevel::TARGET_CLIENT, 100);
+        $price = $this->visitPrice($clinic);
+
+        // short of the deposit: refused…
+        Sanctum::actingAs($patient);
+        $payload = ['clinic_id' => $clinic->id, 'scheduled_at' => $this->when(), 'service_price_id' => $price->id];
+        $this->postJson('/api/v2/clinic-appointments', $payload)->assertStatus(422);
+
+        // …unless a friend is to stand for him
+        $id = $this->postJson('/api/v2/clinic-appointments', $payload + ['friend_guarantee' => true])
+            ->assertCreated()->json('data.appointment.id');
+
+        // he invites the friend by phone and is told what is still missing
+        $this->postJson("/api/v2/visit-deposits/clinic-appointment/{$id}/guarantors", ['phone' => $friend->phone])
+            ->assertCreated()->assertJsonPath('data.guarantor.status', 'invited');
+        $guarantorId = (int) \App\Models\OperationGuarantor::query()->where('guarantor_user_id', $friend->id)->value('id');
+
+        $this->getJson("/api/v2/visit-deposits/clinic-appointment/{$id}/guarantors")->assertOk()
+            ->assertJsonPath('data.need.deposit', 20);
+
+        // the friend reads the request and freezes 20
+        Sanctum::actingAs($friend);
+        $this->getJson("/api/v2/guarantors/{$guarantorId}")->assertOk()->assertJsonPath('data.guarantor.available_coverage', 100);
+        $this->postJson("/api/v2/guarantors/{$guarantorId}/accept", ['amount' => 20])->assertOk();
+        $this->assertEqualsWithDelta(20.0, (float) $friendGuarantee->fresh()->used_coverage_amount, 0.001);
+
+        // the clinic confirms: the deposit stands on the friend's coverage, the patient's wallet untouched
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$id}/confirm")->assertOk()
+            ->assertJsonPath('data.appointment.deposit.status', 'held');
+        $this->assertEqualsWithDelta(0.0, (float) $this->wallet($patient)->locked_balance, 0.001);
+
+        // the patient cancels: the friend's coverage is free again
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/clinic-appointments/{$id}/cancel")->assertOk();
+        $this->assertEqualsWithDelta(0.0, (float) $friendGuarantee->fresh()->used_coverage_amount, 0.001);
+    }
+
+    public function test_a_request_cancelled_before_confirmation_returns_what_the_friend_froze(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $friend = $this->user(User::TYPE_CLIENT, null, 'Friend');
+        $this->terms($clinic);
+        $this->fund($patient, 0);
+        $friendGuarantee = $this->guarantee($friend, GuaranteeLevel::TARGET_CLIENT, 100);
+        $price = $this->visitPrice($clinic);
+
+        Sanctum::actingAs($patient);
+        $id = $this->postJson('/api/v2/clinic-appointments', [
+            'clinic_id' => $clinic->id, 'scheduled_at' => $this->when(), 'service_price_id' => $price->id, 'friend_guarantee' => true,
+        ])->assertCreated()->json('data.appointment.id');
+        $this->postJson("/api/v2/visit-deposits/clinic-appointment/{$id}/guarantors", ['guarantor_user_id' => $friend->id])->assertCreated();
+        $guarantorId = (int) \App\Models\OperationGuarantor::query()->where('guarantor_user_id', $friend->id)->value('id');
+
+        Sanctum::actingAs($friend);
+        $this->postJson("/api/v2/guarantors/{$guarantorId}/accept", ['amount' => 20])->assertOk();
+        $this->assertEqualsWithDelta(20.0, (float) $friendGuarantee->fresh()->used_coverage_amount, 0.001);
+
+        // the clinic rejects before ever confirming: no deposit row exists, yet the friend is freed
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$id}/reject")->assertOk();
+        $this->assertEqualsWithDelta(0.0, (float) $friendGuarantee->fresh()->used_coverage_amount, 0.001);
+    }
+
+    public function test_only_the_customer_invites_and_a_visit_with_no_deposit_takes_no_friends(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $stranger = $this->user(User::TYPE_CLIENT, null, 'Stranger');
+        $friend = $this->user(User::TYPE_CLIENT, null, 'Friend');
+        $this->guarantee($friend, GuaranteeLevel::TARGET_CLIENT, 100);
+
+        // no terms → no deposit
+        $appointment = $this->requested($clinic, $patient);
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/visit-deposits/clinic-appointment/{$appointment->id}/guarantors", ['guarantor_user_id' => $friend->id])
+            ->assertStatus(422);
+
+        $this->terms($clinic);
+        Sanctum::actingAs($stranger);
+        $this->postJson("/api/v2/visit-deposits/clinic-appointment/{$appointment->id}/guarantors", ['guarantor_user_id' => $friend->id])
+            ->assertNotFound();
+    }
 }

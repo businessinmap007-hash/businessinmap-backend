@@ -117,6 +117,10 @@ class DepositCore
 
         if (($policy['required'] ?? false) && ! $alreadyFrozen) {
             $clientDepositRequired = round((float) ($policy['wallet_hold_amount'] ?? $policy['hold'] ?? 0), 2);
+            // a business that requires the guarantee: no wallet hold, the customer's guarantee itself is frozen
+            if ($clientDepositRequired <= 0) {
+                $clientDepositRequired = round((float) ($policy['guarantee_hold_amount'] ?? 0), 2);
+            }
             // the RAW counter share: the calculator zeroes `business_counter_hold_amount` when the business's guarantee
             // would cover it all, but the guarantee is now frozen for it (below) rather than left idle
             $businessDepositRequired = round((float) ($policy['business_counter_hold_raw_amount'] ?? $policy['business_counter_hold_amount'] ?? 0), 2);

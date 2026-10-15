@@ -157,12 +157,15 @@ class ClinicAppointmentService
 
         $services = $this->resolveSpecialtyServices((int) $clinic->id, $data);
 
-        // «عربون الجدية»: a clinic that asks for one is only asked of a patient who can stand it
-        $this->visitDeposits->assertCanAfford(
-            (int) $patient->id,
-            (int) $clinic->id,
-            (float) $this->visitFeeOf($priceId) + (float) array_sum(array_column($services, 'price')),
-        );
+        // «عربون الجدية»: a clinic that asks for one is only asked of a patient who can stand it — unless a friend is to
+        // stand for him (invited once the request exists, before the clinic confirms)
+        if (! ($data['friend_guarantee'] ?? false)) {
+            $this->visitDeposits->assertCanAfford(
+                (int) $patient->id,
+                (int) $clinic->id,
+                (float) $this->visitFeeOf($priceId) + (float) array_sum(array_column($services, 'price')),
+            );
+        }
 
         $appointment = ClinicAppointment::create([
             'clinic_id' => (int) $clinic->id,

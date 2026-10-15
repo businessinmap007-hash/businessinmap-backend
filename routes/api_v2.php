@@ -1197,6 +1197,12 @@ Route::prefix('v2')->group(function () {
         // Friend co-guarantors for an operation (guarantee-as-deposit).
         Route::get('bookings/{booking}/guarantors', [OperationGuarantorController::class, 'index'])->whereNumber('booking');
         Route::post('bookings/{booking}/guarantors', [OperationGuarantorController::class, 'invite'])->whereNumber('booking');
+        // The same friend door for a health visit / an order / a trip reservation.
+        Route::get('visit-deposits/{kind}/{subject}/guarantors', [OperationGuarantorController::class, 'operationIndex'])
+            ->whereIn('kind', array_keys(VisitDepositController::KINDS))->whereNumber('subject');
+        Route::post('visit-deposits/{kind}/{subject}/guarantors', [OperationGuarantorController::class, 'operationInvite'])
+            ->whereIn('kind', array_keys(VisitDepositController::KINDS))->whereNumber('subject');
+        Route::get('guarantors/{guarantor}', [OperationGuarantorController::class, 'show'])->whereNumber('guarantor');
         Route::post('guarantors/{guarantor}/accept', [OperationGuarantorController::class, 'accept'])->whereNumber('guarantor');
         Route::post('guarantors/{guarantor}/decline', [OperationGuarantorController::class, 'decline'])->whereNumber('guarantor');
 

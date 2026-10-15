@@ -55,6 +55,8 @@ class ClinicAppointmentController extends Controller
             'reason' => ['nullable', 'string', 'max:255'],
             'for_name' => ['nullable', 'string', 'max:120'],
             'for_phone' => ['nullable', 'string', 'max:30'],
+            // short of the deposit and a friend will stand for him: the request goes through, the friend is invited next
+            'friend_guarantee' => ['nullable', 'boolean'],
         ]);
 
         $clinic = User::query()->findOrFail((int) $data['clinic_id']);

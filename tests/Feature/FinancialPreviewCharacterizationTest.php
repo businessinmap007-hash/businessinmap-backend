@@ -307,4 +307,31 @@ class FinancialPreviewCharacterizationTest extends TestCase
         $this->assertTrue($p['deposit']['already_frozen']);
         $this->assertEqualsWithDelta(0.0, $p['deposit']['client_required'], 0.001);
     }
+
+    // ── a business that REQUIRES the guarantee: the covering guarantee is frozen, not left idle ────────────────
+
+    public function test_a_required_guarantee_that_covers_is_frozen_for_the_operation_and_the_wallet_is_untouched(): void
+    {
+        $this->policy();
+        DB::table('business_deposit_policies')->where('business_id', $this->businessId)->update([
+            'client_guarantee_strategy' => BusinessDepositPolicy::GUARANTEE_GENERAL,
+        ]);
+        $this->guarantee($this->clientId, GuaranteeLevel::TARGET_CLIENT, 500);
+
+        $p = $this->preview();
+
+        $this->assertTrue($p['deposit']['required']);
+        $this->assertEqualsWithDelta(100.0, $p['deposit']['client_required'], 0.001);
+        $this->assertEqualsWithDelta(100.0, $p['deposit']['guarantee_applied'], 0.001);
+        $this->assertEqualsWithDelta(0.0, $p['deposit']['client_wallet_required'], 0.001);
+
+        $this->engine->moveBookingToInProgress($this->booking);
+
+        $g = UserGuarantee::query()->where('user_id', $this->clientId)->where('target_type', 'client')->firstOrFail();
+        $this->assertEqualsWithDelta(100.0, (float) $g->used_coverage_amount, 0.001, 'frozen on the guarantee');
+
+        $wallet = Wallet::query()->where('user_id', $this->clientId)->firstOrFail();
+        $this->assertEqualsWithDelta(1000.0, (float) $wallet->balance, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $wallet->locked_balance, 0.001);
+    }
 }

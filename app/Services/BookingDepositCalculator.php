@@ -99,14 +99,20 @@ class BookingDepositCalculator
             BusinessDepositPolicy::MODE_BOTH,
         ], true) && (bool) ($policy['external_verification_enabled'] ?? false);
 
+        // A business that REQUIRES the guarantee (المالك، 2026-10-20): when the customer's guarantee covers it, the
+        // guarantee is FROZEN for the operation — nothing is held from the wallet, but it is no longer left idle.
+        $guaranteeHoldAmount = 0.0;
+
         if ($clientCovered) {
             $walletHoldRequired = false;
+            $guaranteeHoldAmount = $clientGuaranteeRequired;
         }
 
         $walletHoldAmount = $walletHoldRequired ? $depositAmount : 0.0;
         $externalAmount = $externalRequired ? $depositAmount : 0.0;
 
-        $counterEnabled = $walletHoldRequired && (bool) ($policy['business_counter_hold_enabled'] ?? true);
+        // the business stands behind the deposit it asks, whichever way the customer's side is secured in-app
+        $counterEnabled = ($walletHoldRequired || $guaranteeHoldAmount > 0) && (bool) ($policy['business_counter_hold_enabled'] ?? true);
 
         $counterPercent = $counterEnabled
             ? max(0.0, min((float) ($policy['business_counter_hold_percent'] ?? self::DEFAULT_COUNTER_HOLD_PERCENT), 100.0))
@@ -119,7 +125,7 @@ class BookingDepositCalculator
 
         return [
             'enabled' => true,
-            'required' => $walletHoldRequired || $externalRequired || $businessCounterRequired,
+            'required' => $walletHoldRequired || $externalRequired || $businessCounterRequired || $guaranteeHoldAmount > 0,
             'mode' => $mode,
 
             'calculation_base' => $baseKey,
@@ -139,6 +145,10 @@ class BookingDepositCalculator
 
             'wallet_hold_required' => $walletHoldRequired,
             'wallet_hold_amount' => $walletHoldAmount,
+
+            // the customer's guarantee frozen for the operation (a business that requires the guarantee)
+            'guarantee_hold_required' => $guaranteeHoldAmount > 0,
+            'guarantee_hold_amount' => $guaranteeHoldAmount,
 
             'external_deposit_required' => $externalRequired,
             'external_deposit_amount' => $externalAmount,
@@ -242,6 +252,9 @@ class BookingDepositCalculator
 
             'wallet_hold_required' => false,
             'wallet_hold_amount' => 0.0,
+
+            'guarantee_hold_required' => false,
+            'guarantee_hold_amount' => 0.0,
 
             'external_deposit_required' => false,
             'external_deposit_amount' => 0.0,

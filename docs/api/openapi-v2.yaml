@@ -6464,3 +6464,20 @@ paths:
       summary: "The guarantee level each account wears beside its name — ?ids=1,2,3 (at most 100). data.badges is keyed by account id: {code, name_ar, name_en, priority, covers_up_to, target_type} or null when the account has no usable guarantee. Public to any signed-in account on purpose: so the other side of a deal sees what level it deals with and what it covers up to."
       parameters: [{ name: ids, in: query, required: true, schema: { type: string }, description: Comma-separated account ids. }]
       responses: { '200': { description: OK } }
+  /visit-deposits/{kind}/{subject}/guarantors:
+    get:
+      tags: [Guarantees]
+      summary: "The customer of an operation (kind = clinic-appointment | investigation-order | procedure-request | order) lists the friends he invited to stand for its deposit: data.guarantors, data.combined_coverage and data.need {deposit, combined_coverage, needed} — what is still missing after his guarantee, his friends' and his wallet. 404 to anyone else."
+      parameters: [{ name: kind, in: path, required: true, schema: { type: string } }, { name: subject, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } }
+    post:
+      tags: [Guarantees]
+      summary: "Invite a friend to stand for the operation's deposit — {guarantor_user_id | phone | email}. The friend must hold a usable guarantee; his coverage is frozen on accepting and returned when the operation ends (done, cancelled or ruled). 422 when the operation is over or asks no deposit."
+      parameters: [{ name: kind, in: path, required: true, schema: { type: string } }, { name: subject, in: path, required: true, schema: { type: integer } }]
+      responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /guarantors/{guarantor}:
+    get:
+      tags: [Guarantees]
+      summary: "One co-guarantor request, read by the invited friend or the requester: the requester, the status and the friend's available_coverage."
+      parameters: [{ name: guarantor, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '403': { description: Not a party } }

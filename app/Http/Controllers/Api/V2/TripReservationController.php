@@ -48,7 +48,7 @@ final class TripReservationController extends Controller
     {
         $reservations = TripReservation::query()
             ->where('client_id', (int) $request->user()->id)
-            ->with(['schedule:id,mode,origin_governorate_id,destination_governorate_id,day_of_week,departure_time', 'business:id,name,logo'])
+            ->with(['schedule:id,mode,origin_governorate_id,destination_governorate_id,day_of_week,departure_time,deposit_per_unit', 'business:id,name,logo'])
             ->latest('id')
             ->paginate((int) $request->get('per_page', 20));
 
@@ -102,7 +102,7 @@ final class TripReservationController extends Controller
 
         $query = TripReservation::query()
             ->where('business_id', BusinessContext::id($request))
-            ->with(['schedule:id,mode,origin_governorate_id,destination_governorate_id,day_of_week,departure_time', 'client:id,name,logo'])
+            ->with(['schedule:id,mode,origin_governorate_id,destination_governorate_id,day_of_week,departure_time,deposit_per_unit', 'client:id,name,logo'])
             ->latest('id');
 
         if ($status !== '') {

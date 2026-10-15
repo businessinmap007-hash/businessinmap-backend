@@ -50,7 +50,7 @@ class TripReservationController extends Controller
             ->where('business_id', $this->businessId())
             ->with([
                 'client:id,name,phone',
-                'schedule:id,mode,scope,origin_governorate_id,destination_governorate_id,day_of_week,departure_time,capacity_unit',
+                'schedule:id,mode,scope,origin_governorate_id,destination_governorate_id,day_of_week,departure_time,capacity_unit,deposit_per_unit',
                 'schedule.originGovernorate:id,name_ar',
                 'schedule.destinationGovernorate:id,name_ar',
             ])

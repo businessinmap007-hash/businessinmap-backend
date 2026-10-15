@@ -299,6 +299,27 @@ class TripReservationApiTest extends TestCase
         $this->assertEqualsWithDelta(0.0, (float) $this->wallet($this->client)->locked_balance, 0.001);
     }
 
+    public function test_both_lists_carry_the_quoted_deposit_of_a_pending_reservation(): void
+    {
+        $this->fundClientWallet(300);
+        $leg = $this->schedule(capacity: 5, price: 100, depositPerUnit: 50);
+
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/schedules/{$leg->id}/reserve", ['units' => 2])->assertCreated();
+
+        // the lists load the leg with a short column list: the per-unit deposit must be among them
+        $mine = $this->getJson('/api/v2/schedules/my-reservations');
+        $mine->assertOk();
+        $this->assertSame('quoted', $mine->json('data.data.0.deposit.status'));
+        $this->assertEqualsWithDelta(100.0, (float) $mine->json('data.data.0.deposit.amount'), 0.001);
+
+        Sanctum::actingAs($this->business);
+        $incoming = $this->getJson('/api/v2/business/schedules/reservations');
+        $incoming->assertOk();
+        $this->assertSame('quoted', $incoming->json('data.data.0.deposit.status'));
+        $this->assertEqualsWithDelta(100.0, (float) $incoming->json('data.data.0.deposit.amount'), 0.001);
+    }
+
     public function test_completing_returns_the_deposit_and_rates_both(): void
     {
         $this->fundClientWallet(300);

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\HasOwnDepositTerms;
 use App\Contracts\HasVisitDeposit;
 use App\Models\Deposit;
 use App\Models\Dispute;
@@ -106,14 +107,57 @@ class VisitDepositService
     /* ---------------------------------------------------------------- quote */
 
     /**
+     * The deposit policy this very operation is judged by: its own terms (a menu/retail order asks the whole order's
+     * cover once it passes the merchant's threshold), otherwise the business's «شروط الحجز» applied to its value.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function policyOf(Model $subject): ?array
+    {
+        if ($subject instanceof HasOwnDepositTerms) {
+            return $subject->depositTerms();
+        }
+
+        if (! $subject instanceof HasVisitDeposit) {
+            return null;
+        }
+
+        return $this->policyFor($subject->visitDepositBusinessId(), $subject->visitDepositValue());
+    }
+
+    /**
+     * What the core says of this operation now — both sides' readiness, what is covered by guarantee and what is left
+     * for the wallets — or null when it asks for no deposit on the platform.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function assessFor(Model $subject): ?array
+    {
+        $policy = $this->policyOf($subject);
+
+        if (! $policy || ($policy['external_deposit_required'] ?? false)) {
+            return null;
+        }
+
+        return $this->core->assess($this->operationOf($subject), $policy, $this->rowFor($subject) !== null);
+    }
+
+    /**
      * What the business's terms ask for a visit of this value, or null when it asks for nothing.
      *
      * @return array{mode:string,amount:float,counter_amount:float,percent:float}|null
      */
     public function quote(int $businessId, float $value): ?array
     {
-        $out = $this->policyFor($businessId, $value);
+        return $this->quoteOf($this->policyFor($businessId, $value));
+    }
 
+    /**
+     * @param  array<string,mixed>|null  $out  a calculator-shaped policy
+     * @return array{mode:string,amount:float,counter_amount:float,percent:float}|null
+     */
+    private function quoteOf(?array $out): ?array
+    {
         if (! $out) {
             return null;
         }
@@ -171,7 +215,7 @@ class VisitDepositService
             return null;
         }
 
-        $quote = $this->quote($subject->visitDepositBusinessId(), $subject->visitDepositValue());
+        $quote = $this->quoteOf($this->policyOf($subject));
 
         if (! $quote) {
             return null;
@@ -242,7 +286,8 @@ class VisitDepositService
 
         $clientId = $subject->visitDepositClientId();
         $businessId = $subject->visitDepositBusinessId();
-        $quote = $this->quote($businessId, $subject->visitDepositValue());
+        $policy = $this->policyOf($subject);
+        $quote = $this->quoteOf($policy);
 
         if (! $quote || $clientId <= 0 || $clientId === $businessId) {
             return null;
@@ -260,7 +305,6 @@ class VisitDepositService
             ]);
         }
 
-        $policy = $this->policyFor($businessId, $subject->visitDepositValue());
         $op = $this->operationOf($subject);
         $a = $this->core->assess($op, $policy, false);
 
@@ -500,7 +544,7 @@ class VisitDepositService
     {
         $row = $this->rowFor($subject);
 
-        if ($row && $row->status === VisitDeposit::STATUS_DISPUTED) {
+        if ($row && in_array($row->status, [VisitDeposit::STATUS_DISPUTED, VisitDeposit::STATUS_HELD], true)) {
             // the dispute is over: coverage frozen for the visit goes back, it is never charged
             $this->core->releaseGuarantees($this->operationOf($subject));
             $row->update(['status' => VisitDeposit::STATUS_RESOLVED]);

@@ -112,8 +112,11 @@ class OrderResource extends JsonResource
                 'covered' => (bool) $this->deposit_covered,
                 'covered_by' => $this->deposit_covered_by,
                 'accepted_without_cover' => (bool) $this->deposit_accepted_without_cover,
-                // Advisory deposit is released only once every party confirmed the cash.
+                // Released once the order is completed and every party confirmed the cash (or refunded on a cancel).
                 'released' => (bool) $this->requires_deposit && $this->payment_settled_at !== null,
+                // Where the frozen deposit stands — quoted until the business accepts, then held / released / refunded
+                // / disputed — and how much of each side's share stands on a guarantee (null: none is asked).
+                'state' => $this->requires_deposit ? app(\App\Services\VisitDepositService::class)->stateFor($this->resource) : null,
             ],
             'address' => $this->address,
             'delivery_coordinates' => $this->customerLatLng()

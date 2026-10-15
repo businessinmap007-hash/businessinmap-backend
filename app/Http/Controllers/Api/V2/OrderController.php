@@ -265,7 +265,26 @@ final class OrderController extends Controller
             if ((string) $m->status !== 'pending' || $m->prep_status !== null) {
                 abort(409, __('لا يمكن قبول هذا الطلب في حالته الحالية.'));
             }
-            if ($m->needsExplicitDepositDecision() && ! $acceptWithoutDeposit) {
+            // The deposit the merchant's threshold asked for is judged NOW, not as it was at checkout (the customer's
+            // balance or guarantee may have moved): covered → frozen here, guarantee first and the wallet for the rest;
+            // uncovered → the merchant decides explicitly, as before. A standing vouch asks nothing.
+            $deposits = app(\App\Services\VisitDepositService::class);
+            $secured = false;
+            $uncovered = false;
+
+            if ($m->requires_deposit && (string) $m->deposit_covered_by !== 'vouched') {
+                $assessment = $deposits->assessFor($m);
+
+                if ($assessment !== null && $assessment['client_ready']) {
+                    // a business short of its own share refuses here with its reason
+                    $deposits->secure($m);
+                    $secured = true;
+                } else {
+                    $uncovered = true;
+                }
+            }
+
+            if ($uncovered && ! $acceptWithoutDeposit) {
                 throw ValidationException::withMessages([
                     'accept_without_deposit' => __('هذا الطلب بلا ضمان أو ديبوزت من العميل. أرسل accept_without_deposit=true لقبوله على مسؤوليتك، أو ارفض الطلب.'),
                 ]);
@@ -275,7 +294,10 @@ final class OrderController extends Controller
             $this->feeSettlement->settleForOrder($m);
 
             $m->prep_status = Order::PREP_ACCEPTED;
-            $m->deposit_accepted_without_cover = $m->needsExplicitDepositDecision();
+            $m->deposit_accepted_without_cover = $uncovered;
+            if ($secured) {
+                $m->deposit_covered = true;
+            }
             $m->save();
 
             return $m;

@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Order extends Model
+class Order extends Model implements \App\Contracts\HasVisitDeposit, \App\Contracts\HasOwnDepositTerms
 {
     protected static function booted(): void
     {
@@ -14,6 +14,96 @@ class Order extends Model
                 app(\App\Services\InstallmentPlan::class)->syncAgenda($order);
             }
         });
+
+        // The deposit frozen for an order goes back when the order ends: cancelled → refunded; completed (and the cash
+        // confirmed by every party that must) → released. Never fails the save: the money step is reported and retried
+        // by whoever saves next.
+        static::saved(function (self $order) {
+            if (! $order->wasChanged(['status', 'payment_settled_at']) || $order->booking_id !== null) {
+                return;
+            }
+
+            $svc = app(\App\Services\VisitDepositService::class);
+
+            if ($order->status === 'cancelled') {
+                $svc->safely(fn () => $svc->refund($order));
+            } elseif ($order->status === 'completed' && (! $order->requiresPaymentConfirmation() || $order->payment_settled_at !== null)) {
+                $svc->safely(fn () => $svc->release($order));
+            }
+        });
+    }
+
+    // ── the deposit core's view of an order ───────────────────────────────────────────────────────────────────────
+
+    public function visitDepositClientId(): int
+    {
+        return (int) $this->user_id;
+    }
+
+    public function visitDepositBusinessId(): int
+    {
+        return (int) $this->business_id;
+    }
+
+    public function visitDepositValue(): float
+    {
+        return round((float) $this->final_total, 2);
+    }
+
+    /** Placed and not yet over. */
+    public function visitDepositOpen(): bool
+    {
+        return (string) $this->status === 'pending';
+    }
+
+    /**
+     * The merchant's threshold asked for cover of the WHOLE order (set at checkout); the customer's own guarantee comes
+     * first and his wallet holds the rest. A standing vouch asks nothing. The business stands behind the order too
+     * with its own guarantee first — the share set in «شروط الحجز» — when it has such terms switched on.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function depositTerms(): ?array
+    {
+        if (! $this->requires_deposit || (string) $this->deposit_covered_by === 'vouched') {
+            return null;
+        }
+
+        $total = round((float) $this->final_total, 2);
+
+        if ($total <= 0) {
+            return null;
+        }
+
+        $counter = 0.0;
+        $business = User::query()->find($this->business_id);
+        $service = \App\Models\PlatformService::query()->where('key', 'booking')->first();
+
+        if ($business && $service) {
+            $terms = app(\App\Services\BookingDepositPolicyResolver::class)->resolve($business, $service);
+
+            if (($terms['enabled'] ?? false) && ($terms['wallet_hold_enabled'] ?? false) && ($terms['business_counter_hold_enabled'] ?? false)) {
+                $counter = round($total * max(0.0, min((float) ($terms['business_counter_hold_percent'] ?? 0), 100.0)) / 100, 2);
+            }
+        }
+
+        return [
+            'enabled' => true,
+            'required' => true,
+            'mode' => 'wallet_hold',
+            'amount' => $total,
+            'hold' => $total,
+            'configured_percent' => 100,
+            'wallet_hold_required' => true,
+            'wallet_hold_amount' => $total,
+            'external_deposit_required' => false,
+            'external_deposit_amount' => 0.0,
+            'business_counter_hold_required' => $counter > 0,
+            'business_counter_hold_amount' => $counter,
+            'business_counter_hold_raw_amount' => $counter,
+            'currency' => 'EGP',
+            'source' => 'order_threshold',
+        ];
     }
 
     /** How the order is fulfilled. dine_in links to a table booking. */

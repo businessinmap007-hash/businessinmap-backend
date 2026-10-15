@@ -942,31 +942,25 @@ class CustomerCartService
             return;
         }
 
-        $customer = User::query()->find($cart->user_id);
-
-        if (! $customer) {
+        if (! User::query()->whereKey($cart->user_id)->exists()) {
             return;
         }
 
-        $decision = $this->guaranteeCoverage->check(
-            $customer,
-            (float) $cart->final_total,
-            GuaranteeOperationCoverageService::OP_MARKETPLACE_ORDER,
-        );
+        // The same judgement as every other operation (App\Services\Deposits\DepositCore): the customer's guarantee
+        // first — his own plus accepted friends' — and his wallet for what is left; covered when both together stand
+        // for the whole order. It is FROZEN when the business accepts (Api\V2\OrderController::businessAccept).
+        $assessment = app(\App\Services\VisitDepositService::class)->assessFor($cart);
 
-        if ((bool) $decision['covered']) {
-            $cart->deposit_covered = true;
-            $cart->deposit_covered_by = 'guarantee';
-
+        if ($assessment === null || ! $assessment['client_ready']) {
             return;
         }
 
-        $wallet = $customer->wallet;
+        $applied = (float) $assessment['guarantee_applied'];
 
-        if ($wallet && $wallet->availableBalance() >= (float) $cart->final_total) {
-            $cart->deposit_covered = true;
-            $cart->deposit_covered_by = 'wallet';
-        }
+        $cart->deposit_covered = true;
+        $cart->deposit_covered_by = $applied <= 0
+            ? 'wallet'
+            : ($assessment['client_covered_by_guarantee'] ? 'guarantee' : 'guarantee_wallet');
     }
 
     /**

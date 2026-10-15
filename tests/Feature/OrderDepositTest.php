@@ -6,8 +6,12 @@ use App\Models\BusinessMenuSetting;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
 use App\Models\Order;
+use App\Models\GuaranteeLevel;
 use App\Models\User;
+use App\Models\UserGuarantee;
+use App\Models\VisitDeposit;
 use App\Models\Wallet;
+use App\Services\VisitDepositService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -175,5 +179,165 @@ class OrderDepositTest extends TestCase
         // menu tax is set for this business) round-trips through JSON as a
         // bare int, not a float, so compare numerically instead.
         $this->assertEquals((float) $order->fresh()->final_total, (float) $res->json('data.deposit.amount'));
+    }
+
+    // ── the order on the deposit core: frozen when the business accepts, back when the order ends ──────────────
+
+    private function guarantee(User $user, float $coverage): UserGuarantee
+    {
+        $levelId = (int) \DB::table('guarantee_levels')->value('id');
+
+        if ($levelId <= 0) {
+            $this->markTestSkipped('Needs a guarantee level.');
+        }
+
+        UserGuarantee::query()->where('user_id', $user->id)->where('target_type', GuaranteeLevel::TARGET_CLIENT)->delete();
+
+        return UserGuarantee::create([
+            'user_id' => $user->id,
+            'target_type' => GuaranteeLevel::TARGET_CLIENT,
+            'purchased_level_id' => $levelId,
+            'effective_level_id' => $levelId,
+            'status' => UserGuarantee::STATUS_ACTIVE,
+            'current_coverage_amount' => $coverage,
+            'used_coverage_amount' => 0,
+        ]);
+    }
+
+    private function accept(Order $order): void
+    {
+        Sanctum::actingAs($this->business);
+        $this->postJson('/api/v2/business/orders/' . $order->id . '/accept')->assertSuccessful();
+    }
+
+    public function test_accepting_a_covered_order_freezes_the_customers_wallet_share(): void
+    {
+        Wallet::query()->where('user_id', $this->customer->id)->update(['balance' => 1000, 'locked_balance' => 0]);
+        $order = $this->checkout($this->expensiveItemId);
+
+        // nothing is held at checkout — only judged
+        $this->assertEqualsWithDelta(1000.0, (float) Wallet::query()->where('user_id', $this->customer->id)->value('balance'), 0.001);
+
+        $this->accept($order);
+
+        $wallet = Wallet::query()->where('user_id', $this->customer->id)->firstOrFail();
+        $this->assertEqualsWithDelta(1000.0 - (float) $order->final_total, (float) $wallet->balance, 0.001);
+        $this->assertEqualsWithDelta((float) $order->final_total, (float) $wallet->locked_balance, 0.001);
+
+        $row = app(VisitDepositService::class)->rowFor($order);
+        $this->assertSame(VisitDeposit::STATUS_HELD, $row->status);
+    }
+
+    public function test_the_customers_guarantee_and_wallet_combine_to_cover_an_order(): void
+    {
+        $this->guarantee($this->customer, 100);
+        Wallet::query()->where('user_id', $this->customer->id)->update(['balance' => 250, 'locked_balance' => 0]);
+
+        $order = $this->checkout($this->expensiveItemId);
+
+        $this->assertTrue((bool) $order->deposit_covered);
+        $this->assertSame('guarantee_wallet', $order->deposit_covered_by);
+
+        $this->accept($order);
+
+        $g = UserGuarantee::query()->where('user_id', $this->customer->id)->where('target_type', 'client')->firstOrFail();
+        $this->assertEqualsWithDelta(100.0, (float) $g->used_coverage_amount, 0.001, 'his guarantee comes first');
+
+        $wallet = Wallet::query()->where('user_id', $this->customer->id)->firstOrFail();
+        $this->assertEqualsWithDelta((float) $order->final_total - 100.0, (float) $wallet->locked_balance, 0.001, 'the wallet holds only the rest');
+    }
+
+    public function test_a_guarantee_that_covers_it_all_leaves_the_wallet_alone(): void
+    {
+        $this->guarantee($this->customer, 5000);
+        $order = $this->checkout($this->expensiveItemId);
+
+        $this->assertSame('guarantee', $order->deposit_covered_by);
+
+        $this->accept($order);
+
+        $wallet = Wallet::query()->where('user_id', $this->customer->id)->firstOrFail();
+        $this->assertEqualsWithDelta(0.0, (float) $wallet->locked_balance, 0.001);
+        $g = UserGuarantee::query()->where('user_id', $this->customer->id)->where('target_type', 'client')->firstOrFail();
+        $this->assertEqualsWithDelta((float) $order->final_total, (float) $g->used_coverage_amount, 0.001);
+    }
+
+    public function test_completing_the_order_returns_everything(): void
+    {
+        $this->guarantee($this->customer, 100);
+        Wallet::query()->where('user_id', $this->customer->id)->update(['balance' => 250, 'locked_balance' => 0]);
+        $order = $this->checkout($this->expensiveItemId);
+        $this->accept($order);
+
+        $order->refresh();
+        $order->status = 'completed';
+        $order->save();
+
+        // a cash order waits for every party's confirmation of the cash before the deposit goes back
+        if ($order->requiresPaymentConfirmation()) {
+            $this->assertSame(VisitDeposit::STATUS_HELD, app(VisitDepositService::class)->rowFor($order)->status);
+
+            $order->payment_settled_at = now();
+            $order->save();
+        }
+
+        $this->assertSame(VisitDeposit::STATUS_RELEASED, app(VisitDepositService::class)->rowFor($order)->status);
+        $wallet = Wallet::query()->where('user_id', $this->customer->id)->firstOrFail();
+        $this->assertEqualsWithDelta(250.0, (float) $wallet->balance, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $wallet->locked_balance, 0.001);
+        $g = UserGuarantee::query()->where('user_id', $this->customer->id)->where('target_type', 'client')->firstOrFail();
+        $this->assertEqualsWithDelta(0.0, (float) $g->used_coverage_amount, 0.001);
+    }
+
+    public function test_an_order_cancelled_after_acceptance_refunds_the_deposit(): void
+    {
+        Wallet::query()->where('user_id', $this->customer->id)->update(['balance' => 1000, 'locked_balance' => 0]);
+        $order = $this->checkout($this->expensiveItemId);
+        $this->accept($order);
+
+        $order->refresh();
+        $order->status = 'cancelled';
+        $order->save();
+
+        $this->assertSame(VisitDeposit::STATUS_REFUNDED, app(VisitDepositService::class)->rowFor($order)->status);
+        $this->assertEqualsWithDelta(1000.0, (float) Wallet::query()->where('user_id', $this->customer->id)->value('balance'), 0.001);
+    }
+
+    public function test_an_uncovered_order_accepted_on_the_merchants_responsibility_holds_nothing(): void
+    {
+        $order = $this->checkout($this->expensiveItemId);
+
+        Sanctum::actingAs($this->business);
+        $this->postJson('/api/v2/business/orders/' . $order->id . '/accept', ['accept_without_deposit' => true])->assertSuccessful();
+
+        $this->assertNull(app(VisitDepositService::class)->rowFor($order));
+    }
+
+    public function test_a_balance_that_moved_after_checkout_makes_it_uncovered_at_accept(): void
+    {
+        Wallet::query()->where('user_id', $this->customer->id)->update(['balance' => 1000, 'locked_balance' => 0]);
+        $order = $this->checkout($this->expensiveItemId);
+        $this->assertTrue((bool) $order->deposit_covered);
+
+        // the customer spent it in between
+        Wallet::query()->where('user_id', $this->customer->id)->update(['balance' => 10]);
+
+        Sanctum::actingAs($this->business);
+        $this->postJson('/api/v2/business/orders/' . $order->id . '/accept')
+            ->assertStatus(422)->assertJsonValidationErrors('accept_without_deposit');
+    }
+
+    public function test_the_order_payload_says_where_the_deposit_stands(): void
+    {
+        Wallet::query()->where('user_id', $this->customer->id)->update(['balance' => 1000, 'locked_balance' => 0]);
+        $order = $this->checkout($this->expensiveItemId);
+
+        Sanctum::actingAs($this->customer);
+        $this->getJson('/api/v2/orders/' . $order->id)->assertOk()->assertJsonPath('data.deposit.state.status', 'quoted');
+
+        $this->accept($order);
+
+        Sanctum::actingAs($this->customer);
+        $this->getJson('/api/v2/orders/' . $order->id)->assertOk()->assertJsonPath('data.deposit.state.status', 'held');
     }
 }

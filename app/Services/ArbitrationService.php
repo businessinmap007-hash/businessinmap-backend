@@ -491,17 +491,17 @@ class ArbitrationService
             ]));
         }
 
-        if ($subject instanceof \App\Contracts\HasVisitDeposit) {
-            return array_values(array_filter([
-                $this->line('visit_value', 'قيمة الزيارة', $subject->visitDepositValue()),
-            ]));
-        }
-
         if ($subject instanceof Order) {
             return array_values(array_filter([
                 $this->line('goods', 'قيمة الطلب', (float) $subject->total),
                 $this->line('delivery_fee', 'رسوم الشحن', (float) $subject->delivery_fee),
                 $this->line('tax', 'الضريبة', (float) $subject->tax),
+            ]));
+        }
+
+        if ($subject instanceof \App\Contracts\HasVisitDeposit) {
+            return array_values(array_filter([
+                $this->line('visit_value', 'قيمة الزيارة', $subject->visitDepositValue()),
             ]));
         }
 

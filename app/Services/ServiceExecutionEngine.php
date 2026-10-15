@@ -13,6 +13,8 @@ use App\Models\GuaranteeLevel;
 use App\Models\OfferingOption;
 use App\Models\OfferingOptionGroupSetting;
 use App\Models\OperationGuarantor;
+use App\Services\Deposits\DepositCore;
+use App\Services\Deposits\DepositOperation;
 use App\Services\Guarantees\GuaranteeOperationCoverageService;
 use App\Services\Guarantees\OperationGuarantorService;
 use App\Enums\BookingPattern;
@@ -48,6 +50,7 @@ class ServiceExecutionEngine
         protected OperationGuarantorService $operationGuarantors,
         protected BookingShapeResolver $bookingShapes,
         protected AllocationConsumptionService $allocationConsumption,
+        protected DepositCore $depositCore,
     ) {
     }
 
@@ -366,24 +369,6 @@ class ServiceExecutionEngine
         $clientId = (int) $booking->user_id;
         $businessId = (int) $booking->business_id;
 
-        $clientDepositRequired = 0.0;
-        $businessDepositRequired = 0.0;
-
-        if (($depositPolicy['required'] ?? false) && ! ($deposit && $deposit->isFrozen())) {
-           $clientDepositRequired = round((float) ($depositPolicy['wallet_hold_amount'] ?? $depositPolicy['hold'] ?? 0), 2);
-           $businessDepositRequired = round((float) ($depositPolicy['business_counter_hold_amount'] ?? 0), 2);
-        }
-
-        // Guarantee-as-deposit: the client's own coverage plus any accepted
-        // friend co-guarantors' frozen coverage. It is applied against the
-        // required deposit; only the remainder needs a wallet hold — so
-        // guarantee + wallet combine (e.g. 1500 guarantee + 200 balance covers a
-        // 1700 deposit).
-        $combinedGuaranteeCoverage = $clientDepositRequired > 0 && $booking->user
-            ? $this->operationGuarantors->combinedCoverage(OperationGuarantor::OP_BOOKING, (int) $booking->id, $booking->user)
-            : 0.0;
-        $guaranteeApplied = round(min($clientDepositRequired, $combinedGuaranteeCoverage), 2);
-
         $clientFeeRequired = 0.0;
         $businessFeeRequired = 0.0;
 
@@ -400,84 +385,35 @@ class ServiceExecutionEngine
             }
         }
 
-        $clientWallet = $this->walletSnapshot($clientId);
-        $businessWallet = $this->walletSnapshot($businessId);
-
-        $clientDepositCoverage = $this->bookingCoverageDecision(
-            user: $booking->user,
-            amount: $clientDepositRequired,
-            targetType: GuaranteeLevel::TARGET_CLIENT,
-            booking: $booking,
-            side: 'client'
+        // What the deposit asks of each side, the guarantee that covers it, what is left for the wallet and whether
+        // each side is ready: one judgement for every operation (App\Services\Deposits\DepositCore).
+        $assessment = $this->depositCore->assess(
+            $this->depositOperation($booking),
+            $depositPolicy,
+            (bool) ($deposit && $deposit->isFrozen()),
+            $clientFeeRequired,
+            $businessFeeRequired,
         );
 
-        $businessDepositCoverage = $this->bookingCoverageDecision(
-            user: $booking->business,
-            amount: $businessDepositRequired,
-            targetType: GuaranteeLevel::TARGET_BUSINESS,
-            booking: $booking,
-            side: 'business'
-        );
-
-        // Fully covered by guarantee when the applied coverage meets the whole
-        // deposit (used for the skip-hold flag + payload); otherwise the wallet
-        // holds only the remainder.
-        $clientDepositCoveredByGuarantee = $clientDepositRequired > 0
-            && $guaranteeApplied >= $clientDepositRequired;
-
-        $businessDepositCoveredByGuarantee = (bool) data_get($depositPolicy, 'business_guarantee_covered', false)
-            && (bool) data_get($businessDepositCoverage, 'covered', false);
-
-        $clientWalletDepositRequired = round(max($clientDepositRequired - $guaranteeApplied, 0), 2);
-
-        $businessWalletDepositRequired = $businessDepositCoveredByGuarantee
-            ? 0.0
-            : $businessDepositRequired;
-
-        $clientRequiredTotal = round($clientWalletDepositRequired + $clientFeeRequired, 2);
-        $businessRequiredTotal = round($businessWalletDepositRequired + $businessFeeRequired, 2);
-
-        $clientReady = $clientWallet['active']
-            && $clientWallet['balance'] >= $clientRequiredTotal;
-
-        $businessReady = $businessWallet['active']
-            && $businessWallet['balance'] >= $businessRequiredTotal;
-
-        $messages = [];
-        // The same messages, filed under the party each one is about, so a caller
-        // can show a party only its own (see App\Support\BookingFinancialView).
-        $bySide = ['client' => [], 'business' => []];
-
-        if ((bool) data_get($depositPolicy, 'client_guarantee_covered', false) && ! $clientDepositCoveredByGuarantee && $clientDepositRequired > 0) {
-            $messages[] = $bySide['client'][] = __('ضمان طالب الحجز غير كافٍ أو غير صالح لتغطية Wallet Hold لهذا الحجز.');
-        }
-
-        if ((bool) data_get($depositPolicy, 'business_guarantee_covered', false) && ! $businessDepositCoveredByGuarantee && $businessDepositRequired > 0) {
-            $messages[] = $bySide['business'][] = __('ضمان مقدم الخدمة غير كافٍ أو غير صالح لتغطية Counter Hold لهذا الحجز.');
-        }
-
-        if (! $clientReady && $clientRequiredTotal > 0) {
-            $messages[] = $bySide['client'][] = __('رصيد طالب الحجز غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.');
-        }
-
-        if (! $businessReady && $businessRequiredTotal > 0) {
-            $messages[] = $bySide['business'][] = __('رصيد مقدم الخدمة غير كافٍ لتجميد الديبوزت أو خصم رسوم الخدمة.');
-        }
-
-        // When the client can't proceed, offer concrete ways to close the gap:
-        // bring in a friend guarantor, upgrade the guarantee, or top up balance.
-        $clientOptions = [];
-        if (! ($clientReady || $clientRequiredTotal <= 0)) {
-            $walletBalance = round((float) ($clientWallet['balance'] ?? 0), 2);
-            $balanceShortfall = round(max($clientRequiredTotal - $walletBalance, 0), 2);
-            $guaranteeGap = round(max($clientDepositRequired - $combinedGuaranteeCoverage, 0), 2);
-
-            $clientOptions = [
-                'request_friend_guarantee' => $guaranteeGap > 0 ? ['needed_coverage' => $guaranteeGap] : null,
-                'upgrade_guarantee' => $guaranteeGap > 0,
-                'add_balance' => $balanceShortfall > 0 ? ['amount' => $balanceShortfall] : null,
-            ];
-        }
+        $clientDepositRequired = $assessment['client_deposit_required'];
+        $businessDepositRequired = $assessment['business_deposit_required'];
+        $combinedGuaranteeCoverage = $assessment['combined_guarantee_coverage'];
+        $guaranteeApplied = $assessment['guarantee_applied'];
+        $clientWallet = $assessment['client_wallet'];
+        $businessWallet = $assessment['business_wallet'];
+        $clientDepositCoverage = $assessment['client_coverage'];
+        $businessDepositCoverage = $assessment['business_coverage'];
+        $clientDepositCoveredByGuarantee = $assessment['client_covered_by_guarantee'];
+        $businessDepositCoveredByGuarantee = $assessment['business_covered_by_guarantee'];
+        $clientWalletDepositRequired = $assessment['client_wallet_required'];
+        $businessWalletDepositRequired = $assessment['business_wallet_required'];
+        $clientRequiredTotal = $assessment['client_required_total'];
+        $businessRequiredTotal = $assessment['business_required_total'];
+        $clientReady = $assessment['client_ready'];
+        $businessReady = $assessment['business_ready'];
+        $clientOptions = $assessment['client_options'];
+        $messages = $assessment['messages'];
+        $bySide = $assessment['messages_by_side'];
 
         return [
             'ok' => empty($messages),
@@ -529,7 +465,7 @@ class ServiceExecutionEngine
                 'user_id' => $clientId,
                 'wallet' => $clientWallet,
                 'required_total' => $clientRequiredTotal,
-                'ready' => $clientReady || $clientRequiredTotal <= 0,
+                'ready' => $clientReady,
                 'options' => $clientOptions,
             ],
 
@@ -537,7 +473,7 @@ class ServiceExecutionEngine
                 'user_id' => $businessId,
                 'wallet' => $businessWallet,
                 'required_total' => $businessRequiredTotal,
-                'ready' => $businessReady || $businessRequiredTotal <= 0,
+                'ready' => $businessReady,
             ],
 
             'messages' => $messages,
@@ -735,32 +671,21 @@ class ServiceExecutionEngine
                 $walletHoldRequired = (bool) ($depositPolicy['wallet_hold_required'] ?? false);
                 $externalRequired = (bool) ($depositPolicy['external_deposit_required'] ?? false);
 
-                $businessGuaranteeCovered = (bool) data_get($readiness, 'deposit.business_guarantee_covered', false);
-
-                // Guarantee (self + accepted friend co-guarantors) offsets the
-                // deposit; the wallet holds only the remainder computed by the
-                // financial-readiness preview. Full guarantee coverage → 0 → no hold.
-                $walletHoldNeeded = round((float) data_get($readiness, 'deposit.client_wallet_required', 0), 2);
-                $walletHoldRequired = $walletHoldRequired && $walletHoldNeeded > 0;
-
-                if ($businessGuaranteeCovered) {
-                    $depositPolicy['business_counter_hold_amount'] = 0.0;
-                    $depositPolicy['business_counter_hold_required'] = false;
-                }
+                // Guarantee (self + accepted friend co-guarantors) offsets the deposit; the wallet holds only the
+                // remainder the readiness preview computed. Full guarantee coverage -> 0 -> no hold.
+                $plan = $this->depositCore->holdPlan($depositPolicy, $readiness);
+                $depositPolicy = $plan['policy'];
+                $walletHoldRequired = $walletHoldRequired && $plan['wallet_hold_required'];
 
                 if ($walletHoldRequired) {
                     if (! $deposit || ! $deposit->isFrozen()) {
-                        $holdAmount = $walletHoldNeeded;
+                        $holdAmount = $plan['wallet_hold'];
 
                         if ($holdAmount <= 0) {
                             throw ValidationException::withMessages([
                                 'deposit' => __('قيمة Wallet Hold المطلوبة غير صالحة.'),
                             ]);
                         }
-
-                        // Freeze only the wallet remainder (guarantee covers the rest).
-                        $depositPolicy['wallet_hold_amount'] = $holdAmount;
-                        $depositPolicy['hold'] = $holdAmount;
 
                         $deposit = $this->bookingDepositService->freezeForBooking($booking, $holdAmount, $depositPolicy);
                         $deposit->refresh();
@@ -790,29 +715,10 @@ class ServiceExecutionEngine
                     }
                 }
 
-                // Freeze the requester's OWN guarantee coverage actually used
-                // (guarantee applied minus what accepted friends already froze).
-                // Friends were frozen on accept; this locks the client's share
-                // for the duration of the operation (released on completion /
-                // dispute resolution). Coverage is frozen, never charged.
-                if ($booking->user) {
-                    $guaranteeApplied = round((float) data_get($readiness, 'deposit.guarantee_applied', 0), 2);
-                    $friendsFrozen = $this->operationGuarantors->friendsCoverage(
-                        OperationGuarantor::OP_BOOKING,
-                        (int) $booking->id,
-                        $booking->user
-                    );
-                    $selfFreeze = round(max($guaranteeApplied - $friendsFrozen, 0), 2);
-
-                    if ($selfFreeze > 0) {
-                        $this->operationGuarantors->freezeSelf(
-                            OperationGuarantor::OP_BOOKING,
-                            (int) $booking->id,
-                            $booking->user,
-                            $selfFreeze
-                        );
-                    }
-                }
+                // Freeze the requester's OWN guarantee coverage actually used (guarantee applied minus what accepted
+                // friends already froze on accepting). Coverage is frozen, never charged; it is released on completion
+                // / dispute resolution.
+                $this->depositCore->freezeOwnGuarantee($this->depositOperation($booking), $readiness);
             }
 
             // «ويظهر عند بداية التنفيذ»: a stay on a room type with listed rooms is given its room now.
@@ -1548,41 +1454,21 @@ class ServiceExecutionEngine
         );
     }
 
-    protected function bookingCoverageDecision(?User $user, float $amount, string $targetType, Booking $booking, string $side): array
+    /** The booking as the deposit core sees an operation: its kind, its parties, and what a coverage decision records. */
+    protected function depositOperation(Booking $booking): DepositOperation
     {
-        $amount = round(max($amount, 0), 2);
-
-        if (! $user || $amount <= 0) {
-            return [
-                'covered' => false,
-                'reason' => $amount <= 0 ? 'not_required' : 'missing_user',
-                'operation_type' => GuaranteeOperationCoverageService::OP_BOOKING,
-                'operation_id' => (int) $booking->id,
-                'amount' => $amount,
-                'target_type' => $targetType,
-                'user_id' => $user ? (int) $user->id : null,
-                'side' => $side,
-            ];
-        }
-
-        return array_merge(
-            $this->operationCoverageService->check(
-                user: $user,
-                amount: $amount,
-                operationType: GuaranteeOperationCoverageService::OP_BOOKING,
-                operationId: (int) $booking->id,
-                targetType: $targetType,
-                context: [
-                    'source' => 'ServiceExecutionEngine.financialPreview',
-                    'side' => $side,
-                    'booking_id' => (int) $booking->id,
-                    'service_id' => (int) $booking->service_id,
-                    'business_id' => (int) $booking->business_id,
-                    'client_id' => (int) $booking->user_id,
-                    'coverage_purpose' => $side === 'client' ? 'wallet_hold' : 'business_counter_hold',
-                ]
-            ),
-            ['side' => $side]
+        return new DepositOperation(
+            type: GuaranteeOperationCoverageService::OP_BOOKING,
+            id: (int) $booking->id,
+            client: $booking->user,
+            business: $booking->business,
+            context: [
+                'booking_id' => (int) $booking->id,
+                'service_id' => (int) $booking->service_id,
+                'business_id' => (int) $booking->business_id,
+                'client_id' => (int) $booking->user_id,
+            ],
+            source: 'ServiceExecutionEngine.financialPreview',
         );
     }
 
@@ -1910,41 +1796,6 @@ class ServiceExecutionEngine
         return [
             $metaClientConfirmed,
             $metaBusinessConfirmed,
-        ];
-    }
-
-    protected function walletSnapshot(int $userId): array
-    {
-        if ($userId <= 0) {
-            return [
-                'exists' => false,
-                'active' => false,
-                'balance' => 0.0,
-                'locked_balance' => 0.0,
-                'status' => null,
-            ];
-        }
-
-        $wallet = Wallet::query()
-            ->where('user_id', $userId)
-            ->first();
-
-        if (! $wallet) {
-            return [
-                'exists' => false,
-                'active' => false,
-                'balance' => 0.0,
-                'locked_balance' => 0.0,
-                'status' => null,
-            ];
-        }
-
-        return [
-            'exists' => true,
-            'active' => (string) ($wallet->status ?? '') === 'active',
-            'balance' => round((float) ($wallet->balance ?? 0), 2),
-            'locked_balance' => round((float) ($wallet->locked_balance ?? 0), 2),
-            'status' => (string) ($wallet->status ?? ''),
         ];
     }
 }

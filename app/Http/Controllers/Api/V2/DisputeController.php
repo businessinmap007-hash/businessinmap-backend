@@ -47,7 +47,7 @@ final class DisputeController extends Controller
      * app needs stable keys to show a localized picker, and an arbitrator
      * needs to be able to group cases by what actually went wrong.
      */
-    private const REASON_CODES = [
+    public const REASON_CODES = [
         'not_delivered',
         'not_as_described',
         'quality',

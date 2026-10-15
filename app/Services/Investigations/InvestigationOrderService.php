@@ -34,7 +34,10 @@ final class InvestigationOrderService
     /** option group name → the kind its words are. */
     private const GROUPS = ['التحاليل الطبية' => InvestigationOrderItem::KIND_LAB, 'أنواع الأشعة' => InvestigationOrderItem::KIND_RADIOLOGY];
 
-    public function __construct(private readonly NotificationDispatcherService $notifications)
+    public function __construct(
+        private readonly NotificationDispatcherService $notifications,
+        private readonly \App\Services\VisitDepositService $visitDeposits,
+    )
     {
     }
 
@@ -562,6 +565,9 @@ final class InvestigationOrderService
                 $total += $homeFee;
             }
 
+            // «عربون الجدية»: a centre that asks for one is only asked of a patient who can stand it
+            $this->visitDeposits->assertCanAfford((int) $order->patient_id, (int) $center->id, round($total, 2));
+
             $order->update([
                 'center_id' => (int) $center->id, 'status' => InvestigationOrder::STATUS_SENT,
                 'total' => round($total, 2), 'home_fee' => $homeFee, 'sent_at' => now(),
@@ -582,7 +588,12 @@ final class InvestigationOrderService
         // the day and time the patient chose stand unless the centre proposes another
         $at = $at ?? $order->requested_at;
 
-        $order->update(['status' => InvestigationOrder::STATUS_ACCEPTED, 'appointment_at' => $at, 'center_note' => $note, 'accepted_at' => now()]);
+        DB::transaction(function () use ($order, $at, $note) {
+            // frozen (or recorded as owed outside) when the centre takes the order; a short wallet refuses here
+            $this->visitDeposits->secure($order);
+
+            $order->update(['status' => InvestigationOrder::STATUS_ACCEPTED, 'appointment_at' => $at, 'center_note' => $note, 'accepted_at' => now()]);
+        });
 
         $this->notify('investigation_accepted', (int) $order->patient_id, $order,
             'قبول طلب الفحوصات', 'Investigation order accepted',
@@ -597,6 +608,8 @@ final class InvestigationOrderService
         $this->assertStatus($order, [InvestigationOrder::STATUS_SENT]);
 
         $back = $order->doctor_id !== null;
+
+        $this->visitDeposits->safely(fn () => $this->visitDeposits->refund($order));
 
         $order->update([
             'status' => $back ? InvestigationOrder::STATUS_ISSUED : InvestigationOrder::STATUS_DECLINED,
@@ -676,6 +689,9 @@ final class InvestigationOrderService
                 'status' => InvestigationOrder::STATUS_READY, 'ready_at' => $order->ready_at ?? now(),
                 'center_note' => $note !== null && $note !== '' ? $note : $order->center_note,
             ]);
+
+            // the results are out: the visit is done, the deposit goes back (care is never held for a deposit)
+            $this->visitDeposits->safely(fn () => $this->visitDeposits->release($order));
 
             if (! $wasReady) {
                 foreach (array_filter([(int) $order->patient_id, (int) $order->doctor_id]) as $userId) {
@@ -766,6 +782,7 @@ final class InvestigationOrderService
         $this->assertStatus($order, [InvestigationOrder::STATUS_ISSUED, InvestigationOrder::STATUS_SENT]);
 
         $order->update(['status' => InvestigationOrder::STATUS_CANCELLED]);
+        $this->visitDeposits->safely(fn () => $this->visitDeposits->refund($order));
 
         return $order->fresh(['items']);
     }

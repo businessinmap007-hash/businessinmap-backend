@@ -2691,7 +2691,7 @@ paths:
   /business/booking-terms:
     get:
       tags: [Business Bookables]
-      summary: "شروط الحجز — how the business secures its bookings (deposit frozen in both wallets / the customer's guarantee / transfer outside the app), with a preview for an 800 booking"
+      summary: "شروط الحجز — how the business secures its bookings AND its health visits (clinic appointments, lab/radiology orders, hospital procedures): deposit frozen in both wallets / the customer's guarantee / transfer outside the app, with a preview for an 800 booking. Open to a bookings, clinic, investigations or procedures capability; an owner always. Each visit's payload carries `deposit` {mode,status quoted|held|pending|received|waived|released|refunded|void|disputed|resolved,amount,counter_amount}"
       responses: { '200': { description: OK } }
     put:
       tags: [Business Bookables]
@@ -6411,3 +6411,27 @@ paths:
     get: { tags: [Jobs], summary: Full applicant list — the posting business only, parameters: [{ name: post, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not the posting business } } }
   /jobs/{post}/applicants/{apply}/approve:
     post: { tags: [Jobs], summary: The posting business accepts an applicant (idempotent, notifies them), parameters: [{ name: post, in: path, required: true, schema: { type: integer } }, { name: apply, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { description: Not the posting business }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /visit-deposits/{kind}/{subject}/disputes:
+    post:
+      tags: [Disputes]
+      summary: "Either party of a health visit opens a dispute over its HELD «عربون الجدية» (a no-show, a disagreement). kind = clinic-appointment | investigation-order | procedure-request. Body: reason_code (see /disputes/reason-codes), reason_text. The deposit stays frozen until an arbitrator rules; this is the only thing that holds an account back. 404 to a stranger, 422 when no wallet deposit is held."
+      parameters: [{ name: kind, in: path, required: true, schema: { type: string, enum: [clinic-appointment, investigation-order, procedure-request] } }, { name: subject, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
+  /business/clinic-appointments/{subject}/deposit/confirm-received:
+    post: { tags: [Clinic], summary: "«عربون الجدية» owed outside the platform: the clinic records that it arrived (method cash|transfer, optional reference). Never gates the visit. Reply data.deposit {mode,status,amount,counter_amount,method,reference,dispute_id}", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/clinic-appointments/{subject}/deposit/waive:
+    post: { tags: [Clinic], summary: "The clinic accepts the appointment without the deposit owed outside the platform", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/clinic-appointments/{subject}/deposit/give-back:
+    post: { tags: [Clinic], summary: "The clinic returns a HELD wallet deposit (after a no-show, for instance) — both holds go back, nothing is kept", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/investigation-orders/{subject}/deposit/confirm-received:
+    post: { tags: [Investigations], summary: "Lab/radiology: record that the deposit owed outside the platform arrived (cash|transfer). Never withholds the results", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/investigation-orders/{subject}/deposit/waive:
+    post: { tags: [Investigations], summary: "Lab/radiology: accept the order without the deposit owed outside", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/investigation-orders/{subject}/deposit/give-back:
+    post: { tags: [Investigations], summary: "Lab/radiology: return a HELD wallet deposit", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/procedure-requests/{subject}/deposit/confirm-received:
+    post: { tags: [Hospitals], summary: "Hospital: record that the procedure's deposit owed outside the platform arrived (cash|transfer)", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/procedure-requests/{subject}/deposit/waive:
+    post: { tags: [Hospitals], summary: "Hospital: accept the procedure without the deposit owed outside", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/procedure-requests/{subject}/deposit/give-back:
+    post: { tags: [Hospitals], summary: "Hospital: return a HELD wallet deposit", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }

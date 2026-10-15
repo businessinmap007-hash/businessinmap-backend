@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * A patient↔clinic appointment (see the create migration). Readable only by the
  * clinic and the patient.
  */
-class ClinicAppointment extends Model
+class ClinicAppointment extends Model implements \App\Contracts\HasVisitDeposit
 {
     public const STATUS_REQUESTED = 'requested';
     public const STATUS_CONFIRMED = 'confirmed';
@@ -87,6 +87,27 @@ class ClinicAppointment extends Model
     public function items(): HasMany
     {
         return $this->hasMany(ClinicAppointmentItem::class, 'clinic_appointment_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function visitDepositClientId(): int
+    {
+        return (int) $this->patient_id;
+    }
+
+    public function visitDepositBusinessId(): int
+    {
+        return (int) $this->clinic_id;
+    }
+
+    /** The visit's fee plus the services named — what the patient is expected to pay here. */
+    public function visitDepositValue(): float
+    {
+        return round((float) $this->visit_fee + (float) $this->items()->sum('price'), 2);
+    }
+
+    public function visitDepositOpen(): bool
+    {
+        return in_array($this->status, self::ACTIVE_STATUSES, true);
     }
 
     /** What the clinic recorded as paid against this visit, in the order paid. */

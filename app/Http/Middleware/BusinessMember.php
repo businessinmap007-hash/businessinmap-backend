@@ -11,7 +11,8 @@ use Illuminate\Http\Request;
  * Lets EITHER the owning business OR an active delegated staff member act on a
  * business surface, and (optionally) enforces one capability:
  * `business.member:orders`. The owner always passes; a staff member must carry
- * the named capability. The resolved acting business is stashed on the request
+ * the named capability — or any ONE of several, written `business.member:clinic|bookings`
+ * (a surface shared by more than one kind of business). The resolved acting business is stashed on the request
  * for BusinessContext to read.
  *
  * A staff member of several businesses names the one they act for via the
@@ -51,7 +52,7 @@ class BusinessMember
             ], 403);
         }
 
-        if ($capability !== null && ! $context['is_owner'] && ! in_array($capability, $context['capabilities'], true)) {
+        if ($capability !== null && ! $context['is_owner'] && array_intersect(explode('|', $capability), $context['capabilities']) === []) {
             return response()->json([
                 'success' => false,
                 'message' => __('لا تملك صلاحية تنفيذ هذا الإجراء.'),

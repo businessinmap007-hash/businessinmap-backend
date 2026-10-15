@@ -140,12 +140,12 @@ class DisputeService
 
         $disputeable = $this->resolveDisputeable($dispute);
 
-        // For a booking the sides are known, and the role matters: an
+        // For a booking (or a health visit) the sides are known, and the role matters: an
         // arbitrator reading the room must be able to tell who was buying.
-        if ($disputeable instanceof Booking) {
+        if ($sides = $this->sidesOf($disputeable)) {
             $participants = [
-                ['user_id' => (int) $disputeable->user_id, 'role' => ThreadParticipant::ROLE_CLIENT],
-                ['user_id' => (int) $disputeable->business_id, 'role' => ThreadParticipant::ROLE_BUSINESS],
+                ['user_id' => $sides['client'], 'role' => ThreadParticipant::ROLE_CLIENT],
+                ['user_id' => $sides['business'], 'role' => ThreadParticipant::ROLE_BUSINESS],
             ];
         } else {
             $participants = array_map(
@@ -243,16 +243,12 @@ class DisputeService
     {
         $disputeable = $this->resolveDisputeable($dispute);
 
-        if ($disputeable instanceof Booking) {
-            if ((int) $disputeable->user_id === $userId) {
-                return 'client';
-            }
-
-            if ((int) $disputeable->business_id === $userId) {
-                return 'business';
-            }
-
-            return null;
+        if ($sides = $this->sidesOf($disputeable)) {
+            return match ($userId) {
+                $sides['client'] => 'client',
+                $sides['business'] => 'business',
+                default => null,
+            };
         }
 
         // Outside bookings there are no named sides, so fall back to the two
@@ -453,15 +449,13 @@ class DisputeService
     /** Tell the OTHER side that they are being asked to confirm. */
     protected function notifySettlementProgress(Dispute $dispute, string $agreedSide): void
     {
-        $disputeable = $this->resolveDisputeable($dispute);
+        $sides = $this->sidesOf($this->resolveDisputeable($dispute));
 
-        if (! $disputeable instanceof Booking) {
+        if ($sides === null) {
             return;
         }
 
-        $recipient = $agreedSide === 'client'
-            ? (int) $disputeable->business_id
-            : (int) $disputeable->user_id;
+        $recipient = $agreedSide === 'client' ? $sides['business'] : $sides['client'];
 
         if ($recipient <= 0) {
             return;
@@ -834,15 +828,13 @@ class DisputeService
 
     protected function notifyPurgeRequest(Dispute $dispute, string $requestingSide): void
     {
-        $disputeable = $this->resolveDisputeable($dispute);
+        $sides = $this->sidesOf($this->resolveDisputeable($dispute));
 
-        if (! $disputeable instanceof Booking) {
+        if ($sides === null) {
             return;
         }
 
-        $recipient = $requestingSide === 'client'
-            ? (int) $disputeable->business_id
-            : (int) $disputeable->user_id;
+        $recipient = $requestingSide === 'client' ? $sides['business'] : $sides['client'];
 
         if ($recipient > 0) {
             $this->purgeNotice(
@@ -915,6 +907,16 @@ class DisputeService
             // any friend co-guarantors) — it was held throughout the dispute and
             // is never charged.
             $this->operationGuarantors->releaseOperation(OperationGuarantor::OP_BOOKING, (int) $disputeable->id);
+        } elseif ($disputeable instanceof \App\Contracts\HasVisitDeposit) {
+            // a health visit: the same unwinding over its escrow row, then the visit's own record follows the ruling
+            $this->resolveDepositDispute(
+                $disputeable->getMorphClass(),
+                (int) $disputeable->getKey(),
+                $resolutionType,
+                $resolutionPayload
+            );
+
+            app(VisitDepositService::class)->markResolved($disputeable);
         }
 
         $payload = is_array($dispute->resolution_payload ?? null)
@@ -1024,8 +1026,9 @@ class DisputeService
 
         // Who is on which side, so each party is told what THEY received rather
         // than a neutral summary they have to decode.
-        $clientId = $disputeable instanceof Booking ? (int) $disputeable->user_id : (int) $dispute->opened_by_user_id;
-        $businessId = $disputeable instanceof Booking ? (int) $disputeable->business_id : (int) $dispute->against_user_id;
+        $sides = $this->sidesOf($disputeable);
+        $clientId = $sides['client'] ?? (int) $dispute->opened_by_user_id;
+        $businessId = $sides['business'] ?? (int) $dispute->against_user_id;
 
         $toClient = round((float) ($session?->amount_to_client ?? 0), 2);
         $toBusiness = round((float) ($session?->amount_to_business ?? 0), 2);
@@ -1097,9 +1100,33 @@ class DisputeService
         string $resolutionType,
         array $resolutionPayload = []
     ): void {
+        $this->resolveDepositDispute(Booking::class, (int) $booking->id, $resolutionType, $resolutionPayload);
+    }
+
+    /** The two sides of a booking or of a health visit that carries a deposit — null for anything else. */
+    protected function sidesOf(mixed $disputeable): ?array
+    {
+        if ($disputeable instanceof Booking) {
+            return ['client' => (int) $disputeable->user_id, 'business' => (int) $disputeable->business_id];
+        }
+
+        if ($disputeable instanceof \App\Contracts\HasVisitDeposit) {
+            return ['client' => $disputeable->visitDepositClientId(), 'business' => $disputeable->visitDepositBusinessId()];
+        }
+
+        return null;
+    }
+
+    /** Unwind (or split) the escrow held against one operation, as the ruling says. */
+    protected function resolveDepositDispute(
+        string $targetType,
+        int $targetId,
+        string $resolutionType,
+        array $resolutionPayload = []
+    ): void {
         $deposit = Deposit::query()
-            ->where('target_type', Booking::class)
-            ->where('target_id', (int) $booking->id)
+            ->where('target_type', $targetType)
+            ->where('target_id', $targetId)
             ->orderByDesc('id')
             ->first();
 

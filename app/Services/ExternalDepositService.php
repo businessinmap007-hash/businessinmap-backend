@@ -4,13 +4,13 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Services\Notifications\NotificationDispatcherService;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 /**
- * «العربون خارج المنصة» — المالك، 2026-10-19: the deposit is NOT confiscated. When a business takes its deposit by
- * cash or a transfer outside the platform, the customer's account is frozen for new dealings until the BUSINESS says
- * it received the deposit. The business may also accept the booking WITHOUT any deposit paid outside («قبول العربون»).
+ * «العربون خارج المنصة» — المالك، 2026-10-19/20: the deposit is NOT confiscated and it does NOT stop the customer's
+ * account — he books anywhere as usual; only an opened dispute holds an account back. A business that takes its
+ * deposit by cash or a transfer outside the platform records that it arrived, and the booking does not start before
+ * that. The business may also accept the booking WITHOUT any deposit paid outside («قبول العربون»).
  *
  * The record lives in the booking's meta (no wallet money moves, so there is no escrow row to create):
  *   pending  → the business has accepted the booking and the deposit is still outstanding
@@ -78,22 +78,6 @@ class ExternalDepositService
         return in_array($status, ['received', 'waived'], true);
     }
 
-    /**
-     * Bookings of this customer that keep his account frozen: accepted or running, owing the deposit outside the
-     * platform, and the business has not yet said it arrived.
-     *
-     * @return Collection<int,Booking>
-     */
-    public function freezingBookingsOf(int $userId): Collection
-    {
-        return Booking::query()
-            ->where('user_id', $userId)
-            ->whereIn('status', [Booking::STATUS_ACCEPTED, Booking::STATUS_IN_PROGRESS])
-            ->latest('id')->limit(30)->get()
-            ->filter(fn (Booking $b) => ! $this->isSettled($b) && $this->required($b))
-            ->values();
-    }
-
     /** The business says it received the deposit — in cash or by a transfer outside the platform. */
     public function confirmReceived(Booking $booking, int $businessId, string $method, ?string $reference = null): array
     {
@@ -107,8 +91,8 @@ class ExternalDepositService
 
         $this->tell($booking, 'booking.external_deposit_received',
             'استلم النشاط العربون', 'The deposit was received',
-            'أكّد النشاط أنه استلم العربون. حسابك يعمل كالمعتاد.',
-            'The business confirmed it received the deposit. Your account works as usual again.');
+            'أكّد النشاط أنه استلم العربون. حجزك جاهز للتنفيذ.',
+            'The business confirmed it received the deposit. Your booking is ready.');
 
         return $this->state($booking->fresh());
     }
@@ -122,8 +106,8 @@ class ExternalDepositService
 
         $this->tell($booking, 'booking.external_deposit_waived',
             'قبل النشاط حجزك بلا عربون', 'Booking accepted without a deposit',
-            'قبل النشاط حجزك دون دفع عربون. حسابك يعمل كالمعتاد.',
-            'The business accepted your booking without a deposit. Your account works as usual again.');
+            'قبل النشاط حجزك دون دفع عربون.',
+            'The business accepted your booking without a deposit.');
 
         return $this->state($booking->fresh());
     }

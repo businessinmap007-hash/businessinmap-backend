@@ -185,22 +185,19 @@ class ExternalDepositTest extends TestCase
         $this->assertSame(Booking::STATUS_IN_PROGRESS, $this->booking->status);
     }
 
-    public function test_the_customers_account_waits_until_the_business_confirms_and_nothing_is_confiscated(): void
+    public function test_a_deposit_owed_outside_never_stops_the_customers_account_and_nothing_is_confiscated(): void
     {
         $this->externalPolicy();
 
-        // frozen: a new booking is refused whatever it is
-        Sanctum::actingAs($this->client);
-        $this->postJson('/api/v2/bookings', ['business_id' => $this->business->id])
-            ->assertStatus(422)->assertJsonPath('errors.booking_ids.0', $this->booking->id);
-
-        // the business confirms receipt by transfer: the account works again
-        Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/bookings/{$this->booking->id}/deposit/confirm-received", ['method' => 'transfer', 'reference' => 'TR-1'])->assertOk();
-
+        // owing the deposit stops nothing: the account books as usual (here the body is just incomplete)
         Sanctum::actingAs($this->client);
         $response = $this->postJson('/api/v2/bookings', ['business_id' => $this->business->id]);
         $this->assertArrayNotHasKey('external_deposit', (array) $response->json('errors'));
+        $this->assertArrayNotHasKey('booking_ids', (array) $response->json('errors'));
+
+        // the business records receipt by transfer
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/bookings/{$this->booking->id}/deposit/confirm-received", ['method' => 'transfer', 'reference' => 'TR-1'])->assertOk();
 
         // no money moved anywhere
         $wallet = Wallet::query()->where('user_id', $this->client->id)->firstOrFail();
@@ -215,7 +212,7 @@ class ExternalDepositTest extends TestCase
         $this->postJson("/api/v2/business/bookings/{$this->booking->id}/deposit/waive")
             ->assertOk()->assertJsonPath('data.booking.external_deposit.status', 'waived');
 
-        $this->assertSame([], app(ExternalDepositService::class)->freezingBookingsOf((int) $this->client->id)->pluck('id')->all());
+        $this->assertTrue(app(ExternalDepositService::class)->isSettled($this->booking->fresh()));
         $this->start();
         $this->assertSame(Booking::STATUS_IN_PROGRESS, $this->booking->status);
     }

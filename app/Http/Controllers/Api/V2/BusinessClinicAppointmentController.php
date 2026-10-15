@@ -593,6 +593,8 @@ class BusinessClinicAppointmentController extends Controller
             'reason' => $a->reason,
             'specialty_services' => $a->servicesSummary(),
             'billing' => app(ClinicBillingService::class)->summary($a),
+            // «عربون الجدية»: what the clinic's terms ask of this visit, and where it stands
+            'deposit' => app(\App\Services\VisitDepositService::class)->stateFor($a),
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
             'physician' => Physicians::party($a->physician_id ? (int) $a->physician_id : null, (int) $a->clinic_id),
             'notes' => $a->notes,

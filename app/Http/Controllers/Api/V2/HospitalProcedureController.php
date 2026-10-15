@@ -258,6 +258,7 @@ class HospitalProcedureController extends Controller
             'kind' => (string) $r->kind,
             'name' => (string) $r->name,
             'price' => $r->price,
+            'deposit' => app(\App\Services\VisitDepositService::class)->stateFor($r),
             'preferred_date' => optional($r->preferred_date)->toDateString(),
             'notes' => $r->notes,
             'scheduled_at' => optional($r->scheduled_at)->toIso8601String(),

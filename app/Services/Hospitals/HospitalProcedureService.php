@@ -19,7 +19,10 @@ use Illuminate\Validation\ValidationException;
  */
 class HospitalProcedureService
 {
-    public function __construct(private readonly NotificationDispatcherService $notifications)
+    public function __construct(
+        private readonly NotificationDispatcherService $notifications,
+        private readonly \App\Services\VisitDepositService $visitDeposits,
+    )
     {
     }
 
@@ -171,6 +174,10 @@ class HospitalProcedureService
             throw ValidationException::withMessages(['hospital_procedure_id' => __('لا يمكنك طلب إجراء من حسابك.')]);
         }
 
+        // «عربون الجدية»: a hospital that asks for one is only asked of a patient who can stand it (a price not yet
+        // known asks nothing yet — it is asked when the hospital accepts with its price)
+        $this->visitDeposits->assertCanAfford((int) $patient->id, (int) $offering->hospital_id, (float) $offering->price);
+
         $request = ProcedureRequest::create([
             'patient_id' => (int) $patient->id,
             'hospital_id' => (int) $offering->hospital_id,
@@ -261,13 +268,19 @@ class HospitalProcedureService
     {
         $this->assertStatus($request, [ProcedureRequest::STATUS_REQUESTED]);
 
-        $request->update([
-            'status' => ProcedureRequest::STATUS_ACCEPTED,
-            'scheduled_at' => $at,
-            'hospital_note' => $note ?: null,
-            // a quote only fills the gap when the hospital had no price — a listed price is never overwritten here
-            'price' => $request->price ?? ($price !== null && $price > 0 ? round($price, 2) : null),
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $at, $price, $note) {
+            $request->update([
+                'status' => ProcedureRequest::STATUS_ACCEPTED,
+                'scheduled_at' => $at,
+                'hospital_note' => $note ?: null,
+                // a quote only fills the gap when the hospital had no price — a listed price is never overwritten here
+                'price' => $request->price ?? ($price !== null && $price > 0 ? round($price, 2) : null),
+            ]);
+
+            // the procedure stands: its deposit is frozen (or recorded as owed outside); a short wallet refuses
+            // here and the request stays as it was
+            $this->visitDeposits->secure($request->fresh());
+        });
 
         $this->notify('procedure_accepted', (int) $request->patient_id, $request,
             'تم قبول طلب الإجراء', 'Procedure request accepted',
@@ -281,6 +294,7 @@ class HospitalProcedureService
     {
         $this->assertStatus($request, [ProcedureRequest::STATUS_REQUESTED]);
         $request->update(['status' => ProcedureRequest::STATUS_DECLINED, 'hospital_note' => $note ?: null]);
+        $this->visitDeposits->safely(fn () => $this->visitDeposits->refund($request));
 
         $this->notify('procedure_declined', (int) $request->patient_id, $request,
             'اعتذر المستشفى عن الإجراء', 'Procedure request declined',
@@ -293,6 +307,7 @@ class HospitalProcedureService
     {
         $this->assertStatus($request, [ProcedureRequest::STATUS_ACCEPTED]);
         $request->update(['status' => ProcedureRequest::STATUS_COMPLETED]);
+        $this->visitDeposits->safely(fn () => $this->visitDeposits->release($request));
 
         return $request->fresh();
     }
@@ -302,6 +317,7 @@ class HospitalProcedureService
         $this->assertStatus($request, [ProcedureRequest::STATUS_ADVISED, ProcedureRequest::STATUS_REQUESTED, ProcedureRequest::STATUS_ACCEPTED]);
         $wasAdvised = $request->status === ProcedureRequest::STATUS_ADVISED;
         $request->update(['status' => ProcedureRequest::STATUS_CANCELLED]);
+        $this->visitDeposits->safely(fn () => $this->visitDeposits->refund($request));
 
         // declining a physician's decision tells the physician; the hospital never heard of it
         if ($wasAdvised) {

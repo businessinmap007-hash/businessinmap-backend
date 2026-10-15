@@ -278,12 +278,15 @@ class ArbitrationService
 
     private function depositFor(Dispute $dispute): ?Deposit
     {
-        if ((string) $dispute->disputeable_type !== Booking::class) {
+        $type = (string) $dispute->disputeable_type;
+
+        // a booking, or a health visit that carries a «عربون الجدية» — both keep their escrow against themselves
+        if ($type !== Booking::class && ! (class_exists($type) && is_subclass_of($type, \App\Contracts\HasVisitDeposit::class))) {
             return null;
         }
 
         return Deposit::query()
-            ->where('target_type', Booking::class)
+            ->where('target_type', $type)
             ->where('target_id', (int) $dispute->disputeable_id)
             ->orderByDesc('id')
             ->first();
@@ -485,6 +488,12 @@ class ArbitrationService
         if ($subject instanceof Booking) {
             return array_values(array_filter([
                 $this->line('booking_price', 'قيمة الحجز', (float) $subject->price),
+            ]));
+        }
+
+        if ($subject instanceof \App\Contracts\HasVisitDeposit) {
+            return array_values(array_filter([
+                $this->line('visit_value', 'قيمة الزيارة', $subject->visitDepositValue()),
             ]));
         }
 
@@ -821,6 +830,7 @@ class ArbitrationService
             $subject instanceof Booking,
             $subject instanceof Order => $side === 'client' ? (int) $subject->user_id : (int) $subject->business_id,
             $subject instanceof TripReservation => $side === 'client' ? (int) $subject->client_id : (int) $subject->business_id,
+            $subject instanceof \App\Contracts\HasVisitDeposit => $side === 'client' ? $subject->visitDepositClientId() : $subject->visitDepositBusinessId(),
             default => null,
         };
     }

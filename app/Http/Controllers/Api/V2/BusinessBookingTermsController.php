@@ -22,8 +22,8 @@ use Illuminate\Validation\Rule;
  *   deposit_percent, deposit_base   — a share of the day's value or of the whole booking
  *   business_counter_percent        — what the business freezes against the customer's hold
  *   guarantee_multiple              — the guarantee may be asked to stand for N times the day's value
- *   (the deposit is never confiscated: outside the platform the customer's account waits for the business to
- *    confirm it arrived — see ExternalDepositService)
+ *   (the deposit is never confiscated, and one owed outside the platform stops no account: the business records
+ *    that it arrived and the booking starts after that — see ExternalDepositService; only a dispute holds an account)
  *
  * Every booking still waits for the business's approval (accept/reject) — that is not a setting here.
  */

@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * create_investigation_orders migration. Its `images` are of two kinds, told apart by `purpose`: the patient's photo of
  * a paper request, and the results the centre attaches. All of them private.
  */
-class InvestigationOrder extends Model
+class InvestigationOrder extends Model implements \App\Contracts\HasVisitDeposit
 {
     use HasOwnedImages;
 
@@ -84,6 +84,26 @@ class InvestigationOrder extends Model
     public function center(): BelongsTo
     {
         return $this->belongsTo(User::class, 'center_id');
+    }
+
+    public function visitDepositClientId(): int
+    {
+        return (int) $this->patient_id;
+    }
+
+    public function visitDepositBusinessId(): int
+    {
+        return (int) $this->center_id;
+    }
+
+    public function visitDepositValue(): float
+    {
+        return round((float) $this->total, 2);
+    }
+
+    public function visitDepositOpen(): bool
+    {
+        return in_array($this->status, [self::STATUS_SENT, self::STATUS_ACCEPTED], true);
     }
 
     /** The only people who may read it. */

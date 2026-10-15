@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * A patient's request for a procedure at a hospital. The name and the price are kept as they were when the patient
  * asked — a later price change must not rewrite a request that is already being worked.
  */
-class ProcedureRequest extends Model
+class ProcedureRequest extends Model implements \App\Contracts\HasVisitDeposit
 {
     /** The physician decided the patient needs it; the patient has not answered yet. */
     public const STATUS_ADVISED = 'advised';
@@ -33,6 +33,26 @@ class ProcedureRequest extends Model
     public function patient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'patient_id');
+    }
+
+    public function visitDepositClientId(): int
+    {
+        return (int) $this->patient_id;
+    }
+
+    public function visitDepositBusinessId(): int
+    {
+        return (int) $this->hospital_id;
+    }
+
+    public function visitDepositValue(): float
+    {
+        return round((float) $this->price, 2);
+    }
+
+    public function visitDepositOpen(): bool
+    {
+        return in_array($this->status, [self::STATUS_REQUESTED, self::STATUS_ACCEPTED], true);
     }
 
     /** The treating physician who issued the decision (null when the patient asked on his own). */

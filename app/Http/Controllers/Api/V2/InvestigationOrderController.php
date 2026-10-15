@@ -417,6 +417,8 @@ class InvestigationOrderController extends Controller
                 'details' => $i->details,
             ])->values(),
             'total' => $o->total,
+            // «عربون الجدية»: what the centre's terms ask of this order, and where it stands
+            'deposit' => app(\App\Services\VisitDepositService::class)->stateFor($o),
             // the time the patient asked for, and whether the sample is taken at his home (the lab's fee is in the total)
             'requested_at' => $o->requested_at?->toIso8601String(),
             'home_collection' => (bool) $o->home_collection,

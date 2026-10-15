@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V2\BusinessDayUseController;
 use App\Http\Controllers\Api\V2\BusinessStayRequestController;
 use App\Http\Controllers\Api\V2\StayRequestController;
 use App\Http\Controllers\Api\V2\BusinessBookingTermsController;
+use App\Http\Controllers\Api\V2\VisitDepositController;
 use App\Http\Controllers\Api\V2\BusinessMenuBundleController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
@@ -419,6 +420,11 @@ Route::prefix('v2')->group(function () {
         // at all, so an order dispute never reached the rating ledger.
         Route::post('orders/{order}/disputes', [DisputeController::class, 'storeForOrder'])
             ->whereNumber('order');
+        // The same door for a health visit's «عربون الجدية» (appointment / lab order / procedure) — either party,
+        // over a deposit still held. The only thing that holds an account back is an open dispute.
+        Route::post('visit-deposits/{kind}/{subject}/disputes', [VisitDepositController::class, 'dispute'])
+            ->whereIn('kind', array_keys(VisitDepositController::KINDS))
+            ->whereNumber('subject');
 
         // Declaring you are engaging with the settlement. Its ABSENCE is what
         // gets recorded when the window expires — a mark the arbitrator reads,
@@ -518,6 +524,9 @@ Route::prefix('v2')->group(function () {
                 Route::post('{order}/accept', [InvestigationOrderController::class, 'accept'])->whereNumber('order');
                 Route::post('{order}/decline', [InvestigationOrderController::class, 'decline'])->whereNumber('order');
                 Route::post('{order}/results', [InvestigationOrderController::class, 'results'])->whereNumber('order');
+                Route::post('{subject}/deposit/confirm-received', [VisitDepositController::class, 'confirmReceived'])->defaults('kind', 'investigation-order')->whereNumber('subject');
+                Route::post('{subject}/deposit/waive', [VisitDepositController::class, 'waive'])->defaults('kind', 'investigation-order')->whereNumber('subject');
+                Route::post('{subject}/deposit/give-back', [VisitDepositController::class, 'giveBack'])->defaults('kind', 'investigation-order')->whereNumber('subject');
             });
         });
         Route::get('investigation-orders/{order}', [InvestigationOrderController::class, 'show'])->whereNumber('order');
@@ -1125,8 +1134,12 @@ Route::prefix('v2')->group(function () {
             Route::delete('business/stay-services/{option}', [BusinessStayRequestController::class, 'destroyService'])->whereNumber('option');
         });
 
-        // «شروط الحجز»: deposit / guarantee / outside transfer, in the business's own words.
-        Route::prefix('business/booking-terms')->middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
+        // «شروط الحجز»: deposit / guarantee / outside transfer, in the business's own words. Every kind of business
+        // that takes appointments or bookings may set them — a hotel or salon (bookings), a clinic or hospital (clinic),
+        // a lab or radiology centre (investigations), a physician (procedures); the owner always may.
+        Route::prefix('business/booking-terms')->middleware('business.member:' . implode('|', [
+            BusinessCapability::BOOKINGS, BusinessCapability::CLINIC, BusinessCapability::INVESTIGATIONS, BusinessCapability::PROCEDURES,
+        ]))->group(function () {
             Route::get('/', [BusinessBookingTermsController::class, 'show']);
             Route::put('/', [BusinessBookingTermsController::class, 'update']);
         });
@@ -1400,6 +1413,10 @@ Route::prefix('v2')->group(function () {
             Route::post('{appointment}/complete', [BusinessClinicAppointmentController::class, 'complete'])->whereNumber('appointment');
             Route::post('{appointment}/no-show', [BusinessClinicAppointmentController::class, 'noShow'])->whereNumber('appointment');
             Route::post('{appointment}/reschedule', [BusinessClinicAppointmentController::class, 'reschedule'])->whereNumber('appointment');
+            // «عربون الجدية» — outside the platform: received / waived; a held one given back after a no-show
+            Route::post('{subject}/deposit/confirm-received', [VisitDepositController::class, 'confirmReceived'])->defaults('kind', 'clinic-appointment')->whereNumber('subject');
+            Route::post('{subject}/deposit/waive', [VisitDepositController::class, 'waive'])->defaults('kind', 'clinic-appointment')->whereNumber('subject');
+            Route::post('{subject}/deposit/give-back', [VisitDepositController::class, 'giveBack'])->defaults('kind', 'clinic-appointment')->whereNumber('subject');
 
             // Today's walk-in queue («الدور منفصل عن الوقت»): a secretary-added
             // patient, the waiting list, QR check-in, and manually calling
@@ -1443,6 +1460,9 @@ Route::prefix('v2')->group(function () {
             Route::post('{row}/accept', [HospitalProcedureController::class, 'accept'])->whereNumber('row');
             Route::post('{row}/decline', [HospitalProcedureController::class, 'decline'])->whereNumber('row');
             Route::post('{row}/complete', [HospitalProcedureController::class, 'complete'])->whereNumber('row');
+            Route::post('{subject}/deposit/confirm-received', [VisitDepositController::class, 'confirmReceived'])->defaults('kind', 'procedure-request')->whereNumber('subject');
+            Route::post('{subject}/deposit/waive', [VisitDepositController::class, 'waive'])->defaults('kind', 'procedure-request')->whereNumber('subject');
+            Route::post('{subject}/deposit/give-back', [VisitDepositController::class, 'giveBack'])->defaults('kind', 'procedure-request')->whereNumber('subject');
         });
         Route::prefix('business/specialty-services')->middleware('business.member:' . BusinessCapability::PRICES)->group(function () {
             Route::get('/', [SpecialtyServiceController::class, 'catalog']);

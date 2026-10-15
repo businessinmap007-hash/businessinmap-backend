@@ -344,6 +344,7 @@ class ClinicAppointmentController extends Controller
             'reason' => $a->reason,
             'specialty_services' => $a->servicesSummary(),
             'billing' => app(\App\Services\Clinics\ClinicBillingService::class)->summary($a),
+            'deposit' => app(\App\Services\VisitDepositService::class)->stateFor($a),
             'attendee' => $a->attendee_name ? ['name' => $a->attendee_name, 'phone' => $a->attendee_phone] : null,
             'physician' => \App\Support\Physicians::party($a->physician_id ? (int) $a->physician_id : null, (int) $a->clinic_id),
             // «يجب التواجد قبل الموعد بـ ١٥ دقيقة» — the clinic's own words

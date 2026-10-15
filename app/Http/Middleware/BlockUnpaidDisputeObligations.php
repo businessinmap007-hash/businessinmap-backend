@@ -42,23 +42,8 @@ class BlockUnpaidDisputeObligations
             ], 422);
         }
 
-        // «العربون خارج المنصة»: not confiscated — the account waits until the business says it arrived (or accepts
-        // the booking with no deposit). The customer may still cancel that booking, which ends the wait.
-        $owing = app(\App\Services\ExternalDepositService::class)->freezingBookingsOf((int) $user->id);
-
-        if ($owing->isNotEmpty()) {
-            $message = __('حسابك موقوف عن العمليات الجديدة حتى يؤكد النشاط استلام العربون، أو تلغي الحجز المعلّق.');
-
-            return response()->json([
-                'success' => false,
-                'message' => $message,
-                'errors' => [
-                    'external_deposit' => [$message],
-                    'booking_ids' => $owing->pluck('id')->all(),
-                ],
-            ], 422);
-        }
-
+        // A deposit still owed outside the platform stops NOTHING here (المالك، 2026-10-20): the account works as
+        // usual and may book anywhere. Only an opened dispute (above) holds an account back.
         return $next($request);
     }
 }

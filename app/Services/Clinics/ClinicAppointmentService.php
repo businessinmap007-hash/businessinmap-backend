@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Agenda\AgendaService;
 use App\Services\BusinessHoursService;
 use App\Services\Notifications\NotificationDispatcherService;
+use App\Services\VisitDepositService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,6 +28,7 @@ class ClinicAppointmentService
     public function __construct(
         private readonly NotificationDispatcherService $notifications,
         private readonly AgendaService $agenda,
+        private readonly VisitDepositService $visitDeposits,
     ) {
     }
 
@@ -155,6 +157,13 @@ class ClinicAppointmentService
 
         $services = $this->resolveSpecialtyServices((int) $clinic->id, $data);
 
+        // «عربون الجدية»: a clinic that asks for one is only asked of a patient who can stand it
+        $this->visitDeposits->assertCanAfford(
+            (int) $patient->id,
+            (int) $clinic->id,
+            (float) $this->visitFeeOf($priceId) + (float) array_sum(array_column($services, 'price')),
+        );
+
         $appointment = ClinicAppointment::create([
             'clinic_id' => (int) $clinic->id,
             'patient_id' => (int) $patient->id,
@@ -235,7 +244,13 @@ class ClinicAppointmentService
             $appointment->scheduled_at->copy()->addMinutes((int) $appointment->duration_minutes),
         );
 
-        $appointment->update(['status' => ClinicAppointment::STATUS_CONFIRMED]);
+        DB::transaction(function () use ($appointment) {
+            // «عربون الجدية»: frozen (or recorded as owed outside) when the visit stands — a wallet short on either side
+            // refuses here with its reason and the appointment stays «requested»
+            $this->visitDeposits->secure($appointment);
+
+            $appointment->update(['status' => ClinicAppointment::STATUS_CONFIRMED]);
+        });
         $this->syncAgenda($appointment);
         $this->notifyConfirmed($appointment);
 
@@ -246,6 +261,7 @@ class ClinicAppointmentService
     {
         $this->transition($appointment, [ClinicAppointment::STATUS_REQUESTED, ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_CANCELLED);
         $this->agenda->closeForSource($appointment, AgendaItem::STATUS_CANCELLED);
+        $this->visitDeposits->safely(fn () => $this->visitDeposits->refund($appointment));
 
         return $appointment;
     }
@@ -254,6 +270,7 @@ class ClinicAppointmentService
     {
         $this->transition($appointment, [ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_COMPLETED);
         $this->agenda->closeForSource($appointment, AgendaItem::STATUS_DONE);
+        $this->visitDeposits->safely(fn () => $this->visitDeposits->release($appointment));
 
         return $appointment;
     }
@@ -275,6 +292,7 @@ class ClinicAppointmentService
 
         $appointment->update(['status' => ClinicAppointment::STATUS_CANCELLED]);
         $this->agenda->closeForSource($appointment, AgendaItem::STATUS_CANCELLED);
+        $this->visitDeposits->safely(fn () => $this->visitDeposits->refund($appointment));
 
         // the clinic (and the physician it was with) is told: a freed time is only useful when it is known
         $this->notify('appointment_cancelled', (int) $appointment->clinic_id, $appointment,
@@ -430,6 +448,12 @@ class ClinicAppointmentService
 
             $services = $this->resolveSpecialtyServices((int) $slot->clinic_id, $data);
 
+            $this->visitDeposits->assertCanAfford(
+                (int) $patient->id,
+                (int) $slot->clinic_id,
+                (float) $this->visitFeeOf($slot->service_price_id) + (float) array_sum(array_column($services, 'price')),
+            );
+
             $appointment = ClinicAppointment::create([
                 'clinic_id' => (int) $slot->clinic_id,
                 'physician_id' => $slot->physician_id ? (int) $slot->physician_id : null,
@@ -449,6 +473,7 @@ class ClinicAppointmentService
             ]);
 
             $this->attachServices($appointment, $services);
+            $this->visitDeposits->secure($appointment);
             $slot->update(['appointment_id' => (int) $appointment->id]);
             $this->syncAgenda($appointment);
 

@@ -109,10 +109,15 @@ final class TripScheduleService
             ->map(function (TripSchedule $schedule) use ($trustByBusiness, $remaining) {
                 $trust = $trustByBusiness[(int) $schedule->business_id] ?? $this->emptyTrust();
 
+                $left = $remaining[(int) $schedule->id] ?? null;
+                $full = $left !== null && $left <= 0;
+
                 return [
                     'schedule' => $schedule,
                     'trust' => $trust,
-                    'remaining_capacity' => $remaining[(int) $schedule->id] ?? null,
+                    'remaining_capacity' => $left,
+                    'is_full' => $full,
+                    'boarding_closed' => $full && $this->reservations->boardingClosed($schedule),
                     'rank_key' => $this->rankKey($trust),
                 ];
             })

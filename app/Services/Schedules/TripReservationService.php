@@ -48,6 +48,7 @@ final class TripReservationService
             /** @var TripSchedule $locked */
             $locked = TripSchedule::query()->whereKey($schedule->id)->lockForUpdate()->firstOrFail();
 
+            $this->assertBoardingOpen($locked);
             $this->assertCapacity($locked, $units);
 
             $unitPrice = $locked->price !== null ? round((float) $locked->price, 2) : null;
@@ -89,6 +90,8 @@ final class TripReservationService
         // Notify the carrier of the new reservation.
         $this->notify('trip_reservation_created', (int) $reservation->business_id, (int) $client->id, $reservation);
 
+        $this->releaseNoShowDepositsIfFull((int) $reservation->trip_schedule_id);
+
         return $reservation;
     }
 
@@ -97,14 +100,20 @@ final class TripReservationService
      * capacity like a real reservation but has no in-app client and never
      * touches the rating ledger. Released with cancel().
      */
-    public function blockOffline(TripSchedule $schedule, int $units, ?string $notes = null): TripReservation
-    {
+    public function blockOffline(
+        TripSchedule $schedule,
+        int $units,
+        ?string $notes = null,
+        ?string $passengerName = null,
+        ?string $passengerPhone = null,
+    ): TripReservation {
         $units = max(1, $units);
 
-        return DB::transaction(function () use ($schedule, $units, $notes) {
+        $hold = DB::transaction(function () use ($schedule, $units, $notes, $passengerName, $passengerPhone) {
             /** @var TripSchedule $locked */
             $locked = TripSchedule::query()->whereKey($schedule->id)->lockForUpdate()->firstOrFail();
 
+            $this->assertBoardingOpen($locked);
             $this->assertCapacity($locked, $units);
 
             $unitPrice = $locked->price !== null ? round((float) $locked->price, 2) : null;
@@ -113,6 +122,8 @@ final class TripReservationService
                 'trip_schedule_id' => (int) $locked->id,
                 'business_id' => (int) $locked->business_id,
                 'client_id' => null,
+                'passenger_name' => $passengerName !== null ? trim($passengerName) : null,
+                'passenger_phone' => $passengerPhone !== null ? trim($passengerPhone) : null,
                 'units' => $units,
                 'unit_price' => $unitPrice,
                 'total_price' => $unitPrice !== null ? round($unitPrice * $units, 2) : null,
@@ -120,8 +131,223 @@ final class TripReservationService
                 'source' => TripReservation::SOURCE_OFFLINE,
                 'status' => TripReservation::STATUS_BLOCKED,
                 'notes' => $notes,
+                // there is no app on the customer's side: the carrier's word is the only confirmation
+                'client_confirmed_at' => now(),
             ]);
         });
+
+        // an off-app passenger taking the seat of a no-show: when that fills the trip the held deposit goes back
+        $this->releaseNoShowDepositsIfFull((int) $hold->trip_schedule_id);
+
+        return $hold;
+    }
+
+    /**
+     * An off-app passenger appears in the ratings and the completed/pending counts only once the platform fee is paid —
+     * the SAME fee an app customer pays. The carrier asks for it and it is taken from HIS wallet (the customer has no
+     * account here). Idempotent: asking twice charges once.
+     */
+    public function makeRatingVisible(TripReservation $reservation): TripReservation
+    {
+        if ($reservation->source !== TripReservation::SOURCE_OFFLINE || $reservation->status !== TripReservation::STATUS_BLOCKED) {
+            throw ValidationException::withMessages(['status' => __('الظهور في التقييم لراكب خارج التطبيق على حجز يدوي فقط.')]);
+        }
+
+        if ($reservation->rating_visible) {
+            return $reservation;
+        }
+
+        $fee = $this->clientFeeFor($reservation);
+
+        DB::transaction(function () use ($reservation, $fee) {
+            if ($fee > 0) {
+                $this->wallet->withdraw(
+                    userId: (int) $reservation->business_id,
+                    amount: $fee,
+                    note: 'رسوم ظهور راكب خارج التطبيق في التقييم',
+                    referenceType: 'trip_reservation',
+                    referenceId: (string) $reservation->id,
+                    idempotencyKey: 'trip_res_rating_fee_'.$reservation->id,
+                );
+            }
+
+            $reservation->update(['rating_visible' => true, 'rating_fee' => $fee]);
+        });
+
+        return $reservation->refresh();
+    }
+
+    /** The client-side fee of this carrier's trade for the reservation's value (zero when none is set). */
+    public function clientFeeFor(TripReservation $reservation): float
+    {
+        $business = User::query()->select(['id', 'category_id', 'category_child_id'])->find((int) $reservation->business_id);
+        $base = round((float) $reservation->total_price, 2);
+
+        if (! $business || ! $business->category_id || ! $business->category_child_id || $base <= 0) {
+            return 0.0;
+        }
+
+        $fee = \App\Models\CategoryChildServiceFee::activeForRootChild((int) $business->category_id, (int) $business->category_child_id);
+
+        if (! $fee || ! $fee->client_fee_enabled) {
+            return 0.0;
+        }
+
+        $amount = (float) $fee->client_fee_amount;
+
+        return round($fee->client_fee_type === \App\Models\CategoryChildServiceFee::CALC_TYPE_PERCENT ? $base * $amount / 100 : $amount, 2);
+    }
+
+    /**
+     * A seat held for an off-app passenger whose fee was paid is completed like any other — and only the carrier's
+     * side of the record takes the success (the passenger has no account to rate or be rated).
+     */
+    public function completeOffline(TripReservation $reservation): TripReservation
+    {
+        if ($reservation->source !== TripReservation::SOURCE_OFFLINE || $reservation->status !== TripReservation::STATUS_BLOCKED) {
+            throw ValidationException::withMessages(['status' => __('لا يمكن إكمال هذا الحجز.')]);
+        }
+
+        if (! $reservation->rating_visible) {
+            throw ValidationException::withMessages(['status' => __('يُسجَّل راكب خارج التطبيق مكتملًا بعد سداد الرسوم فقط.')]);
+        }
+
+        DB::transaction(function () use ($reservation) {
+            $reservation->update(['status' => TripReservation::STATUS_COMPLETED]);
+
+            $this->ratings->recordOutcome(
+                (int) $reservation->business_id,
+                UserOperationRating::ROLE_BUSINESS,
+                \App\Models\RatingOutcomeEvent::OUTCOME_SUCCESS,
+                TripReservation::OP_TRIP,
+                (int) $reservation->id
+            );
+        });
+
+        return $reservation->refresh();
+    }
+
+    /* ------------------------------------------------------------ attendance */
+
+    /** The customer says he is there / on his way aboard — always first. */
+    public function confirmAttendanceByClient(TripReservation $reservation): TripReservation
+    {
+        if ($reservation->status !== TripReservation::STATUS_CONFIRMED || ! $reservation->client_id) {
+            throw ValidationException::withMessages(['status' => __('يُؤكَّد الحضور على حجز مؤكَّد فقط.')]);
+        }
+
+        if (! $reservation->client_confirmed_at) {
+            $reservation->update(['client_confirmed_at' => now()]);
+        }
+
+        $this->notify('trip_attendance_client_confirmed', (int) $reservation->business_id, (int) $reservation->client_id, $reservation);
+
+        return $reservation->refresh();
+    }
+
+    /** The carrier confirms the passenger boarded — only after the customer did (an off-app seat needs only the carrier). */
+    public function confirmAttendanceByCarrier(TripReservation $reservation): TripReservation
+    {
+        $isOfflineSeat = $reservation->source === TripReservation::SOURCE_OFFLINE && $reservation->status === TripReservation::STATUS_BLOCKED;
+
+        if (! $isOfflineSeat && $reservation->status !== TripReservation::STATUS_CONFIRMED) {
+            throw ValidationException::withMessages(['status' => __('يُؤكَّد الحضور على حجز مؤكَّد فقط.')]);
+        }
+
+        if (! $isOfflineSeat && ! $reservation->client_confirmed_at) {
+            throw ValidationException::withMessages(['attendance' => __('يؤكّد العميل حضوره أولًا، ثم تؤكّد أنت.')]);
+        }
+
+        if (! $reservation->carrier_confirmed_at) {
+            $reservation->update(['carrier_confirmed_at' => now()]);
+        }
+
+        return $reservation->refresh();
+    }
+
+    /* -------------------------------------------------------------- capacity */
+
+    /** Seats held on a leg: reservations that hold capacity plus the seats the accepted parcels occupy. */
+    public function heldUnits(int $scheduleId): int
+    {
+        $reservations = (int) TripReservation::query()
+            ->where('trip_schedule_id', $scheduleId)
+            ->holdingCapacity()
+            ->sum('units');
+
+        $parcels = (int) \App\Models\TripParcel::query()
+            ->where('trip_schedule_id', $scheduleId)
+            ->whereIn('status', \App\Models\TripParcel::SEAT_HOLDING)
+            ->sum('seats');
+
+        return $reservations + $parcels;
+    }
+
+    /** Full: a capped leg with no free seat left. A leg with no cap is never full. */
+    public function isFull(TripSchedule $schedule): bool
+    {
+        return $schedule->capacity !== null && $this->heldUnits((int) $schedule->id) >= (int) $schedule->capacity;
+    }
+
+    /**
+     * Full AND every seat on it is attended by both sides: nothing may be added or replaced any more, the other customers
+     * see it as complete, and only the driver's «بدء الرحلة» is left.
+     */
+    public function boardingClosed(TripSchedule $schedule): bool
+    {
+        if (! $this->isFull($schedule)) {
+            return false;
+        }
+
+        $seats = TripReservation::query()
+            ->where('trip_schedule_id', $schedule->id)
+            // a still-pending request has no attendance at all, so it keeps the leg open
+            ->whereIn('status', [TripReservation::STATUS_PENDING, TripReservation::STATUS_CONFIRMED, TripReservation::STATUS_BLOCKED])
+            ->get(['id', 'client_confirmed_at', 'carrier_confirmed_at']);
+
+        if ($seats->isEmpty()) {
+            // a leg filled by parcels alone has no attendance to wait for
+            return true;
+        }
+
+        return $seats->every(fn (TripReservation $r) => $r->client_confirmed_at && $r->carrier_confirmed_at);
+    }
+
+    private function assertBoardingOpen(TripSchedule $locked): void
+    {
+        if ($this->boardingClosed($locked)) {
+            throw ValidationException::withMessages([
+                'schedule' => __('الرحلة مكتملة وأُغلق الحجز عليها.'),
+            ]);
+        }
+    }
+
+    /**
+     * The trip is full: a deposit still held for a no-show goes back to its customer at once. The carrier has no say —
+     * a held deposit must never become a way to earn from a seat he has already sold again.
+     */
+    public function releaseNoShowDepositsIfFull(int $scheduleId): void
+    {
+        $schedule = TripSchedule::query()->find($scheduleId);
+
+        if (! $schedule || ! $this->isFull($schedule)) {
+            return;
+        }
+
+        TripReservation::query()
+            ->where('trip_schedule_id', $scheduleId)
+            ->where('status', TripReservation::STATUS_NO_SHOW)
+            ->get()
+            ->each(function (TripReservation $r) {
+                if (! data_get($r->meta, 'deposit_core') || data_get($r->meta, 'deposit_returned_on_full')) {
+                    return;
+                }
+
+                $this->deposits->safely(function () use ($r) {
+                    $this->deposits->refund($r);
+                    $r->update(['meta' => array_merge((array) ($r->meta ?? []), ['deposit_returned_on_full' => true])]);
+                });
+            });
     }
 
     /**
@@ -134,10 +360,7 @@ final class TripReservationService
             return;
         }
 
-        $held = (int) TripReservation::query()
-            ->where('trip_schedule_id', $locked->id)
-            ->holdingCapacity()
-            ->sum('units');
+        $held = $this->heldUnits((int) $locked->id);
 
         if ($held + $units > (int) $locked->capacity) {
             throw ValidationException::withMessages([
@@ -267,6 +490,8 @@ final class TripReservationService
 
         $this->notify('trip_reservation_cancelled', (int) $reservation->client_id, (int) $reservation->business_id, $reservation);
 
+        $this->releaseNoShowDepositsIfFull((int) $reservation->trip_schedule_id);
+
         return $reservation->refresh();
     }
 
@@ -363,7 +588,18 @@ final class TripReservationService
             ->holdingCapacity()
             ->groupBy('trip_schedule_id')
             ->selectRaw('trip_schedule_id, SUM(units) as held')
-            ->pluck('held', 'trip_schedule_id');
+            ->pluck('held', 'trip_schedule_id')
+            ->map(fn ($v) => (int) $v)
+            ->all();
+
+        foreach (\App\Models\TripParcel::query()
+            ->whereIn('trip_schedule_id', $scheduleIds)
+            ->whereIn('status', \App\Models\TripParcel::SEAT_HOLDING)
+            ->groupBy('trip_schedule_id')
+            ->selectRaw('trip_schedule_id, SUM(seats) as held')
+            ->pluck('held', 'trip_schedule_id') as $id => $seats) {
+            $held[$id] = ($held[$id] ?? 0) + (int) $seats;
+        }
 
         $out = [];
 

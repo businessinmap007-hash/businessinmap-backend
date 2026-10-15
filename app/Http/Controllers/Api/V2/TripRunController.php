@@ -32,13 +32,16 @@ final class TripRunController extends Controller
             'manifest.*.label' => ['required_with:manifest', 'string', 'max:150'],
             'manifest.*.unit' => ['nullable', 'string', 'max:24'],
             'manifest.*.assigned_qty' => ['required_with:manifest', 'integer', 'min:1'],
+            // leaving short of full (or with someone's attendance unconfirmed) is the carrier's own explicit word
+            'acknowledge_partial' => ['nullable', 'boolean'],
         ]);
 
         $run = $service->start(
             schedule: $leg,
             actor: $request->user(),
             passengerCount: $data['passenger_count'] ?? null,
-            manifestLines: $data['manifest'] ?? []
+            manifestLines: $data['manifest'] ?? [],
+            acknowledgePartial: (bool) ($data['acknowledge_partial'] ?? false),
         );
 
         return response()->json([

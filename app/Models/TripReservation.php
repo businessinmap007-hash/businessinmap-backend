@@ -67,6 +67,12 @@ class TripReservation extends Model implements \App\Contracts\HasVisitDeposit, \
         'trip_schedule_id',
         'business_id',
         'client_id',
+        'passenger_name',
+        'passenger_phone',
+        'rating_visible',
+        'rating_fee',
+        'client_confirmed_at',
+        'carrier_confirmed_at',
         'units',
         'unit_price',
         'total_price',
@@ -86,6 +92,10 @@ class TripReservation extends Model implements \App\Contracts\HasVisitDeposit, \
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
         'deposit_held' => 'decimal:2',
+        'rating_visible' => 'boolean',
+        'rating_fee' => 'decimal:2',
+        'client_confirmed_at' => 'datetime',
+        'carrier_confirmed_at' => 'datetime',
         'meta' => 'array',
     ];
 

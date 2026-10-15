@@ -223,7 +223,7 @@ class TripReservationApiTest extends TestCase
 
         // The driver sold 7 seats off-app and blocks them.
         Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 7])
+        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 7, 'passenger_name' => 'Hassan'])
             ->assertCreated()
             ->assertJsonPath('data.reservation.source', 'offline')
             ->assertJsonPath('data.reservation.status', 'blocked');
@@ -237,7 +237,7 @@ class TripReservationApiTest extends TestCase
         $this->assertSame(4, $this->searchRow($leg->id)['remaining_capacity']);
 
         Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 5])
+        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 5, 'passenger_name' => 'Hassan'])
             ->assertStatus(422)->assertJsonValidationErrors('units');
     }
 
@@ -246,7 +246,7 @@ class TripReservationApiTest extends TestCase
         $leg = $this->schedule(capacity: 1);
 
         Sanctum::actingAs($this->business);
-        $rid = (int) $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 1])
+        $rid = (int) $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 1, 'passenger_name' => 'Hassan'])
             ->json('data.reservation.id');
         $this->assertSame(0, $this->searchRow($leg->id)['remaining_capacity']);
 
@@ -266,7 +266,7 @@ class TripReservationApiTest extends TestCase
         }
 
         Sanctum::actingAs($otherBusiness);
-        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 1])->assertNotFound();
+        $this->postJson("/api/v2/business/schedules/{$leg->id}/block", ['units' => 1, 'passenger_name' => 'Hassan'])->assertNotFound();
     }
 
     public function test_deposit_is_judged_on_reserve_frozen_on_confirm_and_returned_on_cancel(): void

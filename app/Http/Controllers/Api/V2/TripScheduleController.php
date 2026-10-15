@@ -46,6 +46,9 @@ final class TripScheduleController extends Controller
             'schedule' => $this->serialize($row['schedule']),
             'trust' => $row['trust'],
             'remaining_capacity' => $row['remaining_capacity'],
+            // a full leg is shown to the other customers as complete; closed once everyone confirmed attendance
+            'is_full' => (bool) ($row['is_full'] ?? false),
+            'boarding_closed' => (bool) ($row['boarding_closed'] ?? false),
         ]);
 
         return response()->json([

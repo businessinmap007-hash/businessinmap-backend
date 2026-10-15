@@ -30,8 +30,24 @@ final class TripRunService
     /**
      * @param  list<array{label:string, unit?:?string, assigned_qty:int}>  $manifestLines
      */
-    public function start(TripSchedule $schedule, User $actor, ?int $passengerCount, array $manifestLines): TripRun
-    {
+    public function start(
+        TripSchedule $schedule,
+        User $actor,
+        ?int $passengerCount,
+        array $manifestLines,
+        bool $acknowledgePartial = false,
+    ): TripRun {
+        // The trip leaves full and attended by everyone — or the carrier says, in so many words, that it leaves short.
+        // A leg with no cap cannot be full and has nothing to acknowledge.
+        $reservations = app(TripReservationService::class);
+        $partial = $schedule->capacity !== null && ! $reservations->boardingClosed($schedule);
+
+        if ($partial && ! $acknowledgePartial) {
+            throw ValidationException::withMessages([
+                'acknowledge_partial' => __('الرحلة غير مكتملة أو لم يؤكّد كل الركاب حضورهم. أقرّ ببدء الرحلة ناقصة للمتابعة.'),
+            ]);
+        }
+
         $isFreight = in_array($schedule->mode, self::FREIGHT_MODES, true);
         $isPassenger = in_array($schedule->mode, self::PASSENGER_MODES, true);
 
@@ -57,13 +73,14 @@ final class TripRunService
             throw ValidationException::withMessages(['stops' => __('أضف نقاط توقف لهذا الخط قبل بدء تنفيذ الرحلة.')]);
         }
 
-        return DB::transaction(function () use ($schedule, $actor, $passengerCount, $manifestLines, $stops) {
+        return DB::transaction(function () use ($schedule, $actor, $passengerCount, $manifestLines, $stops, $partial) {
             $run = TripRun::create([
                 'trip_schedule_id' => (int) $schedule->id,
                 'business_id' => (int) $schedule->business_id,
                 'started_by' => (int) $actor->id,
                 'status' => TripRun::STATUS_IN_PROGRESS,
                 'passenger_count' => $passengerCount,
+                'started_partial' => $partial,
                 'started_at' => now(),
             ]);
 

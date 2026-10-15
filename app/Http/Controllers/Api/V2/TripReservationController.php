@@ -57,6 +57,23 @@ final class TripReservationController extends Controller
         return response()->json(['success' => true, 'data' => $reservations]);
     }
 
+    /** POST schedules/reservations/{reservation}/attendance — the customer says he is there: always first. */
+    public function confirmAttendance(Request $request, int $reservation, TripReservationService $service)
+    {
+        $row = TripReservation::query()
+            ->where('id', $reservation)
+            ->where('client_id', (int) $request->user()->id)
+            ->firstOrFail();
+
+        $service->confirmAttendanceByClient($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تأكيد حضورك.'),
+            'data' => ['reservation' => $this->serialize($row->refresh())],
+        ]);
+    }
+
     public function cancel(Request $request, int $reservation, TripReservationService $service)
     {
         $row = TripReservation::query()
@@ -80,6 +97,9 @@ final class TripReservationController extends Controller
         $data = $request->validate([
             'units' => ['required', 'integer', 'min:1'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // the off-app passenger is a person with a name — never a nameless hold
+            'passenger_name' => ['required', 'string', 'max:150'],
+            'passenger_phone' => ['nullable', 'string', 'max:40'],
         ]);
 
         $leg = TripSchedule::query()
@@ -87,7 +107,13 @@ final class TripReservationController extends Controller
             ->where('business_id', BusinessContext::id($request))
             ->firstOrFail();
 
-        $hold = $service->blockOffline($leg, (int) $data['units'], $data['notes'] ?? null);
+        $hold = $service->blockOffline(
+            $leg,
+            (int) $data['units'],
+            $data['notes'] ?? null,
+            $data['passenger_name'],
+            $data['passenger_phone'] ?? null,
+        );
 
         return response()->json([
             'success' => true,
@@ -130,11 +156,45 @@ final class TripReservationController extends Controller
     public function complete(Request $request, int $reservation, TripReservationService $service)
     {
         $row = $this->carrierReservationOrFail($request, $reservation);
-        $service->complete($row);
+
+        if ($row->source === TripReservation::SOURCE_OFFLINE) {
+            $service->completeOffline($row);
+        } else {
+            $service->complete($row);
+        }
 
         return response()->json([
             'success' => true,
             'message' => __('تم إكمال الرحلة وتسجيل التقييم للطرفين.'),
+            'data' => ['reservation' => $this->serialize($row->refresh())],
+        ]);
+    }
+
+    /** POST business/schedules/reservations/{reservation}/attendance — the carrier confirms, after the customer did. */
+    public function carrierAttendance(Request $request, int $reservation, TripReservationService $service)
+    {
+        $row = $this->carrierReservationOrFail($request, $reservation);
+        $service->confirmAttendanceByCarrier($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تأكيد حضور الراكب.'),
+            'data' => ['reservation' => $this->serialize($row->refresh())],
+        ]);
+    }
+
+    /**
+     * POST business/schedules/reservations/{reservation}/rating-visibility — an off-app passenger appears in the
+     * ratings and the completed/pending counts once the (same) fee is paid, taken from the driver's wallet.
+     */
+    public function ratingVisibility(Request $request, int $reservation, TripReservationService $service)
+    {
+        $row = $this->carrierReservationOrFail($request, $reservation);
+        $service->makeRatingVisible($row);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('ظهر الراكب في التقييم وخُصمت الرسوم من محفظتك.'),
             'data' => ['reservation' => $this->serialize($row->refresh())],
         ]);
     }
@@ -175,7 +235,13 @@ final class TripReservationController extends Controller
             'trip_schedule_id' => (int) $r->trip_schedule_id,
             'business_id' => (int) $r->business_id,
             'client_id' => $r->client_id ? (int) $r->client_id : null,
+            'passenger_name' => $r->passenger_name,
+            'passenger_phone' => $r->passenger_phone,
             'source' => (string) $r->source,
+            'rating_visible' => (bool) $r->rating_visible,
+            'rating_fee' => $r->rating_fee !== null ? (float) $r->rating_fee : null,
+            'client_confirmed_at' => optional($r->client_confirmed_at)->toIso8601String(),
+            'carrier_confirmed_at' => optional($r->carrier_confirmed_at)->toIso8601String(),
             'units' => (int) $r->units,
             'unit_price' => $r->unit_price !== null ? (float) $r->unit_price : null,
             'total_price' => $r->total_price !== null ? (float) $r->total_price : null,

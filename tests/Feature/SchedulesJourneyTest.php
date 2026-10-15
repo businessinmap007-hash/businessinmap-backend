@@ -274,9 +274,9 @@ class SchedulesJourneyTest extends TestCase
         $this->assertSame(2, $row['remaining_capacity'], 'a cancelled seat that never returns to the pool is a seat sold to nobody');
     }
 
-    public function test_a_deposit_is_held_from_the_wallet_and_returned_when_the_trip_is_cancelled(): void
+    public function test_a_deposit_is_frozen_when_the_carrier_confirms_and_returned_when_the_trip_is_cancelled(): void
     {
-        [, , $scheduleId] = $this->aPublishedLeg(['deposit_per_unit' => 50, 'capacity' => 4]);
+        [$carrierToken, , $scheduleId] = $this->aPublishedLeg(['deposit_per_unit' => 50, 'capacity' => 4]);
 
         $passenger = $this->makeUser('راكب بعربون');
         $passengerToken = $this->tokenFor($passenger);
@@ -295,7 +295,16 @@ class SchedulesJourneyTest extends TestCase
 
         $this->assertSame(100.0, (float) $reservation['deposit_held'], 'two seats at 50 deposit each');
 
+        // judged at the reservation, nothing is frozen yet
         $wallet = Wallet::query()->where('user_id', $passenger->id)->first();
+        $this->assertSame(200.0, (float) $wallet->balance);
+
+        // frozen when the carrier takes the reservation
+        $this->actingWithToken($carrierToken)
+            ->postJson('/api/v2/business/schedules/reservations/' . $reservation['id'] . '/confirm')
+            ->assertOk();
+
+        $wallet->refresh();
         $this->assertSame(100.0, (float) $wallet->balance, 'the deposit must leave the spendable balance');
         $this->assertSame(100.0, (float) $wallet->locked_balance, 'and be genuinely locked, not just deducted');
 

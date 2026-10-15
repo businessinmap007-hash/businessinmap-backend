@@ -101,6 +101,7 @@ use App\Http\Controllers\Api\V2\SearchOffersController;
 use App\Http\Controllers\Api\V2\OperatorSessionController;
 use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\TableServiceCallController;
+use App\Http\Controllers\Api\V2\TripParcelController;
 use App\Http\Controllers\Api\V2\TripReservationController;
 use App\Http\Controllers\Api\V2\TripRunController;
 use App\Http\Controllers\Api\V2\TripScheduleController;
@@ -1308,6 +1309,14 @@ Route::prefix('v2')->group(function () {
             Route::get('my-reservations', [TripReservationController::class, 'myReservations']);
             Route::post('{schedule}/reserve', [TripReservationController::class, 'reserve'])->whereNumber('schedule');
             Route::post('reservations/{reservation}/cancel', [TripReservationController::class, 'cancel'])->whereNumber('reservation');
+            // the customer confirms he is there (first); the carrier confirms after him
+            Route::post('reservations/{reservation}/attendance', [TripReservationController::class, 'confirmAttendance'])->whereNumber('reservation');
+            // parcels (شحنات) riding with the car: described by the sender, priced by the driver, handed over with a code
+            Route::get('my-parcels', [TripParcelController::class, 'mine']);
+            Route::post('{schedule}/parcels', [TripParcelController::class, 'store'])->whereNumber('schedule');
+            Route::post('parcels/{parcel}/accept', [TripParcelController::class, 'accept'])->whereNumber('parcel');
+            Route::post('parcels/{parcel}/code', [TripParcelController::class, 'code'])->whereNumber('parcel');
+            Route::post('parcels/{parcel}/cancel', [TripParcelController::class, 'cancel'])->whereNumber('parcel');
             // The dispute door for a trip reservation — same rating-feeding path
             // as bookings and orders, for the schedules service.
             Route::post('reservations/{reservation}/disputes', [DisputeController::class, 'storeForTrip'])
@@ -1331,6 +1340,14 @@ Route::prefix('v2')->group(function () {
             Route::post('reservations/{reservation}/complete', [TripReservationController::class, 'complete'])->whereNumber('reservation');
             Route::post('reservations/{reservation}/reject', [TripReservationController::class, 'reject'])->whereNumber('reservation');
             Route::post('reservations/{reservation}/no-show', [TripReservationController::class, 'noShow'])->whereNumber('reservation');
+            Route::post('reservations/{reservation}/attendance', [TripReservationController::class, 'carrierAttendance'])->whereNumber('reservation');
+            Route::post('reservations/{reservation}/rating-visibility', [TripReservationController::class, 'ratingVisibility'])->whereNumber('reservation');
+            // parcels: price (and seats), load, hand over against the code, reject
+            Route::get('parcels', [TripParcelController::class, 'incoming']);
+            Route::post('parcels/{parcel}/price', [TripParcelController::class, 'price'])->whereNumber('parcel');
+            Route::post('parcels/{parcel}/load', [TripParcelController::class, 'load'])->whereNumber('parcel');
+            Route::post('parcels/{parcel}/deliver', [TripParcelController::class, 'deliver'])->whereNumber('parcel');
+            Route::post('parcels/{parcel}/reject', [TripParcelController::class, 'reject'])->whereNumber('parcel');
             // «عربون الجدية» owed outside the platform / a held one given back after a no-show
             Route::post('reservations/{subject}/deposit/confirm-received', [VisitDepositController::class, 'confirmReceived'])->defaults('kind', 'trip-reservation')->whereNumber('subject');
             Route::post('reservations/{subject}/deposit/waive', [VisitDepositController::class, 'waive'])->defaults('kind', 'trip-reservation')->whereNumber('subject');

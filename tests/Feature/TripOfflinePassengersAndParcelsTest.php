@@ -220,24 +220,36 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         // priced seats are not held until the sender accepts
         Sanctum::actingAs($sender);
         $this->assertSame(3, $this->remaining($leg));
-        $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk()->assertJsonPath('data.parcel.status', 'accepted');
+        $accepted = $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk()->assertJsonPath('data.parcel.status', 'accepted');
         $this->assertSame(2, $this->remaining($leg));
 
-        // the carrier cannot load it before the sender generated the code
+        // the sender holds the pickup QR the driver scans to take the parcel
+        $pickup = (string) $accepted->json('data.parcel.pickup_code');
+        $this->assertMatchesRegularExpression('/^\d{4}[a-z]{2}$/', $pickup);
+
+        // the carrier cannot load it before the sender generated the delivery code
         Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load")->assertStatus(422);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup])->assertStatus(422);
 
         Sanctum::actingAs($sender);
         $code = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/code")->assertOk()->json('data.parcel.delivery_code');
         $this->assertMatchesRegularExpression('/^\d{4}[a-z]{2}$/', $code);
 
         Sanctum::actingAs($this->business);
-        $loaded = $this->postJson("/api/v2/business/schedules/parcels/{$id}/load")->assertOk();
+
+        // a wrong pickup code takes nothing; the right one (scanned or typed, any case) loads it
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => '0000zz'])->assertStatus(422);
+        $loaded = $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => strtoupper($pickup)])->assertOk();
         $this->assertNull($loaded->json('data.parcel.delivery_code'), 'the carrier is never shown the code');
+        $this->assertNull($loaded->json('data.parcel.pickup_code'));
 
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => '0000zz'])->assertStatus(422);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => strtoupper($code)])->assertOk()
-            ->assertJsonPath('data.parcel.status', 'delivered');
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => strtoupper($code), 'cash_collected' => true])->assertOk()
+            ->assertJsonPath('data.parcel.status', 'delivered')
+            ->assertJsonPath('data.parcel.payer', 'receiver');
+
+        // the receiver paid in cash at delivery: recorded, never touching a wallet
+        $this->assertNotNull(TripParcel::query()->find($id)->paid_at);
     }
 
     public function test_wrong_codes_lock_the_handover_after_five_tries(): void
@@ -253,11 +265,11 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         Sanctum::actingAs($this->business);
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/price", ['price' => 10])->assertOk();
         Sanctum::actingAs($sender);
-        $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk();
+        $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk()->json('data.parcel.pickup_code');
         $code = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/code")->assertOk()->json('data.parcel.delivery_code');
 
         Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load")->assertOk();
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup])->assertOk();
 
         foreach (range(1, TripParcel::MAX_CODE_ATTEMPTS) as $_) {
             $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => '9999xx'])->assertStatus(422);
@@ -265,6 +277,49 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
 
         // even the right code no longer works until the sender generates a fresh one
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $code])->assertStatus(422);
+    }
+
+    public function test_a_parcel_rides_in_the_run_is_settled_with_it_and_can_be_disputed(): void
+    {
+        $leg = $this->schedule(capacity: 3);
+        $leg->syncStops([['label' => 'A', 'address' => 'a'], ['label' => 'B', 'address' => 'b']]);
+        $sender = $this->makeUser('client', 'sender');
+
+        Sanctum::actingAs($sender);
+        $id = (int) $this->postJson("/api/v2/schedules/{$leg->id}/parcels", [
+            'description' => 'x', 'payer' => 'sender', 'receiver_name' => 'Omar', 'receiver_phone' => '01012345678',
+        ])->assertCreated()->assertJsonPath('data.parcel.payer', 'sender')->json('data.parcel.id');
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/price", [
+            'price' => 60, 'expected_arrival_at' => now()->addHours(3)->toIso8601String(),
+        ])->assertOk()->assertJsonPath('data.parcel.expected_arrival_at', fn ($v) => $v !== null);
+
+        Sanctum::actingAs($sender);
+        $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->json('data.parcel.pickup_code');
+        $this->postJson("/api/v2/schedules/parcels/{$id}/code")->assertOk();
+
+        Sanctum::actingAs($this->business);
+        // the sender pays in cash when handing it over
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup, 'cash_collected' => true])->assertOk();
+        $this->assertNotNull(TripParcel::query()->find($id)->paid_at);
+
+        // the run takes the parcel with it and shows it
+        $run = $this->postJson("/api/v2/business/schedules/{$leg->id}/runs", ['passenger_count' => 1, 'acknowledge_partial' => true])->assertCreated();
+        $runId = (int) $run->json('data.run.id');
+        $this->assertSame($id, (int) $run->json('data.run.parcels.0.id'));
+
+        // the run ends with the parcel still on the car: it is settled as returned, not silently lost
+        $this->postJson("/api/v2/business/schedules/runs/{$runId}/arrive")->assertOk();
+        $this->postJson("/api/v2/business/schedules/runs/{$runId}/advance")->assertOk();
+        $this->postJson("/api/v2/business/schedules/runs/{$runId}/arrive")->assertOk();
+        $this->postJson("/api/v2/business/schedules/runs/{$runId}/advance")->assertOk();
+
+        $this->assertSame('returned', TripParcel::query()->find($id)->status);
+
+        // a paid service: the sender may dispute it
+        Sanctum::actingAs($sender);
+        $this->postJson("/api/v2/schedules/parcels/{$id}/disputes", ['reason_code' => 'no_show'])->assertOk();
     }
 
     private function remaining(TripSchedule $leg): int

@@ -3105,5 +3105,9 @@
     "يُؤكَّد الحضور على حجز مؤكَّد فقط.": "Attendance is confirmed on a confirmed reservation only.",
     "يؤكّد العميل حضوره أولًا، ثم تؤكّد أنت.": "The customer confirms attendance first, then you.",
     "الرحلة مكتملة وأُغلق الحجز عليها.": "The trip is full and booking on it is closed.",
-    "الرحلة غير مكتملة أو لم يؤكّد كل الركاب حضورهم. أقرّ ببدء الرحلة ناقصة للمتابعة.": "The trip is not full or not every passenger confirmed attendance. Acknowledge starting it short to continue."
+    "الرحلة غير مكتملة أو لم يؤكّد كل الركاب حضورهم. أقرّ ببدء الرحلة ناقصة للمتابعة.": "The trip is not full or not every passenger confirmed attendance. Acknowledge starting it short to continue.",
+    "اختر من يدفع: المرسل عند التسليم للسائق أو المستلم عند الاستلام.": "Choose who pays: the sender when handing the parcel to the driver, or the receiver on receipt.",
+    "اكتمل العدد في هذا اليوم. اختر يومًا آخر.": "This day is full. Choose another day.",
+    "رمز الوصول غير صالح.": "The arrival code is not valid.",
+    "لا يوجد لك موعد مؤكَّد اليوم في هذه الجهة.": "You have no confirmed appointment here today."
 }

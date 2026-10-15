@@ -105,6 +105,8 @@ final class TripRunService
                 ]);
             }
 
+            app(TripParcelService::class)->attachToRun($run);
+
             return $run->fresh(['stops', 'manifestItems', 'schedule:id,mode,vehicle_label']);
         });
     }
@@ -158,6 +160,7 @@ final class TripRunService
             ]);
 
             if (! $isFreight) {
+                app(TripParcelService::class)->settleRun($run);
                 $this->notify($run, 'trip_run_completed', []);
             }
 
@@ -198,6 +201,8 @@ final class TripRunService
             }
 
             $run->update(['status' => TripRun::STATUS_COMPLETED, 'completed_at' => now()]);
+
+            app(TripParcelService::class)->settleRun($run);
 
             $this->notify($run, 'trip_run_completed', []);
 

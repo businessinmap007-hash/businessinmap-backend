@@ -245,6 +245,30 @@ final class DisputeController extends Controller
         );
     }
 
+    /** POST schedules/parcels/{parcel}/disputes — the sender or the carrier disputes a parcel (a paid service). */
+    public function storeForParcel(
+        Request $request,
+        \App\Models\TripParcel $parcel,
+        DisputeService $disputes,
+        RatingService $ratings,
+        NotificationDispatcherService $notifications
+    ) {
+        return $this->openOperationDispute(
+            request: $request,
+            operation: $parcel,
+            clientUserId: (int) $parcel->sender_id,
+            businessUserId: (int) $parcel->business_id,
+            disputeableType: \App\Models\TripParcel::class,
+            disputeType: 'trip',
+            serviceKey: PlatformService::KEY_SCHEDULES,
+            ratingOperationType: \App\Models\TripParcel::OP_PARCEL,
+            metaKey: 'parcel_id',
+            disputes: $disputes,
+            ratings: $ratings,
+            notifications: $notifications,
+        );
+    }
+
     /**
      * The shared body for a dispute on a "simple" operation — one with a client
      * side and a business side but NO escrow deposit to freeze (menu / retail /

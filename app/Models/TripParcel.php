@@ -22,6 +22,16 @@ class TripParcel extends Model
     public const STATUS_DELIVERED = 'delivered';
     public const STATUS_REJECTED = 'rejected';
     public const STATUS_CANCELLED = 'cancelled';
+    /** Still on the car when the run ended: not handed over. */
+    public const STATUS_RETURNED = 'returned';
+
+    /** Rating-ledger / dispute operation type of a parcel (a trip reservation is `trip`). */
+    public const OP_PARCEL = 'trip_parcel';
+
+    /** Who pays the driver, in cash: the sender at pickup, the receiver at delivery. */
+    public const PAYER_SENDER = 'sender';
+    public const PAYER_RECEIVER = 'receiver';
+    public const PAYERS = [self::PAYER_SENDER, self::PAYER_RECEIVER];
 
     /** Statuses in which a parcel occupies seats of the leg (when the driver says it takes any). */
     public const SEAT_HOLDING = [self::STATUS_ACCEPTED, self::STATUS_LOADED, self::STATUS_DELIVERED];
@@ -31,6 +41,14 @@ class TripParcel extends Model
 
     protected $fillable = [
         'trip_schedule_id',
+        'trip_run_id',
+        'payer',
+        'paid_at',
+        'expected_arrival_at',
+        'pickup_code',
+        'pickup_code_hash',
+        'pickup_attempts',
+        'picked_up_at',
         'business_id',
         'sender_id',
         'receiver_user_id',
@@ -58,12 +76,17 @@ class TripParcel extends Model
         'seats' => 'integer',
         'code_attempts' => 'integer',
         'delivery_code' => 'encrypted',
+        'pickup_code' => 'encrypted',
+        'pickup_attempts' => 'integer',
+        'paid_at' => 'datetime',
+        'expected_arrival_at' => 'datetime',
+        'picked_up_at' => 'datetime',
         'loaded_at' => 'datetime',
         'delivered_at' => 'datetime',
         'delivered_by' => 'integer',
     ];
 
-    protected $hidden = ['delivery_code', 'delivery_code_hash'];
+    protected $hidden = ['delivery_code', 'delivery_code_hash', 'pickup_code', 'pickup_code_hash'];
 
     public function schedule(): BelongsTo
     {

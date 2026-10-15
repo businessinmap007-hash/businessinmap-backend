@@ -1011,6 +1011,10 @@ class DisputeService
                 (int) $disputeable->client_id, (int) $disputeable->business_id,
                 \App\Models\TripReservation::OP_TRIP, (int) $disputeable->id,
             ],
+            $disputeable instanceof \App\Models\TripParcel => [
+                (int) $disputeable->sender_id, (int) $disputeable->business_id,
+                \App\Models\TripParcel::OP_PARCEL, (int) $disputeable->id,
+            ],
             default => null,
         };
     }

@@ -165,6 +165,16 @@ final class TripRunController extends Controller
                 'arrived_at' => optional($s->arrived_at)->toIso8601String(),
                 'completed_at' => optional($s->completed_at)->toIso8601String(),
             ])->values(),
+            'parcels' => $r->parcels()->get()->map(fn ($p) => [
+                'id' => (int) $p->id,
+                'description' => (string) $p->description,
+                'status' => (string) $p->status,
+                'receiver_name' => $p->receiver_name,
+                'price' => $p->price !== null ? (float) $p->price : null,
+                'payer' => (string) $p->payer,
+                'paid_at' => optional($p->paid_at)->toIso8601String(),
+                'delivered_at' => optional($p->delivered_at)->toIso8601String(),
+            ])->values(),
             'manifest_items' => $r->manifestItems->map(fn ($m) => [
                 'id' => (int) $m->id,
                 'label' => $m->label,

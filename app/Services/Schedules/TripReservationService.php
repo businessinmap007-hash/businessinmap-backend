@@ -240,7 +240,7 @@ final class TripReservationService
             $reservation->update(['client_confirmed_at' => now()]);
         }
 
-        $this->notify('trip_attendance_client_confirmed', (int) $reservation->business_id, (int) $reservation->client_id, $reservation);
+        $this->notify('trip_attendance_client_confirmed', (int) $reservation->business_id, (int) $reservation->client_id, $reservation, 'open_carrier_reservation');
 
         return $reservation->refresh();
     }
@@ -260,6 +260,11 @@ final class TripReservationService
 
         if (! $reservation->carrier_confirmed_at) {
             $reservation->update(['carrier_confirmed_at' => now()]);
+
+            // the customer is told his seat is confirmed on board
+            if ($reservation->client_id) {
+                $this->notify('trip_attendance_client_confirmed', (int) $reservation->client_id, (int) $reservation->business_id, $reservation, 'open_trip_reservation');
+            }
         }
 
         return $reservation->refresh();
@@ -543,11 +548,13 @@ final class TripReservationService
         return (int) $reservation->business_id;
     }
 
-    private function notify(string $eventKey, int $recipientId, int $actorId, TripReservation $reservation): void
+    private function notify(string $eventKey, int $recipientId, int $actorId, TripReservation $reservation, ?string $actionType = null): void
     {
         if ($recipientId <= 0) {
             return;
         }
+
+        $actionType ??= $recipientId === (int) $reservation->business_id ? 'open_carrier_reservation' : 'open_trip_reservation';
 
         try {
             $this->notifications->dispatch($eventKey, $recipientId, [
@@ -556,6 +563,9 @@ final class TripReservationService
                 'notifiable_id' => (int) $reservation->id,
                 'source_id' => (int) $reservation->id,
                 'service_type' => 'schedules',
+                // a tap opens the reservation list on its own side (the carrier's inbox, or the customer's)
+                'action_type' => $actionType,
+                'action_url' => '/schedules/reservations/'.$reservation->id,
                 'meta' => [
                     'trip_schedule_id' => (int) $reservation->trip_schedule_id,
                     'units' => (int) $reservation->units,

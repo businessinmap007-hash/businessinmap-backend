@@ -136,6 +136,7 @@ class NotificationChannelRule extends Model
             'trip_parcel_priced' => ['تسعير الشحنة', 'Parcel priced', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'trip_parcel_accepted' => ['قبول سعر الشحنة', 'Parcel price accepted', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'trip_parcel_delivered' => ['تسليم الشحنة', 'Parcel delivered', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
+            'trip_parcel_picked_up' => ['استلام الشحنة من المرسل', 'Parcel picked up', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'trip_parcel_rejected' => ['رفض الشحنة', 'Parcel rejected', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_cancelled'],
             'trip_run_stop_arrived' => ['وصول المركبة إلى نقطة توقف', 'Vehicle arrived at a stop', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'trip_run_stop_departed' => ['انتقال المركبة إلى النقطة التالية', 'Vehicle heading to the next stop', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_confirmed'],

@@ -167,6 +167,56 @@ class BusinessClinicAppointmentController extends Controller
         ]);
     }
 
+    /** GET business/booking-day-closure — the date new bookings are closed for, if any. */
+    public function dayClosure(Request $request)
+    {
+        $clinic = User::query()->findOrFail(BusinessContext::id($request));
+
+        return response()->json(['success' => true, 'data' => [
+            'closed_date' => $clinic->booking_closed_date ? \Illuminate\Support\Carbon::parse($clinic->booking_closed_date)->toDateString() : null,
+        ]]);
+    }
+
+    /** PUT business/booking-day-closure — {closed, date?}: «اكتمل العدد اليوم» (optional); closed=false reopens. */
+    public function updateDayClosure(Request $request)
+    {
+        $data = $request->validate([
+            'closed' => ['required', 'boolean'],
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $clinic = User::query()->findOrFail(BusinessContext::id($request));
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->service->setDayClosure($clinic, (bool) $data['closed'], $data['date'] ?? null),
+        ]);
+    }
+
+    /** GET business/clinic-arrival-qr — the clinic's optional arrival QR (enabled + the token to draw). */
+    public function arrivalQr(Request $request)
+    {
+        $clinic = User::query()->findOrFail(BusinessContext::id($request));
+
+        return response()->json(['success' => true, 'data' => $this->service->arrivalQr($clinic)]);
+    }
+
+    /** PUT business/clinic-arrival-qr — {enabled, rotate?}: turn it on/off, or issue a fresh code. */
+    public function updateArrivalQr(Request $request)
+    {
+        $data = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'rotate' => ['nullable', 'boolean'],
+        ]);
+
+        $clinic = User::query()->findOrFail(BusinessContext::id($request));
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->service->arrivalQr($clinic, (bool) $data['enabled'], (bool) ($data['rotate'] ?? false)),
+        ]);
+    }
+
     /** POST .../clinic-appointments/{appointment}/checkin — clinic scans the patient's QR. */
     public function checkin(Request $request, string $token)
     {

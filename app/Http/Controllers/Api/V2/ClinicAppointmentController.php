@@ -161,6 +161,23 @@ class ClinicAppointmentController extends Controller
         return response()->json(['success' => true, 'message' => __('سُجّل اعتراضك.'), 'data' => ['appointment' => $this->serialize($a->refresh())]]);
     }
 
+    /**
+     * POST clinic-appointments/arrive — {code}: the patient scanned the clinic's arrival QR; his turn in the queue is
+     * activated. Idempotent.
+     */
+    public function arrive(Request $request)
+    {
+        $data = $request->validate(['code' => ['required', 'string', 'max:60']]);
+
+        $appointment = $this->service->arriveByClinicQr($request->user(), $data['code']);
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تسجيل وصولك. أنت الآن في الطابور.'),
+            'data' => ['appointment_id' => (int) $appointment->id, 'checked_in_at' => optional($appointment->checked_in_at)->toIso8601String()],
+        ]);
+    }
+
     private function mineOrFail(Request $request, int $id): ClinicAppointment
     {
         return ClinicAppointment::query()->where('id', $id)->where('patient_id', (int) $request->user()->id)->firstOrFail();

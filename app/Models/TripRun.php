@@ -73,6 +73,12 @@ class TripRun extends Model
         return $this->hasMany(TripRunStop::class, 'trip_run_id')->orderBy('sequence');
     }
 
+    /** Parcels riding in this run — settled with it, like its passengers. */
+    public function parcels(): HasMany
+    {
+        return $this->hasMany(TripParcel::class, 'trip_run_id');
+    }
+
     public function manifestItems(): HasMany
     {
         return $this->hasMany(TripRunManifestItem::class, 'trip_run_id');

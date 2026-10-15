@@ -830,6 +830,7 @@ class ArbitrationService
             $subject instanceof Booking,
             $subject instanceof Order => $side === 'client' ? (int) $subject->user_id : (int) $subject->business_id,
             $subject instanceof TripReservation => $side === 'client' ? (int) $subject->client_id : (int) $subject->business_id,
+            $subject instanceof \App\Models\TripParcel => $side === 'client' ? (int) $subject->sender_id : (int) $subject->business_id,
             $subject instanceof \App\Contracts\HasVisitDeposit => $side === 'client' ? $subject->visitDepositClientId() : $subject->visitDepositBusinessId(),
             default => null,
         };
@@ -854,6 +855,7 @@ class ArbitrationService
             Booking::class => RatingOutcomeEvent::OP_BOOKING,
             Order::class => RatingOutcomeEvent::OP_ORDER,
             TripReservation::class => TripReservation::OP_TRIP,
+            \App\Models\TripParcel::class => \App\Models\TripParcel::OP_PARCEL,
             default => null,
         };
 

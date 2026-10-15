@@ -593,6 +593,7 @@ Route::prefix('v2')->group(function () {
         // Clinic appointments — the patient's side: request, read mine, cancel.
         Route::get('clinic-appointments', [ClinicAppointmentController::class, 'index']);
         Route::post('clinic-appointments', [ClinicAppointmentController::class, 'store']);
+        Route::post('clinic-appointments/arrive', [ClinicAppointmentController::class, 'arrive']);
         Route::get('clinic-appointments/{appointment}', [ClinicAppointmentController::class, 'show'])->whereNumber('appointment');
         Route::post('clinic-appointments/{appointment}/cancel', [ClinicAppointmentController::class, 'cancel'])->whereNumber('appointment');
         Route::post('clinic-appointments/{appointment}/reschedule', [ClinicAppointmentController::class, 'reschedule'])->whereNumber('appointment');
@@ -1317,6 +1318,7 @@ Route::prefix('v2')->group(function () {
             Route::post('parcels/{parcel}/accept', [TripParcelController::class, 'accept'])->whereNumber('parcel');
             Route::post('parcels/{parcel}/code', [TripParcelController::class, 'code'])->whereNumber('parcel');
             Route::post('parcels/{parcel}/cancel', [TripParcelController::class, 'cancel'])->whereNumber('parcel');
+            Route::post('parcels/{parcel}/disputes', [DisputeController::class, 'storeForParcel'])->whereNumber('parcel');
             // The dispute door for a trip reservation — same rating-feeding path
             // as bookings and orders, for the schedules service.
             Route::post('reservations/{reservation}/disputes', [DisputeController::class, 'storeForTrip'])
@@ -1510,6 +1512,18 @@ Route::prefix('v2')->group(function () {
 
         // «1 كشف ثم 2 استشارة»: the clinic's own repeating queue pattern.
         Route::match(['put', 'patch'], 'business/clinic-queue-pattern', [BusinessClinicAppointmentController::class, 'updateQueuePattern'])
+            ->middleware('business.member:' . BusinessCapability::CLINIC);
+
+        // «اكتمل العدد اليوم» — an optional button, never automatic.
+        Route::get('business/booking-day-closure', [BusinessClinicAppointmentController::class, 'dayClosure'])
+            ->middleware('business.member:' . BusinessCapability::CLINIC);
+        Route::match(['put', 'patch'], 'business/booking-day-closure', [BusinessClinicAppointmentController::class, 'updateDayClosure'])
+            ->middleware('business.member:' . BusinessCapability::CLINIC);
+
+        // The clinic's OPTIONAL arrival QR: patients scan it to be activated in the queue.
+        Route::get('business/clinic-arrival-qr', [BusinessClinicAppointmentController::class, 'arrivalQr'])
+            ->middleware('business.member:' . BusinessCapability::CLINIC);
+        Route::match(['put', 'patch'], 'business/clinic-arrival-qr', [BusinessClinicAppointmentController::class, 'updateArrivalQr'])
             ->middleware('business.member:' . BusinessCapability::CLINIC);
 
         // What to open when the patient walks in: gated on `prescriptions`

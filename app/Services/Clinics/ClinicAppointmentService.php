@@ -153,6 +153,8 @@ class ClinicAppointmentService
     /** Patient requests an appointment at a time; the clinic will confirm it. */
     public function request(User $patient, User $clinic, array $data): ClinicAppointment
     {
+        $this->assertDayOpen($clinic, $data['scheduled_at'] ?? null);
+
         [$duration, $priceId] = $this->resolveDuration((int) $clinic->id, $data);
 
         $services = $this->resolveSpecialtyServices((int) $clinic->id, $data);
@@ -446,6 +448,8 @@ class ClinicAppointmentService
                 throw ValidationException::withMessages(['slot' => __('هذه الفتحة لم تعد متاحة.')]);
             }
 
+            $this->assertDayOpen(User::query()->findOrFail($slot->clinic_id), $slot->starts_at);
+
             $this->assertNoConflict((int) $slot->clinic_id, $slot->starts_at, (int) $slot->duration_minutes, null, $slot->physician_id ? (int) $slot->physician_id : null);
             $this->agenda->assertFree((int) $patient->id, $slot->starts_at, $slot->starts_at->copy()->addMinutes((int) $slot->duration_minutes));
 
@@ -724,6 +728,93 @@ class ClinicAppointmentService
 
         if ($appointment->status !== ClinicAppointment::STATUS_CONFIRMED) {
             throw ValidationException::withMessages(['status' => __('لا يمكن تسجيل الحضور لهذا الموعد الآن.')]);
+        }
+
+        if (! $appointment->checked_in_at) {
+            $appointment->checked_in_at = Carbon::now();
+            $appointment->save();
+        }
+
+        return $appointment;
+    }
+
+    /**
+     * «اكتمل العدد اليوم»: the business's optional button. Closes NEW bookings for one date (it is not automatic — a
+     * doctor may rather add hours); reopened by the same button.
+     *
+     * @return array{closed_date: ?string}
+     */
+    public function setDayClosure(User $clinic, bool $closed, ?string $date = null): array
+    {
+        $clinic->booking_closed_date = $closed ? Carbon::parse($date ?? \App\Support\WallClock::now())->toDateString() : null;
+        $clinic->save();
+
+        return ['closed_date' => $clinic->booking_closed_date ? Carbon::parse($clinic->booking_closed_date)->toDateString() : null];
+    }
+
+    /** A patient is refused a date the business closed for new bookings. */
+    public function assertDayOpen(User $clinic, mixed $scheduledAt): void
+    {
+        if (! $clinic->booking_closed_date || ! $scheduledAt) {
+            return;
+        }
+
+        if (Carbon::parse($scheduledAt)->toDateString() === Carbon::parse($clinic->booking_closed_date)->toDateString()) {
+            throw ValidationException::withMessages(['scheduled_at' => __('اكتمل العدد في هذا اليوم. اختر يومًا آخر.')]);
+        }
+    }
+
+    /**
+     * The clinic's own optional arrival QR: turned on/off by the business, a token it can rotate (a leaked or photographed
+     * code stops working). Returns what the app draws.
+     *
+     * @return array{enabled: bool, token: ?string}
+     */
+    public function arrivalQr(User $clinic, ?bool $enabled = null, bool $rotate = false): array
+    {
+        if ($enabled !== null) {
+            $clinic->arrival_qr_enabled = $enabled;
+        }
+
+        if ($clinic->arrival_qr_enabled && ($rotate || ! $clinic->arrival_qr_token)) {
+            $clinic->arrival_qr_token = \Illuminate\Support\Str::random(24);
+        }
+
+        if ($clinic->isDirty()) {
+            $clinic->save();
+        }
+
+        return [
+            'enabled' => (bool) $clinic->arrival_qr_enabled,
+            'token' => $clinic->arrival_qr_enabled ? $clinic->arrival_qr_token : null,
+        ];
+    }
+
+    /**
+     * The patient scans the clinic's QR: his confirmed appointment of today there is checked in — which is what
+     * activates his turn in the queue. Idempotent like the secretary's own scan.
+     */
+    public function arriveByClinicQr(User $patient, string $code): ClinicAppointment
+    {
+        $clinic = User::query()
+            ->where('arrival_qr_enabled', true)
+            ->where('arrival_qr_token', trim($code))
+            ->first();
+
+        if (! $clinic) {
+            abort(404, __('رمز الوصول غير صالح.'));
+        }
+
+        $appointment = ClinicAppointment::query()
+            ->where('clinic_id', $clinic->id)
+            ->where('patient_id', $patient->id)
+            ->where('status', ClinicAppointment::STATUS_CONFIRMED)
+            ->whereBetween('scheduled_at', [\App\Support\WallClock::now()->startOfDay(), \App\Support\WallClock::now()->endOfDay()])
+            ->orderBy('scheduled_at')
+            ->first();
+
+        if (! $appointment) {
+            throw ValidationException::withMessages(['appointment' => __('لا يوجد لك موعد مؤكَّد اليوم في هذه الجهة.')]);
         }
 
         if (! $appointment->checked_in_at) {

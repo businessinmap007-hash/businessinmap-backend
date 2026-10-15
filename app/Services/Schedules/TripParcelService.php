@@ -3,15 +3,20 @@
 namespace App\Services\Schedules;
 
 use App\Models\TripParcel;
+use App\Models\TripRun;
 use App\Models\TripSchedule;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
+use App\Support\HandoverCode;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Parcels riding with the car. The driver prices, the sender accepts, and the handover needs the code — so a driver
- * cannot claim a parcel was delivered without the receiver having given it to him.
+ * Parcels riding with the car. The driver prices, the sender accepts, and BOTH handovers are proved with the platform's
+ * handover code core (a QR that encodes the code, or the code typed): the driver takes the parcel from the sender with
+ * the PICKUP code and gives it to the receiver with the DELIVERY code — so he can neither claim a parcel he never
+ * received nor one he never handed over. The price is paid in cash and only recorded (the wallet is for fees,
+ * deposits and guarantees): by the sender at pickup or by the receiver at delivery.
  */
 final class TripParcelService
 {
@@ -21,7 +26,7 @@ final class TripParcelService
     ) {}
 
     /**
-     * @param  array{description:string, receiver_user_id?:?int, receiver_name?:?string, receiver_phone?:?string}  $data
+     * @param  array{description:string, payer?:?string, receiver_user_id?:?int, receiver_name?:?string, receiver_phone?:?string}  $data
      */
     public function request(User $sender, TripSchedule $schedule, array $data): TripParcel
     {
@@ -44,6 +49,12 @@ final class TripParcelService
             throw ValidationException::withMessages(['receiver_name' => __('اكتب اسم المستلم ورقم هاتفه.')]);
         }
 
+        $payer = (string) ($data['payer'] ?? TripParcel::PAYER_RECEIVER);
+
+        if (! in_array($payer, TripParcel::PAYERS, true)) {
+            throw ValidationException::withMessages(['payer' => __('اختر من يدفع: المرسل عند التسليم للسائق أو المستلم عند الاستلام.')]);
+        }
+
         $parcel = TripParcel::create([
             'trip_schedule_id' => (int) $schedule->id,
             'business_id' => (int) $schedule->business_id,
@@ -52,17 +63,21 @@ final class TripParcelService
             'receiver_name' => $receiverId === null ? trim((string) $data['receiver_name']) : null,
             'receiver_phone' => $receiverId === null ? trim((string) $data['receiver_phone']) : null,
             'description' => trim((string) $data['description']),
+            'payer' => $payer,
             'currency' => (string) ($schedule->currency ?: 'EGP'),
             'status' => TripParcel::STATUS_REQUESTED,
         ]);
 
-        $this->notify('trip_parcel_requested', (int) $parcel->business_id, (int) $sender->id, $parcel);
+        $this->notify('trip_parcel_requested', (int) $parcel->business_id, (int) $sender->id, $parcel, 'open_carrier_parcel');
 
         return $parcel;
     }
 
-    /** The driver sets the price — and how many seats the parcel takes (0 when it rides in the boot). */
-    public function price(TripParcel $parcel, float $price, int $seats = 0): TripParcel
+    /**
+     * The driver sets the price, how many seats it takes (0 when it rides in the boot) and — approximately — when it
+     * will arrive. The actual hour is recorded at delivery.
+     */
+    public function price(TripParcel $parcel, float $price, int $seats = 0, ?string $expectedArrivalAt = null): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_REQUESTED, TripParcel::STATUS_PRICED]);
 
@@ -73,15 +88,16 @@ final class TripParcelService
         $parcel->update([
             'price' => round($price, 2),
             'seats' => max(0, $seats),
+            'expected_arrival_at' => $expectedArrivalAt ? \Illuminate\Support\Carbon::parse($expectedArrivalAt) : $parcel->expected_arrival_at,
             'status' => TripParcel::STATUS_PRICED,
         ]);
 
-        $this->notify('trip_parcel_priced', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel);
+        $this->notify('trip_parcel_priced', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel, 'open_trip_parcel');
 
         return $parcel->refresh();
     }
 
-    /** The sender takes the driver's price; a parcel that takes seats claims them now. */
+    /** The sender takes the driver's price; a parcel that takes seats claims them now. Its pickup code is born here. */
     public function accept(TripParcel $parcel): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_PRICED]);
@@ -96,20 +112,27 @@ final class TripParcelService
                 }
             }
 
-            $parcel->update(['status' => TripParcel::STATUS_ACCEPTED]);
+            $pickup = HandoverCode::generate();
+
+            $parcel->update([
+                'status' => TripParcel::STATUS_ACCEPTED,
+                'pickup_code' => $pickup,
+                'pickup_code_hash' => HandoverCode::hash($pickup),
+                'pickup_attempts' => 0,
+            ]);
         });
 
         // a parcel that takes the last seats fills the trip: a no-show's held deposit goes back
         $this->reservations->releaseNoShowDepositsIfFull((int) $parcel->trip_schedule_id);
 
-        $this->notify('trip_parcel_accepted', (int) $parcel->business_id, (int) $parcel->sender_id, $parcel);
+        $this->notify('trip_parcel_accepted', (int) $parcel->business_id, (int) $parcel->sender_id, $parcel, 'open_carrier_parcel');
 
         return $parcel->refresh();
     }
 
     /**
-     * The sender's button: a fresh code (4 digits + 2 letters), shown to him (and to a receiver who has an account, as a
-     * QR). A code generated again replaces the old one until the parcel is on the car.
+     * The sender's button: a fresh DELIVERY code, shown to him (and to a receiver who has an account, as a QR). A code
+     * generated again replaces the old one until the parcel is on the car.
      */
     public function generateCode(TripParcel $parcel): TripParcel
     {
@@ -117,28 +140,25 @@ final class TripParcelService
             TripParcel::STATUS_REQUESTED,
             TripParcel::STATUS_PRICED,
             TripParcel::STATUS_ACCEPTED,
+            TripParcel::STATUS_LOADED,
         ]);
 
-        $digits = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-        $letters = '';
-
-        foreach (range(1, 2) as $_) {
-            $letters .= chr(random_int(ord('a'), ord('z')));
-        }
-
-        $code = $digits.$letters;
+        $code = HandoverCode::generate();
 
         $parcel->update([
             'delivery_code' => $code,
-            'delivery_code_hash' => $this->hash($code),
+            'delivery_code_hash' => HandoverCode::hash($code),
             'code_attempts' => 0,
         ]);
 
         return $parcel->refresh();
     }
 
-    /** On the car. Needs a code to exist, so the handover can never be skipped. */
-    public function load(TripParcel $parcel): TripParcel
+    /**
+     * Taken from the sender: the driver scans the sender's pickup QR (or types the code). Needs a delivery code to
+     * exist, so the final handover can never be skipped; cash is recorded here when the SENDER pays.
+     */
+    public function load(TripParcel $parcel, string $code, bool $cashCollected = false): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_ACCEPTED]);
 
@@ -146,33 +166,39 @@ final class TripParcelService
             throw ValidationException::withMessages(['code' => __('اطلب من المرسل توليد كود التسليم قبل تحميل الشحنة.')]);
         }
 
-        $parcel->update(['status' => TripParcel::STATUS_LOADED, 'loaded_at' => now()]);
+        $this->assertCode($parcel, 'pickup_attempts', (string) $parcel->pickup_code_hash, $code);
+
+        $parcel->update([
+            'status' => TripParcel::STATUS_LOADED,
+            'loaded_at' => now(),
+            'picked_up_at' => now(),
+            'paid_at' => $cashCollected && $parcel->payer === TripParcel::PAYER_SENDER ? now() : $parcel->paid_at,
+        ]);
+
+        $this->notify('trip_parcel_picked_up', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel, 'open_trip_parcel');
 
         return $parcel->refresh();
     }
 
-    /** Handed over: the driver types the code the receiver told him. */
-    public function deliver(TripParcel $parcel, string $code, int $driverId): TripParcel
+    /** Handed over: the driver scans the receiver's QR or types the code the receiver told him. */
+    public function deliver(TripParcel $parcel, string $code, int $driverId, bool $cashCollected = false): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_LOADED]);
 
-        if ((int) $parcel->code_attempts >= TripParcel::MAX_CODE_ATTEMPTS) {
-            throw ValidationException::withMessages(['code' => __('تجاوزت عدد المحاولات. تواصل مع المرسل ليولّد كودًا جديدًا.')]);
-        }
-
-        if (! hash_equals((string) $parcel->delivery_code_hash, $this->hash($code))) {
-            $parcel->increment('code_attempts');
-
-            throw ValidationException::withMessages(['code' => __('الكود غير صحيح.')]);
-        }
+        $this->assertCode($parcel, 'code_attempts', (string) $parcel->delivery_code_hash, $code);
 
         $parcel->update([
             'status' => TripParcel::STATUS_DELIVERED,
             'delivered_at' => now(),
             'delivered_by' => $driverId,
+            'paid_at' => $cashCollected && $parcel->payer === TripParcel::PAYER_RECEIVER ? now() : $parcel->paid_at,
         ]);
 
-        $this->notify('trip_parcel_delivered', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel);
+        $this->notify('trip_parcel_delivered', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel, 'open_trip_parcel');
+
+        if ($parcel->receiver_user_id) {
+            $this->notify('trip_parcel_delivered', (int) $parcel->receiver_user_id, (int) $parcel->business_id, $parcel, 'open_trip_parcel');
+        }
 
         return $parcel->refresh();
     }
@@ -181,7 +207,7 @@ final class TripParcelService
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_REQUESTED, TripParcel::STATUS_PRICED]);
         $parcel->update(['status' => TripParcel::STATUS_REJECTED]);
-        $this->notify('trip_parcel_rejected', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel);
+        $this->notify('trip_parcel_rejected', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel, 'open_trip_parcel');
 
         return $parcel->refresh();
     }
@@ -194,9 +220,48 @@ final class TripParcelService
         return $parcel->refresh();
     }
 
-    private function hash(string $code): string
+    // ------------------------------------------------------------------ run
+
+    /** A run starts: the leg's accepted / loaded parcels ride in it, like its passengers. */
+    public function attachToRun(TripRun $run): void
     {
-        return hash('sha256', mb_strtolower(trim($code)));
+        TripParcel::query()
+            ->where('trip_schedule_id', $run->trip_schedule_id)
+            ->whereNull('trip_run_id')
+            ->whereIn('status', [TripParcel::STATUS_ACCEPTED, TripParcel::STATUS_LOADED])
+            ->update(['trip_run_id' => (int) $run->id]);
+    }
+
+    /**
+     * The run is over: what was not handed over is settled — a parcel still on the car is `returned`, one never taken
+     * from its sender is `cancelled` — and the sender is told, so he can open a dispute if it matters.
+     */
+    public function settleRun(TripRun $run): void
+    {
+        TripParcel::query()
+            ->where('trip_run_id', $run->id)
+            ->whereIn('status', [TripParcel::STATUS_ACCEPTED, TripParcel::STATUS_LOADED])
+            ->get()
+            ->each(function (TripParcel $p) {
+                $p->update(['status' => $p->status === TripParcel::STATUS_LOADED ? TripParcel::STATUS_RETURNED : TripParcel::STATUS_CANCELLED]);
+                $this->notify('trip_parcel_rejected', (int) $p->sender_id, (int) $p->business_id, $p->refresh(), 'open_trip_parcel');
+            });
+    }
+
+    // -------------------------------------------------------------- helpers
+
+    /** Compares a typed / scanned code, counting wrong tries (the handover locks after the shared maximum). */
+    private function assertCode(TripParcel $parcel, string $attemptsColumn, string $hash, string $code): void
+    {
+        if ((int) $parcel->{$attemptsColumn} >= HandoverCode::MAX_ATTEMPTS) {
+            throw ValidationException::withMessages(['code' => __('تجاوزت عدد المحاولات. تواصل مع المرسل ليولّد كودًا جديدًا.')]);
+        }
+
+        if (! HandoverCode::matches($hash, $code)) {
+            $parcel->increment($attemptsColumn);
+
+            throw ValidationException::withMessages(['code' => __('الكود غير صحيح.')]);
+        }
     }
 
     /** @param list<string> $allowed */
@@ -207,7 +272,7 @@ final class TripParcelService
         }
     }
 
-    private function notify(string $eventKey, int $recipientId, int $actorId, TripParcel $parcel): void
+    private function notify(string $eventKey, int $recipientId, int $actorId, TripParcel $parcel, string $actionType): void
     {
         if ($recipientId <= 0) {
             return;
@@ -220,6 +285,9 @@ final class TripParcelService
                 'notifiable_id' => (int) $parcel->id,
                 'source_id' => (int) $parcel->id,
                 'service_type' => 'schedules',
+                // taps open the parcel itself (the carrier's list, or the sender's / receiver's)
+                'action_type' => $actionType,
+                'action_url' => '/schedules/parcels/'.$parcel->id,
                 'meta' => ['trip_schedule_id' => (int) $parcel->trip_schedule_id],
             ]);
         } catch (\Throwable $e) {

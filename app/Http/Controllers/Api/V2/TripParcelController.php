@@ -23,6 +23,8 @@ final class TripParcelController extends Controller
     {
         $data = $request->validate([
             'description' => ['required', 'string', 'max:2000'],
+            // cash, recorded only: the sender at pickup or the receiver at delivery
+            'payer' => ['nullable', 'in:sender,receiver'],
             'receiver_user_id' => ['nullable', 'integer'],
             'receiver_name' => ['nullable', 'string', 'max:150'],
             'receiver_phone' => ['nullable', 'string', 'max:40'],
@@ -102,28 +104,47 @@ final class TripParcelController extends Controller
         $data = $request->validate([
             'price' => ['required', 'numeric', 'min:0'],
             'seats' => ['nullable', 'integer', 'min:0', 'max:50'],
+            // approximate: the actual hour is recorded when it is handed over
+            'expected_arrival_at' => ['nullable', 'date'],
         ]);
 
         $row = $this->carrierParcelOrFail($request, $parcel);
 
-        return $this->ok($service->price($row, (float) $data['price'], (int) ($data['seats'] ?? 0)), null, __('تم تسعير الشحنة.'));
+        return $this->ok(
+            $service->price($row, (float) $data['price'], (int) ($data['seats'] ?? 0), $data['expected_arrival_at'] ?? null),
+            null,
+            __('تم تسعير الشحنة.')
+        );
     }
 
+    /** POST business/schedules/parcels/{parcel}/load — {code, cash_collected?}: the sender's pickup QR, or its typed code. */
     public function load(Request $request, int $parcel, TripParcelService $service)
     {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:20'],
+            'cash_collected' => ['nullable', 'boolean'],
+        ]);
+
         $row = $this->carrierParcelOrFail($request, $parcel);
 
-        return $this->ok($service->load($row), null, __('حُمّلت الشحنة على السيارة.'));
+        return $this->ok($service->load($row, $data['code'], (bool) ($data['cash_collected'] ?? false)), null, __('حُمّلت الشحنة على السيارة.'));
     }
 
     /** POST business/schedules/parcels/{parcel}/deliver — {code}: what the receiver tells the driver. */
     public function deliver(Request $request, int $parcel, TripParcelService $service)
     {
-        $data = $request->validate(['code' => ['required', 'string', 'max:20']]);
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:20'],
+            'cash_collected' => ['nullable', 'boolean'],
+        ]);
 
         $row = $this->carrierParcelOrFail($request, $parcel);
 
-        return $this->ok($service->deliver($row, $data['code'], (int) $request->user()->id), null, __('سُلِّمت الشحنة.'));
+        return $this->ok(
+            $service->deliver($row, $data['code'], (int) $request->user()->id, (bool) ($data['cash_collected'] ?? false)),
+            null,
+            __('سُلِّمت الشحنة.')
+        );
     }
 
     public function reject(Request $request, int $parcel, TripParcelService $service)
@@ -176,7 +197,15 @@ final class TripParcelController extends Controller
             'seats' => (int) $p->seats,
             'currency' => (string) $p->currency,
             'status' => (string) $p->status,
+            'payer' => (string) $p->payer,
+            'paid_at' => optional($p->paid_at)->toIso8601String(),
             'has_code' => (bool) $p->delivery_code_hash,
+            // the sender's QR the driver scans to take the parcel — the sender only, until it is on the car
+            'pickup_code' => $viewerId !== null && (int) $p->sender_id === $viewerId && $p->status === TripParcel::STATUS_ACCEPTED
+                ? $p->pickup_code
+                : null,
+            'expected_arrival_at' => optional($p->expected_arrival_at)->toIso8601String(),
+            'picked_up_at' => optional($p->picked_up_at)->toIso8601String(),
             'delivery_code' => $mayReadCode && $p->delivery_code && ! in_array($p->status, [TripParcel::STATUS_DELIVERED], true)
                 ? (string) $p->delivery_code
                 : null,

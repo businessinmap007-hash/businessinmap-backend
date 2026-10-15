@@ -14,7 +14,7 @@ final class NotificationCategories
     /** key => [Arabic label, English label, event-key prefixes] — the order is the screen's order. */
     public const ALL = [
         'orders' => ['الطلبات والتوصيل', 'Orders & delivery', ['menu_order_', 'menu_item_', 'table_service_', 'delivery_', 'shipping_', 'shared_cart_', 'retail_']],
-        'bookings' => ['الحجوزات والمواعيد', 'Bookings & appointments', ['booking_', 'booking.', 'appointment_']],
+        'bookings' => ['الحجوزات والمواعيد', 'Bookings & appointments', ['booking_', 'booking.', 'appointment_', 'assignment_']],
         'reminders' => ['التذكيرات', 'Reminders', ['agenda_reminder', 'medication_reminder']],
         'messages' => ['الرسائل والمحادثات', 'Messages & chats', ['chat_', 'dispute_room_message']],
         'social' => ['المنشورات والعروض والوظائف', 'Posts, offers & jobs', ['post_', 'comment_', 'offer_', 'job_']],

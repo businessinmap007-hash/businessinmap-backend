@@ -308,6 +308,8 @@ class ClinicHoursAndVisitDurationTest extends TestCase
     {
         $clinic = $this->clinic();
         BusinessWorkingHour::query()->where('business_id', $clinic->id)->delete();
+        // this test is about the visit kind: whatever deposit terms the dev data gave this clinic stay out of it
+        \App\Models\BusinessDepositPolicy::query()->where('business_id', $clinic->id)->delete();
 
         $patient = User::query()->where('id', '!=', $clinic->id)->first();
 

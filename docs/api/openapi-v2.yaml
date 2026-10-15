@@ -103,6 +103,9 @@ tags:
       Training & nutrition plans: a trainer (a gym/coach business) builds a
       client's workout + meals; the client reads it and logs progress. Readable
       only by the trainer and the client. Delegable via the `training` capability.
+  - name: Assignments
+    description: |
+      «نظام التعيين»: who is responsible for a booking at a business — one door for every kind of business.
   - name: Clinic Appointments
     description: >-
       Clinic appointments: a patient requests a time at a clinic (a business),
@@ -6418,11 +6421,11 @@ paths:
       parameters: [{ name: kind, in: path, required: true, schema: { type: string, enum: [clinic-appointment, investigation-order, procedure-request] } }, { name: subject, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } }
   /business/clinic-appointments/{subject}/deposit/confirm-received:
-    post: { tags: [Clinic], summary: "«عربون الجدية» owed outside the platform: the clinic records that it arrived (method cash|transfer, optional reference). Never gates the visit. Reply data.deposit {mode,status,amount,counter_amount,method,reference,dispute_id}", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Clinic Appointments], summary: "«عربون الجدية» owed outside the platform: the clinic records that it arrived (method cash|transfer, optional reference). Never gates the visit. Reply data.deposit {mode,status,amount,counter_amount,method,reference,dispute_id}", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/clinic-appointments/{subject}/deposit/waive:
-    post: { tags: [Clinic], summary: "The clinic accepts the appointment without the deposit owed outside the platform", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Clinic Appointments], summary: "The clinic accepts the appointment without the deposit owed outside the platform", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/clinic-appointments/{subject}/deposit/give-back:
-    post: { tags: [Clinic], summary: "The clinic returns a HELD wallet deposit (after a no-show, for instance) — both holds go back, nothing is kept", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Clinic Appointments], summary: "The clinic returns a HELD wallet deposit (after a no-show, for instance) — both holds go back, nothing is kept", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/investigation-orders/{subject}/deposit/confirm-received:
     post: { tags: [Investigations], summary: "Lab/radiology: record that the deposit owed outside the platform arrived (cash|transfer). Never withholds the results", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/investigation-orders/{subject}/deposit/waive:
@@ -6430,8 +6433,28 @@ paths:
   /business/investigation-orders/{subject}/deposit/give-back:
     post: { tags: [Investigations], summary: "Lab/radiology: return a HELD wallet deposit", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/procedure-requests/{subject}/deposit/confirm-received:
-    post: { tags: [Hospitals], summary: "Hospital: record that the procedure's deposit owed outside the platform arrived (cash|transfer)", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [HospitalProcedures], summary: "Hospital: record that the procedure's deposit owed outside the platform arrived (cash|transfer)", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/procedure-requests/{subject}/deposit/waive:
-    post: { tags: [Hospitals], summary: "Hospital: accept the procedure without the deposit owed outside", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [HospitalProcedures], summary: "Hospital: accept the procedure without the deposit owed outside", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/procedure-requests/{subject}/deposit/give-back:
-    post: { tags: [Hospitals], summary: "Hospital: return a HELD wallet deposit", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [HospitalProcedures], summary: "Hospital: return a HELD wallet deposit", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /investigation-centers/{center}/times:
+    get: { tags: [Investigations], summary: "The days' open times of a lab or radiology centre for one date (?date=YYYY-MM-DD): 30-minute steps inside its working hours, the patient picks one when requesting.", parameters: [{ name: center, in: path, required: true, schema: { type: integer } }, { name: date, in: query, required: true, schema: { type: string, format: date } }], responses: { '200': { description: OK } } }
+  /business/investigation-packages:
+    get: { tags: [Investigations], summary: "The centre's «باقات»: each a name, ONE price and the tests it includes (own view, inactive ones too).", responses: { '200': { description: OK } } }
+    post: { tags: [Investigations], summary: "Create or update a package — {id?, name, price, option_ids[], note?, is_active?}. The patient pays the package price, not the sum of its tests.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/investigation-packages/{package}:
+    delete: { tags: [Investigations], summary: "Remove a package of the centre.", parameters: [{ name: package, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/investigation-home-fee:
+    put: { tags: [Investigations], summary: "A lab's fee for taking the sample at the patient's home — {home_fee: number|null}; null = not offered. Labs only.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /procedure-requests/{row}/confirm:
+    post: { tags: [HospitalProcedures], summary: "The patient confirms a physician's surgical-procedure decision: it becomes a request the hospital schedules (the hospital hears nothing before this).", parameters: [{ name: row, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/procedure-decisions:
+    get: { tags: [HospitalProcedures], summary: "The treating physician's own issued procedure decisions.", responses: { '200': { description: OK } } }
+    post: { tags: [HospitalProcedures], summary: "A treating physician issues a surgical-procedure decision for a patient — {patient_id, hospital_procedure_id, notes?, appointment_id?}. Reaches the patient as a decision he confirms or declines.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/bookings/{booking}/deposit/confirm-received:
+    post: { tags: [Business Bookables], summary: "The business records that the deposit owed outside the platform arrived — {method: cash|transfer, reference?}. It never stops the customer's account; the booking only starts after this (or a waive).", parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/bookings/{booking}/deposit/waive:
+    post: { tags: [Business Bookables], summary: "The business accepts the booking without the deposit owed outside the platform.", parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /bookings/{booking}/reschedule:
+    post: { tags: [Bookings], summary: "The customer moves his own pending/accepted booking — {starts_at, ends_at?} wall clock. Judged like a new booking (agenda, hours, unit, chair, held time) and priced again; an accepted one goes back to the business.", parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }

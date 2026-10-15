@@ -19,10 +19,13 @@ use App\Services\Guarantees\OperationGuarantorService;
  *               what is left for the wallet, whether each side is ready, and — when a side is short — how it may
  *               close the gap (a friend's guarantee, a better guarantee, a top-up)
  *   holdPlan    from a readiness result: the wallet remainder to freeze and the policy adjusted for it
- *   freezeOwnGuarantee   lock the customer's OWN coverage actually used (friends froze theirs on accepting)
+ *   freezeOwnGuarantee    lock the customer's OWN coverage actually used (friends froze theirs on accepting)
+ *   freezeBusinessGuarantee   lock the business's coverage used for its counter share
  *   releaseGuarantees    return every frozen coverage of the operation
  *
- * It moves no wallet money itself: the wallet hold stays with the operation's own deposit service, which knows the
+ * The business's counter share follows the same rule as the customer's, guarantee first (المالك، 2026-10-20): a
+ * business that asks for a deposit stands behind it with its OWN guarantee coverage, frozen per operation, and only the
+ * remainder is held from its wallet. The wallet money itself is never moved here: the wallet hold stays with the operation's own deposit service, which knows the
  * operation's target row. Lifted from ServiceExecutionEngine without a change in what it answers.
  */
 class DepositCore
@@ -114,7 +117,9 @@ class DepositCore
 
         if (($policy['required'] ?? false) && ! $alreadyFrozen) {
             $clientDepositRequired = round((float) ($policy['wallet_hold_amount'] ?? $policy['hold'] ?? 0), 2);
-            $businessDepositRequired = round((float) ($policy['business_counter_hold_amount'] ?? 0), 2);
+            // the RAW counter share: the calculator zeroes `business_counter_hold_amount` when the business's guarantee
+            // would cover it all, but the guarantee is now frozen for it (below) rather than left idle
+            $businessDepositRequired = round((float) ($policy['business_counter_hold_raw_amount'] ?? $policy['business_counter_hold_amount'] ?? 0), 2);
         }
 
         // Guarantee-as-deposit: the client's own coverage plus any accepted friend co-guarantors' frozen coverage. It is
@@ -135,11 +140,15 @@ class DepositCore
         // payload); otherwise the wallet holds only the remainder.
         $clientCovered = $clientDepositRequired > 0 && $guaranteeApplied >= $clientDepositRequired;
 
-        $businessCovered = (bool) data_get($policy, 'business_guarantee_covered', false)
-            && (bool) data_get($businessCoverage, 'covered', false);
+        // The business's share: its own usable coverage first, the wallet for what is left.
+        $businessCoverageAvailable = $businessDepositRequired > 0 && $op->business
+            ? $this->guarantors->usableCoverage($op->business, GuaranteeLevel::TARGET_BUSINESS)
+            : 0.0;
+        $businessGuaranteeApplied = round(min($businessDepositRequired, $businessCoverageAvailable), 2);
+        $businessCovered = $businessDepositRequired > 0 && $businessGuaranteeApplied >= $businessDepositRequired;
 
         $clientWalletRequired = round(max($clientDepositRequired - $guaranteeApplied, 0), 2);
-        $businessWalletRequired = $businessCovered ? 0.0 : $businessDepositRequired;
+        $businessWalletRequired = round(max($businessDepositRequired - $businessGuaranteeApplied, 0), 2);
 
         $clientRequiredTotal = round($clientWalletRequired + $clientFeeRequired, 2);
         $businessRequiredTotal = round($businessWalletRequired + $businessFeeRequired, 2);
@@ -186,6 +195,7 @@ class DepositCore
             'business_deposit_required' => $businessDepositRequired,
             'combined_guarantee_coverage' => round($combinedGuaranteeCoverage, 2),
             'guarantee_applied' => $guaranteeApplied,
+            'business_guarantee_applied' => $businessGuaranteeApplied,
             'client_covered_by_guarantee' => $clientCovered,
             'business_covered_by_guarantee' => $businessCovered,
             'client_wallet_required' => $clientWalletRequired,
@@ -221,10 +231,10 @@ class DepositCore
         $walletHold = round((float) data_get($readiness, 'deposit.client_wallet_required', 0), 2);
         $required = (bool) ($policy['wallet_hold_required'] ?? false) && $walletHold > 0;
 
-        if ($businessCovered) {
-            $policy['business_counter_hold_amount'] = 0.0;
-            $policy['business_counter_hold_required'] = false;
-        }
+        // the business freezes from its own guarantee first; only the remainder is held from its wallet
+        $businessWallet = round((float) data_get($readiness, 'deposit.business_wallet_required', 0), 2);
+        $policy['business_counter_hold_amount'] = $businessWallet;
+        $policy['business_counter_hold_required'] = $businessWallet > 0;
 
         if ($required) {
             // Freeze only the wallet remainder (guarantee covers the rest).
@@ -236,6 +246,7 @@ class DepositCore
             'policy' => $policy,
             'wallet_hold' => $walletHold,
             'wallet_hold_required' => $required,
+            'business_wallet_hold' => $businessWallet,
             'business_covered' => $businessCovered,
         ];
     }
@@ -262,6 +273,27 @@ class DepositCore
         }
 
         return $selfFreeze;
+    }
+
+    /**
+     * Lock the business's OWN guarantee coverage that stands for its counter share of the deposit (recorded against the
+     * operation like the customer's, so releaseGuarantees() returns both). Returns the amount frozen.
+     *
+     * @param  array<string,mixed>  $readiness  the readiness preview
+     */
+    public function freezeBusinessGuarantee(DepositOperation $op, array $readiness): float
+    {
+        if (! $op->business) {
+            return 0.0;
+        }
+
+        $applied = round((float) data_get($readiness, 'deposit.business_guarantee_applied', 0), 2);
+
+        if ($applied > 0) {
+            $this->guarantors->freezeSelf($op->type, $op->id, $op->business, $applied, GuaranteeLevel::TARGET_BUSINESS);
+        }
+
+        return $applied;
     }
 
     /** Return every frozen coverage of the operation (the customer's own and the friends'). */

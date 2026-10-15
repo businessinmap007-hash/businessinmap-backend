@@ -439,6 +439,7 @@ class ServiceExecutionEngine
 
                 'combined_guarantee_coverage' => round($combinedGuaranteeCoverage, 2),
                 'guarantee_applied' => $guaranteeApplied,
+                'business_guarantee_applied' => $assessment['business_guarantee_applied'],
 
                 'client_required' => $clientDepositRequired,
                 'business_required' => $businessDepositRequired,
@@ -719,6 +720,8 @@ class ServiceExecutionEngine
                 // friends already froze on accepting). Coverage is frozen, never charged; it is released on completion
                 // / dispute resolution.
                 $this->depositCore->freezeOwnGuarantee($this->depositOperation($booking), $readiness);
+                // and the business's own coverage that stands for its counter share (guarantee first, wallet for the rest)
+                $this->depositCore->freezeBusinessGuarantee($this->depositOperation($booking), $readiness);
             }
 
             // «ويظهر عند بداية التنفيذ»: a stay on a room type with listed rooms is given its room now.

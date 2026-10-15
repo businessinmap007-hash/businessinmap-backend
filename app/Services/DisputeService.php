@@ -913,9 +913,12 @@ class DisputeService
                 $disputeable->getMorphClass(),
                 (int) $disputeable->getKey(),
                 $resolutionType,
-                $resolutionPayload
+                $resolutionPayload,
+                // a deposit that stood wholly on guarantee coverage has no escrow row to unwind
+                allowNoEscrow: true,
             );
 
+            // returns the coverage frozen for the visit (never charged) and marks the visit's record
             app(VisitDepositService::class)->markResolved($disputeable);
         }
 
@@ -1122,13 +1125,18 @@ class DisputeService
         string $targetType,
         int $targetId,
         string $resolutionType,
-        array $resolutionPayload = []
+        array $resolutionPayload = [],
+        bool $allowNoEscrow = false
     ): void {
         $deposit = Deposit::query()
             ->where('target_type', $targetType)
             ->where('target_id', $targetId)
             ->orderByDesc('id')
             ->first();
+
+        if (! $deposit && $allowNoEscrow) {
+            return;
+        }
 
         if (! $deposit) {
             throw ValidationException::withMessages([

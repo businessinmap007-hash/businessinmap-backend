@@ -246,24 +246,55 @@ class FinancialPreviewCharacterizationTest extends TestCase
         $this->assertSame([], $p['messages_by_side']['client']);
     }
 
-    public function test_the_business_counter_hold_is_covered_by_its_own_guarantee_when_the_terms_say_so(): void
+    public function test_the_business_share_is_frozen_from_its_own_guarantee_first(): void
     {
         $this->policy(50);
-        DB::table('business_deposit_policies')->where('business_id', $this->businessId)->update([
-            'business_guarantee_strategy' => BusinessDepositPolicy::GUARANTEE_GENERAL,
-        ]);
         $this->guarantee($this->businessId, GuaranteeLevel::TARGET_BUSINESS, 500);
         User::query()->whereKey($this->businessId)->update(['guarantee_enabled' => 1]);
         $this->wallets(1000, 0);
 
         $p = $this->preview();
 
-        // the calculator already zeroes the counter hold when the business's guarantee covers it, so nothing is asked
-        // of its wallet and the flag lives on the policy (the preview's own flag stays false — pinned as it is)
-        $this->assertTrue($p['deposit']['policy']['business_guarantee_covered']);
-        $this->assertEqualsWithDelta(0.0, $p['deposit']['business_required'], 0.001);
+        // «المالك، 2026-10-20»: a business that asks for a deposit stands behind it with its own guarantee
+        $this->assertEqualsWithDelta(50.0, $p['deposit']['business_required'], 0.001);
+        $this->assertEqualsWithDelta(50.0, $p['deposit']['business_guarantee_applied'], 0.001);
         $this->assertEqualsWithDelta(0.0, $p['deposit']['business_wallet_required'], 0.001);
-        $this->assertTrue($p['business']['ready']);
+        $this->assertTrue($p['deposit']['business_guarantee_covered']);
+        $this->assertTrue($p['business']['ready'], 'no wallet needed — the guarantee stands for it');
+    }
+
+    public function test_a_part_covering_business_guarantee_leaves_the_rest_to_its_wallet(): void
+    {
+        $this->policy(50);
+        $this->guarantee($this->businessId, GuaranteeLevel::TARGET_BUSINESS, 20);
+        $this->wallets(1000, 10);
+
+        $p = $this->preview();
+
+        $this->assertEqualsWithDelta(20.0, $p['deposit']['business_guarantee_applied'], 0.001);
+        $this->assertEqualsWithDelta(30.0, $p['deposit']['business_wallet_required'], 0.001);
+        $this->assertFalse($p['deposit']['business_guarantee_covered']);
+        $this->assertFalse($p['business']['ready'], 'its wallet is short of the 30 left');
+    }
+
+    public function test_starting_freezes_the_business_coverage_and_holds_only_the_wallet_remainder(): void
+    {
+        $this->policy(50);
+        $this->guarantee($this->businessId, GuaranteeLevel::TARGET_BUSINESS, 20);
+        $this->wallets(1000, 100);
+
+        $this->engine->moveBookingToInProgress($this->booking);
+
+        $deposit = Deposit::query()->where('target_type', Booking::class)->where('target_id', $this->booking->id)->latest('id')->firstOrFail();
+        $this->assertEqualsWithDelta(100.0, (float) $deposit->client_amount, 0.001);
+        $this->assertEqualsWithDelta(30.0, (float) $deposit->business_amount, 0.001, 'only what the guarantee did not cover');
+
+        $g = UserGuarantee::query()->where('user_id', $this->businessId)->where('target_type', 'business')->firstOrFail();
+        $this->assertEqualsWithDelta(20.0, (float) $g->used_coverage_amount, 0.001, 'its coverage is frozen for the operation');
+
+        $business = Wallet::query()->where('user_id', $this->businessId)->firstOrFail();
+        $this->assertEqualsWithDelta(70.0, (float) $business->balance, 0.001);
+        $this->assertEqualsWithDelta(30.0, (float) $business->locked_balance, 0.001);
     }
 
     public function test_an_already_frozen_deposit_asks_for_nothing_more(): void

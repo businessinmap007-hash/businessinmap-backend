@@ -6,9 +6,13 @@ use App\Http\Controllers\Business\Concerns\ResolvesOwnerCatalog;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessDepositPolicy as Policy;
 use App\Services\BookingDepositCalculator;
+use App\Models\GuaranteeLevel;
+use App\Models\User;
 use App\Services\BookingDepositPolicyResolver;
+use App\Services\Guarantees\GuaranteeCoverageService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * «شروط الحجز» — how a business secures its bookings, said in plain terms and written onto the ONE deposit-policy row
@@ -24,6 +28,10 @@ use Illuminate\Validation\Rule;
  *   guarantee_multiple              — the guarantee may be asked to stand for N times the day's value
  *   (the deposit is never confiscated, and one owed outside the platform stops no account: the business records
  *    that it arrived and the booking starts after that — see ExternalDepositService; only a dispute holds an account)
+ *
+ * A business that asks for a deposit stands behind it (المالك، 2026-10-20): the two in-app modes need an ACTIVE guarantee of
+ * its own — its counter share is frozen from that coverage first, the wallet for what is left. Without one it may still
+ * ask for a deposit outside the platform (cash / transfer), where nothing of the business is frozen.
  *
  * Every booking still waits for the business's approval (accept/reject) — that is not a setting here.
  */
@@ -60,6 +68,12 @@ final class BusinessBookingTermsController extends Controller
         $mode = $data['security_mode'];
         $percent = (float) ($data['deposit_percent'] ?? 20);
 
+        if ((bool) $data['enabled'] && $mode !== self::MODE_EXTERNAL && ! $this->hasGuarantee()) {
+            throw ValidationException::withMessages([
+                'security_mode' => __('لتفعيل العربون المجمّد أو ضمان العميل يلزم أن يكون لديك ضمان فعّال يقف خلف نصيبك. اختر «تحويل خارج المنصة» أو فعّل ضمانك أولًا.'),
+            ]);
+        }
+
         $row = $this->row() ?? new Policy([
             'business_id' => $this->businessId(),
             'scope_key' => Policy::SCOPE_BUSINESS_GLOBAL,
@@ -93,6 +107,20 @@ final class BusinessBookingTermsController extends Controller
         return response()->json(['success' => true, 'data' => $this->payload($row->fresh())]);
     }
 
+    /** Does the acting business hold an active, usable guarantee of its own? */
+    private function hasGuarantee(): bool
+    {
+        $business = User::query()->find($this->businessId());
+
+        if (! $business) {
+            return false;
+        }
+
+        $guarantee = app(GuaranteeCoverageService::class)->activeGuarantee($business, GuaranteeLevel::TARGET_BUSINESS);
+
+        return $guarantee !== null && $guarantee->isUsable();
+    }
+
     private function row(): ?Policy
     {
         return Policy::query()
@@ -122,6 +150,9 @@ final class BusinessBookingTermsController extends Controller
             'guarantee_multiple' => $row ? (float) $row->guarantee_multiple : 0.0,
             'forfeit_to_business' => false,
             'accept_deposit_as_payment' => (bool) ($row?->accept_deposit_as_payment),
+            // the in-app modes need the business's own guarantee behind its share; without it only «خارج المنصة»
+            'has_guarantee' => $this->hasGuarantee(),
+            'guarantee_required_modes' => [self::MODE_DEPOSIT, self::MODE_GUARANTEE],
             // every booking waits for the business to accept it — shown, never switched
             'confirmation' => 'merchant_approval',
             'max_percent' => BookingDepositCalculator::SYSTEM_MAX_PERCENT,

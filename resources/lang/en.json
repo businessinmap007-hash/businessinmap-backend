@@ -3082,5 +3082,6 @@
     "لا يوجد عربون مجمّد لتعيده.": "There is no frozen deposit to give back.",
     "لا يوجد عربون على المنصة لفتح نزاع عليه.": "There is no on-platform deposit to open a dispute over.",
     "لست طرفًا في هذا الموعد.": "You are not a party to this appointment.",
-    "لا يمكن فتح نزاع على هذا العربون الآن.": "A dispute cannot be opened over this deposit right now."
+    "لا يمكن فتح نزاع على هذا العربون الآن.": "A dispute cannot be opened over this deposit right now.",
+    "لتفعيل العربون المجمّد أو ضمان العميل يلزم أن يكون لديك ضمان فعّال يقف خلف نصيبك. اختر «تحويل خارج المنصة» أو فعّل ضمانك أولًا.": "To switch on the frozen deposit or the customer’s guarantee you need an active guarantee of your own standing behind your share. Choose «transfer outside the platform», or activate your guarantee first."
 }

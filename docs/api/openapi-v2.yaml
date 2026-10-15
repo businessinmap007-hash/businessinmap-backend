@@ -2694,7 +2694,7 @@ paths:
   /business/booking-terms:
     get:
       tags: [Business Bookables]
-      summary: "شروط الحجز — how the business secures its bookings AND its health visits (clinic appointments, lab/radiology orders, hospital procedures): deposit frozen in both wallets / the customer's guarantee / transfer outside the app, with a preview for an 800 booking. Open to a bookings, clinic, investigations or procedures capability; an owner always. Each visit's payload carries `deposit` {mode,status quoted|held|pending|received|waived|released|refunded|void|disputed|resolved,amount,counter_amount}"
+      summary: "شروط الحجز — how the business secures its bookings AND its health visits (clinic appointments, lab/radiology orders, hospital procedures): deposit frozen in both wallets / the customer's guarantee / transfer outside the app, with a preview for an 800 booking. Open to a bookings, clinic, investigations or procedures capability; an owner always. The two in-app modes need the business's OWN active guarantee (422 on `security_mode` otherwise; `data.has_guarantee` says): its counter share is frozen from that coverage first, its wallet for the rest. Without one only `external_transfer` may be switched on. Each visit's payload carries `deposit` {mode,status quoted|held|pending|received|waived|released|refunded|void|disputed|resolved,amount,counter_amount}"
       responses: { '200': { description: OK } }
     put:
       tags: [Business Bookables]

@@ -8,10 +8,13 @@ use App\Models\Dispute;
 use App\Models\PlatformService;
 use App\Models\User;
 use App\Models\VisitDeposit;
-use App\Models\Wallet;
+use App\Services\Deposits\DepositCore;
+use App\Services\Deposits\DepositOperation;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -21,9 +24,10 @@ use Illuminate\Validation\ValidationException;
  * may switch it on or leave it off. What differs is only the moment each step happens:
  *
  *   quote      the visit's value × the business's terms → what is owed, as wallet hold or outside the platform
- *   afford     at the request: the patient's free wallet balance must cover his share (nothing is frozen yet)
- *   secure     when the visit stands (clinic confirms / centre accepts / hospital accepts): freeze both shares,
- *              or record the deposit as owed outside the platform
+ *   afford     at the request: the patient's guarantee + free wallet balance must cover his share (nothing is frozen yet)
+ *   secure     when the visit stands (clinic confirms / centre accepts / hospital accepts): freeze both shares — each
+ *              side's own guarantee coverage first, its wallet for the rest (App\Services\Deposits\DepositCore) — or
+ *              record the deposit as owed outside the platform
  *   release    the visit was done — every hold goes back
  *   refund     the visit did not happen (rejected / cancelled / declined) — every hold goes back
  *   dispute    after a no-show or a disagreement: either party opens it, an arbitrator rules on the held deposit
@@ -39,17 +43,43 @@ class VisitDepositService
         private readonly DepositsEscrowService $escrow,
         private readonly DisputeService $disputes,
         private readonly NotificationDispatcherService $notifications,
+        private readonly DepositCore $core,
     ) {
     }
 
-    /* ---------------------------------------------------------------- quote */
+    /** The operation kind a visit is known by to the guarantee services (one per kind, so ids never collide). */
+    public static function operationType(Model $subject): string
+    {
+        return Str::snake(class_basename($subject));
+    }
+
+    private function operationOf(Model $subject): DepositOperation
+    {
+        /** @var HasVisitDeposit&Model $subject */
+        $clientId = $subject->visitDepositClientId();
+        $businessId = $subject->visitDepositBusinessId();
+
+        return new DepositOperation(
+            type: self::operationType($subject),
+            id: (int) $subject->getKey(),
+            client: User::query()->find($clientId),
+            business: User::query()->find($businessId),
+            context: [
+                'subject_type' => $subject->getMorphClass(),
+                'subject_id' => (int) $subject->getKey(),
+                'business_id' => $businessId,
+                'client_id' => $clientId,
+            ],
+            source: 'VisitDepositService',
+        );
+    }
 
     /**
-     * What the business's terms ask for a visit of this value, or null when it asks for nothing.
+     * The calculator's whole result for a visit of this value under the business's terms, or null when they ask nothing.
      *
-     * @return array{mode:string,amount:float,counter_amount:float,percent:float}|null
+     * @return array<string,mixed>|null
      */
-    public function quote(int $businessId, float $value): ?array
+    private function policyFor(int $businessId, float $value): ?array
     {
         if ($value <= 0) {
             return null;
@@ -70,7 +100,21 @@ class VisitDepositService
 
         $out = $this->calculator->calculate($policy, ['total_amount' => $value, 'first_day_amount' => $value]);
 
-        if (! ($out['required'] ?? false)) {
+        return ($out['required'] ?? false) ? $out : null;
+    }
+
+    /* ---------------------------------------------------------------- quote */
+
+    /**
+     * What the business's terms ask for a visit of this value, or null when it asks for nothing.
+     *
+     * @return array{mode:string,amount:float,counter_amount:float,percent:float}|null
+     */
+    public function quote(int $businessId, float $value): ?array
+    {
+        $out = $this->policyFor($businessId, $value);
+
+        if (! $out) {
             return null;
         }
 
@@ -84,7 +128,7 @@ class VisitDepositService
         return [
             'mode' => $external ? VisitDeposit::MODE_EXTERNAL : VisitDeposit::MODE_WALLET,
             'amount' => round($amount, 2),
-            'counter_amount' => $external ? 0.0 : round((float) $out['business_counter_hold_amount'], 2),
+            'counter_amount' => $external ? 0.0 : round((float) ($out['business_counter_hold_raw_amount'] ?? $out['business_counter_hold_amount']), 2),
             'percent' => (float) ($out['configured_percent'] ?? 0),
         ];
     }
@@ -114,6 +158,9 @@ class VisitDepositService
                 'status' => $row->status,
                 'amount' => (float) $row->amount,
                 'counter_amount' => (float) $row->counter_amount,
+                // how much of each side's share stands on its guarantee instead of its wallet
+                'guarantee_amount' => (float) data_get($row->meta, 'client_guarantee', 0),
+                'business_guarantee_amount' => (float) data_get($row->meta, 'business_guarantee', 0),
                 'method' => $row->method,
                 'reference' => $row->reference,
                 'dispute_id' => $row->dispute_id ? (int) $row->dispute_id : null,
@@ -149,21 +196,32 @@ class VisitDepositService
      */
     public function assertCanAfford(int $clientId, int $businessId, float $value): void
     {
-        $quote = $this->quote($businessId, $value);
+        $policy = $this->policyFor($businessId, $value);
 
-        if (! $quote || $quote['mode'] !== VisitDeposit::MODE_WALLET) {
+        if (! $policy || ($policy['external_deposit_required'] ?? false)) {
             return;
         }
 
-        $balance = (float) (Wallet::query()->where('user_id', $clientId)->value('balance') ?? 0);
+        $op = new DepositOperation(
+            type: 'visit',
+            id: 0,
+            client: User::query()->find($clientId),
+            business: User::query()->find($businessId),
+            source: 'VisitDepositService.assertCanAfford',
+        );
 
-        if ($balance + 0.0001 < $quote['amount']) {
-            throw ValidationException::withMessages([
-                'deposit' => __('هذا النشاط يطلب عربونًا :amount ج لتأكيد الحجز، ورصيدك في المحفظة لا يكفي. اشحن محفظتك ثم أعد المحاولة.', [
-                    'amount' => $this->fmt($quote['amount']),
-                ]),
-            ]);
+        $assessment = $this->core->assess($op, $policy, false);
+
+        if ($assessment['client_ready']) {
+            return;
         }
+
+        $this->refuse(
+            __('هذا النشاط يطلب عربونًا :amount ج لتأكيد الحجز، ورصيدك في المحفظة لا يكفي. اشحن محفظتك ثم أعد المحاولة.', [
+                'amount' => $this->fmt((float) $policy['wallet_hold_amount']),
+            ]),
+            $assessment['client_options'],
+        );
     }
 
     /* --------------------------------------------------------------- secure */
@@ -202,19 +260,47 @@ class VisitDepositService
             ]);
         }
 
-        $this->assertWalletCovers($clientId, $quote['amount'], __('رصيد المريض في المحفظة لا يكفي لعربون هذا الموعد (:amount ج).', ['amount' => $this->fmt($quote['amount'])]));
-        $this->assertWalletCovers($businessId, $quote['counter_amount'], __('رصيد النشاط لا يكفي لتجميد حصته من العربون (:amount ج). اشحن محفظتك ثم أكّد.', ['amount' => $this->fmt($quote['counter_amount'])]));
+        $policy = $this->policyFor($businessId, $subject->visitDepositValue());
+        $op = $this->operationOf($subject);
+        $a = $this->core->assess($op, $policy, false);
 
-        return DB::transaction(function () use ($subject, $clientId, $businessId, $quote) {
-            $deposit = $this->escrow->create(
-                clientId: $clientId,
-                businessId: $businessId,
-                totalAmount: $quote['amount'] + $quote['counter_amount'],
-                targetType: $subject->getMorphClass(),
-                targetId: (int) $subject->getKey(),
-                clientAmount: $quote['amount'],
-                businessAmount: $quote['counter_amount'],
+        if (! $a['client_ready']) {
+            $this->refuse(
+                __('رصيد المريض في المحفظة لا يكفي لعربون هذا الموعد (:amount ج).', ['amount' => $this->fmt($a['client_wallet_required'])]),
+                $a['client_options'],
             );
+        }
+
+        if (! $a['business_ready']) {
+            $this->refuse(
+                __('رصيد النشاط لا يكفي لتجميد حصته من العربون (:amount ج). اشحن محفظتك ثم أكّد.', ['amount' => $this->fmt($a['business_wallet_required'])]),
+            );
+        }
+
+        // what the core's judgement means for the freeze: guarantee coverage first, the wallet for the remainder
+        $readiness = ['deposit' => [
+            'guarantee_applied' => $a['guarantee_applied'],
+            'business_guarantee_applied' => $a['business_guarantee_applied'],
+        ]];
+
+        return DB::transaction(function () use ($subject, $clientId, $businessId, $quote, $a, $op, $readiness) {
+            $deposit = null;
+            $walletTotal = round($a['client_wallet_required'] + $a['business_wallet_required'], 2);
+
+            if ($walletTotal > 0) {
+                $deposit = $this->escrow->create(
+                    clientId: $clientId,
+                    businessId: $businessId,
+                    totalAmount: $walletTotal,
+                    targetType: $subject->getMorphClass(),
+                    targetId: (int) $subject->getKey(),
+                    clientAmount: $a['client_wallet_required'],
+                    businessAmount: $a['business_wallet_required'],
+                );
+            }
+
+            $clientFrozen = $this->core->freezeOwnGuarantee($op, $readiness);
+            $businessFrozen = $this->core->freezeBusinessGuarantee($op, $readiness);
 
             return VisitDeposit::query()->create([
                 'subject_type' => $subject->getMorphClass(),
@@ -225,7 +311,8 @@ class VisitDepositService
                 'amount' => $quote['amount'],
                 'counter_amount' => $quote['counter_amount'],
                 'status' => VisitDeposit::STATUS_HELD,
-                'deposit_id' => (int) $deposit->id,
+                'deposit_id' => $deposit ? (int) $deposit->id : null,
+                'meta' => ['client_guarantee' => $clientFrozen, 'business_guarantee' => $businessFrozen],
             ]);
         });
     }
@@ -241,11 +328,13 @@ class VisitDepositService
             return $row;
         }
 
-        $deposit = Deposit::query()->find($row->deposit_id);
+        $deposit = $row->deposit_id ? Deposit::query()->find($row->deposit_id) : null;
 
         if ($deposit && ! $deposit->isFinal()) {
             $this->escrow->release($deposit);
         }
+
+        $this->core->releaseGuarantees($this->operationOf($subject));
 
         $row->update(['status' => VisitDeposit::STATUS_RELEASED]);
 
@@ -274,11 +363,13 @@ class VisitDepositService
             return $row;
         }
 
-        $deposit = Deposit::query()->find($row->deposit_id);
+        $deposit = $row->deposit_id ? Deposit::query()->find($row->deposit_id) : null;
 
         if ($deposit && ! $deposit->isFinal()) {
             $this->escrow->refund($deposit, true, true);
         }
+
+        $this->core->releaseGuarantees($this->operationOf($subject));
 
         $row->update(['status' => VisitDeposit::STATUS_REFUNDED]);
 
@@ -410,23 +501,28 @@ class VisitDepositService
         $row = $this->rowFor($subject);
 
         if ($row && $row->status === VisitDeposit::STATUS_DISPUTED) {
+            // the dispute is over: coverage frozen for the visit goes back, it is never charged
+            $this->core->releaseGuarantees($this->operationOf($subject));
             $row->update(['status' => VisitDeposit::STATUS_RESOLVED]);
         }
     }
 
     /* ---------------------------------------------------------------- misc */
 
-    private function assertWalletCovers(int $userId, float $amount, string $message): void
+    /**
+     * A 422 that says what is missing and, for the patient, how the gap may be closed (top up / a better guarantee /
+     * a friend's guarantee) — the same options a booking offers.
+     *
+     * @param array<string,mixed> $options
+     */
+    private function refuse(string $message, array $options = []): never
     {
-        if ($amount <= 0) {
-            return;
-        }
-
-        $balance = (float) (Wallet::query()->where('user_id', $userId)->value('balance') ?? 0);
-
-        if ($balance + 0.0001 < $amount) {
-            throw ValidationException::withMessages(['deposit' => $message]);
-        }
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => $message,
+            'errors' => ['deposit' => [$message]],
+            'options' => $options === [] ? null : $options,
+        ], 422));
     }
 
     private function fmt(float $amount): string

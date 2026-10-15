@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessDepositPolicy;
+use App\Models\GuaranteeLevel;
 use App\Models\PlatformService;
 use App\Models\User;
+use App\Models\UserGuarantee;
 use App\Services\BookingDepositCalculator;
 use App\Services\BookingDepositPolicyResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -34,6 +36,28 @@ class BusinessBookingTermsTest extends TestCase
             'category_child_id' => 536,
             'api_token' => Str::random(60),
             'phone' => '010' . random_int(10000000, 99999999),
+        ]);
+
+        // the in-app modes need the business's own guarantee behind its share
+        $this->giveGuarantee();
+    }
+
+    private function giveGuarantee(): void
+    {
+        $levelId = (int) \DB::table('guarantee_levels')->value('id');
+
+        if ($levelId <= 0) {
+            $this->markTestSkipped('Needs a guarantee level.');
+        }
+
+        UserGuarantee::create([
+            'user_id' => $this->business->id,
+            'target_type' => GuaranteeLevel::TARGET_BUSINESS,
+            'purchased_level_id' => $levelId,
+            'effective_level_id' => $levelId,
+            'status' => UserGuarantee::STATUS_ACTIVE,
+            'current_coverage_amount' => 1000,
+            'used_coverage_amount' => 0,
         ]);
     }
 
@@ -148,5 +172,31 @@ class BusinessBookingTermsTest extends TestCase
             ->assertOk()->assertJsonPath('data.accept_deposit_as_payment', false);
         $this->save(['security_mode' => 'guarantee_freeze', 'accept_deposit_as_payment' => true])
             ->assertOk()->assertJsonPath('data.accept_deposit_as_payment', false);
+    }
+
+    public function test_without_a_guarantee_of_its_own_a_business_may_only_ask_for_a_deposit_outside_the_app(): void
+    {
+        UserGuarantee::query()->where('user_id', $this->business->id)->delete();
+
+        $this->actingAs($this->business, 'sanctum')->getJson('/api/v2/business/booking-terms')
+            ->assertOk()->assertJsonPath('data.has_guarantee', false);
+
+        $this->save(['security_mode' => 'deposit_freeze'])->assertStatus(422)->assertJsonValidationErrors('security_mode');
+        $this->save(['security_mode' => 'guarantee_freeze'])->assertStatus(422)->assertJsonValidationErrors('security_mode');
+
+        // outside the platform nothing of the business is frozen: allowed
+        $this->save(['security_mode' => 'external_transfer'])->assertOk()->assertJsonPath('data.security_mode', 'external_transfer');
+
+        // and switching off is always allowed
+        $this->save(['enabled' => false, 'security_mode' => 'deposit_freeze'])->assertOk();
+    }
+
+    public function test_with_a_guarantee_the_in_app_modes_are_open(): void
+    {
+        $this->actingAs($this->business, 'sanctum')->getJson('/api/v2/business/booking-terms')
+            ->assertOk()->assertJsonPath('data.has_guarantee', true);
+
+        $this->save(['security_mode' => 'deposit_freeze'])->assertOk();
+        $this->save(['security_mode' => 'guarantee_freeze'])->assertOk();
     }
 }

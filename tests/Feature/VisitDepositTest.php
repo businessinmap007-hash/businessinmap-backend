@@ -7,6 +7,8 @@ use App\Models\BusinessServicePrice;
 use App\Models\ClinicAppointment;
 use App\Models\Deposit;
 use App\Models\Dispute;
+use App\Models\GuaranteeLevel;
+use App\Models\UserGuarantee;
 use App\Models\HospitalProcedure;
 use App\Models\InvestigationOrder;
 use App\Models\MedicalProcedure;
@@ -66,6 +68,25 @@ class VisitDepositTest extends TestCase
     {
         app(WalletService::class)->getOrCreateWallet((int) $user->id)
             ->update(['status' => Wallet::STATUS_ACTIVE, 'balance' => $balance, 'locked_balance' => 0]);
+    }
+
+    private function guarantee(User $user, string $target, float $coverage): UserGuarantee
+    {
+        $levelId = (int) DB::table('guarantee_levels')->value('id');
+
+        if ($levelId <= 0) {
+            $this->markTestSkipped('Needs a guarantee level.');
+        }
+
+        return UserGuarantee::create([
+            'user_id' => $user->id,
+            'target_type' => $target,
+            'purchased_level_id' => $levelId,
+            'effective_level_id' => $levelId,
+            'status' => UserGuarantee::STATUS_ACTIVE,
+            'current_coverage_amount' => $coverage,
+            'used_coverage_amount' => 0,
+        ]);
     }
 
     private function wallet(User $user): Wallet
@@ -407,6 +428,7 @@ class VisitDepositTest extends TestCase
     {
         foreach ([self::CLINIC, self::HOSPITAL, self::LAB] as $child) {
             $business = $this->user(User::TYPE_BUSINESS, $child, 'Biz');
+            $this->guarantee($business, GuaranteeLevel::TARGET_BUSINESS, 500);
 
             Sanctum::actingAs($business);
             $this->putJson('/api/v2/business/booking-terms', [
@@ -435,5 +457,110 @@ class VisitDepositTest extends TestCase
         $other = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Other');
         $this->postJson('/api/v2/clinic-appointments', ['clinic_id' => $other->id, 'scheduled_at' => $this->when()])
             ->assertCreated();
+    }
+
+    public function test_each_side_stands_on_its_guarantee_first_and_the_wallet_holds_only_the_rest(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $this->terms($clinic);
+        $this->fund($clinic, 200);
+        $patientGuarantee = $this->guarantee($patient, GuaranteeLevel::TARGET_CLIENT, 8);
+        $clinicGuarantee = $this->guarantee($clinic, GuaranteeLevel::TARGET_BUSINESS, 10);
+
+        $appointment = $this->requested($clinic, $patient);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/confirm")
+            ->assertOk()->assertJsonPath('data.appointment.deposit.status', 'held')
+            ->assertJsonPath('data.appointment.deposit.guarantee_amount', 8)
+            ->assertJsonPath('data.appointment.deposit.business_guarantee_amount', 10);
+
+        // the deposit is 20 from the patient: 8 from his guarantee, 12 from his wallet; the clinic's 10 is all guarantee
+        $this->assertEqualsWithDelta(488.0, (float) $this->wallet($patient)->balance, 0.001);
+        $this->assertEqualsWithDelta(12.0, (float) $this->wallet($patient)->locked_balance, 0.001);
+        $this->assertEqualsWithDelta(200.0, (float) $this->wallet($clinic)->balance, 0.001, 'the clinic\'s wallet is untouched');
+        $this->assertEqualsWithDelta(8.0, (float) $patientGuarantee->fresh()->used_coverage_amount, 0.001);
+        $this->assertEqualsWithDelta(10.0, (float) $clinicGuarantee->fresh()->used_coverage_amount, 0.001);
+
+        // the visit is done: wallets and coverage all go back
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/complete")->assertOk();
+
+        $this->assertEqualsWithDelta(500.0, (float) $this->wallet($patient)->balance, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $this->wallet($patient)->locked_balance, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $patientGuarantee->fresh()->used_coverage_amount, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $clinicGuarantee->fresh()->used_coverage_amount, 0.001);
+    }
+
+    public function test_a_deposit_that_stands_wholly_on_guarantees_moves_no_wallet_money(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $this->terms($clinic);
+        $this->fund($clinic, 0);
+        $patientGuarantee = $this->guarantee($patient, GuaranteeLevel::TARGET_CLIENT, 100);
+        $clinicGuarantee = $this->guarantee($clinic, GuaranteeLevel::TARGET_BUSINESS, 100);
+
+        // a patient with an empty wallet may still book: his guarantee stands for the deposit
+        $appointment = $this->requested($clinic, $patient, 0);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/confirm")->assertOk();
+
+        $row = app(VisitDepositService::class)->rowFor($appointment);
+        $this->assertSame(VisitDeposit::STATUS_HELD, $row->status);
+        $this->assertNull($row->deposit_id, 'no escrow row: nothing was held from a wallet');
+        $this->assertEqualsWithDelta(20.0, (float) $patientGuarantee->fresh()->used_coverage_amount, 0.001);
+        $this->assertEqualsWithDelta(10.0, (float) $clinicGuarantee->fresh()->used_coverage_amount, 0.001);
+
+        // the patient cancels: the coverage is returned
+        Sanctum::actingAs($patient);
+        $this->postJson("/api/v2/clinic-appointments/{$appointment->id}/cancel")->assertOk();
+
+        $this->assertSame(VisitDeposit::STATUS_REFUNDED, $row->fresh()->status);
+        $this->assertEqualsWithDelta(0.0, (float) $patientGuarantee->fresh()->used_coverage_amount, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $clinicGuarantee->fresh()->used_coverage_amount, 0.001);
+    }
+
+    public function test_a_ruling_returns_the_coverage_frozen_for_the_visit(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $this->terms($clinic);
+        $this->fund($clinic, 200);
+        $patientGuarantee = $this->guarantee($patient, GuaranteeLevel::TARGET_CLIENT, 20);
+        $this->guarantee($clinic, GuaranteeLevel::TARGET_BUSINESS, 10);
+
+        $appointment = $this->requested($clinic, $patient);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/confirm")->assertOk();
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/no-show")->assertOk();
+        $disputeId = (int) $this->postJson("/api/v2/visit-deposits/clinic-appointment/{$appointment->id}/disputes", ['reason_code' => 'no_show'])
+            ->assertOk()->json('data.id');
+
+        $this->assertEqualsWithDelta(20.0, (float) $patientGuarantee->fresh()->used_coverage_amount, 0.001);
+
+        app(DisputeService::class)->resolve(Dispute::query()->findOrFail($disputeId), 'no_action');
+
+        $this->assertSame(VisitDeposit::STATUS_RESOLVED, app(VisitDepositService::class)->rowFor($appointment)->status);
+        $this->assertEqualsWithDelta(0.0, (float) $patientGuarantee->fresh()->used_coverage_amount, 0.001, 'coverage is never charged');
+    }
+
+    public function test_a_patient_short_of_both_guarantee_and_wallet_is_told_how_to_close_the_gap(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $this->terms($clinic);
+        $this->fund($patient, 5);
+        $this->guarantee($patient, GuaranteeLevel::TARGET_CLIENT, 8);
+        $price = $this->visitPrice($clinic);
+
+        Sanctum::actingAs($patient);
+        $this->postJson('/api/v2/clinic-appointments', [
+            'clinic_id' => $clinic->id, 'scheduled_at' => $this->when(), 'service_price_id' => $price->id,
+        ])->assertStatus(422)
+            ->assertJsonPath('options.add_balance.amount', 7)
+            ->assertJsonPath('options.upgrade_guarantee', true);
     }
 }

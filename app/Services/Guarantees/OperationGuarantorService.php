@@ -33,6 +33,17 @@ class OperationGuarantorService
         return $guarantee ? $guarantee->availableCoverage() : 0.0;
     }
 
+    /**
+     * A user's own coverage that can really be frozen right now, under the given guarantee target — 0 when there is
+     * no guarantee or it is not usable. A business uses this for its share of a deposit.
+     */
+    public function usableCoverage(User $user, string $targetType = GuaranteeLevel::TARGET_CLIENT): float
+    {
+        $guarantee = $this->coverage->activeGuarantee($user, $targetType);
+
+        return $guarantee && $guarantee->isUsable() ? round((float) $guarantee->availableCoverage(), 2) : 0.0;
+    }
+
     /** Accepted friends' frozen contribution (excludes the requester's own self row). */
     public function friendsCoverage(string $operationType, int $operationId, User $requester): float
     {
@@ -63,15 +74,20 @@ class OperationGuarantorService
      * operation start). Recorded as a self row so releaseOperation returns it
      * alongside the friends'. Idempotent per operation.
      */
-    public function freezeSelf(string $operationType, int $operationId, User $requester, float $amount): ?OperationGuarantor
-    {
+    public function freezeSelf(
+        string $operationType,
+        int $operationId,
+        User $requester,
+        float $amount,
+        string $targetType = GuaranteeLevel::TARGET_CLIENT
+    ): ?OperationGuarantor {
         $amount = round($amount, 2);
 
         if ($amount <= 0) {
             return null;
         }
 
-        return DB::transaction(function () use ($operationType, $operationId, $requester, $amount) {
+        return DB::transaction(function () use ($operationType, $operationId, $requester, $amount, $targetType) {
             $existing = OperationGuarantor::query()
                 ->forOperation($operationType, $operationId)
                 ->where('guarantor_user_id', (int) $requester->id)
@@ -83,7 +99,7 @@ class OperationGuarantorService
                 return $existing;
             }
 
-            $guarantee = $this->coverage->activeGuarantee($requester, GuaranteeLevel::TARGET_CLIENT);
+            $guarantee = $this->coverage->activeGuarantee($requester, $targetType);
 
             if (! $guarantee || ! $guarantee->isUsable()) {
                 throw ValidationException::withMessages(['guarantee' => __('لا تملك ضمانًا نشطًا صالحًا.')]);

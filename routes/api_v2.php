@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V2\BusinessDayUseController;
 use App\Http\Controllers\Api\V2\BusinessStayRequestController;
 use App\Http\Controllers\Api\V2\StayRequestController;
 use App\Http\Controllers\Api\V2\BusinessBookingTermsController;
+use App\Http\Controllers\Api\V2\GuaranteeBadgeController;
 use App\Http\Controllers\Api\V2\VisitDepositController;
 use App\Http\Controllers\Api\V2\BusinessMenuBundleController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
@@ -1214,6 +1215,9 @@ Route::prefix('v2')->group(function () {
             Route::post('/', [PushTokenController::class, 'store']);
             Route::delete('/', [PushTokenController::class, 'destroy']);
         });
+
+        // The level badge an account wears beside its name (silver coin «BIM»…), for any screen that shows accounts.
+        Route::get('guarantee-badges', [GuaranteeBadgeController::class, 'index'])->middleware('throttle:120,1');
 
         Route::prefix('guarantees')->group(function () {
             Route::get('levels', [GuaranteeController::class, 'levels']);

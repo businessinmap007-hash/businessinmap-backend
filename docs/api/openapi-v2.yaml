@@ -6458,3 +6458,9 @@ paths:
     post: { tags: [Business Bookables], summary: "The business accepts the booking without the deposit owed outside the platform.", parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /bookings/{booking}/reschedule:
     post: { tags: [Bookings], summary: "The customer moves his own pending/accepted booking — {starts_at, ends_at?} wall clock. Judged like a new booking (agenda, hours, unit, chair, held time) and priced again; an accepted one goes back to the business.", parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /guarantee-badges:
+    get:
+      tags: [Guarantees]
+      summary: "The guarantee level each account wears beside its name — ?ids=1,2,3 (at most 100). data.badges is keyed by account id: {code, name_ar, name_en, priority, covers_up_to, target_type} or null when the account has no usable guarantee. Public to any signed-in account on purpose: so the other side of a deal sees what level it deals with and what it covers up to."
+      parameters: [{ name: ids, in: query, required: true, schema: { type: string }, description: Comma-separated account ids. }]
+      responses: { '200': { description: OK } }

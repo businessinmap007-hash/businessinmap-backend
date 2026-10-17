@@ -449,6 +449,9 @@ final class BookingController extends Controller
             $data = $this->applyDayUse($data);
         }
 
+        // «اكتمل العدد اليوم»: the business closed this date for new bookings
+        \App\Support\DayClosure::assertOpen($business, $data['starts_at'] ?? $data['date'] ?? null, 'starts_at');
+
         // Mutual conflict guard (before any pricing work): a timed booking can't
         // overlap anything already on the customer's agenda — another booking, a
         // clinic appointment, or a personal task.

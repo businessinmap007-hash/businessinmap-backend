@@ -684,4 +684,49 @@ class VisitDepositTest extends TestCase
         $this->postJson("/api/v2/visit-deposits/clinic-appointment/{$appointment->id}/guarantors", ['guarantor_user_id' => $friend->id])
             ->assertNotFound();
     }
+
+    // ---- «اكتمل العدد اليوم»: the business's own full day returns what it still holds for no-shows -------------------
+
+    public function test_closing_the_day_returns_the_deposit_held_for_a_no_show(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $this->terms($clinic);
+        $this->fund($clinic, 200);
+
+        $appointment = $this->requested($clinic, $patient);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/confirm")->assertOk();
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/no-show")->assertOk();
+
+        $svc = app(VisitDepositService::class);
+        $this->assertSame(VisitDeposit::STATUS_HELD, $svc->rowFor($appointment)->status, 'held until the day is full');
+
+        // the day is full by the clinic's own decision: it has no chance to keep what it holds
+        $this->putJson('/api/v2/business/booking-day-closure', ['closed' => true, 'date' => $appointment->scheduled_at->toDateString()])->assertOk();
+
+        $this->assertSame(VisitDeposit::STATUS_REFUNDED, $svc->rowFor($appointment)->status);
+        $this->assertEqualsWithDelta(500.0, (float) $this->wallet($patient)->balance, 0.001);
+        $this->assertEqualsWithDelta(0.0, (float) $this->wallet($patient)->locked_balance, 0.001);
+    }
+
+    public function test_a_no_show_marked_on_a_day_the_clinic_already_closed_is_returned_at_once(): void
+    {
+        $clinic = $this->user(User::TYPE_BUSINESS, self::CLINIC, 'Clinic');
+        $patient = $this->user(User::TYPE_CLIENT, null, 'Patient');
+        $this->terms($clinic);
+        $this->fund($clinic, 200);
+
+        $appointment = $this->requested($clinic, $patient);
+
+        Sanctum::actingAs($clinic);
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/confirm")->assertOk();
+        $this->putJson('/api/v2/business/booking-day-closure', ['closed' => true, 'date' => $appointment->scheduled_at->toDateString()])->assertOk();
+
+        $this->postJson("/api/v2/business/clinic-appointments/{$appointment->id}/no-show")->assertOk();
+
+        $this->assertSame(VisitDeposit::STATUS_REFUNDED, app(VisitDepositService::class)->rowFor($appointment)->status);
+        $this->assertEqualsWithDelta(500.0, (float) $this->wallet($patient)->balance, 0.001);
+    }
 }

@@ -328,6 +328,22 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         $this->postJson("/api/v2/schedules/parcels/{$id}/disputes", ['reason_code' => 'no_show'])->assertOk();
     }
 
+    public function test_only_the_carrier_is_told_the_passengers_name(): void
+    {
+        $leg = $this->schedule(capacity: 3);
+        $client = $this->makeUser('client', 'Salma');
+        $this->reserve($client, $leg);
+
+        Sanctum::actingAs($this->business);
+        $row = collect($this->getJson('/api/v2/business/schedules/reservations')->assertOk()->json('data.data'))->first();
+        $this->assertSame($client->name, $row['client_name']);
+
+        // the passenger's own list (and the search results) never carry a name
+        Sanctum::actingAs($client);
+        $mine = collect($this->getJson('/api/v2/schedules/my-reservations')->assertOk()->json('data.data'))->first();
+        $this->assertNull($mine['client_name']);
+    }
+
     /** The ONE code the sender sees on his parcel right now (pickup while accepted, delivery once loaded). */
     private function currentCode(User $sender, int $id): string
     {

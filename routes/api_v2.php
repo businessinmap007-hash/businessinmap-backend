@@ -1516,9 +1516,9 @@ Route::prefix('v2')->group(function () {
 
         // «اكتمل العدد اليوم» — an optional button, never automatic.
         Route::get('business/booking-day-closure', [BusinessClinicAppointmentController::class, 'dayClosure'])
-            ->middleware('business.member:' . BusinessCapability::CLINIC);
+            ->middleware('business.member:' . BusinessCapability::CLINIC . '|' . BusinessCapability::BOOKINGS);
         Route::match(['put', 'patch'], 'business/booking-day-closure', [BusinessClinicAppointmentController::class, 'updateDayClosure'])
-            ->middleware('business.member:' . BusinessCapability::CLINIC);
+            ->middleware('business.member:' . BusinessCapability::CLINIC . '|' . BusinessCapability::BOOKINGS);
 
         // The clinic's OPTIONAL arrival QR: patients scan it to be activated in the queue.
         Route::get('business/clinic-arrival-qr', [BusinessClinicAppointmentController::class, 'arrivalQr'])

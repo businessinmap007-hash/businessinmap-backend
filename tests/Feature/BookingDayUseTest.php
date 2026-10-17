@@ -243,6 +243,20 @@ class BookingDayUseTest extends TestCase
         $this->actingAs($this->guest, 'sanctum')->postJson('/api/v2/bookings', $this->body(['date' => now()->addDays(4)->toDateString()]))->assertCreated();
     }
 
+    public function test_a_date_the_business_closed_refuses_new_bookings_until_it_reopens(): void
+    {
+        $this->enable()->assertOk();
+        $date = now()->addDays(3)->toDateString();
+
+        // «اكتمل العدد اليوم»: the hotel's own button closes this date for every new booking
+        $this->hotel->forceFill(['booking_closed_date' => $date])->save();
+        $this->actingAs($this->guest, 'sanctum')->postJson('/api/v2/bookings', $this->body())
+            ->assertStatus(422)->assertJsonValidationErrors('starts_at');
+
+        $this->hotel->forceFill(['booking_closed_date' => null])->save();
+        $this->actingAs($this->guest, 'sanctum')->postJson('/api/v2/bookings', $this->body())->assertCreated();
+    }
+
     public function test_a_room_type_without_day_use_refuses_it_and_a_past_window_is_refused(): void
     {
         $this->actingAs($this->guest, 'sanctum')->postJson('/api/v2/bookings', $this->body())->assertStatus(422);

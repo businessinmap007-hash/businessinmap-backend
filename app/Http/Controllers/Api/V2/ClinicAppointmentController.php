@@ -272,6 +272,8 @@ class ClinicAppointmentController extends Controller
         $hours = app(\App\Services\BusinessHoursService::class);
         $rows->setCollection($rows->getCollection()->filter(
             fn (ClinicAppointmentSlot $s) => $hours->isOpenThroughout((int) $clinic, $s->starts_at, $s->starts_at->copy()->addMinutes((int) $s->duration_minutes))
+                // a day the clinic closed («اكتمل العدد اليوم») offers no times: the strip shows it as full
+                && ! \App\Support\DayClosure::isClosedOn($clinicUser, $s->starts_at)
         )->values());
 
         // the day strip: every day of the window with whether the clinic sits that day (its weekly hours say so; a week

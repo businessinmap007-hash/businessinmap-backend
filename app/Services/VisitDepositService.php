@@ -593,6 +593,32 @@ class VisitDepositService
     /* -------------------------------------------------- give back / dispute */
 
     /**
+     * Capacity is full (a trip with every seat sold, a day the business closed): every deposit still held for a NO-SHOW
+     * among $subjects goes back to its customer at once. The business has no say — a held deposit must never become a
+     * way to earn from a place it has already given to someone else. A deposit under dispute stays frozen (it is no
+     * longer «held»). Returns how many were returned.
+     */
+    public function releaseHeldNoShows(iterable $subjects): int
+    {
+        $returned = 0;
+
+        foreach ($subjects as $subject) {
+            $row = $this->rowFor($subject);
+
+            if (! $row || ! $row->isHeld()) {
+                continue;
+            }
+
+            $this->safely(function () use ($subject, &$returned) {
+                $this->refund($subject);
+                $returned++;
+            });
+        }
+
+        return $returned;
+    }
+
+    /**
      * After a no-show the business may give the held deposit back at once (a refund of both holds) — the same
      * outcome both parties could agree on, without an arbitrator.
      */

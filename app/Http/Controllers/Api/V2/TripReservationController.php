@@ -118,7 +118,7 @@ final class TripReservationController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم حجز المقاعد يدويًا (تعامل خارج التطبيق).'),
-            'data' => ['reservation' => $this->serialize($hold)],
+            'data' => ['reservation' => $this->serialize($hold, true)],
         ], 201);
     }
 
@@ -136,7 +136,7 @@ final class TripReservationController extends Controller
         }
 
         $reservations = $query->paginate((int) $request->get('per_page', 20));
-        $reservations->getCollection()->transform(fn (TripReservation $r) => $this->serialize($r));
+        $reservations->getCollection()->transform(fn (TripReservation $r) => $this->serialize($r, true));
 
         return response()->json(['success' => true, 'data' => $reservations]);
     }
@@ -149,7 +149,7 @@ final class TripReservationController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم تأكيد الحجز.'),
-            'data' => ['reservation' => $this->serialize($row->refresh())],
+            'data' => ['reservation' => $this->serialize($row->refresh(), true)],
         ]);
     }
 
@@ -166,7 +166,7 @@ final class TripReservationController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم إكمال الرحلة وتسجيل التقييم للطرفين.'),
-            'data' => ['reservation' => $this->serialize($row->refresh())],
+            'data' => ['reservation' => $this->serialize($row->refresh(), true)],
         ]);
     }
 
@@ -179,7 +179,7 @@ final class TripReservationController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('تم تأكيد حضور الراكب.'),
-            'data' => ['reservation' => $this->serialize($row->refresh())],
+            'data' => ['reservation' => $this->serialize($row->refresh(), true)],
         ]);
     }
 
@@ -195,7 +195,7 @@ final class TripReservationController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('ظهر الراكب في التقييم وخُصمت الرسوم من محفظتك.'),
-            'data' => ['reservation' => $this->serialize($row->refresh())],
+            'data' => ['reservation' => $this->serialize($row->refresh(), true)],
         ]);
     }
 
@@ -208,7 +208,7 @@ final class TripReservationController extends Controller
         return response()->json([
             'success' => true,
             'message' => __('سُجّل عدم الحضور، ويبقى العربون مجمّدًا حتى تعيده أو يُفتح نزاع.'),
-            'data' => ['reservation' => $this->serialize($row->refresh())],
+            'data' => ['reservation' => $this->serialize($row->refresh(), true)],
         ]);
     }
 
@@ -228,13 +228,15 @@ final class TripReservationController extends Controller
             ->firstOrFail();
     }
 
-    private function serialize(TripReservation $r): array
+    /** $carrierView: only the carrier is told WHO the passenger is — other passengers and people searching never see names. */
+    private function serialize(TripReservation $r, bool $carrierView = false): array
     {
         return [
             'id' => (int) $r->id,
             'trip_schedule_id' => (int) $r->trip_schedule_id,
             'business_id' => (int) $r->business_id,
             'client_id' => $r->client_id ? (int) $r->client_id : null,
+            'client_name' => $carrierView && $r->client_id ? $r->loadMissing('client:id,name')->client?->name : null,
             'passenger_name' => $r->passenger_name,
             'passenger_phone' => $r->passenger_phone,
             'source' => (string) $r->source,

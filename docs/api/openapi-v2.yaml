@@ -4972,7 +4972,7 @@ paths:
   /clinic-appointments/arrive:
     post: { tags: [Clinic Appointments], summary: "The patient scanned the clinic's arrival QR (body {code}): his confirmed appointment of today is checked in, which activates his turn. Idempotent; 404 for an unknown / switched-off code, 422 when he has no appointment today.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/booking-day-closure:
-    put: { tags: [Clinic Appointments], summary: "{closed, date?}: close new bookings for one date (default today) or reopen. A patient asking for that date gets 422 on scheduled_at.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    put: { tags: [Clinic Appointments], summary: "{closed, date?}: close new bookings for one date (default today) or reopen — for every dated booking the business takes (clinic appointments → 422 on scheduled_at, unit/appointment bookings → 422 on starts_at). Closing it returns the deposits still held for that day's no-shows. Open to clinic and bookings staff.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
     get: { tags: [Clinic Appointments], summary: "The date new bookings are closed for («اكتمل العدد اليوم» — an optional button, never automatic).", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/clinic-appointments/{appointment}/no-show:
     post:

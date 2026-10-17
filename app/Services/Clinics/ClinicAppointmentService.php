@@ -285,6 +285,12 @@ class ClinicAppointmentService
         $this->transition($appointment, [ClinicAppointment::STATUS_CONFIRMED], ClinicAppointment::STATUS_NO_SHOW);
         $this->agenda->closeForSource($appointment, AgendaItem::STATUS_DONE);
 
+        // a day the clinic already closed is a full day: the deposit of one who did not come is not for the clinic to keep
+        $clinic = User::query()->find($appointment->clinic_id);
+        if ($clinic && \App\Support\DayClosure::isClosedOn($clinic, $appointment->scheduled_at)) {
+            $this->visitDeposits->releaseHeldNoShows([$appointment]);
+        }
+
         return $appointment;
     }
 
@@ -746,22 +752,26 @@ class ClinicAppointmentService
      */
     public function setDayClosure(User $clinic, bool $closed, ?string $date = null): array
     {
-        $clinic->booking_closed_date = $closed ? Carbon::parse($date ?? \App\Support\WallClock::now())->toDateString() : null;
-        $clinic->save();
+        $closedDate = \App\Support\DayClosure::set($clinic, $closed, $date);
 
-        return ['closed_date' => $clinic->booking_closed_date ? Carbon::parse($clinic->booking_closed_date)->toDateString() : null];
+        // the day is full by the clinic's own decision: what it still holds for the patients who did not come goes back
+        if ($closedDate !== null) {
+            $this->visitDeposits->releaseHeldNoShows(
+                ClinicAppointment::query()
+                    ->where('clinic_id', $clinic->id)
+                    ->where('status', ClinicAppointment::STATUS_NO_SHOW)
+                    ->whereDate('scheduled_at', $closedDate)
+                    ->get()
+            );
+        }
+
+        return ['closed_date' => $closedDate];
     }
 
     /** A patient is refused a date the business closed for new bookings. */
     public function assertDayOpen(User $clinic, mixed $scheduledAt): void
     {
-        if (! $clinic->booking_closed_date || ! $scheduledAt) {
-            return;
-        }
-
-        if (Carbon::parse($scheduledAt)->toDateString() === Carbon::parse($clinic->booking_closed_date)->toDateString()) {
-            throw ValidationException::withMessages(['scheduled_at' => __('اكتمل العدد في هذا اليوم. اختر يومًا آخر.')]);
-        }
+        \App\Support\DayClosure::assertOpen($clinic, $scheduledAt);
     }
 
     /**

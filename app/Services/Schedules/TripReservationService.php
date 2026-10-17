@@ -339,20 +339,12 @@ final class TripReservationService
             return;
         }
 
-        TripReservation::query()
-            ->where('trip_schedule_id', $scheduleId)
-            ->where('status', TripReservation::STATUS_NO_SHOW)
-            ->get()
-            ->each(function (TripReservation $r) {
-                if (! data_get($r->meta, 'deposit_core') || data_get($r->meta, 'deposit_returned_on_full')) {
-                    return;
-                }
-
-                $this->deposits->safely(function () use ($r) {
-                    $this->deposits->refund($r);
-                    $r->update(['meta' => array_merge((array) ($r->meta ?? []), ['deposit_returned_on_full' => true])]);
-                });
-            });
+        $this->deposits->releaseHeldNoShows(
+            TripReservation::query()
+                ->where('trip_schedule_id', $scheduleId)
+                ->where('status', TripReservation::STATUS_NO_SHOW)
+                ->get()
+        );
     }
 
     /**

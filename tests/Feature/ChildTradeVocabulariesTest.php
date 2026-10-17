@@ -861,6 +861,13 @@ class ChildTradeVocabulariesTest extends TestCase
          * «سيارات نقل» sells a lorry and has its own list for it.
          */
         'cars:نوع المركبة',
+        /*
+         * «مركبات النقل والركاب» (باص 50، ميكروباص 15، ربع نقل…) is 5 of 8 since «خدمة ليموزين» left for the shipping
+         * root on 2026-10-17 (it held none of them by the owner's own ruling). It is the SIZE of the vehicle a carrier
+         * runs, and the five that hold it — «سائق»، «نقل ركاب»، «سيارات نقل»، «ونش إنقاذ»، «مغسلة سيارات» — are exactly
+         * the children that work on a vehicle in service; the showroom, the private seller and the garage do not.
+         */
+        'cars:مركبات النقل والركاب',
     ];
 
     public function test_no_vocabulary_is_spread_across_a_whole_root(): void

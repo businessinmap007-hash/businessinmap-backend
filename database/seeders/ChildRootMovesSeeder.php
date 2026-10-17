@@ -263,21 +263,25 @@ class ChildRootMovesSeeder extends Seeder
         $moved = 0;
 
         foreach (self::WIRING as $table) {
+            // The unified fee table is one row per (root, child) — a fee belongs to the trade, not to a service — so
+            // it has no `platform_service_id` to key on.
+            $perService = $table !== 'category_child_service_fees';
+
             $rows = DB::table($table)
                 ->where('category_id', $from)
                 ->where('child_id', $childId)
-                ->get(['id', 'platform_service_id']);
+                ->get($perService ? ['id', 'platform_service_id'] : ['id']);
 
             foreach ($rows as $row) {
-                // (root, child, service) is UNIQUE on all three tables. If the
-                // target root already carries this service for this child, the
+                // (root, child, service) is UNIQUE on the first two tables, (root, child) on the fee table. If the
+                // target root already carries this for this child, the
                 // row standing there wins and the source row goes — moving it
                 // would violate the key, and overwriting would discard whatever
                 // the target had been configured with.
                 $occupied = DB::table($table)
                     ->where('category_id', $to)
                     ->where('child_id', $childId)
-                    ->where('platform_service_id', (int) $row->platform_service_id)
+                    ->when($perService, fn ($q) => $q->where('platform_service_id', (int) $row->platform_service_id))
                     ->exists();
 
                 if ($occupied) {

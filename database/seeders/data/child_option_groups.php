@@ -244,6 +244,10 @@ return [
         'cars:188' => $goods,                                 // معرض سيارات
         'cars:549' => ['product_condition', 'payment_terms'], // سيارة من المالك
 
+        // «خدمة ليموزين» moved cars → shipping-delivery on 2026-10-17. A ride has no fulfilment terms (no delivery, no
+        // pickup, no shipping): it keeps the bundle it carried under the cars root, not this root's default.
+        'shipping-delivery:169' => $fieldWork,                // خدمة ليموزين
+
         // ── companies: the service firms among the goods traders
         'companies:253' => $fieldWork,   // أمن
         'companies:261' => $fieldWork,   // برمجيات

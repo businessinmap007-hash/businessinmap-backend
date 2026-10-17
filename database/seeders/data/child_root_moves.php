@@ -154,4 +154,24 @@ return [
         'to_root_slug' => 'cars',
         'why' => 'خدمة تقوم على سيارة، فمكانها مع «نقل ركاب» و«خدمة ليموزين» لا بين حرف البناء',
     ],
+
+    /*
+    | Owner, 2026-10-17: «انقل الليموزين فقط لأن الباقي تجاري أكثر منه خدمة».
+    |
+    | Root 13 «سيارات» held 648 accounts and 560 of them were «خدمة ليموزين» — a ride hired from a driver, which is
+    | what «شحن وتوصيل» (carrying people and things from here to there) answers, not what a car showroom does. The
+    | rest of the root's transport children — نقل ركاب (buses, 55), سائق, سيارات نقل — are companies that sell a
+    | transport CONTRACT, closer to commerce than to an on-demand ride, and they stay where they are.
+    |
+    | Nothing but the root changes: the vocabulary, the services (booking, offers, schedules) and the 560 accounts
+    | travel with it, so no `adopt_services`. The service-scope rules keyed `cars:169` are re-keyed in the same
+    | commit (child_service_scope.php) — left under the old root they would rule on a membership that no longer
+    | exists.
+    */
+    [
+        'child_name_ar' => 'خدمة ليموزين',
+        'from_root_slug' => 'cars',
+        'to_root_slug' => 'shipping-delivery',
+        'why' => 'مشوار يُطلب من سائق: مكانه مع الشحن والتوصيل لا مع معارض السيارات',
+    ],
 ];

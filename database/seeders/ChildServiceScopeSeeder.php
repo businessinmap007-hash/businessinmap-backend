@@ -276,6 +276,14 @@ class ChildServiceScopeSeeder extends Seeder
             $this->command?->warn("  ! جذر «{$slug}» غير موجود.");
         }
 
+        // a ref naming a child that no longer exists (folded away since the file was written) must not take the whole
+        // run down on the foreign key — it is simply nothing to rule on
+        if ($rootId && ! DB::table('category_children_master')->where('id', (int) $childId)->exists()) {
+            $this->command?->warn("  ! الابن #{$childId} غير موجود — «{$ref}» تُرك.");
+
+            return [null, (int) $childId];
+        }
+
         return [$rootId ? (int) $rootId : null, (int) $childId];
     }
 

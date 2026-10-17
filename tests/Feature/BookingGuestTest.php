@@ -166,11 +166,68 @@ class BookingGuestTest extends TestCase
         $row = collect($this->asHotel()->getJson('/api/v2/business/bookings?per_page=50')->assertOk()->json('data.bookings.data'))->firstWhere('id', $id);
         $this->assertSame(2, $row['client_history']['previous_dealings']);
 
+        // …and the customer is told the same of the business he is dealing with
         $mine = collect($this->actingAs($this->account, 'sanctum')->getJson('/api/v2/bookings?scope=my&per_page=50')->assertOk()->json('data.bookings.data'))->firstWhere('id', $id);
-        $this->assertNull($mine['client_history']);
+        $this->assertSame(2, $mine['client_history']['previous_dealings']);
+
+        // a stranger to this booking is told nothing
+        $stranger = User::query()->where('type', 'client')->where('id', '!=', $this->account->id)->first();
+        if ($stranger) {
+            $this->actingAs($stranger, 'sanctum')->getJson("/api/v2/bookings/{$id}")->assertStatus(403);
+        }
 
         // a phone nobody owns is not found
         $this->asHotel()->getJson('/api/v2/bookings/customer-lookup?phone=01' . Str::random(0) . '000000001')->assertOk()->assertJsonPath('data.found', false);
+    }
+
+    public function test_both_parties_see_how_many_dealings_succeeded_and_whether_there_was_a_dispute(): void
+    {
+        // the dev data may already hold dealings of this pair: everything is judged against what was there
+        $base = \App\Support\ClientHistory::relationship((int) $this->hotel->id, (int) $this->account->id);
+
+        $make = fn (string $status) => Booking::create([
+            'user_id' => $this->account->id, 'business_id' => $this->hotel->id, 'service_id' => $this->serviceId,
+            'status' => $status, 'price' => 100, 'quantity' => 1,
+            'date' => now()->subDays(20)->toDateString(), 'time' => '12:00', 'starts_at' => now()->subDays(20), 'meta' => ['source' => 'guest_test'],
+        ]);
+
+        $make(Booking::STATUS_COMPLETED);
+        $make(Booking::STATUS_COMPLETED);
+        $make(Booking::STATUS_CANCELLED);
+        $current = $make(Booking::STATUS_PENDING);
+
+        $expect = fn ($res) => $res->assertOk()
+            ->assertJsonPath('data.booking.relationship.completed', $base['completed'] + 2)
+            ->assertJsonPath('data.booking.relationship.not_completed', $base['not_completed'] + 1)
+            ->assertJsonPath('data.booking.relationship.ongoing', $base['ongoing'])
+            ->assertJsonPath('data.booking.relationship.total', $base['total'] + 3)
+            ->assertJsonPath('data.booking.relationship.disputes', $base['disputes']);
+
+        // the booking in hand is left out; the same account is told to both sides
+        $expect($this->actingAs($this->account, 'sanctum')->getJson("/api/v2/bookings/{$current->id}"));
+        $expect($this->asHotel()->getJson("/api/v2/bookings/{$current->id}"));
+
+        // a dispute either of them opened against the other is a problem both are told about (a withdrawn one is not)
+        $row = fn (string $status) => DB::table('disputes')->insert([
+            'platform_service_id' => $this->serviceId, 'disputeable_type' => Booking::class, 'disputeable_id' => $current->id,
+            'type' => 'booking', 'opened_by_user_id' => $this->account->id, 'against_user_id' => $this->hotel->id,
+            'status' => $status, 'opened_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $row('resolved');
+        $row('under_review');
+        $row('cancelled');
+
+        foreach ([$this->actingAs($this->account, 'sanctum'), $this->asHotel()] as $as) {
+            $as->getJson("/api/v2/bookings/{$current->id}")->assertOk()
+                ->assertJsonPath('data.booking.relationship.disputes', $base['disputes'] + 2)
+                ->assertJsonPath('data.booking.relationship.open_disputes', $base['open_disputes'] + 1);
+        }
+
+        // and the customer is told it BEFORE he books (the pending booking in hand counts here: it is a dealing already)
+        $this->actingAs($this->account, 'sanctum')->getJson("/api/v2/bookings/form/{$this->hotel->id}")->assertOk()
+            ->assertJsonPath('data.relationship.total', $base['total'] + 4)
+            ->assertJsonPath('data.relationship.completed', $base['completed'] + 2)
+            ->assertJsonPath('data.relationship.disputes', $base['disputes'] + 2);
     }
 
     public function test_the_business_may_book_a_guest_on_a_day_it_closed_for_new_bookings(): void

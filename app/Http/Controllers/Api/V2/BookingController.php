@@ -67,11 +67,15 @@ final class BookingController extends Controller
 
         $shape = $this->bookingShapes->forBusiness((int) $target->id);
 
+        // what this customer and this business have been through together, told before he books
+        $relationship = \App\Support\ClientHistory::relationship((int) $target->id, (int) ($request->user()?->id ?? 0));
+
         if (! $shape) {
             return response()->json([
                 'success' => true,
                 'data' => [
                     'business_id' => (int) $target->id,
+                    'relationship' => $relationship,
                     'shape' => null,
                     'arrival_notice' => \App\Services\ArrivalNotice::forBusiness((int) $target->id),
                 ],
@@ -90,6 +94,7 @@ final class BookingController extends Controller
             'success' => true,
             'data' => [
             'business_id' => (int) $target->id,
+            'relationship' => $relationship,
             'shape' => [
                 'pattern' => $shape['pattern'],
                 'pattern_label' => $shape['label'],
@@ -1665,6 +1670,10 @@ final class BookingController extends Controller
             // the deposit taken outside the platform: owed, and whether the business has said it arrived
             $subject->setAttribute('external_deposit', app(\App\Services\ExternalDepositService::class)->state($subject));
             $this->decorateParties($subject, \App\Support\ClientHistory::counts((int) $subject->business_id, [(int) $subject->user_id]));
+            // the full account of what the two have been through (the one booking in hand left out): for the detail only
+            $subject->setAttribute('relationship', $subject->client_history === null
+                ? null
+                : \App\Support\ClientHistory::relationship((int) $subject->business_id, (int) $subject->user_id, (int) $subject->id));
 
             return $this->hideRoomInternals($subject->append('title'));
         }
@@ -1710,8 +1719,10 @@ final class BookingController extends Controller
         $booking->setAttribute('guest', $walkIn ? ['name' => (string) ($walkIn['name'] ?? ''), 'phone' => $walkIn['phone'] ?? null] : null);
         $booking->setAttribute('attendance', $this->attendanceOf($booking));
 
-        $viewerIsBusiness = \App\Support\BusinessContext::id(request()) === (int) $booking->business_id;
-        $previous = ! $walkIn && $viewerIsBusiness
+        // told to BOTH parties of the booking — the business about its customer, the customer about the business
+        $viewerId = (int) (request()->user()?->id ?? 0);
+        $isParty = \App\Support\BusinessContext::id(request()) === (int) $booking->business_id || $viewerId === (int) $booking->user_id;
+        $previous = ! $walkIn && $isParty
             ? max(0, (int) ($counts[(int) $booking->user_id] ?? 0) - ($booking->status === Booking::STATUS_COMPLETED ? 1 : 0))
             : null;
 

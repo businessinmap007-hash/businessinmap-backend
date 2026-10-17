@@ -1279,6 +1279,9 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/cancel', [BookingController::class, 'cancel'])->whereNumber('booking');
             Route::post('{booking}/client-confirm', [BookingController::class, 'clientConfirm'])->whereNumber('booking');
             Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            // «جاء عميل بدون حجز»: the business books a customer who is standing there (an account, or a named guest)
+            Route::post('by-business', [BookingController::class, 'storeForGuest'])->middleware('business.member:' . BusinessCapability::BOOKINGS);
+            Route::get('customer-lookup', [BookingController::class, 'customerLookup'])->middleware(['business.member:' . BusinessCapability::BOOKINGS, 'throttle:30,1']);
             Route::post('{booking}/start', [BookingController::class, 'start'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/complete', [BookingController::class, 'complete'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/confirm-payment', [BookingController::class, 'confirmPayment'])->whereNumber('booking');

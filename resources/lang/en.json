@@ -3109,5 +3109,10 @@
     "اختر من يدفع: المرسل عند التسليم للسائق أو المستلم عند الاستلام.": "Choose who pays: the sender when handing the parcel to the driver, or the receiver on receipt.",
     "اكتمل العدد في هذا اليوم. اختر يومًا آخر.": "This day is full. Choose another day.",
     "رمز الوصول غير صالح.": "The arrival code is not valid.",
-    "لا يوجد لك موعد مؤكَّد اليوم في هذه الجهة.": "You have no confirmed appointment here today."
+    "لا يوجد لك موعد مؤكَّد اليوم في هذه الجهة.": "You have no confirmed appointment here today.",
+    "بانتظار تأكيد العميل أولًا.": "Waiting for the customer to confirm first.",
+    "أُضيف الضيف وحُجز له.": "The guest was added and booked.",
+    "حُجز للعميل على حسابه.": "Booked on the customer's own account.",
+    "اكتب اسم الضيف.": "Write the guest's name.",
+    "الحساب غير موجود.": "The account does not exist."
 }

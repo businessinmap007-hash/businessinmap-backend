@@ -424,8 +424,69 @@ final class BookingController extends Controller
             return $this->error(__('يجب تسجيل الدخول للحجز.'), 401);
         }
 
-        $data = $request->validate($this->storeRules());
+        return $this->createBooking($request, $user, $request->validate($this->storeRules()), null);
+    }
 
+    /**
+     * POST /bookings/by-business — «جاء عميل بدون حجز»: the business books a customer who is standing there. The same
+     * booking as the customer's own, with the same rules; the customer is either
+     *  - an ACCOUNT (named by client_id, or found by his phone / e-mail) → the booking is his, with his history; or
+     *  - a NAMED GUEST with no account → the business's own account stands in and the name is written on the booking
+     *    (never counted, never rated — the same convention as a walk-in turn in the queue).
+     */
+    public function storeForGuest(Request $request)
+    {
+        $businessUser = User::query()->findOrFail(\App\Support\BusinessContext::id($request));
+        $request->merge(['business_id' => (int) $businessUser->id]);
+
+        $data = $request->validate($this->storeRules() + [
+            'guest_name' => ['nullable', 'string', 'max:120'],
+            'guest_phone' => ['nullable', 'string', 'max:30'],
+            'guest_email' => ['nullable', 'email', 'max:190'],
+            'client_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $data['business_id'] = (int) $businessUser->id;
+
+        $customer = null;
+
+        if (! empty($data['client_id'])) {
+            $customer = User::query()->whereKey((int) $data['client_id'])->where('id', '!=', $businessUser->id)->first();
+            if (! $customer) {
+                throw ValidationException::withMessages(['client_id' => __('الحساب غير موجود.')]);
+            }
+        } else {
+            $customer = \App\Support\AccountLookup::find($data['guest_phone'] ?? null, $data['guest_email'] ?? null, (int) $businessUser->id);
+        }
+
+        $name = trim((string) ($data['guest_name'] ?? ''));
+
+        if ($customer === null && $name === '') {
+            throw ValidationException::withMessages(['guest_name' => __('اكتب اسم الضيف.')]);
+        }
+
+        return $this->createBooking($request, $businessUser, $data, [
+            'customer' => $customer,
+            'walk_in' => $customer ? null : ['name' => $name, 'phone' => $data['guest_phone'] ?? null],
+        ]);
+    }
+
+    /** GET /bookings/customer-lookup?phone=&email= — does this phone / e-mail belong to an account, and is he a returning customer. */
+    public function customerLookup(Request $request)
+    {
+        $data = $request->validate(['phone' => ['nullable', 'string', 'max:30'], 'email' => ['nullable', 'email', 'max:190']]);
+        $businessId = \App\Support\BusinessContext::id($request);
+
+        $user = \App\Support\AccountLookup::find($data['phone'] ?? null, $data['email'] ?? null, $businessId);
+
+        return response()->json(['success' => true, 'data' => [
+            'found' => $user !== null,
+            'customer' => $user ? ['id' => (int) $user->id, 'name' => $user->name] : null,
+            'previous_dealings' => $user ? (\App\Support\ClientHistory::counts($businessId, [(int) $user->id])[(int) $user->id] ?? 0) : 0,
+        ]]);
+    }
+
+    private function createBooking(Request $request, User $user, array $data, ?array $guest)
+    {
         $business = User::query()
             ->where('id', (int) $data['business_id'])
             ->where('type', User::TYPE_BUSINESS)
@@ -437,11 +498,14 @@ final class BookingController extends Controller
             ]);
         }
 
-        if ((int) $business->id === (int) $user->id) {
+        if ($guest === null && (int) $business->id === (int) $user->id) {
             throw ValidationException::withMessages([
                 'business_id' => __('لا يمكنك الحجز لدى نشاطك نفسه.'),
             ]);
         }
+
+        // the booking's customer: the account named, or — for a guest with none — the business's own account standing in
+        $customerId = $guest === null ? (int) $user->id : (int) ($guest['customer']?->id ?? $business->id);
 
         $dayUse = ! empty($data['day_use']);
 
@@ -449,19 +513,21 @@ final class BookingController extends Controller
             $data = $this->applyDayUse($data);
         }
 
-        // «اكتمل العدد اليوم»: the business closed this date for new bookings
-        \App\Support\DayClosure::assertOpen($business, $data['starts_at'] ?? $data['date'] ?? null, 'starts_at');
+        // «اكتمل العدد اليوم»: the business closed this date for new bookings (its own walk-in is its call)
+        if ($guest === null) {
+            \App\Support\DayClosure::assertOpen($business, $data['starts_at'] ?? $data['date'] ?? null, 'starts_at');
+        }
 
         // Mutual conflict guard (before any pricing work): a timed booking can't
         // overlap anything already on the customer's agenda — another booking, a
         // clinic appointment, or a personal task.
-        if (! empty($data['starts_at'])) {
+        if (! empty($data['starts_at']) && ($guest === null || $guest['customer'] !== null)) {
             [$start, $end] = $this->agenda->blockingWindow(
                 Carbon::parse($data['starts_at']),
                 ! empty($data['ends_at']) ? Carbon::parse($data['ends_at']) : null,
                 (bool) ($data['all_day'] ?? false),
             );
-            $this->agenda->assertFree((int) $user->id, $start, $end, null, 'starts_at');
+            $this->agenda->assertFree($customerId, $start, $end, null, 'starts_at');
         }
 
         // ما يشترطه شكلُ هذا النشاط تحديدًا — قبل أىِّ عملِ تسعير.
@@ -511,7 +577,7 @@ final class BookingController extends Controller
         }
 
         $payload = [
-            'user_id' => (int) $user->id,
+            'user_id' => $customerId,
             'business_id' => (int) $data['business_id'],
             'service_id' => (int) $data['service_id'],
             /*
@@ -661,6 +727,10 @@ final class BookingController extends Controller
 
             return $booking;
         });
+        if ($guest !== null) {
+            return $this->finishGuestBooking($request, $booking, $user, $guest);
+        }
+
         $booking->refresh()->load($this->relations());
 
         $this->serviceEventDispatcher->bookingRequested(
@@ -773,6 +843,10 @@ final class BookingController extends Controller
     {
         $this->authorizeBusinessBooking($request, $booking);
 
+        if ($this->isWalkIn($booking)) {
+            return $this->walkInTransition($booking, Booking::STATUS_REJECTED, 'Booking rejected successfully.');
+        }
+
         $response = $this->changeStatus(
             request: $request,
             booking: $booking,
@@ -790,6 +864,10 @@ final class BookingController extends Controller
     public function cancel(Request $request, Booking $booking)
     {
         $this->authorizeBookingAccess($request, $booking);
+
+        if ($this->isWalkIn($booking)) {
+            return $this->walkInTransition($booking, Booking::STATUS_CANCELLED, 'Booking cancelled successfully.');
+        }
 
         return $this->changeStatus(
             request: $request,
@@ -846,6 +924,11 @@ final class BookingController extends Controller
     {
         $this->authorizeBusinessBooking($request, $booking);
 
+        // attendance is by BOTH, the customer first — it is what gives the booking its seriousness
+        if (! $this->isWalkIn($booking) && ! $this->attendanceOf($booking)['client']) {
+            throw ValidationException::withMessages(['status' => __('بانتظار تأكيد العميل أولًا.')]);
+        }
+
         $booking = DB::transaction(function () use ($booking, $request) {
             $booking->refresh();
             $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
@@ -875,6 +958,18 @@ final class BookingController extends Controller
     {
         $this->authorizeBusinessBooking($request, $booking);
 
+        if ($this->isWalkIn($booking)) {
+            $state = $this->attendanceOf($booking);
+
+            if (! in_array($booking->status, [Booking::STATUS_PENDING, Booking::STATUS_ACCEPTED], true) || ! $state['client'] || ! $state['business']) {
+                throw ValidationException::withMessages(['status' => __('يجب تأكيد الطرفين قبل بدء التنفيذ.')]);
+            }
+
+            $booking->forceFill(['status' => Booking::STATUS_IN_PROGRESS])->save();
+
+            return $this->bookingResponse($booking->refresh(), 'Booking execution started successfully.');
+        }
+
         $this->serviceExecutionEngine->moveBookingToInProgress($booking);
 
         $booking->refresh()->load($this->relations(true));
@@ -893,6 +988,11 @@ final class BookingController extends Controller
     public function complete(Request $request, Booking $booking)
     {
         $this->authorizeBusinessBooking($request, $booking);
+
+        // a guest with no account is never counted: no guarantee credit, no ledger sale — it is simply done
+        if ($this->isWalkIn($booking)) {
+            return $this->walkInTransition($booking, Booking::STATUS_COMPLETED, 'Booking completed successfully.');
+        }
 
         $response = $this->changeStatus(
             request: $request,
@@ -1263,6 +1363,89 @@ final class BookingController extends Controller
         return $this->bookingResponse($booking, $message);
     }
 
+    /** The business booked it: accepted at once. A guest with an account is told; a nameless-account guest is not (it is the business itself). */
+    private function finishGuestBooking(Request $request, Booking $booking, User $actor, array $guest)
+    {
+        $standIn = $guest['customer'] === null;
+
+        DB::transaction(function () use ($booking, $actor, $guest, $standIn) {
+            $booking->refresh();
+            $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+            $meta['source'] = $standIn ? 'walk_in' : 'business';
+            $meta['created_by_business'] = (int) $actor->id;
+
+            if ($standIn) {
+                $meta['walk_in'] = $guest['walk_in'];
+                // he is standing there: his side of the attendance is the fact itself
+                $meta['confirmations']['client'] = [
+                    'confirmed' => true,
+                    'confirmed_at' => now()->toDateTimeString(),
+                    'confirmed_by' => (int) $actor->id,
+                    'source' => 'walk_in',
+                ];
+            }
+
+            $booking->update(['meta' => $meta, 'status' => Booking::STATUS_ACCEPTED]);
+            $this->allocationConsumption->onStatusChanged($booking, Booking::STATUS_ACCEPTED);
+        });
+
+        $booking->refresh();
+
+        if (! $standIn) {
+            $this->serviceEventDispatcher->bookingAccepted(
+                booking: $booking,
+                actorId: (int) $actor->id,
+                payload: array_merge($this->eventPayload($booking, 'api_v2.business.guest'), ['old_status' => 'pending', 'new_status' => Booking::STATUS_ACCEPTED])
+            );
+            $this->bookingReminderService->scheduleForBooking($booking);
+        }
+
+        $this->activity->log($request, \App\Support\BusinessCapability::BOOKINGS, $booking, 'guest_booked');
+
+        $booking->load($this->relations());
+
+        return response()->json([
+            'success' => true,
+            'message' => $standIn ? __('أُضيف الضيف وحُجز له.') : __('حُجز للعميل على حسابه.'),
+            'data' => ['booking' => $this->titled($booking)],
+        ], 201);
+    }
+
+    private function isWalkIn(Booking $booking): bool
+    {
+        return (bool) data_get($booking->meta, 'walk_in');
+    }
+
+    /** @return array{client: bool, business: bool} */
+    private function attendanceOf(Booking $booking): array
+    {
+        $meta = is_array($booking->meta ?? null) ? $booking->meta : [];
+        $legacy = is_array($meta['_start_confirm'] ?? null) ? $meta['_start_confirm'] : [];
+
+        return [
+            'client' => ! empty($meta['confirmations']['client']['confirmed']) || ! empty($legacy['client']),
+            'business' => ! empty($meta['confirmations']['business']['confirmed']) || ! empty($legacy['business']),
+        ];
+    }
+
+    /** A walk-in's cancel / reject / finish: only the booking moves — no event, no notice to «the customer» (the business itself). */
+    private function walkInTransition(Booking $booking, string $status, string $message)
+    {
+        if ($booking->isFinalStatus()) {
+            throw ValidationException::withMessages(['status' => __('لا يمكن تعديل حجز في حالة نهائية.')]);
+        }
+
+        DB::transaction(function () use ($booking, $status) {
+            $booking->refresh();
+            $booking->update(['status' => $status]);
+            $this->allocationConsumption->onStatusChanged($booking, $status);
+        });
+
+        $this->bookingReminderService->cancelForBooking($booking->refresh());
+
+        return $this->bookingResponse($booking, $message);
+    }
+
     private function bookingResponse(Booking $booking, string $message)
     {
         $booking->load($this->relations(true));
@@ -1481,6 +1664,7 @@ final class BookingController extends Controller
             $subject->setAttribute('assignee', $this->assigneesFor((int) $subject->business_id, [$subject])[(int) $subject->id] ?? null);
             // the deposit taken outside the platform: owed, and whether the business has said it arrived
             $subject->setAttribute('external_deposit', app(\App\Services\ExternalDepositService::class)->state($subject));
+            $this->decorateParties($subject, \App\Support\ClientHistory::counts((int) $subject->business_id, [(int) $subject->user_id]));
 
             return $this->hideRoomInternals($subject->append('title'));
         }
@@ -1495,7 +1679,13 @@ final class BookingController extends Controller
         foreach ($items->groupBy('business_id') as $businessId => $group) {
             $assignees += $this->assigneesFor((int) $businessId, $group->all());
         }
-        $items->each(function (Booking $booking) use ($notices, $chairsById, $withProject, $assignees) {
+        $history = [];
+        foreach ($items->groupBy('business_id') as $businessId => $group) {
+            $history[(int) $businessId] = \App\Support\ClientHistory::counts((int) $businessId, $group->pluck('user_id')->all());
+        }
+
+        $items->each(function (Booking $booking) use ($notices, $chairsById, $withProject, $assignees, $history) {
+            $this->decorateParties($booking, $history[(int) $booking->business_id] ?? []);
             $booking->setAttribute('assignee', $assignees[(int) $booking->id] ?? null);
             $booking->setAttribute('arrival_notice', $notices[(int) $booking->business_id] ?? null);
             $booking->setAttribute('has_project', $withProject->has((int) $booking->id));
@@ -1505,6 +1695,27 @@ final class BookingController extends Controller
         });
 
         return $subject;
+    }
+
+    /**
+     * The booking's parties as the app needs them: the walk-in guest's own name (the business's account only stands in
+     * for him), who has confirmed attendance, and — for the BUSINESS's own view only — the customer's earlier dealings.
+     *
+     * @param  array<int,int>  $counts  client id → completed dealings with this business
+     */
+    private function decorateParties(Booking $booking, array $counts): void
+    {
+        $walkIn = data_get($booking->meta, 'walk_in');
+
+        $booking->setAttribute('guest', $walkIn ? ['name' => (string) ($walkIn['name'] ?? ''), 'phone' => $walkIn['phone'] ?? null] : null);
+        $booking->setAttribute('attendance', $this->attendanceOf($booking));
+
+        $viewerIsBusiness = \App\Support\BusinessContext::id(request()) === (int) $booking->business_id;
+        $previous = ! $walkIn && $viewerIsBusiness
+            ? max(0, (int) ($counts[(int) $booking->user_id] ?? 0) - ($booking->status === Booking::STATUS_COMPLETED ? 1 : 0))
+            : null;
+
+        $booking->setAttribute('client_history', $previous === null ? null : ['previous_dealings' => $previous]);
     }
 
     /**

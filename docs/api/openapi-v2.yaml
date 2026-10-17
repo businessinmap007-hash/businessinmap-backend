@@ -145,6 +145,8 @@ tags:
   - name: Schedules (Carrier)
     description: Publishing legs and working their reservation desk. Business accounts only.
   - name: Bookings
+  - name: Service Requests
+    description: The requests-and-offers core — a customer posts a need (a limousine ride), the businesses that may answer make offers, he picks one and it becomes a booking.
   - name: Guarantees
   - name: Operation Guarantors
   - name: Ratings
@@ -3784,6 +3786,24 @@ paths:
     put: { tags: [Bookings], summary: 'Choose how appointments are taken — {flow: slots|queue}.', responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /bookings/queue:
     post: { tags: [Bookings], summary: "«بالدور»: book by turn — {business_id, service_id, offering_id, date, notes?, meta?…}; the same booking as `POST /bookings` but the business names the time: the booking carries `queue_turn` and a live `queue {turn, ahead, expected_at}` while it waits. The number is taken under a lock on the business. 422 when the business does not book by turn, when the day is closed or its turns are used up.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /service-requests/quote:
+    post: { tags: [Service Requests], summary: "A ride's distance and suggested price before it is asked: {origin_city_id, destination_city_id, distance_km?} → {known, needs_distance, distance_km, source, suggested_price}. Two cities are measured centre to centre (x a road factor); one city both ways needs the customer's own distance_km.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /service-requests:
+    get: { tags: [Service Requests], summary: "My requests, newest first (status filter incl. expired), with the number of live offers on each.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Service Requests], summary: "The requests-and-offers core: post a need. kind=ride → {origin:{governorate_id,city_id,label?}, destination:{…}, passengers?, starts_at?, price?, distance_km?, details?}; the price defaults to the suggested one; the limousine drivers of the origin's governorate are told. An immediate ride lives ttl_minutes, a scheduled one until its time.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /service-requests/{id}:
+    get: { tags: [Service Requests], summary: "My request with every offer on it (cheapest first), who made each, and the booking once one is chosen.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /service-requests/{id}/price:
+    post: { tags: [Service Requests], summary: "The customer changes the price he asks for ({price}); drivers still answer with theirs.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /service-requests/{id}/offers/{offer}/accept:
+    post: { tags: [Service Requests], summary: "He picks an offer: it becomes a booking (accepted, the customer confirms attendance first), the other offers are turned down, everyone is told. → {request, booking_id}.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /service-requests/{id}/cancel:
+    post: { tags: [Service Requests], summary: "Cancel an open request; its offers are turned down and the offerers told.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/service-requests:
+    get: { tags: [Service Requests], summary: "The open requests this business may answer (its trade, its governorate), with its own offer on each and how many offers there are — never another business's price, and only the customer's first name.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/service-requests/{id}/offers:
+    post: { tags: [Service Requests], summary: "Answer a request with {price} or {accepts_budget:true} (the customer's own price), plus message? and eta_minutes?. One live offer per business: answering again replaces it.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Service Requests], summary: "Take the offer back.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /bookings/by-business:
     post: { tags: [Bookings], summary: "«جاء عميل بدون حجز»: the business books a customer who is standing there — the same body as `POST /bookings` plus {guest_name?, guest_phone?, guest_email?, client_id?}. An account (client_id, or found by phone/e-mail) gets the booking on his own account (accepted at once, he is told, he confirms attendance first); no account → a named guest (guest_name required): the business's own account stands in, `guest` carries the name/phone, his side of the attendance is automatic, and he is never counted or rated. Day closure does not stop the business's own walk-in.", responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
   /bookings/customer-lookup:

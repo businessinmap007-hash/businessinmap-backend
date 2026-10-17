@@ -3114,5 +3114,19 @@
     "أُضيف الضيف وحُجز له.": "The guest was added and booked.",
     "حُجز للعميل على حسابه.": "Booked on the customer's own account.",
     "اكتب اسم الضيف.": "Write the guest's name.",
-    "الحساب غير موجود.": "The account does not exist."
+    "الحساب غير موجود.": "The account does not exist.",
+    "المدينة ليست من هذه المحافظة.": "The city is not in this governorate.",
+    "اكتب المسافة التقريبية بالكيلومتر.": "Write the approximate distance in kilometres.",
+    "اختر موعدًا خلال الثلاثين يومًا القادمة.": "Choose a time within the next thirty days.",
+    "نُشر طلبك. سيصلك ما يعرضه السائقون.": "Your request is posted. You will get what the drivers offer.",
+    "هذا الطلب لم يعد يستقبل عروضًا.": "This request no longer takes offers.",
+    "هذا الطلب ليس من نشاطك أو نطاقك.": "This request is not in your trade or area.",
+    "اكتب سعرًا صالحًا.": "Write a valid price.",
+    "هذا الطلب لم يعد مفتوحًا.": "This request is no longer open.",
+    "هذا العرض لم يعد متاحًا.": "This offer is no longer available.",
+    "لا يمكن إلغاء هذا الطلب.": "This request cannot be cancelled.",
+    "تم اختيار العرض. أُنشئ حجزك.": "The offer is chosen. Your booking is made.",
+    "اكتب سعرًا أو اقبل سعر العميل.": "Write a price or accept the customer's price.",
+    "أُرسل عرضك للعميل.": "Your offer was sent to the customer.",
+    "سُحب عرضك.": "Your offer was withdrawn."
 }

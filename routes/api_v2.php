@@ -102,6 +102,7 @@ use App\Http\Controllers\Api\V2\OperatorSessionController;
 use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\TableServiceCallController;
 use App\Http\Controllers\Api\V2\TripParcelController;
+use App\Http\Controllers\Api\V2\ServiceRequestController;
 use App\Http\Controllers\Api\V2\TripReservationController;
 use App\Http\Controllers\Api\V2\TripRunController;
 use App\Http\Controllers\Api\V2\TripScheduleController;
@@ -1305,6 +1306,25 @@ Route::prefix('v2')->group(function () {
             Route::get('/', [OfferFollowController::class, 'index']);
             Route::post('/', [OfferFollowController::class, 'store']);
             Route::delete('{follow}', [OfferFollowController::class, 'destroy'])->whereNumber('follow');
+        });
+
+        // The requests-and-offers core: a customer posts a need (a limousine ride today), the businesses that may answer
+        // it make offers, he picks one and it becomes a booking.
+        Route::prefix('service-requests')->group(function () {
+            Route::post('quote', [ServiceRequestController::class, 'quote'])->middleware('throttle:60,1');
+            Route::get('/', [ServiceRequestController::class, 'index']);
+            Route::post('/', [ServiceRequestController::class, 'store'])->middleware('throttle:20,1');
+            Route::get('{id}', [ServiceRequestController::class, 'show'])->whereNumber('id');
+            Route::post('{id}/price', [ServiceRequestController::class, 'setPrice'])->whereNumber('id');
+            Route::post('{id}/offers/{offer}/accept', [ServiceRequestController::class, 'accept'])->whereNumber(['id', 'offer']);
+            Route::post('{id}/cancel', [ServiceRequestController::class, 'cancel'])->whereNumber('id');
+        });
+
+        // The business side: the open requests it may answer (its trade, its governorate), and its offers.
+        Route::prefix('business/service-requests')->middleware('business.member:' . BusinessCapability::SCHEDULES)->group(function () {
+            Route::get('/', [ServiceRequestController::class, 'incoming']);
+            Route::post('{id}/offers', [ServiceRequestController::class, 'offer'])->whereNumber('id');
+            Route::delete('{id}/offers', [ServiceRequestController::class, 'withdraw'])->whereNumber('id');
         });
 
         // Scheduling/routes: customer reserves capacity on a leg, lists own

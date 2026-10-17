@@ -197,6 +197,13 @@ class Booking extends Model
      */
     public function title(): string
     {
+        // an operation that named itself when it was made (a ride asked for through the requests core)
+        $named = data_get($this->meta, 'display_title');
+
+        if (is_string($named) && trim($named) !== '') {
+            return trim($named);
+        }
+
         $offering = $this->offering;
 
         $label = $offering && method_exists($offering, 'offeringLabel')

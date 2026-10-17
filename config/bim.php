@@ -109,4 +109,23 @@ return [
     */
     'trade_switch_cooling_off_days' => (int) env('BIM_TRADE_SWITCH_COOLING_OFF_DAYS', 15),
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rides (خدمة ليموزين) — priced by distance, never drawn on a map
+    |--------------------------------------------------------------------------
+    | The platform has no transport licence, so a ride is asked and answered WITHOUT a map: the customer names where
+    | from and where to, the distance between the two places is a straight line between their centres stretched by a
+    | road factor, and the price the customer starts from is that distance x a rate. It is only a suggestion: the
+    | customer changes it and each driver answers with his own.
+    */
+    'rides' => [
+        'rate_per_km' => (float) env('BIM_RIDE_RATE_PER_KM', 7),
+        'min_fare' => (float) env('BIM_RIDE_MIN_FARE', 30),
+        'road_factor' => (float) env('BIM_RIDE_ROAD_FACTOR', 1.3),
+        // an immediate ride is asked for only so long; a scheduled one lives until its time
+        'ttl_minutes' => (int) env('BIM_RIDE_TTL_MINUTES', 30),
+        // the drivers told about a new request
+        'notify_limit' => (int) env('BIM_RIDE_NOTIFY_LIMIT', 50),
+    ],
 ];

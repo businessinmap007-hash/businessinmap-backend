@@ -161,7 +161,7 @@ final class ServiceRequestService
 
         $request->refresh();
 
-        $this->notify('service_request_accepted', (int) $offer->business_id, (int) $request->requester_id, $request, 'open_carrier_reservation');
+        $this->notify('service_request_accepted', (int) $offer->business_id, (int) $request->requester_id, $request, 'open_ride_booking', ['booking_id' => (int) $operation->getKey()]);
 
         ServiceRequestOffer::query()
             ->where('service_request_id', $request->id)->where('status', ServiceRequestOffer::STATUS_REJECTED)
@@ -192,7 +192,8 @@ final class ServiceRequestService
         return $request->refresh();
     }
 
-    private function notify(string $eventKey, int $recipientId, int $actorId, ServiceRequest $request, string $actionType): void
+    /** @param array<string,mixed> $extra */
+    private function notify(string $eventKey, int $recipientId, int $actorId, ServiceRequest $request, string $actionType, array $extra = []): void
     {
         if ($recipientId <= 0) {
             return;
@@ -209,7 +210,7 @@ final class ServiceRequestService
                 'action_url' => '/service-requests/' . $request->id,
                 'body_ar' => $request->title,
                 'body_en' => $request->title,
-                'meta' => ['kind' => $request->kind, 'title' => $request->title],
+                'meta' => ['kind' => $request->kind, 'title' => $request->title] + $extra,
             ]);
         } catch (\Throwable $e) {
             // best-effort, like every other notification of the platform

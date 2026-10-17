@@ -3095,7 +3095,7 @@
     "اكتب اسم المستلم ورقم هاتفه.": "Write the receiver name and phone.",
     "سعر الشحنة غير صالح.": "The parcel price is not valid.",
     "لا تتسع الرحلة لمقاعد هذه الشحنة.": "The trip has no room for the seats of this parcel.",
-    "اطلب من المرسل توليد كود التسليم قبل تحميل الشحنة.": "Ask the sender to generate the delivery code before loading the parcel.",
+    "تم توليد كود جديد.": "A new code was generated.",
     "تجاوزت عدد المحاولات. تواصل مع المرسل ليولّد كودًا جديدًا.": "Too many attempts. Ask the sender to generate a new code.",
     "الكود غير صحيح.": "The code is not correct.",
     "لا يمكن تنفيذ هذا الإجراء على الشحنة في حالتها الحالية.": "This action cannot be done on the parcel in its current state.",

@@ -131,44 +131,42 @@ final class TripParcelService
     }
 
     /**
-     * The sender's button: a fresh DELIVERY code, shown to him (and to a receiver who has an account, as a QR). A code
-     * generated again replaces the old one until the parcel is on the car.
+     * The sender's «كود جديد»: replaces the ONE code he holds — the pickup code while the parcel waits for the driver,
+     * the delivery code once it is on the car (and it lifts the lock after wrong tries at delivery).
      */
-    public function generateCode(TripParcel $parcel): TripParcel
+    public function regenerateCode(TripParcel $parcel): TripParcel
     {
-        $this->assertStatus($parcel, [
-            TripParcel::STATUS_REQUESTED,
-            TripParcel::STATUS_PRICED,
-            TripParcel::STATUS_ACCEPTED,
-            TripParcel::STATUS_LOADED,
-        ]);
+        $this->assertStatus($parcel, [TripParcel::STATUS_ACCEPTED, TripParcel::STATUS_LOADED]);
 
         $code = HandoverCode::generate();
 
-        $parcel->update([
-            'delivery_code' => $code,
-            'delivery_code_hash' => HandoverCode::hash($code),
-            'code_attempts' => 0,
-        ]);
+        if ($parcel->status === TripParcel::STATUS_ACCEPTED) {
+            $parcel->update(['pickup_code' => $code, 'pickup_code_hash' => HandoverCode::hash($code), 'pickup_attempts' => 0]);
+        } else {
+            $parcel->update(['delivery_code' => $code, 'delivery_code_hash' => HandoverCode::hash($code), 'code_attempts' => 0]);
+        }
 
         return $parcel->refresh();
     }
 
     /**
-     * Taken from the sender: the driver scans the sender's pickup QR (or types the code). Needs a delivery code to
-     * exist, so the final handover can never be skipped; cash is recorded here when the SENDER pays.
+     * Taken from the sender: the driver scans the sender's QR (or types the code). That code is spent here and a NEW one
+     * is born for the delivery — the sender's screen shows it from now on, so the driver (who saw the first) can never
+     * claim the handover without the receiver. Cash is recorded here when the SENDER pays.
      */
     public function load(TripParcel $parcel, string $code, bool $cashCollected = false): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_ACCEPTED]);
 
-        if (! $parcel->delivery_code_hash) {
-            throw ValidationException::withMessages(['code' => __('اطلب من المرسل توليد كود التسليم قبل تحميل الشحنة.')]);
-        }
-
         $this->assertCode($parcel, 'pickup_attempts', (string) $parcel->pickup_code_hash, $code);
 
+        $delivery = HandoverCode::generate();
+
         $parcel->update([
+            'pickup_code' => null,
+            'delivery_code' => $delivery,
+            'delivery_code_hash' => HandoverCode::hash($delivery),
+            'code_attempts' => 0,
             'status' => TripParcel::STATUS_LOADED,
             'loaded_at' => now(),
             'picked_up_at' => now(),

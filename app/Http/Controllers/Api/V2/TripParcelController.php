@@ -67,7 +67,7 @@ final class TripParcelController extends Controller
     {
         $row = $this->senderParcelOrFail($request, $parcel);
 
-        return $this->ok($service->generateCode($row), (int) $request->user()->id, __('تم توليد كود التسليم. أعطِه للمستلم.'));
+        return $this->ok($service->regenerateCode($row), (int) $request->user()->id, __('تم توليد كود جديد.'));
     }
 
     public function cancel(Request $request, int $parcel, TripParcelService $service)
@@ -199,16 +199,17 @@ final class TripParcelController extends Controller
             'status' => (string) $p->status,
             'payer' => (string) $p->payer,
             'paid_at' => optional($p->paid_at)->toIso8601String(),
-            'has_code' => (bool) $p->delivery_code_hash,
-            // the sender's QR the driver scans to take the parcel — the sender only, until it is on the car
-            'pickup_code' => $viewerId !== null && (int) $p->sender_id === $viewerId && $p->status === TripParcel::STATUS_ACCEPTED
-                ? $p->pickup_code
-                : null,
+            // the ONE code: the sender's pickup code while it waits for the driver, then the delivery code (also for an
+            // account receiver) — never shown to the carrier
+            'handover_kind' => $p->status === TripParcel::STATUS_ACCEPTED ? 'pickup' : ($p->status === TripParcel::STATUS_LOADED ? 'delivery' : null),
+            'handover_code' => match (true) {
+                ! $mayReadCode => null,
+                $p->status === TripParcel::STATUS_ACCEPTED && (int) $p->sender_id === $viewerId => $p->pickup_code,
+                $p->status === TripParcel::STATUS_LOADED => $p->delivery_code ? (string) $p->delivery_code : null,
+                default => null,
+            },
             'expected_arrival_at' => optional($p->expected_arrival_at)->toIso8601String(),
             'picked_up_at' => optional($p->picked_up_at)->toIso8601String(),
-            'delivery_code' => $mayReadCode && $p->delivery_code && ! in_array($p->status, [TripParcel::STATUS_DELIVERED], true)
-                ? (string) $p->delivery_code
-                : null,
             'loaded_at' => optional($p->loaded_at)->toIso8601String(),
             'delivered_at' => optional($p->delivered_at)->toIso8601String(),
             'created_at' => optional($p->created_at)->toIso8601String(),

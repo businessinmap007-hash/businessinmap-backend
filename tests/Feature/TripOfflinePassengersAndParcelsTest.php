@@ -223,25 +223,24 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         $accepted = $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk()->assertJsonPath('data.parcel.status', 'accepted');
         $this->assertSame(2, $this->remaining($leg));
 
-        // the sender holds the pickup QR the driver scans to take the parcel
-        $pickup = (string) $accepted->json('data.parcel.pickup_code');
+        // the sender holds ONE code: the QR/code the driver scans or types to take the parcel
+        $pickup = (string) $accepted->json('data.parcel.handover_code');
+        $this->assertSame('pickup', $accepted->json('data.parcel.handover_kind'));
         $this->assertMatchesRegularExpression('/^\d{4}[a-z]{2}$/', $pickup);
 
-        // the carrier cannot load it before the sender generated the delivery code
-        Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup])->assertStatus(422);
-
-        Sanctum::actingAs($sender);
-        $code = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/code")->assertOk()->json('data.parcel.delivery_code');
-        $this->assertMatchesRegularExpression('/^\d{4}[a-z]{2}$/', $code);
-
         Sanctum::actingAs($this->business);
 
-        // a wrong pickup code takes nothing; the right one (scanned or typed, any case) loads it
+        // a wrong code takes nothing; the right one (scanned or typed, any case) loads it
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => '0000zz'])->assertStatus(422);
         $loaded = $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => strtoupper($pickup)])->assertOk();
-        $this->assertNull($loaded->json('data.parcel.delivery_code'), 'the carrier is never shown the code');
-        $this->assertNull($loaded->json('data.parcel.pickup_code'));
+        $this->assertNull($loaded->json('data.parcel.handover_code'), 'the carrier is never shown the code');
+
+        // the code is spent: the sender's ONE code is now the delivery code — a new one the driver never saw
+        $code = $this->currentCode($sender, $id);
+        $this->assertMatchesRegularExpression('/^\d{4}[a-z]{2}$/', $code);
+        $this->assertNotSame($pickup, $code);
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $pickup])->assertStatus(422);
 
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => '0000zz'])->assertStatus(422);
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => strtoupper($code), 'cash_collected' => true])->assertOk()
@@ -265,18 +264,26 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         Sanctum::actingAs($this->business);
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/price", ['price' => 10])->assertOk();
         Sanctum::actingAs($sender);
-        $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk()->json('data.parcel.pickup_code');
-        $code = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/code")->assertOk()->json('data.parcel.delivery_code');
+        $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk()->json('data.parcel.handover_code');
 
         Sanctum::actingAs($this->business);
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup])->assertOk();
+        $code = $this->currentCode($sender, $id);
 
+        Sanctum::actingAs($this->business);
         foreach (range(1, TripParcel::MAX_CODE_ATTEMPTS) as $_) {
             $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => '9999xx'])->assertStatus(422);
         }
 
-        // even the right code no longer works until the sender generates a fresh one
+        // even the right code no longer works until the sender asks for a new one
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $code])->assertStatus(422);
+
+        Sanctum::actingAs($sender);
+        $this->postJson("/api/v2/schedules/parcels/{$id}/code")->assertOk();
+        $fresh = $this->currentCode($sender, $id);
+        $this->assertNotSame($code, $fresh);
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $fresh])->assertOk();
     }
 
     public function test_a_parcel_rides_in_the_run_is_settled_with_it_and_can_be_disputed(): void
@@ -296,8 +303,7 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         ])->assertOk()->assertJsonPath('data.parcel.expected_arrival_at', fn ($v) => $v !== null);
 
         Sanctum::actingAs($sender);
-        $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->json('data.parcel.pickup_code');
-        $this->postJson("/api/v2/schedules/parcels/{$id}/code")->assertOk();
+        $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->json('data.parcel.handover_code');
 
         Sanctum::actingAs($this->business);
         // the sender pays in cash when handing it over
@@ -320,6 +326,15 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         // a paid service: the sender may dispute it
         Sanctum::actingAs($sender);
         $this->postJson("/api/v2/schedules/parcels/{$id}/disputes", ['reason_code' => 'no_show'])->assertOk();
+    }
+
+    /** The ONE code the sender sees on his parcel right now (pickup while accepted, delivery once loaded). */
+    private function currentCode(User $sender, int $id): string
+    {
+        Sanctum::actingAs($sender);
+        $row = collect($this->getJson('/api/v2/schedules/my-parcels')->assertOk()->json('data.data'))->firstWhere('id', $id);
+
+        return (string) ($row['handover_code'] ?? '');
     }
 
     private function remaining(TripSchedule $leg): int

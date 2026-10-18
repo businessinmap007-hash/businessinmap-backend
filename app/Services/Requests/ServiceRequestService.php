@@ -24,6 +24,7 @@ final class ServiceRequestService
         return match ($key) {
             ServiceRequest::KIND_RIDE => app(RideRequestKind::class),
             ServiceRequest::KIND_CAR_WANTED => app(CarWantedRequestKind::class),
+            ServiceRequest::KIND_HOME_SERVICE => app(HomeServiceRequestKind::class),
             default => throw ValidationException::withMessages(['kind' => __('نوع الطلب غير معروف.')]),
         };
     }
@@ -31,7 +32,7 @@ final class ServiceRequestService
     /** The kinds of request this business may answer — by its trade. @return list<string> */
     public function kindsFor(User $business): array
     {
-        return collect([ServiceRequest::KIND_RIDE, ServiceRequest::KIND_CAR_WANTED])
+        return collect([ServiceRequest::KIND_RIDE, ServiceRequest::KIND_CAR_WANTED, ServiceRequest::KIND_HOME_SERVICE])
             ->filter(fn (string $key) => in_array((int) $business->category_child_id, $this->kind($key)->tradeIds(), true))
             ->values()->all();
     }

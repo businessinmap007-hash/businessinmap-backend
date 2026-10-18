@@ -30,6 +30,14 @@ interface RequestKind
     /** The trades (category_children_master ids) whose businesses may see and answer this kind of request. @return list<int> */
     public function tradeIds(): array;
 
+    /**
+     * The trades whose requests of this kind THIS business answers: all of the kind's trades for a ride or a car, only its
+     * own for a home service (a plumber never sees an electrician's job). Empty when it answers none.
+     *
+     * @return list<int>
+     */
+    public function answerTradesFor(User $business): array;
+
     /** The businesses that may answer this request, nearest first. @return \Illuminate\Support\Collection<int,User> */
     public function eligible(ServiceRequest $request, int $limit = 500);
 

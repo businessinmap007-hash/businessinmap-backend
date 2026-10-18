@@ -141,6 +141,11 @@ final class RideRequestKind implements RequestKind
         })->take($limit)->values();
     }
 
+    public function answerTradesFor(User $business): array
+    {
+        return in_array((int) $business->category_child_id, $this->tradeIds(), true) ? $this->tradeIds() : [];
+    }
+
     public function mayAnswer(ServiceRequest $request, User $business): bool
     {
         return $business->type === User::TYPE_BUSINESS

@@ -53,6 +53,12 @@ class ServiceRequestController extends Controller
         return response()->json(['success' => true, 'data' => app(\App\Services\Requests\CarWantedRequestKind::class)->formOptions()]);
     }
 
+    /** GET service-requests/home-trades — the trades a «أحتاج فنيًا» request picks from, each {id, name}. */
+    public function homeTrades()
+    {
+        return response()->json(['success' => true, 'data' => ['trades' => app(\App\Services\Requests\HomeServiceRequestKind::class)->formOptions()]]);
+    }
+
     /** POST service-requests — {kind: ride, origin, destination, passengers?, starts_at?, price?, distance_km?, details?} */
     public function store(Request $request)
     {
@@ -163,11 +169,11 @@ class ServiceRequestController extends Controller
         $business = $this->businessOf($request);
 
         $kind = (string) $request->get('kind', ServiceRequest::KIND_RIDE);
-        $trades = $this->service->kind($kind)->tradeIds();
+        $trades = $this->service->kind($kind)->answerTradesFor($business);
 
         $query = ServiceRequest::query()->open()
             ->where('kind', $kind)
-            ->whereIn('category_child_id', in_array((int) $business->category_child_id, $trades, true) ? $trades : [0])
+            ->whereIn('category_child_id', $trades === [] ? [0] : $trades)
             ->where('governorate_id', (int) $business->governorate_id)
             ->where('requester_id', '!=', (int) $business->id)
             ->with('requester:id,name')

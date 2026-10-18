@@ -175,4 +175,58 @@ class HotelRoomSearchTest extends TestCase
         $this->assertSame($agency->id, $row['partner_offers'][0]['seller']['id']);
         $this->assertEquals(1650, $row['best_price'], 'the list is sorted on the cheapest of the two');
     }
+
+    public function test_with_dates_only_free_rooms_are_listed_with_the_total_of_the_stay_and_they_carry_what_a_booking_needs(): void
+    {
+        [$free, $freeUnit] = $this->hotel('Free', $this->govA, $this->cityA, $this->five, 1000);
+        [$busy, $busyUnit] = $this->hotel('Busy', $this->govA, $this->cityA, $this->five, 800);
+
+        $from = now()->addDays(10)->startOfDay();
+        $to = $from->copy()->addDays(3);
+
+        \App\Models\BookableItemBlockedSlot::create([
+            'bookable_item_id' => $busyUnit->id, 'business_id' => $busy->id, 'platform_service_id' => $busyUnit->service_id,
+            'block_type' => \App\Models\BookableItemBlockedSlot::TYPE_MAINTENANCE, 'starts_at' => $from->copy()->addDay(), 'ends_at' => $to->copy()->subDay(), 'is_active' => 1,
+        ]);
+
+        $rows = $this->mine($this->rooms(['class_option_id' => $this->five, 'starts_at' => $from->toDateString(), 'ends_at' => $to->toDateString()]), [$free, $busy]);
+
+        $this->assertSame([$free->id], array_column(array_column($rows, 'hotel'), 'id'), 'the closed room is not offered for those nights');
+        $this->assertEquals(3, $rows[0]['nights']);
+        $this->assertEquals(1000, $rows[0]['price']);
+        $this->assertEquals(3000, $rows[0]['total']);
+        $this->assertSame($freeUnit->id, $rows[0]['room']['unit_id']);
+        $this->assertGreaterThan(0, $rows[0]['room']['offering_id']);
+        $this->assertSame('booking_stay', $rows[0]['room']['item_type']);
+
+        // without dates both are listed and no total is claimed
+        $any = $this->mine($this->rooms(['class_option_id' => $this->five]), [$free, $busy]);
+        $this->assertCount(2, $any);
+        $this->assertNull($any[0]['total']);
+    }
+
+    public function test_a_partner_offer_whose_nights_do_not_fit_the_stay_is_left_out(): void
+    {
+        [$hotel, $unit] = $this->hotel('Min', $this->govA, $this->cityA, $this->five, 2000);
+        $agency = User::create([
+            'name' => 'Agency ' . uniqid(), 'email' => 'zz-agency-' . uniqid() . '@test.local', 'phone' => '01' . random_int(100000000, 999999999),
+            'password' => Hash::make('Passw0rdTest'), 'type' => User::TYPE_BUSINESS, 'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
+        ]);
+
+        CommercialOffer::create([
+            'offerable_type' => CommercialOffer::OFFERABLE_BOOKABLE_ITEM, 'offerable_id' => $unit->id,
+            'owner_business_id' => $hotel->id, 'seller_business_id' => $agency->id,
+            'source_type' => CommercialOffer::SOURCE_ALLOCATION, 'source_id' => random_int(100000, 999999),
+            'audience_type' => CommercialOffer::AUDIENCE_BOTH, 'title_ar' => 'room', 'title_en' => 'room',
+            'base_price' => 1500, 'final_price' => 1650, 'currency' => 'EGP', 'availability_mode' => CommercialOffer::AVAILABILITY_LIMITED,
+            'available_quantity' => 3, 'status' => CommercialOffer::STATUS_ACTIVE, 'meta' => ['min_nights' => 3],
+        ]);
+
+        $from = now()->addDays(20)->startOfDay();
+        $two = $this->mine($this->rooms(['class_option_id' => $this->five, 'starts_at' => $from->toDateString(), 'ends_at' => $from->copy()->addDays(2)->toDateString()]), [$hotel]);
+        $four = $this->mine($this->rooms(['class_option_id' => $this->five, 'starts_at' => $from->toDateString(), 'ends_at' => $from->copy()->addDays(4)->toDateString()]), [$hotel]);
+
+        $this->assertCount(0, $two[0]['partner_offers'], 'two nights is under the allocation minimum of three');
+        $this->assertCount(1, $four[0]['partner_offers']);
+    }
 }

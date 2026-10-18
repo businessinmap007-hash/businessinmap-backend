@@ -3130,5 +3130,20 @@
     "أُرسل عرضك للعميل.": "Your offer was sent to the customer.",
     "سُحب عرضك.": "Your offer was withdrawn.",
     "هذا المنتج ليس من منتجاتك.": "This listing is not yours.",
-    "الاختيار لا يخص هذه القائمة.": "The choice does not belong to this list."
+    "الاختيار لا يخص هذه القائمة.": "The choice does not belong to this list.",
+    "اختر نوع الفني.": "Choose the type of technician.",
+    "أنت في وضع الاستراحة: فعّل استقبال الطلبات لتردّ.": "You are on a break: switch requests back on to answer.",
+    "«راجع فاضي» لسائقي الليموزين فقط.": "«Empty return» is for limousine drivers only.",
+    "أنت في وضع الاستراحة: فعّل استقبال الطلبات لتنشر.": "You are on a break: switch requests back on to publish.",
+    "اختر مدينتين مختلفتين.": "Choose two different cities.",
+    "اختر موعدًا قادمًا خلال :h ساعة.": "Choose a time within the next :h hours.",
+    "هذا المشوار ليس من مشاويرك.": "This ride is not one of yours.",
+    "نشرت رجوعًا لهذا المشوار من قبل.": "You already published a way back for this ride.",
+    "سعر «راجع فاضي» لا يزيد على سعر المشوار المعتاد (:p جنيه).": "An empty-return price cannot exceed the usual fare (:p EGP).",
+    "نشرت هذه الرحلة بنفس الموعد من قبل.": "You already published this trip at the same time.",
+    "عليها حجز: ارفضه أو أكمله أولًا.": "It has a reservation: reject or complete it first.",
+    "تم نشر «راجع فاضي».": "Your empty return was published.",
+    "تم إلغاء العرض.": "The offer was taken down.",
+    "تم تفعيل استقبال الطلبات.": "Requests are switched on.",
+    "أنت الآن في استراحة: لن تصلك طلبات جديدة.": "You are on a break: no new requests will reach you."
 }

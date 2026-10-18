@@ -22,7 +22,8 @@ class OfferingOptionGroupSetting extends Model
      * مجموعاتٌ تُختار فيها واحدة افتراضيًا ما لم يقل صاحبُها غير ذلك: «نظام الوجبات» — النزيل إما بلا وجبات أو
      * بنصف إقامة أو بإقامة كاملة، لا اثنتان معًا. (المالك، 2026-10-07)
      */
-    public const SINGLE_BY_DEFAULT_GROUPS = ['نظام الوجبات'];
+    // one meal plan; one floor band for the hoist (the other add-on groups are tick-any)
+    public const SINGLE_BY_DEFAULT_GROUPS = ['نظام الوجبات', 'ارتفاع رفع الأثاث'];
 
     protected $fillable = ['offering_type', 'offering_id', 'option_group_id', 'selection_type'];
 

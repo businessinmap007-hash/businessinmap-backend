@@ -377,6 +377,7 @@ class DatabaseSeeder extends Seeder
            MenuDetailProfilesSeeder::class,
            // مواصفات السيارة تتبع نوع التعامل: بيع = مواصفات، إيجار = شروط التأجير
            CarRentalSpecsSeeder::class,
+           RentalAndWinchVocabularySeeder::class,
 
            // «قم بتوزيع الخدمة بناء على ما يناسب كل مجموعة خيارات» — turns
            // menu back on for every retail-active (root,child) and seeds a

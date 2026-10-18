@@ -48,6 +48,10 @@ class BookingVocabularyRoles
         'إطلالة الوحدة' => self::ROLE_UNIT,
         'نظام الوجبات' => self::ROLE_ADDON,
         'وجبات Day use' => self::ROLE_ADDON,
+        // a rented car's driver / insurance / delivery and a furniture hoist's floor and way in: each its own price
+        'إضافات تأجير السيارة' => self::ROLE_ADDON,
+        'ارتفاع رفع الأثاث' => self::ROLE_ADDON,
+        'طريقة رفع الأثاث' => self::ROLE_ADDON,
     ];
 
     /**

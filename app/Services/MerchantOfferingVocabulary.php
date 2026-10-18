@@ -72,6 +72,11 @@ class MerchantOfferingVocabulary
         'نطاق الشحن',
         'مكان العقد',
         'الجمهور المستهدف',
+        // what a renter or a customer ADDS to the deal (a driver, the insurance, the floor a hoist reaches), never the
+        // thing that is sold
+        'إضافات تأجير السيارة',
+        'ارتفاع رفع الأثاث',
+        'طريقة رفع الأثاث',
     ];
 
     public function __construct(private readonly CategoryChildOptionScope $scope)

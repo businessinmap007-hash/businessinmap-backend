@@ -24,6 +24,12 @@ interface RequestKind
      */
     public function build(User $requester, array $input): array;
 
+    /** The most a price on this kind of request may be (a ride: hundreds; a car: millions). */
+    public function maxPrice(): float;
+
+    /** The trades (category_children_master ids) whose businesses may see and answer this kind of request. @return list<int> */
+    public function tradeIds(): array;
+
     /** The businesses that may answer this request, nearest first. @return \Illuminate\Support\Collection<int,User> */
     public function eligible(ServiceRequest $request, int $limit = 500);
 

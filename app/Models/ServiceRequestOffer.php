@@ -15,7 +15,7 @@ class ServiceRequestOffer extends Model
     public const STATUS_REJECTED = 'rejected';
     public const STATUS_WITHDRAWN = 'withdrawn';
 
-    protected $fillable = ['service_request_id', 'business_id', 'price', 'accepts_budget', 'message', 'eta_minutes', 'status'];
+    protected $fillable = ['service_request_id', 'business_id', 'price', 'accepts_budget', 'message', 'eta_minutes', 'menu_item_id', 'status'];
 
     protected $casts = [
         'price' => 'decimal:2',

@@ -90,7 +90,7 @@ class ServiceRequestController extends Controller
     /** POST service-requests/{id}/price {price} — the customer changes the price he asks for. */
     public function setPrice(Request $request, int $id)
     {
-        $data = $request->validate(['price' => ['required', 'numeric', 'min:1', 'max:100000']]);
+        $data = $request->validate(['price' => ['required', 'numeric', 'min:1']]);
         $row = $this->service->setBudget($this->mineOrFail($request, $id), (float) $data['price']);
 
         return response()->json(['success' => true, 'data' => ['request' => $this->serialize($row, $request->user(), withOffers: true)]]);
@@ -129,9 +129,12 @@ class ServiceRequestController extends Controller
     {
         $business = $this->businessOf($request);
 
+        $kind = (string) $request->get('kind', ServiceRequest::KIND_RIDE);
+        $trades = $this->service->kind($kind)->tradeIds();
+
         $query = ServiceRequest::query()->open()
-            ->where('kind', (string) $request->get('kind', ServiceRequest::KIND_RIDE))
-            ->where('category_child_id', (int) $business->category_child_id)
+            ->where('kind', $kind)
+            ->whereIn('category_child_id', in_array((int) $business->category_child_id, $trades, true) ? $trades : [0])
             ->where('governorate_id', (int) $business->governorate_id)
             ->where('requester_id', '!=', (int) $business->id)
             ->with('requester:id,name')
@@ -151,10 +154,11 @@ class ServiceRequestController extends Controller
     public function offer(Request $request, int $id)
     {
         $data = $request->validate([
-            'price' => ['nullable', 'numeric', 'min:1', 'max:100000'],
+            'price' => ['nullable', 'numeric', 'min:1'],
             'accepts_budget' => ['nullable', 'boolean'],
             'message' => ['nullable', 'string', 'max:300'],
             'eta_minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
+            'menu_item_id' => ['nullable', 'integer'],
         ]);
 
         if (empty($data['accepts_budget']) && ! isset($data['price'])) {
@@ -239,14 +243,15 @@ class ServiceRequestController extends Controller
 
         if ($withOffers) {
             $offers = $r->offers()->with('business:id,name,logo')->orderBy('price')->get();
-            $out['offers'] = $offers->map(fn (ServiceRequestOffer $o) => $this->serializeOffer($o, true))->values()->all();
+            $items = DB::table('menu_items')->whereIn('id', $offers->pluck('menu_item_id')->filter()->all())->get(['id', 'name_ar', 'name_en', 'base_price'])->keyBy('id');
+            $out['offers'] = $offers->map(fn (ServiceRequestOffer $o) => $this->serializeOffer($o, true, $items->get($o->menu_item_id)))->values()->all();
             $out['offers_count'] = $offers->where('status', ServiceRequestOffer::STATUS_PENDING)->count();
         }
 
         return $out;
     }
 
-    private function serializeOffer(ServiceRequestOffer $o, bool $withBusiness): array
+    private function serializeOffer(ServiceRequestOffer $o, bool $withBusiness, ?object $item = null): array
     {
         $out = [
             'id' => (int) $o->id,
@@ -255,6 +260,8 @@ class ServiceRequestController extends Controller
             'message' => $o->message,
             'eta_minutes' => $o->eta_minutes,
             'status' => (string) $o->status,
+            // the listing the offer is about, if the business pointed at one
+            'item' => $item ? ['id' => (int) $item->id, 'name' => app()->getLocale() === 'en' ? ($item->name_en ?: $item->name_ar) : ($item->name_ar ?: $item->name_en), 'price' => (float) $item->base_price] : null,
         ];
 
         if ($withBusiness) {

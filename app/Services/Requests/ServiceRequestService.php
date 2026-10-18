@@ -23,6 +23,7 @@ final class ServiceRequestService
     {
         return match ($key) {
             ServiceRequest::KIND_RIDE => app(RideRequestKind::class),
+            ServiceRequest::KIND_CAR_WANTED => app(CarWantedRequestKind::class),
             default => throw ValidationException::withMessages(['kind' => __('نوع الطلب غير معروف.')]),
         };
     }
@@ -51,7 +52,7 @@ final class ServiceRequestService
      * A business answers. One live offer per business: answering again replaces its price (the customer is told only
      * when something changed). `accepts_budget` takes the customer's own price as it stands.
      *
-     * @param  array{price?:?float, accepts_budget?:?bool, message?:?string, eta_minutes?:?int}  $data
+     * @param  array{price?:?float, accepts_budget?:?bool, message?:?string, eta_minutes?:?int, menu_item_id?:?int}  $data
      */
     public function offer(ServiceRequest $request, User $business, array $data): ServiceRequestOffer
     {
@@ -66,8 +67,15 @@ final class ServiceRequestService
         $acceptsBudget = (bool) ($data['accepts_budget'] ?? false);
         $price = $acceptsBudget ? (float) $request->budget : (float) ($data['price'] ?? 0);
 
-        if ($price < 1) {
+        if ($price < 1 || $price > $this->kind($request->kind)->maxPrice()) {
             throw ValidationException::withMessages(['price' => __('اكتب سعرًا صالحًا.')]);
+        }
+
+        // the listing the offer is about must be the offerer's own (a dealer answering with the car he has)
+        $itemId = ! empty($data['menu_item_id']) ? (int) $data['menu_item_id'] : null;
+
+        if ($itemId !== null && ! DB::table('menu_items')->where('id', $itemId)->where('business_id', $business->id)->exists()) {
+            throw ValidationException::withMessages(['menu_item_id' => __('هذا المنتج ليس من منتجاتك.')]);
         }
 
         $offer = ServiceRequestOffer::query()
@@ -82,6 +90,7 @@ final class ServiceRequestService
                 'accepts_budget' => $acceptsBudget,
                 'message' => isset($data['message']) ? trim((string) $data['message']) ?: null : null,
                 'eta_minutes' => $data['eta_minutes'] ?? null,
+                'menu_item_id' => $itemId,
                 'status' => ServiceRequestOffer::STATUS_PENDING,
             ]
         );
@@ -108,7 +117,7 @@ final class ServiceRequestService
             throw ValidationException::withMessages(['request' => __('هذا الطلب لم يعد مفتوحًا.')]);
         }
 
-        if ($price < 1 || $price > 100000) {
+        if ($price < 1 || $price > $this->kind($request->kind)->maxPrice()) {
             throw ValidationException::withMessages(['price' => __('اكتب سعرًا صالحًا.')]);
         }
 

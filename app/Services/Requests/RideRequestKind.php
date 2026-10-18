@@ -33,6 +33,16 @@ final class RideRequestKind implements RequestKind
         return ServiceRequest::KIND_RIDE;
     }
 
+    public function maxPrice(): float
+    {
+        return 100000;
+    }
+
+    public function tradeIds(): array
+    {
+        return [self::tradeId()];
+    }
+
     public static function tradeId(): int
     {
         return self::$tradeId ??= (int) DB::table('category_children_master')->where('name_ar', self::TRADE)->value('id');

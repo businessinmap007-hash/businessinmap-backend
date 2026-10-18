@@ -15,6 +15,7 @@ class ServiceRequest extends Model
     protected $table = 'service_requests';
 
     public const KIND_RIDE = 'ride';
+    public const KIND_CAR_WANTED = 'car_wanted';
 
     public const STATUS_OPEN = 'open';
     public const STATUS_ACCEPTED = 'accepted';

@@ -3128,5 +3128,7 @@
     "تم اختيار العرض. أُنشئ حجزك.": "The offer is chosen. Your booking is made.",
     "اكتب سعرًا أو اقبل سعر العميل.": "Write a price or accept the customer's price.",
     "أُرسل عرضك للعميل.": "Your offer was sent to the customer.",
-    "سُحب عرضك.": "Your offer was withdrawn."
+    "سُحب عرضك.": "Your offer was withdrawn.",
+    "هذا المنتج ليس من منتجاتك.": "This listing is not yours.",
+    "الاختيار لا يخص هذه القائمة.": "The choice does not belong to this list."
 }

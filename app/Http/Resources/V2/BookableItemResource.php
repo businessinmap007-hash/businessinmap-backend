@@ -41,7 +41,26 @@ class BookableItemResource extends JsonResource
             'is_currently_booked' => $this->resource->isCurrentlyBooked(),
             // «Day use» — only a room type of a stay has one
             'day_use' => $this->item_type === 'booking_stay' ? app(\App\Services\BookingDayUseService::class)->settings($this->resource) : null,
+            // What the unit IS to its owner — a hotel's rooms, a rental company's cars, anything else just units — so the
+            // screen speaks of cars to a car owner and keeps Day use for hotels.
+            'unit_noun' => $this->unitNoun(),
+            // «خصم الأسبوع والشهر» — a unit let by the period
+            'stay_discounts' => $this->item_type === 'booking_stay' ? app(\App\Services\BookingStayDiscountService::class)->settings($this->resource) : null,
         ];
+    }
+
+    /** @return 'room'|'car'|'unit' */
+    private function unitNoun(): string
+    {
+        $slug = \Illuminate\Support\Facades\DB::table('users as u')
+            ->join('categories as c', 'c.id', '=', 'u.category_id')
+            ->where('u.id', (int) $this->business_id)->value('c.slug');
+
+        return match ($slug) {
+            'tourist-hotels' => 'room',
+            'cars' => 'car',
+            default => 'unit',
+        };
     }
 
     private function lineOptionPayload(): ?array

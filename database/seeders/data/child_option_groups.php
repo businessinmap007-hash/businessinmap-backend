@@ -243,6 +243,9 @@ return [
         */
         'cars:188' => $goods,                                 // معرض سيارات
         'cars:549' => ['product_condition', 'payment_terms'], // سيارة من المالك
+        // «تأجير سيارات» #555 rents by the period: how the car is handed over and how it is paid — no condition (new/used),
+        // no returns, no service-delivery mode.
+        'cars:555' => ['fulfilment', 'payment_terms'],       // تأجير سيارات
 
         // «خدمة ليموزين» moved cars → shipping-delivery on 2026-10-17. A ride has no fulfilment terms (no delivery, no
         // pickup, no shipping): it keeps the bundle it carried under the cars root, not this root's default.

@@ -68,7 +68,7 @@ class VehicleTypeOptionsSeeder extends Seeder
      * child here would only relink a child with no root to stand under, for
      * `OrphanChildLinksCleanupSeeder` to strip straight back off.
      */
-    private const CHILDREN = ['معرض سيارات', 'خدمة ليموزين', 'نقل ركاب'];
+    private const CHILDREN = ['معرض سيارات', 'خدمة ليموزين', 'نقل ركاب', 'تأجير سيارات'];
 
     public function run(): void
     {

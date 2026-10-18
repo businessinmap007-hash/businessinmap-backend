@@ -115,6 +115,7 @@ return [
              */
             549, // سيارة من المالك
             249, // جنوط وكاوتش سيارات
+            555, // تأجير سيارات — a rented car is named by its marque like a sold one (CarRentalChildSeeder)
         ],
         'motorcycle_brands' => [
             189, // معرض موتوسيكلات

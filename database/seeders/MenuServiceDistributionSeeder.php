@@ -209,11 +209,22 @@ class MenuServiceDistributionSeeder extends Seeder
     {
         $fixed = 0;
 
+        $roleByGroup = OptionGroup::query()->pluck('price_role', 'id');
+
         foreach ($usageOverrides as $groupId => $correctUsage) {
+            // Only a placement still sitting at the plain role default is «this seeder's own earlier miss». One curated
+            // to anything else since (store_terms for «التسليم والاستلام», component for the woods) is the owner's
+            // later ruling and must never be put back — a run on 2026-10-18 did exactly that to 86 rows.
+            $plain = self::ROLE_DEFAULTS[$roleByGroup[$groupId] ?? ''] ?? null;
+
+            if ($plain === null || $plain === $correctUsage) {
+                continue;
+            }
+
             $fixed += Placement::query()
                 ->where('platform_service_id', $menuServiceId)
                 ->where('option_group_id', $groupId)
-                ->where('usage', '!=', $correctUsage)
+                ->where('usage', $plain)
                 ->update(['usage' => $correctUsage]);
         }
 

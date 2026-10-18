@@ -177,6 +177,16 @@ class TripSchedule extends Model
         return $this->belongsTo(Governorate::class, 'destination_governorate_id');
     }
 
+    public function originCity(): BelongsTo
+    {
+        return $this->belongsTo(City::class, 'origin_city_id');
+    }
+
+    public function destinationCity(): BelongsTo
+    {
+        return $this->belongsTo(City::class, 'destination_city_id');
+    }
+
     public function parentTrip(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_trip_id');

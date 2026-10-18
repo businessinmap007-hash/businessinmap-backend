@@ -127,5 +127,13 @@ return [
         'ttl_minutes' => (int) env('BIM_RIDE_TTL_MINUTES', 30),
         // the drivers told about a new request
         'notify_limit' => (int) env('BIM_RIDE_NOTIFY_LIMIT', 50),
+        // «راجع فاضي»: a driver going back empty offers the way home. The share of the reference fare he is
+        // offered as a starting price (he sets his own), how far ahead he may publish, and the hours of grace after the
+        // departure time before the offer is no longer listed.
+        'empty_return' => [
+            'suggested_share' => (float) env('BIM_EMPTY_RETURN_SHARE', 0.5),
+            'window_hours' => (int) env('BIM_EMPTY_RETURN_WINDOW_HOURS', 72),
+            'grace_minutes' => (int) env('BIM_EMPTY_RETURN_GRACE_MINUTES', 30),
+        ],
     ],
 ];

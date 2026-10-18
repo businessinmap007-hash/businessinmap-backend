@@ -103,6 +103,7 @@ use App\Http\Controllers\Api\V2\OperatorSessionController;
 use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\TableServiceCallController;
 use App\Http\Controllers\Api\V2\TripParcelController;
+use App\Http\Controllers\Api\V2\EmptyReturnController;
 use App\Http\Controllers\Api\V2\ServiceRequestController;
 use App\Http\Controllers\Api\V2\TripReservationController;
 use App\Http\Controllers\Api\V2\TripRunController;
@@ -1330,7 +1331,20 @@ Route::prefix('v2')->group(function () {
             Route::post('{id}/cancel', [ServiceRequestController::class, 'cancel'])->whereNumber('id');
         });
 
+        // «راجع فاضي»: the customer who asks for a ride is shown the limousine drivers going back empty on that line, at a
+        // lower price; booking one is the ordinary POST schedules/{id}/reserve.
+        Route::prefix('empty-returns')->group(function () {
+            Route::get('quote', [EmptyReturnController::class, 'quote'])->middleware('throttle:60,1');
+            Route::get('/', [EmptyReturnController::class, 'index']);
+        });
+
         // The business side: the open requests it may answer (its trade, its governorate), and its offers.
+        Route::prefix('business/empty-returns')->middleware('business.member:' . BusinessCapability::SCHEDULES)->group(function () {
+            Route::get('/', [EmptyReturnController::class, 'mine']);
+            Route::post('/', [EmptyReturnController::class, 'store'])->middleware('throttle:30,1');
+            Route::delete('{id}', [EmptyReturnController::class, 'destroy'])->whereNumber('id');
+        });
+
         Route::prefix('business/service-requests')->middleware('business.member:' . BusinessCapability::SCHEDULES)->group(function () {
             Route::get('kinds', [ServiceRequestController::class, 'kinds']);
             Route::get('/', [ServiceRequestController::class, 'incoming']);

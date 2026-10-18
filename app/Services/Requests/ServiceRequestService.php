@@ -28,6 +28,14 @@ final class ServiceRequestService
         };
     }
 
+    /** The kinds of request this business may answer — by its trade. @return list<string> */
+    public function kindsFor(User $business): array
+    {
+        return collect([ServiceRequest::KIND_RIDE, ServiceRequest::KIND_CAR_WANTED])
+            ->filter(fn (string $key) => in_array((int) $business->category_child_id, $this->kind($key)->tradeIds(), true))
+            ->values()->all();
+    }
+
     /** @param array<string,mixed> $input */
     public function create(User $requester, string $kind, array $input): ServiceRequest
     {

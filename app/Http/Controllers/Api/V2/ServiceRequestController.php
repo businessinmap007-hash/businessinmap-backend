@@ -124,6 +124,12 @@ class ServiceRequestController extends Controller
 
     // ---- the business ----------------------------------------------------------------------------------------------
 
+    /** GET business/service-requests/kinds — which kinds of request this business's trade answers (empty: none). */
+    public function kinds(Request $request)
+    {
+        return response()->json(['success' => true, 'data' => ['kinds' => $this->service->kindsFor($this->businessOf($request))]]);
+    }
+
     /** GET business/service-requests — the open requests this business may answer, with its own offer on each. */
     public function incoming(Request $request)
     {

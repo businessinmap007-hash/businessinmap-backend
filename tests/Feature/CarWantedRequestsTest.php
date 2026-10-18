@@ -158,6 +158,18 @@ class CarWantedRequestsTest extends TestCase
         $this->assertSame(ServiceRequest::STATUS_ACCEPTED, ServiceRequest::findOrFail($id)->status);
     }
 
+    public function test_a_business_is_told_which_kinds_its_trade_answers(): void
+    {
+        Sanctum::actingAs($this->dealer('show', $this->showroom));
+        $this->getJson('/api/v2/business/service-requests/kinds')->assertOk()->assertJsonPath('data.kinds', ['car_wanted']);
+
+        Sanctum::actingAs($this->dealer('driver', \App\Services\Requests\RideRequestKind::tradeId()));
+        $this->getJson('/api/v2/business/service-requests/kinds')->assertOk()->assertJsonPath('data.kinds', ['ride']);
+
+        Sanctum::actingAs($this->dealer('shop', (int) DB::table('category_children_master')->whereNotIn('id', [$this->showroom, $this->owner, \App\Services\Requests\RideRequestKind::tradeId()])->value('id')));
+        $this->getJson('/api/v2/business/service-requests/kinds')->assertOk()->assertJsonPath('data.kinds', []);
+    }
+
     public function test_the_ride_list_is_unaffected_by_the_new_kind(): void
     {
         $showroom = $this->dealer('show', $this->showroom);

@@ -1328,6 +1328,7 @@ Route::prefix('v2')->group(function () {
 
         // The business side: the open requests it may answer (its trade, its governorate), and its offers.
         Route::prefix('business/service-requests')->middleware('business.member:' . BusinessCapability::SCHEDULES)->group(function () {
+            Route::get('kinds', [ServiceRequestController::class, 'kinds']);
             Route::get('/', [ServiceRequestController::class, 'incoming']);
             Route::post('{id}/offers', [ServiceRequestController::class, 'offer'])->whereNumber('id');
             Route::delete('{id}/offers', [ServiceRequestController::class, 'withdraw'])->whereNumber('id');

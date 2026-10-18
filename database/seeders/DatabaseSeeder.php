@@ -235,6 +235,8 @@ class DatabaseSeeder extends Seeder
             */
            VehicleDealTypeSeeder::class,
            CarOwnerListingSeeder::class,
+           // the private seller can be visited: a unit-free appointment (before the pattern map is checked)
+           CarOwnerViewingSeeder::class,
 
            // Sixteen children that could say what they DO and not what they are
            // made of, lent an existing list from a sibling. After the seeder

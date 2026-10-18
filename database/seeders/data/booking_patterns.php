@@ -183,6 +183,7 @@ return [
     164   => ['appointment'],                           // كوافير حريمى [كوافير]
     184   => ['appointment'],                           // كوافير رجالي [كوافير]
     554   => ['appointment'],                           // مركز تجميل وسبا [كوافير] — BeautyCenterChildSeeder::CHILD_ID
+    549   => ['appointment'],                           // سيارة من المالك [سيارات] — يحدد مَن يعرض سيارته موعد معاينة وتجربة
     555   => ['stay'],                                  // تأجير سيارات [سيارات] — CarRentalChildSeeder::CHILD_ID (بالمدة: يوم/أسبوع/شهر)
     280   => ['appointment'],                           // لعب أطفال [شركات، معارض]
     9     => ['appointment'],                           // لوازم ستائر [شركات]

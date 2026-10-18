@@ -150,7 +150,7 @@ class MenuShapesTest extends TestCase
         $cars = MenuDetailProfile::query()->where('code', 'cars')->firstOrFail();
         $this->assertSame($cars->id, $byGroup('نوع المركبة')->menu_detail_profile_id);
         $carFields = MenuDetailProfile::fieldsFor([$cars->id])[$cars->id];
-        $this->assertSame(['model_year', 'mileage_km', 'transmission', 'fuel_type'], array_column(array_filter($carFields, fn ($f) => $f['show_on_card']), 'code'));
+        $this->assertSame(['model_year', 'mileage_km', 'transmission', 'fuel_type'], array_column(array_filter($carFields, fn ($f) => $f['show_on_card'] && $f['only_with_option_id'] === null), 'code'), 'the sale card; the rental terms ride on the «إيجار» tick');
         $this->assertNotContains('body_type', array_column($carFields, 'code'), 'the body type is the branch, not a field');
 
         $computers = MenuDetailProfile::query()->where('code', 'computers')->firstOrFail();

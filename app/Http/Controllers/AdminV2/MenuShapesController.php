@@ -257,6 +257,10 @@ class MenuShapesController extends Controller
         $now = now();
         $rows = [];
 
+        // the form does not carry a field's dependency on a unit's tick (rental terms ← «إيجار»): keep it across the rebuild
+        $dependencies = DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $profile->id)
+            ->get(['catalog_attribute_id', 'only_with_option_id', 'not_with_option_id'])->keyBy('catalog_attribute_id');
+
         foreach ($data['fields'] ?? [] as $attributeId => $field) {
             $attributeId = (int) $attributeId;
             if (! in_array($attributeId, $known, true) || empty($field['enabled'])) {
@@ -271,6 +275,8 @@ class MenuShapesController extends Controller
                 'is_filterable' => ! empty($field['is_filterable']),
                 'show_on_page' => (bool) ($field['show_on_page'] ?? true), // the form posts 0 for an unticked box; a caller that says nothing keeps it on
                 'display' => $field['display'] ?? 'auto',
+                'only_with_option_id' => $dependencies[$attributeId]->only_with_option_id ?? null,
+                'not_with_option_id' => $dependencies[$attributeId]->not_with_option_id ?? null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

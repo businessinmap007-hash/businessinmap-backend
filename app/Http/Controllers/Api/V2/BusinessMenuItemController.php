@@ -533,7 +533,10 @@ final class BusinessMenuItemController extends Controller
         $groupId = (int) ($item->lineOption()?->group_id ?? 0);
         $fields = $this->detailProfilesFor($groupId > 0 ? [$groupId] : [])[$groupId]['fields'] ?? [];
 
-        app(MenuItemAttributes::class)->sync($item, $request->input('attributes'), $fields);
+        // the unit's own ticks decide which of the kind's fields apply (a rental is asked about the driver, not the mileage)
+        $ticked = $item->offeringOptions()->pluck('option_id')->map(fn ($id) => (int) $id)->all();
+
+        app(MenuItemAttributes::class)->sync($item, $request->input('attributes'), $fields, $ticked);
     }
 
     /**

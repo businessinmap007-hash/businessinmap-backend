@@ -2668,6 +2668,10 @@ paths:
     parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
     get: { tags: [Business Bookables], summary: "Day use of a hotel room type - the window and flat price the hotel set (enabled false until it does)", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
     put: { tags: [Business Bookables], summary: 'Set Day use - {enabled, from: "HH:mm", to: "HH:mm", price}. The window is 2-16 hours; a guest then books it by date (POST /bookings with day_use=true and date), holding one room of the type for that window at the flat price', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/bookable-items/{item}/stay-discounts:
+    parameters: [{ name: item, in: path, required: true, schema: { type: integer } }]
+    get: { tags: [Business Bookables], summary: "The week and month discounts the owner set on a unit let by the period (0 until set)", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    put: { tags: [Business Bookables], summary: 'Set them - {weekly_percent, monthly_percent}, each 0-60. A stay of 7+ nights takes the weekly percentage off the total, 30+ nights the monthly one (the larger tier reached); the invoice still reads night by night', responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/bookings/{booking}/rooms:
     parameters: [{ name: booking, in: path, required: true, schema: { type: integer } }]
     get: { tags: [Business Bookables], summary: 'The rooms this stay could be put in (free ones) and the one it has', responses: { '200': { description: OK } } }

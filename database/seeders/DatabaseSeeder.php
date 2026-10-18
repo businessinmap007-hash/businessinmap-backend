@@ -375,6 +375,8 @@ class DatabaseSeeder extends Seeder
            // computers, cars…) and their fields. After the device seeders —
            // its fields are the attributes they create.
            MenuDetailProfilesSeeder::class,
+           // مواصفات السيارة تتبع نوع التعامل: بيع = مواصفات، إيجار = شروط التأجير
+           CarRentalSpecsSeeder::class,
 
            // «قم بتوزيع الخدمة بناء على ما يناسب كل مجموعة خيارات» — turns
            // menu back on for every retail-active (root,child) and seeds a

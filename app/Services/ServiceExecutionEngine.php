@@ -953,9 +953,18 @@ class ServiceExecutionEngine
         $discountPercent = $discountEnabled ? (int) ($businessPrice->discount_percent ?? 0) : 0;
         $discountPercent = max(0, min($discountPercent, 100));
 
-        $discountAmount = $discountEnabled
+        $promoAmount = $discountEnabled
             ? round($originalPrice * ($discountPercent / 100), 2)
             : 0.00;
+
+        // «خصم الأسبوع والشهر»: a stay of a week or a month takes the unit's own percentage off the total. The day
+        // price and the season rules are untouched, so the invoice still reads night by night.
+        $stayPercent = $bookable && $bookable->item_type === 'booking_stay'
+            ? app(BookingStayDiscountService::class)->percentFor($bookable, count($periodLines))
+            : 0.0;
+        $stayAmount = round($originalPrice * ($stayPercent / 100), 2);
+
+        $discountAmount = round($promoAmount + $stayAmount, 2);
 
         $finalPrice = max(round($originalPrice - $discountAmount, 2), 0);
 
@@ -979,7 +988,10 @@ class ServiceExecutionEngine
             'original_price' => $originalPrice,
             'discount_enabled' => $discountEnabled,
             'discount_percent' => $discountPercent,
+            // the shop's promotion and the stay-length discount, together
             'discount_amount' => $discountAmount,
+            'stay_discount_percent' => $stayPercent,
+            'stay_discount_amount' => $stayAmount,
             'final_price' => $finalPrice,
             'currency' => (string) ($businessPrice->currency ?: 'EGP'),
         ];

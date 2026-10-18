@@ -51,7 +51,7 @@ class MenuDetailProfile extends Model
             ->orderBy('pa.menu_detail_profile_id')
             ->orderBy('pa.sort_order')
             ->orderBy('a.sort_order')
-            ->get(['pa.menu_detail_profile_id', 'a.id', 'a.code', 'a.name_ar', 'a.name_en', 'a.data_type', 'u.name_ar as unit_ar', 'u.name_en as unit_en', 'pa.show_on_card', 'pa.per_item', 'pa.is_filterable', 'pa.show_on_page', 'pa.display']);
+            ->get(['pa.menu_detail_profile_id', 'a.id', 'a.code', 'a.name_ar', 'a.name_en', 'a.data_type', 'u.name_ar as unit_ar', 'u.name_en as unit_en', 'pa.show_on_card', 'pa.per_item', 'pa.is_filterable', 'pa.show_on_page', 'pa.display', 'pa.only_with_option_id', 'pa.not_with_option_id']);
 
         // A select field (colour, gearbox, fuel) offers its options — the
         // merchant picks, search filters by them; nothing is typed.
@@ -79,6 +79,9 @@ class MenuDetailProfile extends Model
                 // for the merchant: auto | chips | dropdown.
                 'show_on_page' => (bool) $r->show_on_page,
                 'display' => (string) $r->display,
+                // A field that follows one of the unit's own ticks (rental terms ← «إيجار», mileage hidden on it).
+                'only_with_option_id' => $r->only_with_option_id ? (int) $r->only_with_option_id : null,
+                'not_with_option_id' => $r->not_with_option_id ? (int) $r->not_with_option_id : null,
                 'options' => ($options[$r->id] ?? collect())->map(fn ($o) => [
                     'id' => (int) $o->id,
                     'name' => (string) ($english ? ($o->value_en ?: $o->value_ar) : ($o->value_ar ?: $o->value_en)),

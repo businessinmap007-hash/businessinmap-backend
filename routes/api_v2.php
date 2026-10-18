@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V2\BusinessBookableRoomController;
 use App\Http\Controllers\Api\V2\BusinessBookableFeatureController;
 use App\Http\Controllers\Api\V2\BusinessBookingAddOnsController;
 use App\Http\Controllers\Api\V2\BusinessDayUseController;
+use App\Http\Controllers\Api\V2\BusinessStayDiscountController;
 use App\Http\Controllers\Api\V2\BusinessStayRequestController;
 use App\Http\Controllers\Api\V2\StayRequestController;
 use App\Http\Controllers\Api\V2\BusinessBookingTermsController;
@@ -1118,6 +1119,11 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/bookable-items/{item}/day-use')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('item')->group(function () {
             Route::get('/', [BusinessDayUseController::class, 'show']);
             Route::put('/', [BusinessDayUseController::class, 'update']);
+        });
+        // «خصم الأسبوع والشهر»: a longer stay of a unit let by the period costs less per day.
+        Route::prefix('business/bookable-items/{item}/stay-discounts')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('item')->group(function () {
+            Route::get('/', [BusinessStayDiscountController::class, 'show']);
+            Route::put('/', [BusinessStayDiscountController::class, 'update']);
         });
         Route::prefix('business/bookings/{booking}')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('booking')->group(function () {
             Route::get('rooms', [BusinessBookableRoomController::class, 'forBooking']);

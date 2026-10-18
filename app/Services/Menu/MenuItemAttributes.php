@@ -73,6 +73,29 @@ class MenuItemAttributes
         }
     }
 
+    /**
+     * Does a field follow the unit's own ticks? `only_with_option_id` = asked only of a unit carrying it,
+     * `not_with_option_id` = not asked of one that does. Unknown ticks (null) = the field applies.
+     *
+     * @param  array<string,mixed>  $field
+     * @param  list<int>|null  $selectedOptionIds
+     */
+    public static function applies(array $field, ?array $selectedOptionIds): bool
+    {
+        if ($selectedOptionIds === null) {
+            return true;
+        }
+
+        $only = (int) ($field['only_with_option_id'] ?? 0);
+        $not = (int) ($field['not_with_option_id'] ?? 0);
+
+        if ($only > 0 && ! in_array($only, $selectedOptionIds, true)) {
+            return false;
+        }
+
+        return ! ($not > 0 && in_array($not, $selectedOptionIds, true));
+    }
+
     /** @return list<array<string,mixed>> */
     public function forItem(int $itemId): array
     {
@@ -115,10 +138,15 @@ class MenuItemAttributes
      *
      * @param  array<int|string,mixed>  $input  attribute id => value
      * @param  list<array<string,mixed>>  $allowedFields  the kind's fields with `per_item`
+     * @param  list<int>|null  $selectedOptionIds  the unit's own ticks; null = unknown, every field applies
      */
-    public function sync(MenuItem $item, array $input, array $allowedFields): void
+    public function sync(MenuItem $item, array $input, array $allowedFields, ?array $selectedOptionIds = null): void
     {
-        $allowed = collect($allowedFields)->where('per_item', true)->keyBy('id');
+        $perItem = collect($allowedFields)->where('per_item', true);
+        $allowed = $perItem->filter(fn ($f) => self::applies($f, $selectedOptionIds))->keyBy('id');
+
+        // A field the unit's ticks switched off (mileage once «إيجار» is ticked) must not keep a stale value.
+        $inapplicable = $selectedOptionIds === null ? [] : $perItem->reject(fn ($f) => self::applies($f, $selectedOptionIds))->pluck('id')->map(fn ($id) => (int) $id)->all();
         $errors = [];
         $writes = [];
         $deletes = [];
@@ -164,6 +192,8 @@ class MenuItemAttributes
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+
+        $deletes = array_values(array_unique(array_merge($deletes, $inapplicable)));
 
         DB::transaction(function () use ($item, $writes, $deletes) {
             $now = now();

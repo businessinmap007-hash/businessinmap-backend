@@ -23,8 +23,7 @@ return [
     | calls rather than publishing a timetable.
     */
     'schedules' => [
-        // Moved cars → shipping-delivery on 2026-10-17 (child_root_moves.php): the key carries the root.
-        'shipping-delivery:169' => ['mode_limousine', 'mode_passenger'], // خدمة ليموزين
+        'cars:169' => ['mode_limousine', 'mode_passenger'], // خدمة ليموزين
         'cars:278' => ['mode_passenger'],                   // نقل ركاب
         // Named 2026-08-11. A hired driver runs the same trips as a limousine
         // service — he was the one child of this root the file did not rule on,
@@ -33,7 +32,7 @@ return [
         // which is no longer a MAJORITY, and ChildRootMovesSeeder::adoptRootShape()
         // then wanted to strip the driver of the one thing he actually sells.
         'cars:85' => ['mode_limousine', 'mode_passenger'],  // سائق
-        'cars:284' => ['mode_freight', 'mode_distribution'], // سيارات نقل
+        'shipping-delivery:284' => ['mode_freight', 'mode_distribution'], // سيارات نقل
         'cars:46' => 'off',                                 // مغسلة سيارات
         'cars:119' => 'off',                                // جراج
         'cars:244' => 'off',                                // ونش إنقاذ
@@ -62,9 +61,9 @@ return [
     | not object #3 in its inventory.
     */
     'booking_direct' => [
-        'shipping-delivery:169',  // خدمة ليموزين (moved here from cars, 2026-10-17)
+        'cars:169',  // خدمة ليموزين
         'cars:278',  // نقل ركاب
-        'cars:284',  // سيارات نقل
+        'shipping-delivery:284',  // سيارات نقل (moved here from cars, 2026-10-18)
         'cars:46',   // مغسلة سيارات
         'cars:119',  // جراج
         'cars:244',  // ونش إنقاذ

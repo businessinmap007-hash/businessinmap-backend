@@ -56,7 +56,8 @@ class LinkCategoryChildrenToOptionsSeeder extends Seeder
         ],
         3 => [
             'include' => 'اثاث|موبيلي[ةا]|مفروش|صالون|انتريه|سفر[ةه]|غرف[ةه] نوم|غرف[ةه] اطفال|نجف|مطبخ|مطابخ',
-            'exclude' => 'سيار|صيد|بحري|نيلي',
+            // «ونش رفع أثاث» lifts furniture, it does not sell it
+            'exclude' => 'سيار|صيد|بحري|نيلي|ونش',
         ],
         11 => [
             'include' => 'تعبئ[ةه]|تغليف|اكواب|اطباق فوم|اطباق فويل|علب[ةه] معدن',

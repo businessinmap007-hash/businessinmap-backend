@@ -243,13 +243,12 @@ return [
         */
         'cars:188' => $goods,                                 // معرض سيارات
         'cars:549' => ['product_condition', 'payment_terms'], // سيارة من المالك
-        // «تأجير سيارات» #555 rents by the period: how the car is handed over and how it is paid — no condition (new/used),
-        // no returns, no service-delivery mode.
-        'cars:555' => ['fulfilment', 'payment_terms'],       // تأجير سيارات
 
-        // «خدمة ليموزين» moved cars → shipping-delivery on 2026-10-17. A ride has no fulfilment terms (no delivery, no
-        // pickup, no shipping): it keeps the bundle it carried under the cars root, not this root's default.
-        'shipping-delivery:169' => $fieldWork,                // خدمة ليموزين
+        // «سيارات نقل» moved cars → shipping-delivery on 2026-10-18: a lorry hire has no fulfilment terms of its own, it keeps
+        // the field-work bundle it carried under the cars root.
+        'shipping-delivery:284' => $fieldWork,                // سيارات نقل
+        // «ونش رفع أثاث» is a job booked at an address: how it is given and paid, like the other winch — no fulfilment terms.
+        'shipping-delivery:556' => $fieldWork,                // ونش رفع أثاث
 
         // ── companies: the service firms among the goods traders
         'companies:253' => $fieldWork,   // أمن

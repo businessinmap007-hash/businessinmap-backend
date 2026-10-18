@@ -133,8 +133,8 @@ class DatabaseSeeder extends Seeder
            ButcherChildSeeder::class,
            // مراكز التجميل والسبا + سحب رموش/أظافر/حنة من الكوافير الرجالي — قبل أنماط الحجز وأشكاله
            BeautyCenterChildSeeder::class,
-           // تأجير سيارات — الشركة التي تؤجّر السيارة بالمدة، غير المعرض الذي يبيعها
-           CarRentalChildSeeder::class,
+           // ونش رفع أثاث تحت الشحن والتوصيل
+           FurnitureWinchChildSeeder::class,
 
            // Four accessory children become one, and what KIND of accessory
            // becomes an option. After the remodel, before the detachments.

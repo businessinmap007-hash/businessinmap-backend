@@ -156,22 +156,25 @@ return [
     ],
 
     /*
-    | Owner, 2026-10-17: «انقل الليموزين فقط لأن الباقي تجاري أكثر منه خدمة».
+    | Owner, 2026-10-17 → 2026-10-18: the limousine went to shipping-delivery and, the next morning, came back.
     |
-    | Root 13 «سيارات» held 648 accounts and 560 of them were «خدمة ليموزين» — a ride hired from a driver, which is
-    | what «شحن وتوصيل» (carrying people and things from here to there) answers, not what a car showroom does. The
-    | rest of the root's transport children — نقل ركاب (buses, 55), سائق, سيارات نقل — are companies that sell a
-    | transport CONTRACT, closer to commerce than to an on-demand ride, and they stay where they are.
+    | «خدمة ليموزين» is a car-based service like «سائق» and «نقل ركاب» (the owner: a ride hired from a driver, but it
+    | stays under «سيارات»). The 2026-10-17 entry that moved it out is replaced by this one, which puts it home. A move
+    | seeder that kept both would shuffle it back and forth on every run.
     |
-    | Nothing but the root changes: the vocabulary, the services (booking, offers, schedules) and the 560 accounts
-    | travel with it, so no `adopt_services`. The service-scope rules keyed `cars:169` are re-keyed in the same
-    | commit (child_service_scope.php) — left under the old root they would rule on a membership that no longer
-    | exists.
+    | The opposite is true of «سيارات نقل»: a lorry carries goods, which is what «شحن وتوصيل» answers, so it leaves the
+    | cars root for it. Nothing but the root changes; vocabulary, services and accounts travel with it.
     */
     [
         'child_name_ar' => 'خدمة ليموزين',
+        'from_root_slug' => 'shipping-delivery',
+        'to_root_slug' => 'cars',
+        'why' => 'سيارة بسائق: مكانها مع «سائق» و«نقل ركاب» تحت السيارات',
+    ],
+    [
+        'child_name_ar' => 'سيارات نقل',
         'from_root_slug' => 'cars',
         'to_root_slug' => 'shipping-delivery',
-        'why' => 'مشوار يُطلب من سائق: مكانه مع الشحن والتوصيل لا مع معارض السيارات',
+        'why' => 'ينقل بضاعة من مكان إلى مكان: مكانه مع الشحن والتوصيل',
     ],
 ];

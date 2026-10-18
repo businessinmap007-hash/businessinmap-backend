@@ -248,6 +248,9 @@ final class DiscoveryController extends Controller
             'near_governorate_id' => ['nullable', 'integer', 'min:1'],
             'near_city_id' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            // A stay (hotels): only businesses with a room FREE for these nights are listed.
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date', 'after:starts_at'],
         ]);
 
         $childId = (int) $data['child_id'];
@@ -338,6 +341,15 @@ final class DiscoveryController extends Controller
             });
         }
 
+        if (! empty($data['starts_at']) && ! empty($data['ends_at'])) {
+            $free = app(\App\Services\Hotels\StayClass::class)->freeFor(
+                (clone $query)->pluck('users.id')->map(fn ($id) => (int) $id)->all(),
+                \Carbon\Carbon::parse($data['starts_at'])->startOfDay(),
+                \Carbon\Carbon::parse($data['ends_at'])->startOfDay()
+            );
+            $query->whereIn('users.id', $free === [] ? [0] : $free);
+        }
+
         $nearCity = (int) ($data['near_city_id'] ?? 0);
         $nearGovernorate = (int) ($data['near_governorate_id'] ?? 0);
         if ($nearCity > 0 || $nearGovernorate > 0) {
@@ -369,6 +381,14 @@ final class DiscoveryController extends Controller
             $arr['is_open_now'] = $openNow[(int) $b->id] ?? true;
 
             return $arr;
+        });
+
+        // a hotel's stars («غير مصنّف» when it ticked none); null for a trade that does not let rooms
+        $stayClass = app(\App\Services\Hotels\StayClass::class)->forBusinesses($businesses->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all());
+        $businesses->getCollection()->transform(function (array $row) use ($stayClass) {
+            $row['stay_class'] = $stayClass[(int) $row['id']] ?? null;
+
+            return $row;
         });
 
         return response()->json([

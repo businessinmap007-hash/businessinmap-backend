@@ -85,6 +85,8 @@ final class HotelRoomSearchController extends Controller
             'class_option_id' => ['nullable', 'integer', 'min:1'],
             'governorate_id' => ['nullable', 'integer', 'min:1'],
             'city_id' => ['nullable', 'integer', 'min:1'],
+            // one hotel's rooms (the hotel list, once dates are picked, opens this)
+            'business_id' => ['nullable', 'integer', 'min:1'],
             'price_min' => ['nullable', 'numeric', 'min:0'],
             'price_max' => ['nullable', 'numeric', 'min:0'],
             'sort' => ['nullable', 'in:price_asc,price_desc'],
@@ -100,7 +102,8 @@ final class HotelRoomSearchController extends Controller
 
         $hotels = $this->hotels()
             ->when(! empty($data['governorate_id']), fn (Collection $c) => $c->where('governorate_id', (int) $data['governorate_id']))
-            ->when(! empty($data['city_id']), fn (Collection $c) => $c->where('city_id', (int) $data['city_id']));
+            ->when(! empty($data['city_id']), fn (Collection $c) => $c->where('city_id', (int) $data['city_id']))
+            ->when(! empty($data['business_id']), fn (Collection $c) => $c->where('id', (int) $data['business_id']));
 
         $classOf = $this->classOf($hotels->pluck('id')->all());
         $unclassified = $this->unclassifiedId();

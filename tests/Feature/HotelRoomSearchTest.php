@@ -229,4 +229,39 @@ class HotelRoomSearchTest extends TestCase
         $this->assertCount(0, $two[0]['partner_offers'], 'two nights is under the allocation minimum of three');
         $this->assertCount(1, $four[0]['partner_offers']);
     }
+
+    public function test_the_hotel_list_carries_the_stars_and_with_dates_lists_only_hotels_with_a_free_room(): void
+    {
+        [$five, ] = $this->hotel('ListFive', $this->govA, $this->cityA, $this->five, 1000);
+        [$plain, $plainUnit] = $this->hotel('ListPlain', $this->govA, $this->cityA, null, 500);
+
+        $from = now()->addDays(30)->startOfDay();
+        $to = $from->copy()->addDays(3);
+
+        \App\Models\BookableItemBlockedSlot::create([
+            'bookable_item_id' => $plainUnit->id, 'business_id' => $plain->id, 'platform_service_id' => $plainUnit->service_id,
+            'block_type' => \App\Models\BookableItemBlockedSlot::TYPE_MAINTENANCE, 'starts_at' => $from->copy()->addDay(), 'ends_at' => $to->copy()->subDay(), 'is_active' => 1,
+        ]);
+
+        $list = fn (array $q = []) => collect($this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/discovery/businesses?' . http_build_query(['child_id' => self::CHILD, 'category_id' => self::ROOT, 'per_page' => 50] + $q))->assertOk()->json('data.businesses.data'));
+
+        $all = $list();
+        $this->assertSame('خمس نجوم', $all->firstWhere('id', $five->id)['stay_class']['name']);
+        $this->assertSame('غير مصنّف', $all->firstWhere('id', $plain->id)['stay_class']['name'], 'a hotel that ticked nothing is still told apart');
+
+        $free = $list(['starts_at' => $from->toDateString(), 'ends_at' => $to->toDateString()]);
+        $this->assertNotNull($free->firstWhere('id', $five->id));
+        $this->assertNull($free->firstWhere('id', $plain->id), 'its only room is closed for those nights');
+    }
+
+    public function test_one_hotels_rooms_can_be_asked_for_and_the_page_carries_the_stars(): void
+    {
+        [$a, ] = $this->hotel('OnlyA', $this->govA, $this->cityA, $this->five, 1000);
+        [$b, ] = $this->hotel('OnlyB', $this->govA, $this->cityA, $this->five, 2000);
+
+        $rows = $this->rooms(['business_id' => $a->id]);
+        $this->assertSame([$a->id], array_column(array_column($rows, 'hotel'), 'id'));
+
+        $this->assertSame('خمس نجوم', $this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/businesses/' . $b->id)->assertOk()->json('data.stay_class.name'));
+    }
 }

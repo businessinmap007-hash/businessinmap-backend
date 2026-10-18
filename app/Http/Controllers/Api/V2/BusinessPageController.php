@@ -162,6 +162,8 @@ final class BusinessPageController extends Controller
                 'linked_schedule' => (int) ($model->category_child_id ?? 0) === User::DOCTOR_OWN_CLINIC_CHILD_ID
                     ? $this->linkedScheduleIfAny((int) $model->id)
                     : null,
+                // a hotel's stars, shown as a badge on its page; null for a trade that does not let rooms
+                'stay_class' => app(\App\Services\Hotels\StayClass::class)->forBusinesses([(int) $model->id])[(int) $model->id] ?? null,
                 'check_in_time' => $bookingSettings?->check_in_time,
                 'check_out_time' => $bookingSettings?->check_out_time,
                 'is_following' => $isFollowing,

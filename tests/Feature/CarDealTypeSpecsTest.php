@@ -160,4 +160,27 @@ class CarDealTypeSpecsTest extends TestCase
         $this->assertSame($before, DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $cars)->count());
         $this->assertSame(7, DB::table('menu_detail_profile_attributes')->where('menu_detail_profile_id', $cars)->where('only_with_option_id', $this->rent)->count());
     }
+
+    /** «سيدان — كيا»: the make describes the car; it is neither a second shelf nor a price axis. */
+    public function test_the_make_describes_the_car_instead_of_being_a_second_section_or_a_price_axis(): void
+    {
+        foreach ([188, 549] as $child) {
+            $shop = User::query()->where('type', 'business')->where('category_child_id', $child)->orderBy('id')->first();
+
+            if (! $shop) {
+                continue;
+            }
+
+            Sanctum::actingAs($shop);
+            $vocab = $this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/business/menu/vocabulary')->assertOk()->json('data');
+
+            $this->assertSame(['نوع المركبة'], array_column($vocab['lines'], 'group_name'), "child {$child}: only the kind of car is a section");
+
+            $brand = collect($vocab['modifiers'])->firstWhere('group_name', 'ماركات السيارات');
+            $this->assertTrue($brand['descriptive'], "child {$child}: the make describes the car");
+            $this->assertFalse($brand['multiple'], 'a car has one make');
+            $this->assertSame('dropdown', $brand['display'], '43 makes: a dropdown, not a wall of buttons');
+            $this->assertNotContains('ماركات السيارات', array_column($vocab['price_axes'], 'group_name'), 'no price per make');
+        }
+    }
 }

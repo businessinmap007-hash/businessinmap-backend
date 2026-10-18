@@ -158,6 +158,17 @@ class CarWantedRequestsTest extends TestCase
         $this->assertSame(ServiceRequest::STATUS_ACCEPTED, ServiceRequest::findOrFail($id)->status);
     }
 
+    public function test_the_buyer_gets_the_kinds_of_car_and_the_makes_to_pick_from(): void
+    {
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, 'cust'));
+
+        $res = $this->withHeaders(['Accept-Language' => 'ar'])->getJson('/api/v2/service-requests/car-options')->assertOk();
+
+        $this->assertContains('سيدان', array_column($res->json('data.vehicle_types'), 'name'));
+        $this->assertContains($this->sedan, array_column($res->json('data.vehicle_types'), 'id'));
+        $this->assertGreaterThan(10, count($res->json('data.brands')));
+    }
+
     public function test_a_business_is_told_which_kinds_its_trade_answers(): void
     {
         Sanctum::actingAs($this->dealer('show', $this->showroom));

@@ -1318,6 +1318,7 @@ Route::prefix('v2')->group(function () {
         // it make offers, he picks one and it becomes a booking.
         Route::prefix('service-requests')->group(function () {
             Route::post('quote', [ServiceRequestController::class, 'quote'])->middleware('throttle:60,1');
+            Route::get('car-options', [ServiceRequestController::class, 'carOptions']);
             Route::get('/', [ServiceRequestController::class, 'index']);
             Route::post('/', [ServiceRequestController::class, 'store'])->middleware('throttle:20,1');
             Route::get('{id}', [ServiceRequestController::class, 'show'])->whereNumber('id');

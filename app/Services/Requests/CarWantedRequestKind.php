@@ -40,6 +40,22 @@ final class CarWantedRequestKind implements RequestKind
         return 1000000000;
     }
 
+    /**
+     * The two lists the buyer picks from, in the platform's own words.
+     *
+     * @return array{vehicle_types: list<array{id:int,name:string}>, brands: list<array{id:int,name:string}>}
+     */
+    public function formOptions(): array
+    {
+        $english = app()->getLocale() === 'en';
+        $of = fn (string $group) => DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')
+            ->where('g.name_ar', $group)->orderBy('o.name_ar')->get(['o.id', 'o.name_ar', 'o.name_en'])
+            ->map(fn ($o) => ['id' => (int) $o->id, 'name' => (string) ($english ? ($o->name_en ?: $o->name_ar) : ($o->name_ar ?: $o->name_en))])
+            ->values()->all();
+
+        return ['vehicle_types' => $of('نوع المركبة'), 'brands' => $of('ماركات السيارات')];
+    }
+
     /** @return list<int> */
     public function tradeIds(): array
     {

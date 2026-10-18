@@ -47,6 +47,12 @@ class ServiceRequestController extends Controller
         ]]);
     }
 
+    /** GET service-requests/car-options — the kinds of car and the makes a «أريد سيارة» request picks from. */
+    public function carOptions()
+    {
+        return response()->json(['success' => true, 'data' => app(\App\Services\Requests\CarWantedRequestKind::class)->formOptions()]);
+    }
+
     /** POST service-requests — {kind: ride, origin, destination, passengers?, starts_at?, price?, distance_km?, details?} */
     public function store(Request $request)
     {

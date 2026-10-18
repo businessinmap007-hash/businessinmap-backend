@@ -3816,6 +3816,8 @@ paths:
   /business/empty-returns:
     get: { tags: [Service Requests], summary: "The driver's own «راجع فاضي» offers, newest first.", responses: { '200': { description: OK } } }
     post: { tags: [Service Requests], summary: "A limousine driver publishes the way home — {origin_city_id, destination_city_id, departs_at (within 72 h), price (never above the reference fare), seats?, distance_km?, notes?, vehicle_label?}. It is one trip leg (mode limousine, capacity 1 ride, is_return_leg) so reservation, deposit, attendance, rating and disputes are the trip ones. 422 for any other trade.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/empty-returns/suggestions:
+    get: { tags: [Service Requests], summary: "The way back of the driver's OWN rides (accepted/in progress/just completed, from a customer's ride request): `{booking_id, ride_starts_at, from (where he drops the customer), to (where he picked him up), distance_km, reference_price, suggested_price, suggested_departs_at, passengers}` — what the app prefills «راجع فاضي» with. A ride that already has a way back published is not listed. `POST /business/empty-returns` takes `from_booking_id` to link the offer to its ride (one way back per ride).", responses: { '200': { description: OK } } }
   /business/empty-returns/{id}:
     delete: { tags: [Service Requests], summary: "Take the offer down — refused (422) while a customer holds a reservation on it.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/service-requests:

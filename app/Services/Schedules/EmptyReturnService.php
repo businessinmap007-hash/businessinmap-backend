@@ -2,6 +2,7 @@
 
 namespace App\Services\Schedules;
 
+use App\Models\Booking;
 use App\Models\TripReservation;
 use App\Models\TripSchedule;
 use App\Models\User;
@@ -51,7 +52,7 @@ final class EmptyReturnService
     }
 
     /**
-     * @param  array{origin_city_id:int, destination_city_id:int, departs_at:string|\DateTimeInterface, price:float|int|string, seats?:?int, distance_km?:?float, notes?:?string, vehicle_label?:?string}  $data
+     * @param  array{origin_city_id:int, destination_city_id:int, departs_at:string|\DateTimeInterface, price:float|int|string, seats?:?int, distance_km?:?float, notes?:?string, vehicle_label?:?string, from_booking_id?:?int}  $data
      */
     public function publish(User $driver, array $data): TripSchedule
     {
@@ -77,6 +78,21 @@ final class EmptyReturnService
 
         if ($departs->lt(now()) || $departs->gt(now()->addHours($windowHours))) {
             throw ValidationException::withMessages(['departs_at' => __('اختر موعدًا قادمًا خلال :h ساعة.', ['h' => $windowHours])]);
+        }
+
+        // «the way back from THIS ride»: it must be the driver's own ride, and a ride has one way back
+        $fromBooking = null;
+
+        if (! empty($data['from_booking_id'])) {
+            $fromBooking = $this->rideBookings($driver)->whereKey((int) $data['from_booking_id'])->first();
+
+            if (! $fromBooking) {
+                throw ValidationException::withMessages(['from_booking_id' => __('هذا المشوار ليس من مشاويرك.')]);
+            }
+
+            if ($this->linkedBookingIds((int) $driver->id)->contains((int) $fromBooking->id)) {
+                throw ValidationException::withMessages(['from_booking_id' => __('نشرت رجوعًا لهذا المشوار من قبل.')]);
+            }
         }
 
         $quote = $this->quote((int) $from->id, (int) $to->id, isset($data['distance_km']) ? (float) $data['distance_km'] : null);
@@ -130,8 +146,98 @@ final class EmptyReturnService
                 'reference_price' => $quote['reference_price'],
                 'distance_km' => $quote['distance_km'],
                 'seats' => max(1, min(30, (int) ($data['seats'] ?? 4))),
+                'from_booking_id' => $fromBooking ? (int) $fromBooking->id : null,
             ],
         ]);
+    }
+
+    /**
+     * The driver's own rides that are about to take him somewhere (or just did): each with the way back already worked
+     * out — from where the customer was dropped to where he was picked up, the usual fare of it, the price a return
+     * starts from and a time to leave (the end of the ride and a short rest, never in the past). A ride that already has
+     * a way back published is not offered again.
+     *
+     * @return Collection<int, array<string,mixed>>
+     */
+    public function suggestions(User $driver): Collection
+    {
+        if (! $driver->isBusiness() || (int) $driver->category_child_id !== RideRequestKind::tradeId()) {
+            return collect();
+        }
+
+        $linked = $this->linkedBookingIds((int) $driver->id);
+        $window = (int) config('bim.rides.empty_return.window_hours', 72);
+
+        return $this->rideBookings($driver)
+            ->whereIn('status', [Booking::STATUS_ACCEPTED, Booking::STATUS_IN_PROGRESS, Booking::STATUS_COMPLETED])
+            // a ride that ended a long time ago is no longer a car on its way home
+            ->where('starts_at', '>=', now()->subHours(6))->where('starts_at', '<=', now()->addHours($window))
+            ->orderBy('starts_at')->limit(20)->get()
+            ->reject(fn (Booking $b) => $linked->contains((int) $b->id))
+            ->map(function (Booking $b) use ($window) {
+                $ride = (array) data_get($b->meta, 'ride', []);
+                $origin = (array) ($ride['origin'] ?? []);
+                $destination = (array) ($ride['destination'] ?? []);
+
+                if (empty($origin['city_id']) || empty($destination['city_id'])) {
+                    return null;
+                }
+
+                $back = $this->quote((int) $destination['city_id'], (int) $origin['city_id'], isset($ride['distance_km']) ? (float) $ride['distance_km'] : null);
+                $km = (float) ($ride['distance_km'] ?? 0);
+                $free = $b->starts_at->copy()->addMinutes((int) max(30, round($km / 50 * 60)) + 15);
+                $leaves = $free->lt(now()->addMinutes(30)) ? now()->addMinutes(30) : $free;
+
+                if ($leaves->gt(now()->addHours($window))) {
+                    return null;
+                }
+
+                $places = DB::table('cities as c')->join('governorates as g', 'g.id', '=', 'c.governorate_id')
+                    ->whereIn('c.id', [(int) $destination['city_id'], (int) $origin['city_id']])
+                    ->get(['c.id', 'c.name_ar', 'c.name_en', 'c.governorate_id', 'g.country_id', 'g.name_ar as g_ar', 'g.name_en as g_en'])->keyBy('id');
+                $place = function (int $cityId) use ($places) {
+                    $p = $places->get($cityId);
+                    $en = app()->getLocale() === 'en';
+
+                    return $p ? [
+                        'country_id' => (int) $p->country_id,
+                        'governorate_id' => (int) $p->governorate_id,
+                        'governorate' => $en ? ($p->g_en ?: $p->g_ar) : ($p->g_ar ?: $p->g_en),
+                        'city_id' => (int) $p->id,
+                        'city' => $en ? ($p->name_en ?: $p->name_ar) : ($p->name_ar ?: $p->name_en),
+                    ] : null;
+                };
+
+                return [
+                    'booking_id' => (int) $b->id,
+                    'status' => (string) $b->status,
+                    'ride_starts_at' => $b->starts_at->copy()->utc()->format('Y-m-d\TH:i:s\Z'),
+                    // the way back: from where he drops the customer to where he picked him up
+                    'from' => $place((int) $destination['city_id']),
+                    'to' => $place((int) $origin['city_id']),
+                    'distance_km' => $back['distance_km'] ?? null,
+                    'reference_price' => $back['reference_price'] ?? null,
+                    'suggested_price' => $back['suggested_price'] ?? null,
+                    'suggested_departs_at' => $leaves->copy()->utc()->format('Y-m-d\TH:i:s\Z'),
+                    'passengers' => (int) ($ride['passengers'] ?? 1),
+                ];
+            })
+            ->filter(fn ($s) => $s !== null && $s['from'] !== null && $s['to'] !== null)
+            ->values();
+    }
+
+    /** The bookings the driver got from a customer's ride request. */
+    private function rideBookings(User $driver)
+    {
+        return Booking::query()->where('business_id', (int) $driver->id)->where('meta->source', 'service_request')
+            ->whereNotNull('meta->ride');
+    }
+
+    /** @return Collection<int,int> the rides of this driver that already have an active way back */
+    private function linkedBookingIds(int $driverId): Collection
+    {
+        return $this->base()->where('business_id', $driverId)->where('status', TripSchedule::STATUS_ACTIVE)->get(['meta'])
+            ->map(fn (TripSchedule $s) => (int) data_get($s->meta, 'from_booking_id'))->filter()->values();
     }
 
     /** The driver's own offers, upcoming first; the ones whose time has passed come after. */

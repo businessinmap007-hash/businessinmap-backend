@@ -54,6 +54,14 @@ final class EmptyReturnController extends Controller
         return response()->json(['success' => true, 'data' => ['results' => $rows, 'count' => $rows->count()]]);
     }
 
+    /** GET business/empty-returns/suggestions — the driver's own rides, each with its way back worked out. */
+    public function suggestions(Request $request)
+    {
+        $rows = $this->service->suggestions($this->driver($request));
+
+        return response()->json(['success' => true, 'data' => ['results' => $rows, 'count' => $rows->count()]]);
+    }
+
     /** GET business/empty-returns — the driver's own offers. */
     public function mine(Request $request)
     {
@@ -76,6 +84,8 @@ final class EmptyReturnController extends Controller
             'distance_km' => ['nullable', 'numeric', 'min:0.3', 'max:3000'],
             'notes' => ['nullable', 'string', 'max:500'],
             'vehicle_label' => ['nullable', 'string', 'max:120'],
+            // the way back OF one of his own rides (see suggestions)
+            'from_booking_id' => ['nullable', 'integer'],
         ])->validate();
 
         $leg = $this->service->publish($driver, $data);

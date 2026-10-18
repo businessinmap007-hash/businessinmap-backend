@@ -1340,6 +1340,7 @@ Route::prefix('v2')->group(function () {
 
         // The business side: the open requests it may answer (its trade, its governorate), and its offers.
         Route::prefix('business/empty-returns')->middleware('business.member:' . BusinessCapability::SCHEDULES)->group(function () {
+            Route::get('suggestions', [EmptyReturnController::class, 'suggestions']);
             Route::get('/', [EmptyReturnController::class, 'mine']);
             Route::post('/', [EmptyReturnController::class, 'store'])->middleware('throttle:30,1');
             Route::delete('{id}', [EmptyReturnController::class, 'destroy'])->whereNumber('id');

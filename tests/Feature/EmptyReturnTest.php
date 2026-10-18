@@ -187,4 +187,81 @@ class EmptyReturnTest extends TestCase
         $this->assertSame('active', TripSchedule::find($held)->status);
         $this->assertSame(1, TripReservation::where('trip_schedule_id', $held)->count());
     }
+
+    /** a customer's ride with this driver: a→b, accepted */
+    private function rideWith(User $driver, ?User $client = null): array
+    {
+        $client ??= $this->user(User::TYPE_CLIENT, 'rider');
+        Sanctum::actingAs($client);
+        $id = $this->postJson('/api/v2/service-requests', [
+            'kind' => 'ride',
+            'origin' => ['governorate_id' => $this->a->governorate_id, 'city_id' => $this->a->id],
+            'destination' => ['governorate_id' => $this->b->governorate_id, 'city_id' => $this->b->id],
+            'passengers' => 2,
+        ])->assertCreated()->json('data.request.id') ?? DB::table('service_requests')->where('requester_id', $client->id)->value('id');
+
+        Sanctum::actingAs($driver);
+        $this->postJson("/api/v2/business/service-requests/{$id}/offers", ['price' => 100])->assertSuccessful();
+        $offerId = DB::table('service_request_offers')->where('service_request_id', $id)->value('id');
+
+        Sanctum::actingAs($client);
+        $this->postJson("/api/v2/service-requests/{$id}/offers/{$offerId}/accept")->assertSuccessful();
+
+        return [$client, (int) DB::table('service_requests')->where('id', $id)->value('operation_id')];
+    }
+
+    public function test_the_way_back_of_the_drivers_own_ride_is_suggested_with_the_line_swapped_and_priced(): void
+    {
+        $driver = $this->driver();
+        // the driver lives in the ride's origin governorate (a), so the ride is a → b and the way back b → a
+        $driver->forceFill(['governorate_id' => $this->a->governorate_id])->save();
+        [, $bookingId] = $this->rideWith($driver);
+
+        Sanctum::actingAs($driver);
+        $rows = $this->getJson('/api/v2/business/empty-returns/suggestions')->assertOk()->json('data.results');
+
+        $this->assertCount(1, $rows);
+        $this->assertSame($bookingId, $rows[0]['booking_id']);
+        $this->assertSame($this->b->id, $rows[0]['from']['city_id']);
+        $this->assertSame($this->a->id, $rows[0]['to']['city_id']);
+        $this->assertGreaterThan(0, $rows[0]['reference_price']);
+        $this->assertEqualsWithDelta($rows[0]['reference_price'] / 2, $rows[0]['suggested_price'], 1.0);
+        $this->assertGreaterThan(now()->timestamp, strtotime($rows[0]['suggested_departs_at']));
+    }
+
+    public function test_publishing_the_way_back_links_it_to_its_ride_once_and_a_cancelled_one_frees_the_ride_again(): void
+    {
+        $driver = $this->driver();
+        $driver->forceFill(['governorate_id' => $this->a->governorate_id])->save();
+        [, $bookingId] = $this->rideWith($driver);
+
+        Sanctum::actingAs($driver);
+        $id = $this->postJson('/api/v2/business/empty-returns', $this->payload(['from_booking_id' => $bookingId]))->assertCreated()->json('data.empty_return.id');
+        $this->assertSame($bookingId, (int) data_get(TripSchedule::find($id)->meta, 'from_booking_id'));
+
+        // the ride has its way back now: not suggested again, not publishable twice
+        $this->getJson('/api/v2/business/empty-returns/suggestions')->assertOk()->assertJsonPath('data.count', 0);
+        $this->postJson('/api/v2/business/empty-returns', $this->payload(['from_booking_id' => $bookingId, 'departs_at' => now()->addHours(5)->format('Y-m-d H:i:s')]))
+            ->assertStatus(422)->assertJsonValidationErrors('from_booking_id');
+
+        // taking it down gives the ride its suggestion back
+        $this->deleteJson("/api/v2/business/empty-returns/{$id}")->assertOk();
+        $this->getJson('/api/v2/business/empty-returns/suggestions')->assertOk()->assertJsonPath('data.count', 1);
+    }
+
+    public function test_a_driver_cannot_link_a_return_to_somebody_elses_ride_and_only_a_limousine_driver_gets_suggestions(): void
+    {
+        $driver = $this->driver('mine');
+        $driver->forceFill(['governorate_id' => $this->a->governorate_id])->save();
+        [, $bookingId] = $this->rideWith($driver);
+
+        $other = $this->driver('other');
+        Sanctum::actingAs($other);
+        $this->postJson('/api/v2/business/empty-returns', $this->payload(['from_booking_id' => $bookingId]))->assertStatus(422)->assertJsonValidationErrors('from_booking_id');
+        $this->getJson('/api/v2/business/empty-returns/suggestions')->assertOk()->assertJsonPath('data.count', 0);
+
+        // a showroom is not a ride driver: nothing is suggested to it, however it came by a ride booking
+        Sanctum::actingAs($this->user(User::TYPE_BUSINESS, 'shop', ['category_id' => 5, 'category_child_id' => (int) DB::table('category_children_master')->where('id', '!=', RideRequestKind::tradeId())->value('id')]));
+        $this->getJson('/api/v2/business/empty-returns/suggestions')->assertOk()->assertJsonPath('data.count', 0);
+    }
 }

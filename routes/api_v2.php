@@ -199,6 +199,9 @@ Route::prefix('v2')->group(function () {
         // distinct from the offering axis above (services/item types).
         Route::get('attributes', [DiscoveryController::class, 'attributes']);
         Route::get('businesses', [DiscoveryController::class, 'businesses']);
+        // «غرف الفنادق بتصنيف معين»: rooms across hotels by class (stars), governorate and city, with the partners' offers.
+        Route::get('hotel-rooms/filters', [\App\Http\Controllers\Api\V2\HotelRoomSearchController::class, 'filters']);
+        Route::get('hotel-rooms', [\App\Http\Controllers\Api\V2\HotelRoomSearchController::class, 'index']);
         // Rating-ranked browsing, not specialty-scoped like `businesses` above
         // — powers a "recommended" surface with no child_id chosen yet.
         Route::get('recommended', [DiscoveryController::class, 'recommended']);

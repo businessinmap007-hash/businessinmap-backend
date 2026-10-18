@@ -48,7 +48,7 @@ final class TripReservationController extends Controller
     {
         $reservations = TripReservation::query()
             ->where('client_id', (int) $request->user()->id)
-            ->with(['schedule:id,mode,origin_governorate_id,destination_governorate_id,day_of_week,departure_time,deposit_per_unit', 'business:id,name,logo'])
+            ->with(array_merge(self::LEG_RELATIONS, ['business:id,name,logo']))
             ->latest('id')
             ->paginate((int) $request->get('per_page', 20));
 
@@ -128,7 +128,7 @@ final class TripReservationController extends Controller
 
         $query = TripReservation::query()
             ->where('business_id', BusinessContext::id($request))
-            ->with(['schedule:id,mode,origin_governorate_id,destination_governorate_id,day_of_week,departure_time,deposit_per_unit', 'client:id,name,logo'])
+            ->with(array_merge(self::LEG_RELATIONS, ['client:id,name,logo']))
             ->latest('id');
 
         if ($status !== '') {
@@ -229,9 +229,44 @@ final class TripReservationController extends Controller
     }
 
     /** $carrierView: only the carrier is told WHO the passenger is — other passengers and people searching never see names. */
+    /** What a reservation needs of its leg to say where, when and with whom. */
+    private const LEG_RELATIONS = [
+        'schedule:id,mode,is_return_leg,origin_governorate_id,origin_city_id,destination_governorate_id,destination_city_id,schedule_pattern,day_of_week,trip_date,departure_time,deposit_per_unit,vehicle_label',
+        'schedule.originGovernorate:id,name_ar,name_en',
+        'schedule.destinationGovernorate:id,name_ar,name_en',
+        'schedule.originCity:id,name_ar,name_en',
+        'schedule.destinationCity:id,name_ar,name_en',
+    ];
+
+    /** @return array<string,mixed>|null the leg the reservation is on, named for the screen */
+    private function leg(TripReservation $r): ?array
+    {
+        $s = $r->relationLoaded('schedule') ? $r->schedule : null;
+
+        if (! $s) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $s->id,
+            'mode' => (string) $s->mode,
+            'is_return_leg' => (bool) $s->is_return_leg,
+            'origin' => ['governorate' => $s->originGovernorate?->loc('name'), 'city' => $s->originCity?->loc('name')],
+            'destination' => ['governorate' => $s->destinationGovernorate?->loc('name'), 'city' => $s->destinationCity?->loc('name')],
+            'pattern' => (string) $s->schedule_pattern,
+            'day_of_week' => $s->day_of_week !== null ? (int) $s->day_of_week : null,
+            'trip_date' => optional($s->trip_date)->toDateString(),
+            // wall-clock digits (Cairo), like every time of day the API returns
+            'departure_time' => $s->departure_time,
+            'vehicle_label' => $s->vehicle_label,
+        ];
+    }
+
     private function serialize(TripReservation $r, bool $carrierView = false): array
     {
         return [
+            'leg' => $this->leg($r),
+            'business' => $r->relationLoaded('business') && $r->business ? ['id' => (int) $r->business->id, 'name' => $r->business->name, 'logo' => $r->business->logo] : null,
             'id' => (int) $r->id,
             'trip_schedule_id' => (int) $r->trip_schedule_id,
             'business_id' => (int) $r->business_id,

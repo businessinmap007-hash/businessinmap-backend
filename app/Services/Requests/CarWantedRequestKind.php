@@ -127,7 +127,7 @@ final class CarWantedRequestKind implements RequestKind
             ->whereIn('category_child_id', $this->tradeIds())
             ->where('governorate_id', (int) $request->governorate_id)
             ->where('id', '!=', (int) $request->requester_id)
-            ->whereNull('banned_at')->whereNull('anonymized_at')
+            ->whereNull('banned_at')->whereNull('anonymized_at')->whereNull('requests_paused_at')
             ->limit($limit)
             ->get(['id', 'name']);
     }
@@ -139,7 +139,8 @@ final class CarWantedRequestKind implements RequestKind
             && (int) $business->governorate_id === (int) $request->governorate_id
             && (int) $business->id !== (int) $request->requester_id
             && $business->banned_at === null
-            && $business->anonymized_at === null;
+            && $business->anonymized_at === null
+            && $business->acceptsRequests();
     }
 
     /** The viewing: an appointment with the dealer, at the time the buyer proposed (tomorrow noon when he named none). */

@@ -59,6 +59,10 @@ final class EmptyReturnService
             throw ValidationException::withMessages(['driver' => __('«راجع فاضي» لسائقي الليموزين فقط.')]);
         }
 
+        if (! $driver->acceptsRequests()) {
+            throw ValidationException::withMessages(['driver' => __('أنت في وضع الاستراحة: فعّل استقبال الطلبات لتنشر.')]);
+        }
+
         $cities = DB::table('cities')->whereIn('id', [(int) $data['origin_city_id'], (int) $data['destination_city_id']])->get(['id', 'governorate_id'])->keyBy('id');
         $from = $cities->get((int) $data['origin_city_id']);
         $to = $cities->get((int) $data['destination_city_id']);
@@ -160,6 +164,8 @@ final class EmptyReturnService
             ->where('origin_governorate_id', (int) $from->governorate_id)
             ->where('destination_governorate_id', (int) $to->governorate_id)
             ->where('business_id', '!=', (int) (auth()->id() ?? 0))
+            // a driver on a break is not offered, whatever he published before
+            ->whereHas('business', fn ($q) => $q->whereNull('requests_paused_at'))
             ->when($date, fn ($q) => $q->whereDate('trip_date', $date))
             ->whereDate('trip_date', '>=', now()->toDateString())
             ->with(['business:id,name,logo,image', 'originCity:id,name_ar,name_en', 'destinationCity:id,name_ar,name_en'])

@@ -127,7 +127,7 @@ final class RideRequestKind implements RequestKind
             ->where('category_child_id', self::tradeId())
             ->where('governorate_id', (int) $request->governorate_id)
             ->where('id', '!=', (int) $request->requester_id)
-            ->whereNull('banned_at')->whereNull('anonymized_at')
+            ->whereNull('banned_at')->whereNull('anonymized_at')->whereNull('requests_paused_at')
             ->limit(2000)
             ->get(['id', 'name', 'latitude', 'longitude']);
 
@@ -148,7 +148,8 @@ final class RideRequestKind implements RequestKind
             && (int) $business->governorate_id === (int) $request->governorate_id
             && (int) $business->id !== (int) $request->requester_id
             && $business->banned_at === null
-            && $business->anonymized_at === null;
+            && $business->anonymized_at === null
+            && $business->acceptsRequests();
     }
 
     public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer): Model

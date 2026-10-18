@@ -136,6 +136,27 @@ class ServiceRequestController extends Controller
         return response()->json(['success' => true, 'data' => ['kinds' => $this->service->kindsFor($this->businessOf($request))]]);
     }
 
+    /** GET business/service-requests/availability — {available}: is this business taking customers' requests? */
+    public function availability(Request $request)
+    {
+        return response()->json(['success' => true, 'data' => ['available' => $this->businessOf($request)->acceptsRequests()]]);
+    }
+
+    /** PUT business/service-requests/availability {available: bool} — «استراحة»: pause or resume the requests. */
+    public function setAvailability(Request $request)
+    {
+        $data = Validator::make($request->all(), ['available' => ['required', 'boolean']])->validate();
+        $business = $this->businessOf($request);
+
+        $business->forceFill(['requests_paused_at' => $data['available'] ? null : ($business->requests_paused_at ?? now())])->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $data['available'] ? __('تم تفعيل استقبال الطلبات.') : __('أنت الآن في استراحة: لن تصلك طلبات جديدة.'),
+            'data' => ['available' => $business->acceptsRequests()],
+        ]);
+    }
+
     /** GET business/service-requests — the open requests this business may answer, with its own offer on each. */
     public function incoming(Request $request)
     {

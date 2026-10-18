@@ -1347,6 +1347,8 @@ Route::prefix('v2')->group(function () {
 
         Route::prefix('business/service-requests')->middleware('business.member:' . BusinessCapability::SCHEDULES)->group(function () {
             Route::get('kinds', [ServiceRequestController::class, 'kinds']);
+            Route::get('availability', [ServiceRequestController::class, 'availability']);
+            Route::put('availability', [ServiceRequestController::class, 'setAvailability']);
             Route::get('/', [ServiceRequestController::class, 'incoming']);
             Route::post('{id}/offers', [ServiceRequestController::class, 'offer'])->whereNumber('id');
             Route::delete('{id}/offers', [ServiceRequestController::class, 'withdraw'])->whereNumber('id');

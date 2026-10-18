@@ -170,7 +170,15 @@ class User extends Authenticatable
         'deletion_scheduled_at' => 'datetime',
         'anonymized_at'         => 'datetime',
         'banned_at'             => 'datetime',
+        // «استراحة»: not mass-assignable, set only through the availability switch
+        'requests_paused_at'    => 'datetime',
     ];
+
+    /** Is the business taking customers' requests (a limousine driver on a break is not)? */
+    public function acceptsRequests(): bool
+    {
+        return $this->requests_paused_at === null;
+    }
 
     /** A ban is permanent and blocks login, deletion and re-registration. */
     public function isBanned(): bool

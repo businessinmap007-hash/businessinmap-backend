@@ -68,6 +68,10 @@ final class ServiceRequestService
             throw ValidationException::withMessages(['request' => __('هذا الطلب لم يعد يستقبل عروضًا.')]);
         }
 
+        if (! $business->acceptsRequests()) {
+            throw ValidationException::withMessages(['request' => __('أنت في وضع الاستراحة: فعّل استقبال الطلبات لتردّ.')]);
+        }
+
         if (! $this->kind($request->kind)->mayAnswer($request, $business)) {
             throw ValidationException::withMessages(['request' => __('هذا الطلب ليس من نشاطك أو نطاقك.')]);
         }

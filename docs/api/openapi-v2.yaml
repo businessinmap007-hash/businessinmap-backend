@@ -3820,6 +3820,9 @@ paths:
     delete: { tags: [Service Requests], summary: "Take the offer down — refused (422) while a customer holds a reservation on it.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/service-requests:
     get: { tags: [Service Requests], summary: "The open requests this business may answer (its trade, its governorate), with its own offer on each and how many offers there are — never another business's price, and only the customer's first name.", responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/service-requests/availability:
+    get: { tags: [Service Requests], summary: "«استراحة»: `{available}` — is this business taking customers' requests (a limousine driver, a showroom)?", responses: { '200': { description: OK } } }
+    put: { tags: [Service Requests], summary: "Pause or resume the requests — {available: bool}. Paused: no new request is sent to the business, it cannot answer one (422) and a limousine driver's «راجع فاضي» offers are not shown or published until he is back.", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/service-requests/kinds:
     get: { tags: [Service Requests], summary: "The kinds of request this business's trade may answer (ride for a limousine driver, car_wanted for a showroom or a private seller) - empty for any other trade, so the app shows the requests tile only to those who have something to answer", responses: { '200': { description: OK } } }
   /business/service-requests/{id}/offers:

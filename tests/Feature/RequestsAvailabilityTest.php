@@ -171,6 +171,11 @@ class RequestsAvailabilityTest extends TestCase
         $this->assertSame(TripSchedule::find($id)->trip_date->toDateString(), $row['leg']['trip_date']);
         $this->assertSame($driver->id, $row['business']['id']);
 
+        // an action's answer keeps the line (the list replaces the row with it)
+        Sanctum::actingAs($driver);
+        $resId = $row['id'];
+        $this->postJson("/api/v2/business/schedules/reservations/{$resId}/confirm")->assertOk()->assertJsonPath('data.reservation.leg.id', $id);
+
         // the carrier sees the same line on his side
         Sanctum::actingAs($driver);
         $mine = $this->getJson('/api/v2/business/schedules/reservations')->assertOk()->json('data.data.0');

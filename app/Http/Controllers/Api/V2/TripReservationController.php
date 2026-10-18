@@ -264,6 +264,9 @@ final class TripReservationController extends Controller
 
     private function serialize(TripReservation $r, bool $carrierView = false): array
     {
+        // an action's answer (confirm, attendance, complete…) carries the same line and carrier as the list it came from
+        $r->loadMissing(array_merge(self::LEG_RELATIONS, ['business:id,name,logo']));
+
         return [
             'leg' => $this->leg($r),
             'business' => $r->relationLoaded('business') && $r->business ? ['id' => (int) $r->business->id, 'name' => $r->business->name, 'logo' => $r->business->logo] : null,

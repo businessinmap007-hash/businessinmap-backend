@@ -7,6 +7,7 @@ use App\Models\Image;
 use App\Models\OwnerListing;
 use App\Models\OwnerListingInquiry;
 use App\Services\Media\ImageUploadService;
+use App\Services\Moderation\ContentReportService;
 use App\Services\OwnerListings\ContactRevealService;
 use App\Services\OwnerListings\OwnerListingCategories;
 use App\Services\OwnerListings\OwnerListingService;
@@ -22,7 +23,8 @@ final class OwnerListingController extends Controller
 {
     public function __construct(
         private readonly OwnerListingService $listings,
-        private readonly ContactRevealService $reveal
+        private readonly ContactRevealService $reveal,
+        private readonly ContentReportService $reports
     ) {}
 
     /** GET owner-listings/categories — the categories, their deals and the fields each one asks. */
@@ -185,8 +187,9 @@ final class OwnerListingController extends Controller
     public function report(Request $request, int $id)
     {
         $data = $request->validate(['reason' => ['nullable', 'string', 'max:255']]);
-        $listing = OwnerListing::query()->findOrFail($id);
-        $this->listings->report($listing, $request->user(), $data['reason'] ?? null);
+        OwnerListing::query()->findOrFail($id);
+        // the general report: the same table and the same moderators as a post's (POST reports)
+        $this->reports->report($request->user(), 'owner_listing', $id, 'other', $data['reason'] ?? null);
 
         return response()->json(['success' => true, 'message' => __('وصلنا بلاغك، شكرًا.')]);
     }

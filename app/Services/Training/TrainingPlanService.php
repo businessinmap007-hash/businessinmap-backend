@@ -3,10 +3,12 @@
 namespace App\Services\Training;
 
 use App\Models\PlanExercise;
+use App\Models\PlatformEventCharge;
 use App\Models\PlanExerciseRound;
 use App\Models\PlanProgressLog;
 use App\Models\TrainingPlan;
 use App\Models\User;
+use App\Services\Fees\PlatformEventFeeService;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Support\ExerciseProgression;
 use App\Support\TrainingProgramRules;
@@ -24,6 +26,7 @@ class TrainingPlanService
     public function __construct(
         private readonly NotificationDispatcherService $notifications,
         private readonly TrainingPerformanceService $performance,
+        private readonly PlatformEventFeeService $eventFees,
     ) {
     }
 
@@ -37,10 +40,11 @@ class TrainingPlanService
     {
         return DB::transaction(function () use ($trainer, $client, $header, $exercises, $meals) {
             $weeks = isset($header['duration_weeks']) ? (int) $header['duration_weeks'] : null;
-            $startsOn = $header['starts_on'] ?? ($weeks ? now()->toDateString() : null);
-            $endsOn = $header['ends_on'] ?? ($weeks && $startsOn
+            $startsOn = $header['starts_on'] ?? now()->toDateString();
+            // A programme runs one month unless the trainer sets its length (weeks) or its end.
+            $endsOn = $header['ends_on'] ?? ($weeks
                 ? Carbon::parse($startsOn)->addDays($weeks * 7 - 1)->toDateString()
-                : null);
+                : Carbon::parse($startsOn)->addMonthsNoOverflow((int) config('bim.training.plan_months', 1))->subDay()->toDateString());
 
             $plan = TrainingPlan::create([
                 'trainer_id' => (int) $trainer->id,
@@ -73,6 +77,43 @@ class TrainingPlanService
 
             return $plan->load(['exercises', 'meals']);
         });
+    }
+
+    /**
+     * The fee for changing a programme that is already running (control panel: `training_program_change` for the workout,
+     * `nutrition_program_change` for the meals). Called BEFORE the change, so a side that cannot pay stops it and nothing
+     * is half-done.
+     *
+     * A change is only counted once the client has accepted the plan (a pending or paused one is still being drafted), and
+     * a burst of edits is ONE change: while the last fee is younger than `bim.training.change_session_minutes`, further
+     * edits ride on it. Free when the panel has priced neither side.
+     *
+     * @param  string  $kind  'training' | 'nutrition'
+     */
+    public function chargeForChange(TrainingPlan $plan, string $kind): void
+    {
+        if ($plan->status !== TrainingPlan::STATUS_ACTIVE) {
+            return;
+        }
+
+        $event = $kind === 'nutrition' ? PlatformEventFeeService::NUTRITION_PROGRAM_CHANGE : PlatformEventFeeService::TRAINING_PROGRAM_CHANGE;
+        $parties = ['trainer' => (int) $plan->trainer_id, 'client' => (int) $plan->client_id];
+
+        if ($this->eventFees->quote($event, $parties)['total'] <= 0) {
+            return;
+        }
+
+        $last = PlatformEventCharge::query()->where('event_key', $event)->where('reference_type', 'training_plan')
+            ->where('reference_id', $plan->id)->latest('id')->first();
+
+        if ($last && $last->created_at && $last->created_at->gt(now()->subMinutes((int) config('bim.training.change_session_minutes', 60)))) {
+            return;
+        }
+
+        $occurrence = (string) (PlatformEventCharge::query()->where('event_key', $event)->where('reference_type', 'training_plan')
+            ->where('reference_id', $plan->id)->distinct()->count('occurrence') + 1);
+
+        $this->eventFees->charge($event, $parties, 0, 'training_plan', (int) $plan->id, $occurrence);
     }
 
     /**

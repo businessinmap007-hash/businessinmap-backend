@@ -3173,5 +3173,14 @@
     "تم إنهاء الإعلان وسيُحذف بعد :days أيام.": "The listing is finished and will be deleted in :days days.",
     "تم حذف الإعلان.": "The listing was deleted.",
     "الحد الأقصى :max صور للإعلان.": "At most :max photos per listing.",
-    "وصلنا بلاغك، شكرًا.": "We received your report, thank you."
+    "وصلنا بلاغك، شكرًا.": "We received your report, thank you.",
+    "هذا المحتوى غير متاح.": "This content is not available.",
+    "لا يمكنك الإبلاغ عن محتواك.": "You cannot report your own content.",
+    "هذا المحتوى محذوف بالفعل.": "This content is already gone.",
+    "لا يمكن استعادة هذا المحتوى.": "This content cannot be restored.",
+    "تم إغلاق البلاغ.": "The report was closed.",
+    "تمت إزالة المحتوى.": "The content was removed.",
+    "تمت استعادة المحتوى.": "The content was restored.",
+    "النسبة لا تزيد على 100.": "A percentage cannot exceed 100.",
+    "حُفظت الرسوم.": "The fees were saved."
 }

@@ -14,11 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Owner listings: ONE item per category per account, no business behind it. Posting, changing, finishing, renewing and
- * deleting a listing, who may see it, the reports that hide it, and the purge that removes it three days after it ends.
+ * deleting a listing, who may see it, and the purge that removes it three days after it ends.
  */
 final class OwnerListingService
 {
-    public const REPORT_REASON_MAX = 255;
 
     public function __construct(
         private readonly ThreadService $threads,
@@ -140,36 +139,6 @@ final class OwnerListingService
             $this->purgeThreads($listing);
             $listing->delete();
         });
-    }
-
-    /**
-     * A stranger reports a listing; enough distinct reports hide it until somebody looks.
-     */
-    public function report(OwnerListing $listing, User $reporter, ?string $reason): void
-    {
-        if ((int) $listing->user_id === (int) $reporter->id) {
-            throw ValidationException::withMessages(['listing' => __('لا يمكنك الإبلاغ عن إعلانك.')]);
-        }
-
-        $created = DB::table('owner_listing_reports')->insertOrIgnore([
-            'owner_listing_id' => (int) $listing->id,
-            'reporter_id' => (int) $reporter->id,
-            'reason' => $reason !== null ? mb_substr(trim($reason), 0, self::REPORT_REASON_MAX) : null,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        if (! $created) {
-            return;
-        }
-
-        $count = (int) DB::table('owner_listing_reports')->where('owner_listing_id', $listing->id)->count();
-        $listing->reports_count = $count;
-
-        if ($count >= (int) config('bim.owner_listings.reports_to_hide', 3) && $listing->status === OwnerListing::STATUS_ACTIVE) {
-            $listing->status = OwnerListing::STATUS_FLAGGED;
-        }
-
-        $listing->save();
     }
 
     /**

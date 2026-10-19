@@ -104,6 +104,7 @@ use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\TableServiceCallController;
 use App\Http\Controllers\Api\V2\TripParcelController;
 use App\Http\Controllers\Api\V2\EmptyReturnController;
+use App\Http\Controllers\Api\V2\ContentReportController;
 use App\Http\Controllers\Api\V2\OwnerListingController;
 use App\Http\Controllers\Api\V2\ServiceRequestController;
 use App\Http\Controllers\Api\V2\TripReservationController;
@@ -1332,6 +1333,18 @@ Route::prefix('v2')->group(function () {
             Route::post('{id}/price', [ServiceRequestController::class, 'setPrice'])->whereNumber('id');
             Route::post('{id}/offers/{offer}/accept', [ServiceRequestController::class, 'accept'])->whereNumber(['id', 'offer']);
             Route::post('{id}/cancel', [ServiceRequestController::class, 'cancel'])->whereNumber('id');
+        });
+
+        // «الإبلاغ»: anyone reports a post or an owner listing; an account holding the content ability is a moderator and
+        // works the queue (the app shows it a tab: GET moderation/me tells it so).
+        Route::get('reports/reasons', [ContentReportController::class, 'reasons']);
+        Route::post('reports', [ContentReportController::class, 'store'])->middleware('throttle:20,1');
+        Route::prefix('moderation')->group(function () {
+            Route::get('me', [ContentReportController::class, 'me']);
+            Route::get('reports', [ContentReportController::class, 'queue']);
+            Route::post('reports/{type}/{id}/dismiss', [ContentReportController::class, 'dismiss'])->whereNumber('id');
+            Route::post('reports/{type}/{id}/remove', [ContentReportController::class, 'remove'])->whereNumber('id');
+            Route::post('reports/{type}/{id}/restore', [ContentReportController::class, 'restore'])->whereNumber('id');
         });
 
         // «إعلان من المالك»: any account lists ONE item per category (car, flat, phone…) for sale, rent or swap — no business

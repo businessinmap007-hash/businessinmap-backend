@@ -147,6 +147,8 @@ tags:
   - name: Bookings
   - name: Owner Listings
     description: «إعلان من المالك» — any account lists ONE item per category (car, flat, any used thing) for sale, rent or swap, with no business account; the listing is removed 3 days after it is sold or rented; no phone numbers until buyer and seller pay the platform's fee to swap them.
+  - name: Reports & Moderation
+    description: «الإبلاغ» — anyone reports a post or an owner listing (once per person); an account holding the content ability is a moderator and works the queue, one row per reported item.
   - name: Service Requests
     description: The requests-and-offers core — a customer posts a need (a limousine ride), the businesses that may answer make offers, he picks one and it becomes a booking.
   - name: Guarantees
@@ -3835,7 +3837,7 @@ paths:
   /owner-listings/{id}/images/{image}:
     delete: { tags: [Owner Listings], summary: "Remove one photo.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { name: image, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /owner-listings/{id}/report:
-    post: { tags: [Owner Listings], summary: "Report a listing {reason?}; one report per person, and three different people hide it until it is looked at.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Owner Listings], summary: "Report a listing {reason?} — kept for older apps; it is `POST /reports` with type owner_listing and reason other.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /owner-listings/{id}/inquiries:
     post: { tags: [Owner Listings], summary: "A buyer opens (or returns to) his conversation about a listing — the chat is `/operation-chats/listing/{inquiry}` (phone numbers cannot be written there until the numbers are swapped).", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /owner-listing-inquiries:
@@ -3845,9 +3847,23 @@ paths:
   /owner-listing-inquiries/{inquiry}/reveal/request:
     post: { tags: [Owner Listings], summary: "«اتفقنا»: either side asks to swap numbers. Costs nothing and shows nothing; the asker's own share of the fee must be in his wallet.", parameters: [{ name: inquiry, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /owner-listing-inquiries/{inquiry}/reveal/accept:
-    post: { tags: [Owner Listings], summary: "The other side accepts: the platform's fee (a percent of the price between a floor and a ceiling, seller / buyer / half each by setting) is taken from the wallets and each side sees the other's number. 422 `balance` when a wallet cannot pay (nothing is taken). Idempotent.", parameters: [{ name: inquiry, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Owner Listings], summary: "The other side accepts: the platform's fee (priced for the buyer and for the seller in the control panel — fixed or a percent of the price between a floor and a ceiling) is taken from the wallets and each side sees the other's number. 422 `balance` when a wallet cannot pay (nothing is taken). Idempotent.", parameters: [{ name: inquiry, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /owner-listing-inquiries/{inquiry}/reveal/cancel:
     post: { tags: [Owner Listings], summary: "Decline the request, or take one's own back — the conversation goes on.", parameters: [{ name: inquiry, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /reports/reasons:
+    get: { tags: [Reports & Moderation], summary: "The reasons the report sheet offers: `[{key, name}]` (spam, fraud, inappropriate, prohibited, wrong_info, other), named in the request language.", responses: { '200': { description: OK } } }
+  /reports:
+    post: { tags: [Reports & Moderation], summary: "Report a post or an owner listing {type: post|owner_listing, id, reason, details?}. One report per person per item (a second changes nothing); 422 for your own content or content that is no longer available. Three different people reporting a listing hide it until a moderator looks.", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /moderation/me:
+    get: { tags: [Reports & Moderation], summary: "`{is_moderator}` — does this account get the moderation tab (it holds the content ability)? The same flag is on `GET /auth/me`.", responses: { '200': { description: OK } } }
+  /moderation/reports:
+    get: { tags: [Reports & Moderation], summary: "The moderator's queue — ONE row per reported item, most-reported first: `{type, id, reports, last_reported_at, reasons: [{key,name,count}], details, state: live|hidden|gone, title, excerpt, image, author, price?}`. `scope=open` (default) or `handled`; `type=` narrows. 404 for an account that is not a moderator.", parameters: [{ name: scope, in: query, schema: { type: string, enum: [open, handled] } }, { name: type, in: query, schema: { type: string, enum: [post, owner_listing] } }, { name: per_page, in: query, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /moderation/reports/{type}/{id}/dismiss:
+    post: { tags: [Reports & Moderation], summary: "Not a problem after all: the reports are closed and a hidden listing comes back.", parameters: [{ name: type, in: path, required: true, schema: { type: string, enum: [post, owner_listing] } }, { name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /moderation/reports/{type}/{id}/remove:
+    post: { tags: [Reports & Moderation], summary: "Remove the reported item: a post is hidden (reversible), a listing is deleted with its photos and chats. The reports are closed as actioned.", parameters: [{ name: type, in: path, required: true, schema: { type: string, enum: [post, owner_listing] } }, { name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /moderation/reports/{type}/{id}/restore:
+    post: { tags: [Reports & Moderation], summary: "Bring a hidden post back up (posts only).", parameters: [{ name: type, in: path, required: true, schema: { type: string, enum: [post, owner_listing] } }, { name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /empty-returns/quote:
     get: { tags: [Service Requests], summary: "«راجع فاضي»: the reference fare of a ride and the price a return starts from (half of it, the driver changes it) — {origin_city_id, destination_city_id, distance_km?} → {known, needs_distance, distance_km, reference_price, suggested_price}.", parameters: [{ name: origin_city_id, in: query, required: true, schema: { type: integer } }, { name: destination_city_id, in: query, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /empty-returns:

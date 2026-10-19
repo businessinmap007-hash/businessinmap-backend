@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\OwnerListing;
 use App\Models\OwnerListingInquiry;
+use App\Models\PlatformEventFee;
 use App\Models\Thread;
 use App\Models\User;
+use App\Services\Fees\PlatformEventFeeService;
 use App\Services\OwnerListings\OwnerListingService;
 use App\Services\OwnerListings\PhoneNumberGuard;
 use App\Services\WalletService;
@@ -84,6 +86,17 @@ class OwnerListingsTest extends TestCase
         $id = $this->postJson('/api/v2/owner-listings', $body ?? $this->carBody())->assertCreated()->json('data.listing.id');
 
         return OwnerListing::findOrFail($id);
+    }
+
+    /** Price the swap in the control panel: a percent of the listing price per side (null = that side pays nothing). */
+    private function priceSwap(?float $buyerPercent, ?float $sellerPercent, float $min = 20, float $max = 500): void
+    {
+        foreach (['buyer' => $buyerPercent, 'seller' => $sellerPercent] as $role => $percent) {
+            PlatformEventFee::query()->updateOrCreate(
+                ['event_key' => PlatformEventFeeService::OWNER_LISTING_CONTACT, 'role' => $role],
+                ['enabled' => $percent !== null, 'calc_type' => 'percent', 'amount' => $percent ?? 0, 'min_amount' => $percent === null ? null : $min, 'max_amount' => $percent === null ? null : $max]
+            );
+        }
     }
 
     private function fund(User $u, float $amount): void
@@ -302,10 +315,10 @@ class OwnerListingsTest extends TestCase
 
     public function test_the_fee_is_split_between_the_two_taken_only_when_both_said_yes_and_the_numbers_appear_only_then(): void
     {
-        config(['bim.owner_listings.reveal_fee' => ['percent' => 1.0, 'min' => 20, 'max' => 500, 'payer' => 'split']]);
+        $this->priceSwap(0.5, 0.5, 20, 250);
 
         $owner = $this->user('own');
-        $listing = $this->withPhoto($this->listed($owner));            // 640,000 → 1% = 6,400 → capped at 500
+        $listing = $this->withPhoto($this->listed($owner));            // 640,000 → 0.5% = 3,200 → capped at 250 each side
         $buyer = $this->user('buyer');
         $this->fund($owner, 1000);
         $this->fund($buyer, 1000);
@@ -347,7 +360,7 @@ class OwnerListingsTest extends TestCase
 
     public function test_a_party_who_cannot_pay_stops_the_swap_and_a_decline_puts_it_back(): void
     {
-        config(['bim.owner_listings.reveal_fee' => ['percent' => 1.0, 'min' => 20, 'max' => 500, 'payer' => 'split']]);
+        $this->priceSwap(0.5, 0.5, 20, 250);
 
         $owner = $this->user('own');
         $listing = $this->withPhoto($this->listed($owner));
@@ -378,7 +391,7 @@ class OwnerListingsTest extends TestCase
         ]));
         $buyer = $this->user('buyer');
 
-        config(['bim.owner_listings.reveal_fee' => ['percent' => 1.0, 'min' => 20, 'max' => 500, 'payer' => 'seller']]);
+        $this->priceSwap(null, 1.0);
         Sanctum::actingAs($buyer);
         $a = $this->postJson("/api/v2/owner-listings/{$cheap->id}/inquiries")->json('data.inquiry.id');
         $b = $this->postJson("/api/v2/owner-listings/{$mid->id}/inquiries")->json('data.inquiry.id');

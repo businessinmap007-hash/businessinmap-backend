@@ -50,6 +50,8 @@ class AccountResource extends JsonResource
             // Business only: a clinic that ticked «أسنان» or «جلديه وتناسليه» / «جراحة تجميل» has its own services list
             // (SpecialtyServicesService).
             'specialty_services' => $this->isBusiness() && app(\App\Services\Clinics\SpecialtyServicesService::class)->hasLists($this->resource),
+            // Any account holding the content ability gets the moderation tab (reports on posts and listings).
+            'is_moderator' => app(\App\Services\Moderation\ContentReportService::class)->isModerator($this->resource),
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];
     }

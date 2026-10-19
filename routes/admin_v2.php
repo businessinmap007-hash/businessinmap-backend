@@ -32,6 +32,7 @@ use App\Http\Controllers\AdminV2\{
     ArbitratorController,
     DisputeController,
     DisputeFeeController,
+    PlatformEventFeeController,
     DisputeRuleController,
     FeeGroupController,
     FineController,
@@ -728,6 +729,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('dispute-fees')->name('dispute-fees.')->middleware('can:' . AdminAbility::FEES)->group(function () {
             Route::get('/', [DisputeFeeController::class, 'index'])->name('index');
             Route::put('/', [DisputeFeeController::class, 'update'])->name('update');
+        });
+
+        // The price list of the events with no booking to carry a fee (swap numbers on an owner listing, change a program).
+        Route::prefix('event-fees')->name('event-fees.')->middleware('can:' . AdminAbility::FEES)->group(function () {
+            Route::get('/', [PlatformEventFeeController::class, 'index'])->name('index');
+            Route::put('/', [PlatformEventFeeController::class, 'update'])->name('update');
         });
 
         Route::prefix('disputes')->name('disputes.')->middleware('can:' . AdminAbility::DISPUTES)->group(function () {

@@ -186,6 +186,8 @@ class TrainingPlanController extends Controller
             ...TrainingProgramRules::exercise(),
         ]);
 
+        $this->service->chargeForChange($row, 'training');
+
         // Only what was sent changes; an explicit null clears a field.
         $target->update(array_intersect_key($data, array_flip([
             'name', 'day_of_week', 'day_label', 'sets', 'reps', 'target_weight', 'set_weights',
@@ -211,6 +213,7 @@ class TrainingPlanController extends Controller
             'progression.exercise_ids.*' => ['integer'],
         ]);
 
+        $this->service->chargeForChange($row, 'training');
         $row = $this->service->applyProgram($row, $data);
 
         return response()->json([
@@ -275,6 +278,7 @@ class TrainingPlanController extends Controller
             'sort_order' => ['nullable', 'integer'],
         ]);
 
+        $this->service->chargeForChange($row, 'training');
         $exercise = $row->exercises()->create(LibraryExercise::withDefaults($data, BusinessContext::id($request)));
 
         return response()->json(['success' => true, 'data' => ['exercise' => $this->exercise($exercise, $row)]], 201);
@@ -296,6 +300,7 @@ class TrainingPlanController extends Controller
             'sort_order' => ['nullable', 'integer'],
         ]);
 
+        $this->service->chargeForChange($row, 'nutrition');
         $meal = $row->meals()->create(FoodItem::withDefaults($data, BusinessContext::id($request)));
 
         return response()->json(['success' => true, 'data' => ['meal' => $this->meal($meal)]], 201);
@@ -312,6 +317,7 @@ class TrainingPlanController extends Controller
     public function removeExercise(Request $request, int $plan, int $exercise)
     {
         $row = $this->ownedOrFail($request, $plan);
+        $this->service->chargeForChange($row, 'training');
         $row->exercises()->where('id', $exercise)->first()?->delete();
 
         return response()->json(['success' => true, 'message' => __('تم حذف التمرين.')]);
@@ -320,6 +326,7 @@ class TrainingPlanController extends Controller
     public function removeMeal(Request $request, int $plan, int $meal)
     {
         $row = $this->ownedOrFail($request, $plan);
+        $this->service->chargeForChange($row, 'nutrition');
         $row->meals()->where('id', $meal)->first()?->delete();
 
         return response()->json(['success' => true, 'message' => __('تم حذف الوجبة.')]);

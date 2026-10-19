@@ -5,57 +5,58 @@ namespace App\Services\OwnerListings;
 use App\Models\OwnerListingInquiry;
 use App\Models\Thread;
 use App\Models\User;
+use App\Services\Fees\PlatformEventFeeService;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\ThreadService;
-use App\Services\Wallet\PlatformTreasuryService;
-use App\Services\WalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
  * «اتفقنا»: the buyer and the seller of an owner listing have talked in the app and agree. Either asks to swap phone
- * numbers; the other accepts; the platform's fee is taken from the wallets (all from one side, or half each — see
- * `bim.owner_listings.reveal_fee`) and each side then sees the other's number. Until then no number appears anywhere, and the
- * chat refuses one ({@see PhoneNumberGuard}).
+ * numbers; the other accepts; the platform's fee — priced for each side in the control panel, event `owner_listing_contact` of
+ * {@see PlatformEventFeeService} — is taken from the wallets of the sides that owe one, and each side then sees the
+ * other's number. Until then no number appears anywhere, and the chat refuses one ({@see PhoneNumberGuard}).
  *
- * The fee is a percent of the price between a floor and a ceiling. It is taken only when BOTH sides have said yes, never
- * for a request alone, and never twice (the wallet movement is keyed by the inquiry).
+ * The fee is taken only when BOTH sides have said yes and every side that owes one has the balance, never for a request
+ * alone, and never twice (the core keys each charge by the inquiry).
  */
 final class ContactRevealService
 {
-    public const PAYERS = ['seller', 'buyer', 'split'];
-
     public function __construct(
-        private readonly WalletService $wallets,
-        private readonly PlatformTreasuryService $treasury,
+        private readonly PlatformEventFeeService $fees,
         private readonly ThreadService $threads,
         private readonly NotificationDispatcherService $notifications
     ) {}
 
     /**
-     * What the swap costs and who pays what, for this inquiry.
+     * What the swap costs and who pays what, for this inquiry: the control panel's price for the buyer and for the seller (a
+     * fixed sum, or a percent of the listing's price kept between a floor and a ceiling).
      *
      * @return array{total:float,split:array<int,float>,payer:string}
      */
     public function quote(OwnerListingInquiry $inquiry): array
     {
-        $listing = $inquiry->listing;
-        $cfg = (array) config('bim.owner_listings.reveal_fee');
-        $price = (float) ($listing->price ?? 0);
+        $q = $this->feeQuote($inquiry);
+        $buyer = $q['lines']['buyer']['amount'];
+        $seller = $q['lines']['seller']['amount'];
 
-        $total = round(max((float) $cfg['min'], min((float) $cfg['max'], $price * (float) $cfg['percent'] / 100)), 2);
-        $payer = in_array($cfg['payer'] ?? 'split', self::PAYERS, true) ? (string) $cfg['payer'] : 'split';
+        return [
+            'total' => $q['total'],
+            'split' => [(int) $inquiry->buyer_id => $buyer, (int) $inquiry->seller_id => $seller],
+            'payer' => $buyer > 0 && $seller > 0 ? 'split' : ($buyer > 0 ? 'buyer' : ($seller > 0 ? 'seller' : 'none')),
+        ];
+    }
 
-        $split = match ($payer) {
-            'seller' => [(int) $inquiry->seller_id => $total],
-            'buyer' => [(int) $inquiry->buyer_id => $total],
-            default => [
-                (int) $inquiry->buyer_id => round($total / 2, 2),
-                (int) $inquiry->seller_id => round($total - round($total / 2, 2), 2),
-            ],
-        };
+    /** @return array{total:float,lines:array<string,array{user_id:int,amount:float}>} */
+    private function feeQuote(OwnerListingInquiry $inquiry): array
+    {
+        return $this->fees->quote(PlatformEventFeeService::OWNER_LISTING_CONTACT, $this->parties($inquiry), (float) ($inquiry->listing->price ?? 0));
+    }
 
-        return ['total' => $total, 'split' => $split, 'payer' => $payer];
+    /** @return array{buyer:int,seller:int} */
+    private function parties(OwnerListingInquiry $inquiry): array
+    {
+        return ['buyer' => (int) $inquiry->buyer_id, 'seller' => (int) $inquiry->seller_id];
     }
 
     /** One party says «we agree, let us swap numbers». */
@@ -72,10 +73,8 @@ final class ContactRevealService
             throw ValidationException::withMessages(['inquiry' => __('طلب تبادل الأرقام قائم بالفعل.')]);
         }
 
-        $quote = $this->quote($inquiry);
-
         // a request that cannot be paid would only waste the other side's time: the asker's own share must be there
-        $this->assertCanPay($user, $quote['split'][(int) $user->id] ?? 0.0, true);
+        $this->fees->assertCanPay($this->feeQuote($inquiry), (int) $user->id, onlyActing: true);
 
         $inquiry->update([
             'status' => OwnerListingInquiry::STATUS_REVEAL_REQUESTED,
@@ -83,13 +82,13 @@ final class ContactRevealService
             'reveal_requested_at' => now(),
         ]);
 
-        $this->say($inquiry, 'طلب ' . $user->name . ' الاتفاق وتبادل أرقام الهاتف. رسوم المنصة ' . $this->feeWords($quote) . ' وتُحصَّل عند موافقة الطرف الآخر.');
+        $this->say($inquiry, 'طلب ' . $user->name . ' الاتفاق وتبادل أرقام الهاتف. رسوم المنصة ' . $this->feeWords($this->quote($inquiry)) . '، وتُحصَّل عند موافقة الطرف الآخر.');
         $this->notify('owner_listing_reveal_requested', $this->other($inquiry, $user), (int) $user->id, $inquiry);
 
         return $inquiry->refresh();
     }
 
-    /** The other party accepts: the fee is taken, the numbers are shown. */
+    /** The other party accepts: the fees are taken, the numbers are shown. */
     public function accept(OwnerListingInquiry $inquiry, User $user): OwnerListingInquiry
     {
         $this->assertParty($inquiry, $user);
@@ -105,37 +104,19 @@ final class ContactRevealService
         $this->assertLive($inquiry);
         $quote = $this->quote($inquiry);
 
-        foreach ($quote['split'] as $userId => $share) {
-            $this->assertCanPay(User::query()->findOrFail($userId), $share, (int) $userId === (int) $user->id);
-        }
+        // every side that owes a fee must have it before anything is taken
+        $this->fees->assertCanPay($this->feeQuote($inquiry), (int) $user->id);
 
         DB::transaction(function () use ($inquiry, $quote) {
-            foreach ($quote['split'] as $userId => $share) {
-                if ($share <= 0) {
-                    continue;
-                }
-
-                $key = 'owner_listing_reveal:' . $inquiry->id . ':' . $userId;
-
-                $this->wallets->withdraw(
-                    userId: (int) $userId,
-                    amount: $share,
-                    note: 'رسوم المنصة على إعلان من المالك: تبادل أرقام الهاتف',
-                    referenceType: 'owner_listing_reveal',
-                    referenceId: (string) $inquiry->id,
-                    idempotencyKey: $key,
-                    meta: ['context' => 'owner_listing_reveal', 'inquiry_id' => (int) $inquiry->id, 'listing_id' => (int) $inquiry->owner_listing_id]
-                );
-
-                // the other half of the movement: without it the fee would leave the payer and reach nobody
-                $this->treasury->credit(
-                    amount: $share,
-                    purpose: PlatformTreasuryService::PURPOSE_FEE,
-                    referenceId: (string) $inquiry->id,
-                    idempotencyKey: $key . ':treasury',
-                    meta: ['inquiry_id' => (int) $inquiry->id, 'context' => 'owner_listing_reveal']
-                );
-            }
+            $this->fees->charge(
+                PlatformEventFeeService::OWNER_LISTING_CONTACT,
+                $this->parties($inquiry),
+                (float) ($inquiry->listing->price ?? 0),
+                'owner_listing_inquiry',
+                (int) $inquiry->id,
+                '1',
+                'رسوم المنصة على إعلان من المالك: تبادل أرقام الهاتف'
+            );
 
             $inquiry->update([
                 'status' => OwnerListingInquiry::STATUS_REVEALED,
@@ -186,9 +167,10 @@ final class ContactRevealService
         $total = rtrim(rtrim(number_format($quote['total'], 2, '.', ''), '0'), '.');
 
         return match ($quote['payer']) {
+            'none' => 'لا رسوم',
             'seller' => $total . ' جنيه على البائع',
             'buyer' => $total . ' جنيه على المشتري',
-            default => $total . ' جنيه، نصفها على كل طرف',
+            default => $total . ' جنيه على الطرفين',
         };
     }
 
@@ -204,21 +186,6 @@ final class ContactRevealService
 
         if (! $listing || $listing->status === 'done' || $listing->status === 'expired') {
             throw ValidationException::withMessages(['inquiry' => __('انتهى هذا الإعلان.')]);
-        }
-    }
-
-    private function assertCanPay(User $user, float $share, bool $isActor): void
-    {
-        if ($share <= 0) {
-            return;
-        }
-
-        $wallet = $this->wallets->getOrCreateWallet((int) $user->id);
-
-        if ((float) $wallet->balance < $share) {
-            throw ValidationException::withMessages(['balance' => $isActor
-                ? __('رصيدك لا يكفي لرسوم المنصة (:fee جنيه). اشحن محفظتك أولًا.', ['fee' => rtrim(rtrim(number_format($share, 2, '.', ''), '0'), '.')])
-                : __('رصيد الطرف الآخر لا يكفي لرسوم المنصة الآن.'), ]);
         }
     }
 

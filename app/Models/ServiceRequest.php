@@ -17,6 +17,7 @@ class ServiceRequest extends Model
     public const KIND_RIDE = 'ride';
     public const KIND_CAR_WANTED = 'car_wanted';
     public const KIND_HOME_SERVICE = 'home_service';
+    public const KIND_WORK_QUOTE = 'work_quote';
 
     public const STATUS_OPEN = 'open';
     public const STATUS_ACCEPTED = 'accepted';

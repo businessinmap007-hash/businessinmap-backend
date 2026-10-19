@@ -3145,5 +3145,7 @@
     "تم نشر «راجع فاضي».": "Your empty return was published.",
     "تم إلغاء العرض.": "The offer was taken down.",
     "تم تفعيل استقبال الطلبات.": "Requests are switched on.",
-    "أنت الآن في استراحة: لن تصلك طلبات جديدة.": "You are on a break: no new requests will reach you."
+    "أنت الآن في استراحة: لن تصلك طلبات جديدة.": "You are on a break: no new requests will reach you.",
+    "اختر نوع الورشة أو المصنع.": "Choose the type of workshop or factory.",
+    "اختر موعد تسليم قادمًا خلال سنة.": "Choose a delivery date within the next year."
 }

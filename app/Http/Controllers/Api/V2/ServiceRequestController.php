@@ -59,6 +59,12 @@ class ServiceRequestController extends Controller
         return response()->json(['success' => true, 'data' => ['trades' => app(\App\Services\Requests\HomeServiceRequestKind::class)->formOptions()]]);
     }
 
+    /** GET service-requests/work-trades — the workshops and factories a kind=work_quote request picks from, each {id, name}. */
+    public function workTrades()
+    {
+        return response()->json(['success' => true, 'data' => ['trades' => app(\App\Services\Requests\WorkQuoteRequestKind::class)->formOptions()]]);
+    }
+
     /** POST service-requests — {kind: ride, origin, destination, passengers?, starts_at?, price?, distance_km?, details?} */
     public function store(Request $request)
     {
@@ -174,7 +180,7 @@ class ServiceRequestController extends Controller
         $query = ServiceRequest::query()->open()
             ->where('kind', $kind)
             ->whereIn('category_child_id', $trades === [] ? [0] : $trades)
-            ->where('governorate_id', (int) $business->governorate_id)
+            ->where(fn ($q) => $q->where('governorate_id', (int) $business->governorate_id)->orWhere('params->nationwide', true))
             ->where('requester_id', '!=', (int) $business->id)
             ->with('requester:id,name')
             ->latest('id');
@@ -192,11 +198,13 @@ class ServiceRequestController extends Controller
     /** POST business/service-requests/{id}/offers {price?, accepts_budget?, message?, eta_minutes?} */
     public function offer(Request $request, int $id)
     {
+        $isWorkQuote = ServiceRequest::query()->whereKey($id)->value('kind') === ServiceRequest::KIND_WORK_QUOTE;
         $data = $request->validate([
             'price' => ['nullable', 'numeric', 'min:1'],
             'accepts_budget' => ['nullable', 'boolean'],
             'message' => ['nullable', 'string', 'max:300'],
-            'eta_minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
+            // minutes to arrive; for a work quote the minutes to finish the job (the app sends days x 1440)
+            'eta_minutes' => ['nullable', 'integer', 'min:0', 'max:' . ($isWorkQuote ? 525600 : 1440)],
             'menu_item_id' => ['nullable', 'integer'],
         ]);
 

@@ -1354,6 +1354,7 @@ Route::prefix('v2')->group(function () {
         // agree either asks to swap numbers; the platform's fee is paid then.
         Route::prefix('owner-listings')->group(function () {
             Route::get('categories', [OwnerListingController::class, 'categories']);
+            Route::get('requirements', [OwnerListingController::class, 'requirements']);
             Route::get('mine', [OwnerListingController::class, 'mine']);
             Route::get('/', [OwnerListingController::class, 'index']);
             Route::post('/', [OwnerListingController::class, 'store'])->middleware('throttle:20,1');

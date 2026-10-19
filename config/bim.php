@@ -178,6 +178,8 @@ return [
         'max_images' => (int) env('BIM_OWNER_LISTINGS_MAX_IMAGES', 8),
         // days before `expires_at` that the owner is told the listing is about to end
         'expiry_reminder_days' => (int) env('BIM_OWNER_LISTINGS_EXPIRY_REMINDER_DAYS', 3),
+        // an advertiser holding at least this guarantee level needs no deposit (the deposit itself is priced in the cPanel)
+        'min_guarantee_level' => env('BIM_OWNER_LISTINGS_MIN_GUARANTEE_LEVEL', 'bronze'),
         'reports_to_hide' => (int) env('BIM_OWNER_LISTINGS_REPORTS_TO_HIDE', 3),
     ],
 ];

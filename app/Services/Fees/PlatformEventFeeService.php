@@ -25,6 +25,9 @@ final class PlatformEventFeeService
     public const TRAINING_PROGRAM_CHANGE = 'training_program_change';
     public const NUTRITION_PROGRAM_CHANGE = 'nutrition_program_change';
 
+    /** A deposit HELD for the life of an owner listing and handed back — priced here, never taken as a fee. */
+    public const OWNER_LISTING_DEPOSIT = 'owner_listing_deposit';
+
     /**
      * event → [Arabic name, English name, what a percent is OF, the parties: role → [Arabic, English]].
      *
@@ -34,6 +37,9 @@ final class PlatformEventFeeService
         self::OWNER_LISTING_CONTACT => ['تبادل الأرقام على إعلان من المالك (عند الاتفاق)', 'Owner listing: swapping numbers once they agree', 'سعر الإعلان', [
             'buyer' => ['المشتري / المستأجر', 'Buyer / renter'],
             'seller' => ['البائع / المؤجِّر', 'Seller / owner'],
+        ]],
+        self::OWNER_LISTING_DEPOSIT => ['عربون جدية الإعلان من المالك (يُحجز ويُردّ عند البيع أو الإنهاء — لمن لا يملك ضمانًا برونزيًا فأعلى)', 'Owner listing: seriousness deposit (held and handed back on sale / ending — for advertisers without a bronze+ guarantee)', 'لا شيء (مبلغ ثابت؛ المعطَّل = لا شرط)', [
+            'owner' => ['المعلِن', 'Advertiser'],
         ]],
         self::TRAINING_PROGRAM_CHANGE => ['البرنامج التدريبي (عند المشاركة مع العميل وعند كل تجديد شهري)', 'Training program (when shared with a client and at every monthly renewal)', 'لا شيء (مبلغ ثابت)', [
             'trainer' => ['المدرب', 'Trainer'],

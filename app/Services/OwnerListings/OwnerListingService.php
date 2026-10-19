@@ -21,13 +21,14 @@ final class OwnerListingService
 
     public function __construct(
         private readonly ThreadService $threads,
-        private readonly NotificationDispatcherService $notifications
+        private readonly NotificationDispatcherService $notifications,
+        private readonly OwnerListingSeriousness $seriousness
     ) {}
 
     /**
      * @param  array<string,mixed>  $data  {category, deal, title, description?, price?, price_unit?, governorate_id, city_id?, attributes?}
      */
-    public function create(User $owner, array $data): OwnerListing
+    public function create(User $owner, array $data, bool $holdDeposit = false): OwnerListing
     {
         $category = (string) $data['category'];
         $deal = (string) $data['deal'];
@@ -43,7 +44,11 @@ final class OwnerListingService
         [$price, $unit] = $this->priceOf($deal, $data);
         $this->assertPlace($data);
 
-        return OwnerListing::create([
+        // «جدية الإعلان»: a bronze+ guarantee, or a deposit held until the listing ends
+        $deposit = $this->seriousness->assertCanPublish($owner, $holdDeposit);
+
+        return DB::transaction(function () use ($owner, $category, $deal, $data, $price, $unit, $deposit) {
+            $listing = OwnerListing::create([
             'user_id' => (int) $owner->id,
             'category' => $category,
             'deal' => $deal,
@@ -56,7 +61,12 @@ final class OwnerListingService
             'attributes' => OwnerListingCategories::clean($category, $deal, (array) ($data['attributes'] ?? [])),
             'status' => OwnerListing::STATUS_ACTIVE,
             'expires_at' => now()->addDays((int) config('bim.owner_listings.active_days', 60)),
-        ]);
+            ]);
+
+            $this->seriousness->hold($listing, $deposit);
+
+            return $listing->refresh();
+        });
     }
 
     /** @param array<string,mixed> $data */
@@ -98,6 +108,8 @@ final class OwnerListingService
             throw ValidationException::withMessages(['reason' => __('سبب غير صالح لهذا الإعلان.')]);
         }
 
+        $this->seriousness->release($listing);
+
         $listing->update([
             'status' => OwnerListing::STATUS_DONE,
             'done_reason' => $reason,
@@ -123,11 +135,20 @@ final class OwnerListingService
             throw ValidationException::withMessages(['listing' => __('لا يمكن تجديد هذا الإعلان.')]);
         }
 
-        $listing->update([
-            'status' => OwnerListing::STATUS_ACTIVE,
-            'expires_at' => now()->addDays((int) config('bim.owner_listings.active_days', 60)),
-            'purge_at' => null,
-        ]);
+        // an expired listing gave its deposit back; bringing it back asks for the same condition again
+        $again = $listing->deposit_state === OwnerListingSeriousness::STATE_RELEASED
+            ? $this->seriousness->assertCanPublish($listing->owner, true)
+            : 0.0;
+
+        DB::transaction(function () use ($listing, $again) {
+            $listing->update([
+                'status' => OwnerListing::STATUS_ACTIVE,
+                'expires_at' => now()->addDays((int) config('bim.owner_listings.active_days', 60)),
+                'purge_at' => null,
+            ]);
+
+            $this->seriousness->hold($listing, $again);
+        });
 
         return $listing->refresh();
     }
@@ -136,6 +157,7 @@ final class OwnerListingService
     public function remove(OwnerListing $listing): void
     {
         DB::transaction(function () use ($listing) {
+            $this->seriousness->release($listing);
             $this->purgeThreads($listing);
             $listing->delete();
         });
@@ -206,6 +228,7 @@ final class OwnerListingService
 
         foreach ($expired as $listing) {
             $listing->update(['status' => OwnerListing::STATUS_EXPIRED, 'purge_at' => now()->addDays($grace)]);
+            $this->seriousness->release($listing);
             $this->tellOwner($listing, 'owner_listing_expired',
                 'انتهت مدة إعلانك «' . $listing->title . '». جدّده خلال ' . $grace . ' أيام وإلا يُحذف.',
                 'Your listing "' . $listing->title . '" has ended. Renew it within ' . $grace . ' days or it is deleted.');

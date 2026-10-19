@@ -3188,5 +3188,7 @@
     ":name يتعامل مع هذا البلاغ الآن.": ":name is dealing with this report now.",
     "لا توجد بلاغات مفتوحة على هذا المحتوى.": "There are no open reports on this content.",
     "أنت من يتعامل مع هذا البلاغ الآن.": "You are now the one dealing with this report.",
-    "تم تحرير البلاغ.": "The report was released."
+    "تم تحرير البلاغ.": "The report was released.",
+    "لنشر إعلانك: ضمان :level فأعلى، أو عربون جدية :amount جنيه يُحجز من محفظتك ويُردّ عند البيع أو الإنهاء.": "To publish your listing you need a :level guarantee or higher, or a seriousness deposit of :amount EGP held from your wallet and handed back when you sell or end it.",
+    "رصيدك لا يكفي لعربون الجدية (:amount جنيه). اشحن محفظتك أولًا.": "Your balance is not enough for the seriousness deposit (:amount EGP). Top up your wallet first."
 }

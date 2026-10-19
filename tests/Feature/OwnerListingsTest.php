@@ -7,7 +7,9 @@ use App\Models\OwnerListing;
 use App\Models\OwnerListingInquiry;
 use App\Models\PlatformEventFee;
 use App\Models\Thread;
+use App\Models\GuaranteeLevel;
 use App\Models\User;
+use App\Models\UserGuarantee;
 use App\Services\Fees\PlatformEventFeeService;
 use App\Services\OwnerListings\OwnerListingService;
 use App\Services\OwnerListings\PhoneNumberGuard;
@@ -453,5 +455,121 @@ class OwnerListingsTest extends TestCase
         $this->artisan('owner-listings:sweep')->assertSuccessful();
         $this->assertSame(1, $count('owner_listing_expired'));
         $this->assertSame(OwnerListing::STATUS_EXPIRED, $listing->refresh()->status);
+    }
+
+    /** The seriousness deposit as the control panel sets it (null = switched off). */
+    private function priceDeposit(?float $amount): void
+    {
+        PlatformEventFee::query()->updateOrCreate(
+            ['event_key' => PlatformEventFeeService::OWNER_LISTING_DEPOSIT, 'role' => 'owner'],
+            ['enabled' => $amount !== null, 'calc_type' => 'fixed', 'amount' => $amount ?? 0, 'min_amount' => null, 'max_amount' => null]
+        );
+    }
+
+    private function giveBronze(User $u): void
+    {
+        $level = GuaranteeLevel::query()->where('code', 'bronze')->where('target_type', GuaranteeLevel::TARGET_CLIENT)->firstOrFail();
+
+        UserGuarantee::create([
+            'user_id' => $u->id, 'target_type' => GuaranteeLevel::TARGET_CLIENT, 'purchased_level_id' => $level->id,
+            'effective_level_id' => $level->id, 'status' => UserGuarantee::STATUS_ACTIVE, 'current_coverage_amount' => 1000, 'used_coverage_amount' => 0,
+        ]);
+    }
+
+    public function test_with_the_condition_off_anyone_publishes_and_the_app_is_told_nothing_is_needed(): void
+    {
+        $this->priceDeposit(null);
+        $u = $this->user('own');
+        Sanctum::actingAs($u);
+
+        $this->getJson('/api/v2/owner-listings/requirements')->assertOk()->assertJsonPath('data.requirements.required', false)->assertJsonPath('data.requirements.needs_deposit', false);
+        $this->postJson('/api/v2/owner-listings', $this->carBody())->assertCreated();
+    }
+
+    public function test_without_a_bronze_guarantee_the_listing_needs_a_deposit_that_is_held_then_handed_back_on_finishing(): void
+    {
+        $this->priceDeposit(100);
+        $u = $this->user('own');
+        $wallets = app(WalletService::class);
+        Sanctum::actingAs($u);
+
+        $req = $this->getJson('/api/v2/owner-listings/requirements')->assertOk()->json('data.requirements');
+        $this->assertTrue($req['needs_deposit']);
+        $this->assertEquals(100, $req['deposit_amount']);
+        $this->assertFalse($req['guarantee_ok']);
+
+        // no consent -> refused with what to do; consent but an empty wallet -> refused; nothing is created either way
+        $this->postJson('/api/v2/owner-listings', $this->carBody())->assertStatus(422)->assertJsonValidationErrors('seriousness');
+        $this->postJson('/api/v2/owner-listings', $this->carBody() + ['hold_deposit' => true])->assertStatus(422)->assertJsonValidationErrors('balance');
+        $this->assertSame(0, OwnerListing::where('user_id', $u->id)->count());
+
+        $this->fund($u, 300);
+        $id = $this->postJson('/api/v2/owner-listings', $this->carBody() + ['hold_deposit' => true])->assertCreated()
+            ->assertJsonPath('data.listing.deposit.state', 'held')->json('data.listing.id');
+        $wallet = $wallets->getOrCreateWallet($u->id)->refresh();
+        $this->assertEquals(200, (float) $wallet->balance);
+        $this->assertEquals(100, (float) $wallet->locked_balance);
+
+        $this->postJson("/api/v2/owner-listings/{$id}/finish", ['reason' => 'sold'])->assertOk();
+        $wallet = $wallets->getOrCreateWallet($u->id)->refresh();
+        $this->assertEquals(300, (float) $wallet->balance, 'handed back on the sale');
+        $this->assertEquals(0, (float) $wallet->locked_balance);
+        $this->assertSame('released', OwnerListing::find($id)->deposit_state);
+
+        // finishing again hands back nothing more
+        $this->postJson("/api/v2/owner-listings/{$id}/finish", ['reason' => 'sold'])->assertOk();
+        $this->assertEquals(300, (float) $wallets->getOrCreateWallet($u->id)->refresh()->balance);
+    }
+
+    public function test_a_bronze_guarantee_stands_behind_the_listing_so_no_deposit_is_taken(): void
+    {
+        $this->priceDeposit(100);
+        $u = $this->user('own');
+        $this->giveBronze($u);
+        Sanctum::actingAs($u);
+
+        $req = $this->getJson('/api/v2/owner-listings/requirements')->json('data.requirements');
+        $this->assertTrue($req['guarantee_ok']);
+        $this->assertFalse($req['needs_deposit']);
+
+        $this->postJson('/api/v2/owner-listings', $this->carBody())->assertCreated()->assertJsonPath('data.listing.deposit', null);
+        $this->assertEquals(0, (float) app(WalletService::class)->getOrCreateWallet($u->id)->locked_balance);
+    }
+
+    public function test_the_deposit_also_goes_back_when_the_owner_deletes_the_listing_when_it_expires_and_when_a_moderator_removes_it(): void
+    {
+        $this->priceDeposit(50);
+        $wallets = app(WalletService::class);
+        $balance = fn (User $u) => (float) $wallets->getOrCreateWallet($u->id)->refresh()->balance;
+        $locked = fn (User $u) => (float) $wallets->getOrCreateWallet($u->id)->refresh()->locked_balance;
+
+        // deleted by the owner
+        $a = $this->user('a');
+        $this->fund($a, 100);
+        Sanctum::actingAs($a);
+        $idA = $this->postJson('/api/v2/owner-listings', $this->carBody() + ['hold_deposit' => true])->assertCreated()->json('data.listing.id');
+        $this->deleteJson("/api/v2/owner-listings/{$idA}")->assertOk();
+        $this->assertEquals([100, 0], [$balance($a), $locked($a)]);
+
+        // expired: back at once; renewing it asks for the condition again
+        $b = $this->user('b');
+        $this->fund($b, 100);
+        Sanctum::actingAs($b);
+        $idB = $this->postJson('/api/v2/owner-listings', $this->carBody() + ['hold_deposit' => true])->assertCreated()->json('data.listing.id');
+        OwnerListing::whereKey($idB)->update(['expires_at' => now()->subMinute()]);
+        $this->artisan('owner-listings:sweep')->assertSuccessful();
+        $this->assertEquals([100, 0], [$balance($b), $locked($b)]);
+        $this->postJson("/api/v2/owner-listings/{$idB}/renew")->assertOk();
+        $this->assertEquals([50, 50], [$balance($b), $locked($b)], 'held again for the new run of days');
+
+        // removed by a moderator: handed back, not confiscated
+        $c = $this->user('c');
+        $this->fund($c, 100);
+        Sanctum::actingAs($c);
+        $idC = $this->postJson('/api/v2/owner-listings', $this->carBody() + ['hold_deposit' => true])->assertCreated()->json('data.listing.id');
+        $reports = app(\App\Services\Moderation\ContentReportService::class);
+        $reports->report($this->user('rep'), 'owner_listing', $idC, 'fraud');
+        $reports->remove('owner_listing', $idC, $this->user('mod'));
+        $this->assertEquals([100, 0], [$balance($c), $locked($c)]);
     }
 }

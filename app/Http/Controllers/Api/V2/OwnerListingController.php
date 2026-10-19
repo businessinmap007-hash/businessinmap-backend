@@ -11,6 +11,7 @@ use App\Services\Moderation\ContentReportService;
 use App\Services\OwnerListings\ContactRevealService;
 use App\Services\OwnerListings\OwnerListingCategories;
 use App\Services\OwnerListings\OwnerListingService;
+use App\Services\OwnerListings\OwnerListingSeriousness;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -24,13 +25,20 @@ final class OwnerListingController extends Controller
     public function __construct(
         private readonly OwnerListingService $listings,
         private readonly ContactRevealService $reveal,
-        private readonly ContentReportService $reports
+        private readonly ContentReportService $reports,
+        private readonly OwnerListingSeriousness $seriousness
     ) {}
 
     /** GET owner-listings/categories — the categories, their deals and the fields each one asks. */
     public function categories()
     {
         return response()->json(['success' => true, 'data' => ['categories' => OwnerListingCategories::forApi($this->english())]]);
+    }
+
+    /** GET owner-listings/requirements — what this account must do to publish: a bronze+ guarantee or a deposit (priced in the cPanel). */
+    public function requirements(Request $request)
+    {
+        return response()->json(['success' => true, 'data' => ['requirements' => $this->seriousness->requirement($request->user())]]);
     }
 
     /** GET owner-listings — what a person browses: live listings, newest first. */
@@ -88,9 +96,11 @@ final class OwnerListingController extends Controller
             'governorate_id' => ['required', 'integer'],
             'city_id' => ['nullable', 'integer'],
             'attributes' => ['nullable', 'array'],
+            // agreeing to leave the seriousness deposit (needed only when the advertiser has no bronze+ guarantee)
+            'hold_deposit' => ['nullable', 'boolean'],
         ])->validate();
 
-        $listing = $this->listings->create($request->user(), $data);
+        $listing = $this->listings->create($request->user(), $data, (bool) ($data['hold_deposit'] ?? false));
 
         return response()->json([
             'success' => true,
@@ -329,6 +339,8 @@ final class OwnerListingController extends Controller
             'owner' => ['id' => (int) $l->user_id, 'name' => $l->owner?->name, 'logo' => $l->owner?->logo],
             'my_inquiry_id' => $inquiry?->id ? (int) $inquiry->id : null,
             'inquiries_count' => $mine ? (int) $l->inquiries()->count() : null,
+            // the owner's own seriousness deposit: how much, and whether it is still held
+            'deposit' => $mine && (float) $l->deposit_amount > 0 ? ['amount' => (float) $l->deposit_amount, 'state' => $l->deposit_state] : null,
         ];
     }
 

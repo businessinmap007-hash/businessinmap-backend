@@ -34,11 +34,13 @@ class CarWantedRequestsTest extends TestCase
         parent::setUp();
 
         $trades = (new CarWantedRequestKind)->tradeIds();
-        if (count($trades) < 2) {
-            $this->markTestSkipped('Needs the showroom and the private-seller trades.');
+        if (count($trades) < 1) {
+            $this->markTestSkipped('Needs the showroom trade.');
         }
 
-        [$this->showroom, $this->owner] = [(int) DB::table('category_children_master')->where('name_ar', 'معرض سيارات')->value('id'), (int) DB::table('category_children_master')->where('name_ar', 'سيارة من المالك')->value('id')];
+        // «سيارة من المالك» was retired (an owner listing replaced it): the second dealer is another showroom
+        $this->showroom = (int) DB::table('category_children_master')->where('name_ar', 'معرض سيارات')->value('id');
+        $this->owner = $this->showroom;
         $this->gov = (int) DB::table('governorates')->orderBy('id')->value('id');
         $this->otherGov = (int) DB::table('governorates')->where('id', '!=', $this->gov)->orderBy('id')->value('id');
         $this->sedan = (int) DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')->where('g.name_ar', 'نوع المركبة')->where('o.name_ar', 'سيدان')->value('o.id');

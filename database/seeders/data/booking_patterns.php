@@ -184,7 +184,6 @@ return [
     184   => ['appointment'],                           // كوافير رجالي [كوافير]
     556   => ['appointment'],                           // ونش رفع أثاث [شحن وتوصيل] - FurnitureWinchChildSeeder::CHILD_ID
     554   => ['appointment'],                           // مركز تجميل وسبا [كوافير] — BeautyCenterChildSeeder::CHILD_ID
-    549   => ['appointment'],                           // سيارة من المالك [سيارات] — يحدد مَن يعرض سيارته موعد معاينة وتجربة
     280   => ['appointment'],                           // لعب أطفال [شركات، معارض]
     9     => ['appointment'],                           // لوازم ستائر [شركات]
     178   => ['appointment'],                           // مأذون شرعى [مكاتب]

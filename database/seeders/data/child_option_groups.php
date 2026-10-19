@@ -242,7 +242,7 @@ return [
         | wholesales nor exports nor accepts returns.
         */
         'cars:188' => $goods,                                 // معرض سيارات
-        'cars:549' => ['product_condition', 'payment_terms'], // سيارة من المالك
+        // «سيارة من المالك» #549 was retired on 2026-10-26 (an owner listing replaced it): no entry, and none must come back.
 
         // «سيارات نقل» moved cars → shipping-delivery on 2026-10-18: a lorry hire has no fulfilment terms of its own, it keeps
         // the field-work bundle it carried under the cars root.

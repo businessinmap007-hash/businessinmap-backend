@@ -164,7 +164,7 @@ class CarDealTypeSpecsTest extends TestCase
     /** «سيدان — كيا»: the make describes the car; it is neither a second shelf nor a price axis. */
     public function test_the_make_describes_the_car_instead_of_being_a_second_section_or_a_price_axis(): void
     {
-        foreach ([188, 549] as $child) {
+        foreach ([188] as $child) {
             $shop = User::query()->where('type', 'business')->where('category_child_id', $child)->orderBy('id')->first();
 
             if (! $shop) {

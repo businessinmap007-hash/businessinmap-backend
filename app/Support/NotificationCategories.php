@@ -17,7 +17,7 @@ final class NotificationCategories
         'bookings' => ['الحجوزات والمواعيد', 'Bookings & appointments', ['booking_', 'booking.', 'appointment_', 'assignment_']],
         'reminders' => ['التذكيرات', 'Reminders', ['agenda_reminder', 'medication_reminder']],
         'messages' => ['الرسائل والمحادثات', 'Messages & chats', ['chat_', 'dispute_room_message']],
-        'social' => ['المنشورات والعروض والوظائف', 'Posts, offers & jobs', ['post_', 'comment_', 'offer_', 'job_']],
+        'social' => ['المنشورات والعروض والوظائف', 'Posts, offers & jobs', ['post_', 'comment_', 'offer_', 'job_', 'owner_listing_']],
         'trips' => ['الرحلات والمشاريع', 'Trips & projects', ['trip_', 'project_', 'service_request_']],
         'money' => ['المحفظة والضمانات والنزاعات', 'Wallet, guarantees & disputes', ['wallet_', 'guarantee_', 'coguarantor_', 'dispute_']],
         'health' => ['الأدوية والوصفات والفحوصات', 'Medicine, prescriptions & tests', ['prescription_', 'investigation_', 'hospital_', 'procedure_']],

@@ -293,6 +293,12 @@ final class OwnerListingController extends Controller
             'currency' => $l->currency,
             'governorate' => $places['governorates'][(int) $l->governorate_id] ?? null,
             'city' => $l->city_id ? ($places['cities'][(int) $l->city_id] ?? null) : null,
+            // the ids too: the edit form puts the listing's place back into the location picker
+            'place' => [
+                'country_id' => (int) DB::table('governorates')->where('id', (int) $l->governorate_id)->value('country_id'),
+                'governorate_id' => (int) $l->governorate_id,
+                'city_id' => $l->city_id ? (int) $l->city_id : null,
+            ],
             'cover' => $cover ? (string) $cover->image : null,
             'images_count' => $l->images->count(),
             'status' => $l->status,

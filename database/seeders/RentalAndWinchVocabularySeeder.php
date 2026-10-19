@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\DB;
  *     php artisan db:seed --class=RentalAndWinchVocabularySeeder
  *
  * 1. A car for rent — «مع سائق» and the insurance were descriptive fields of the listing (the 7 rental fields of
- *    CarRentalSpecsSeeder). A showroom or a private owner also SELLS them: a driver, comprehensive insurance, the car
+ *    CarRentalSpecsSeeder). A showroom also SELLS them: a driver, comprehensive insurance, the car
  *    brought to the door, a child seat, a tracker — each at its own price per day, chosen by the renter like the meal
- *    plan of a hotel. One group of add-ons for «معرض سيارات» #188 and «سيارة من المالك» #549.
+ *    plan of a hotel. One group of add-ons for «معرض سيارات» #188.
  * 2. A furniture hoist — the price of lifting a sofa depends on the floor and on the way in (balcony, window, roof).
  *    Two groups for «ونش رفع أثاث» #556: the floor (one choice) and the way (any).
  *
@@ -32,7 +32,7 @@ class RentalAndWinchVocabularySeeder extends Seeder
      * @var array<string,array{0:string,1:int,2:list<int>,3:list<array{0:string,1:string}>}>
      */
     private const GROUPS = [
-        'إضافات تأجير السيارة' => ['Car Rental Add-ons', 10710, [188, 549], [
+        'إضافات تأجير السيارة' => ['Car Rental Add-ons', 10710, [188], [
             ['مع سائق', 'Rental With Driver'],
             ['تأمين شامل', 'Rental Comprehensive Insurance'],
             ['توصيل واستلام السيارة', 'Car Delivery And Pickup'],

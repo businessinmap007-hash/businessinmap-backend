@@ -26,7 +26,7 @@ use Illuminate\Validation\ValidationException;
 final class CarWantedRequestKind implements RequestKind
 {
     /** Who sells or lets a car, by trade name — the trade ids are looked up, never hard-coded. */
-    private const TRADES = ['معرض سيارات', 'سيارة من المالك'];
+    private const TRADES = ['معرض سيارات'];
 
     private const TTL_DAYS = 14;
 

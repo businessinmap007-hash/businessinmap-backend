@@ -234,9 +234,7 @@ class DatabaseSeeder extends Seeder
             * part of heals nothing.
             */
            VehicleDealTypeSeeder::class,
-           CarOwnerListingSeeder::class,
-           // the private seller can be visited: a unit-free appointment (before the pattern map is checked)
-           CarOwnerViewingSeeder::class,
+           // «سيارة من المالك» (CarOwnerListingSeeder) was retired on 2026-10-26: an individual lists his car as an owner listing
 
            // Sixteen children that could say what they DO and not what they are
            // made of, lent an existing list from a sibling. After the seeder

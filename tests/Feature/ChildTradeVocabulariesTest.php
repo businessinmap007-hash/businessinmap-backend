@@ -3549,7 +3549,7 @@ class ChildTradeVocabulariesTest extends TestCase
         $strays = DB::table('category_child_option as l')
             ->join('category_parent_child as pc', 'pc.child_id', '=', 'l.child_id')
             ->where('l.option_id', $row->id)
-            ->whereNotIn('l.child_id', [188, 189, $this->childId('سيارة من المالك')])
+            ->whereNotIn('l.child_id', [188, 189])
             ->where(function ($q) {
                 $q->where('l.category_id', 0)->orWhereColumn('l.category_id', 'pc.parent_id');
             })
@@ -3618,24 +3618,9 @@ class ChildTradeVocabulariesTest extends TestCase
                 "{$table} still points at «معارض»");
         }
 
-        // The private seller, and the reason it is a CHILD: a معرض must not be
-        // able to label itself «من المالك» or the filter is worthless.
-        $owner = DB::table('category_children_master')->where('name_ar', 'سيارة من المالك')->first();
-
-        $this->assertNotNull($owner, 'the owner side of the car market has no child');
-        $this->assertSame([13], DB::table('category_parent_child')->where('child_id', $owner->id)
-            ->pluck('parent_id')->map(fn ($id) => (int) $id)->all());
-
-        $scope = app(\App\Services\CategoryChildOptionScope::class);
-        $held = DB::table('options')->whereIn('id', $scope->idsFor((int) $owner->id, 13))->pluck('name_ar');
-
-        foreach (['سيدان', 'كسر زيرو', 'بيع', 'إيجار', 'تبديل'] as $word) {
-            $this->assertContains($word, $held->all(), "«سيارة من المالك» cannot say «{$word}»");
-        }
-
-        // …and «شراء» is the showroom's own offer. An individual selling his
-        // car is not in the business of buying yours.
-        $this->assertNotContains('شراء', $held->all());
+        // «سيارة من المالك» was a child of its own until 2026-10-26; an individual now lists his car as an owner listing
+        // (OwnerListingController), so that trade must not exist — nor come back with a seeder.
+        $this->assertNull(DB::table('category_children_master')->where('name_ar', 'سيارة من المالك')->first());
     }
 
     /**

@@ -46,7 +46,7 @@ class RentalAndWinchVocabularyTest extends TestCase
         $count = fn () => [
             DB::table('option_groups')->whereIn('name_ar', ['إضافات تأجير السيارة', 'ارتفاع رفع الأثاث', 'طريقة رفع الأثاث'])->count(),
             DB::table('options as o')->join('option_groups as g', 'g.id', '=', 'o.group_id')->whereIn('g.name_ar', ['إضافات تأجير السيارة', 'ارتفاع رفع الأثاث', 'طريقة رفع الأثاث'])->count(),
-            DB::table('category_child_option')->whereIn('child_id', [188, 549, 556])->count(),
+            DB::table('category_child_option')->whereIn('child_id', [188, 556])->count(),
         ];
 
         (new RentalAndWinchVocabularySeeder())->run();
@@ -57,9 +57,9 @@ class RentalAndWinchVocabularyTest extends TestCase
         $this->assertSame($first, $count());
     }
 
-    public function test_a_showroom_and_a_private_owner_price_the_drivers_and_the_insurance_per_car(): void
+    public function test_a_showroom_prices_the_drivers_and_the_insurance_per_car(): void
     {
-        foreach ([188, 549] as $child) {
+        foreach ([188] as $child) {
             $dealer = $this->business('cars', $child);
             $group = collect($this->addOns($dealer))->firstWhere('group', 'إضافات تأجير السيارة');
 

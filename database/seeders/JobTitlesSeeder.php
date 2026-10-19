@@ -182,7 +182,6 @@ class JobTitlesSeeder extends Seeder
         'ونش إنقاذ' => [['سائق ونش', 'Tow truck driver'], ['فني إنقاذ', 'Recovery technician']],
         'نقل ركاب' => [['سائق ميكروباص', 'Minibus driver'], ['سائق أتوبيس', 'Bus driver'], ['محصل', 'Fare collector']],
         'سيارات نقل' => [['سائق نقل', 'Truck driver'], ['مساعد سائق', 'Driver assistant'], ['عامل تحميل', 'Loader']],
-        'سيارة من المالك' => [['سائق', 'Driver']],
         'مندوب' => [['مندوب توصيل', 'Delivery courier'], ['مندوب استلام', 'Pickup representative'], ['موزع', 'Distributor']],
         'معرض موتوسيكلات' => [['مندوب مبيعات', 'Sales representative'], ['ميكانيكي دراجات', 'Motorbike mechanic'], ['كاشير', 'Cashier']],
 

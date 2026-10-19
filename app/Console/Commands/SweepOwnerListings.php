@@ -18,7 +18,7 @@ final class SweepOwnerListings extends Command
     public function handle(OwnerListingService $listings): int
     {
         $result = $listings->sweep();
-        $this->info("expired {$result['expired']} · deleted {$result['purged']}");
+        $this->info("expired {$result['expired']} · deleted {$result['purged']} · announced {$result['announced']}");
 
         return self::SUCCESS;
     }

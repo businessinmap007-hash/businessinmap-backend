@@ -27,7 +27,7 @@ class OwnerListing extends Model
 
     protected $fillable = [
         'user_id', 'category', 'deal', 'title', 'description', 'price', 'price_unit', 'currency', 'governorate_id', 'city_id',
-        'attributes', 'status', 'done_reason', 'done_at', 'expires_at', 'purge_at', 'reports_count',
+        'attributes', 'status', 'done_reason', 'done_at', 'expires_at', 'expiry_alerted_for', 'purge_at', 'reports_count',
     ];
 
     protected $casts = [
@@ -35,6 +35,7 @@ class OwnerListing extends Model
         'attributes' => 'array',
         'done_at' => 'datetime',
         'expires_at' => 'datetime',
+        'expiry_alerted_for' => 'datetime',
         'purge_at' => 'datetime',
         'reports_count' => 'integer',
     ];

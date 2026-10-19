@@ -30,6 +30,9 @@ final class CommentVisibilityService
     public const PUBLIC = 'public';
     public const PRIVATE = 'private';
 
+    /** Taken down by a moderator after a report: shown to nobody, the post's author included. */
+    public const REMOVED = 'removed';
+
     /**
      * Constrain a comment query to what $viewer is allowed to read.
      * $viewer may be null (guest).
@@ -37,7 +40,7 @@ final class CommentVisibilityService
     public function scope(Builder $query, Post $post, ?User $viewer): Builder
     {
         if ($viewer !== null && (int) $viewer->id === (int) $post->user_id) {
-            return $query;
+            return $query->where('status', '!=', self::REMOVED);
         }
 
         return $query->where(function (Builder $w) use ($viewer) {
@@ -56,6 +59,10 @@ final class CommentVisibilityService
     /** Whether $viewer may read one specific comment. */
     public function canRead(Comment $comment, Post $post, ?User $viewer): bool
     {
+        if ($comment->status === self::REMOVED) {
+            return false;
+        }
+
         if ($comment->status === self::PUBLIC) {
             return true;
         }

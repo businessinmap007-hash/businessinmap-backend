@@ -13,6 +13,13 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        // The owner prices platform events in the control panel (the dev database holds real prices), and a test's users have
+        // empty wallets: every test starts with those prices OFF and sets the ones it needs. Only inside the test's own
+        // transaction, so the real prices are never touched.
+        if (DB::transactionLevel() > 0 && \Illuminate\Support\Facades\Schema::hasTable('platform_event_fees')) {
+            DB::table('platform_event_fees')->update(['enabled' => false]);
+        }
+
         if (in_array(\Tests\Concerns\AnswersDelivery::class, class_uses_recursive($this), true)) {
             $this->everyBusinessHasAnswered();
         }

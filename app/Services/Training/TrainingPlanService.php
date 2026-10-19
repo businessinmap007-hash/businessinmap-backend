@@ -479,6 +479,8 @@ class TrainingPlanService
 
         $plans = TrainingPlan::query()
             ->where('trainer_id', $trainerId)
+            // a plan past its paid month is hidden from the client, so it has no adherence to average
+            ->visibleToClient()
             ->when($status, fn ($q) => $q->where('status', $status))
             ->with('client:id,name')
             ->latest('id')

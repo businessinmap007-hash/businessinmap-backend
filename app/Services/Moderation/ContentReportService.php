@@ -2,6 +2,7 @@
 
 namespace App\Services\Moderation;
 
+use App\Models\Comment;
 use App\Models\ContentReport;
 use App\Models\OwnerListing;
 use App\Models\Post;
@@ -26,6 +27,7 @@ final class ContentReportService
     /** key → model class. The key is what the app sends and what the table stores. */
     public const TYPES = [
         'post' => Post::class,
+        'comment' => Comment::class,
         'owner_listing' => OwnerListing::class,
     ];
 
@@ -188,13 +190,31 @@ final class ContentReportService
         return ContentReport::query()->where('reportable_type', $type)->where('reportable_id', $id)->where('status', ContentReport::STATUS_OPEN);
     }
 
+    /** Whoever reported it hears what came of it — never who decided. */
+    private function tellReporters(array $reporterIds, string $type, int $id, bool $removed): void
+    {
+        foreach ($reporterIds as $reporterId) {
+            try {
+                $this->notifications->dispatch('moderation_report_outcome', (int) $reporterId, [
+                    'body_ar' => $removed ? 'راجع المشرف بلاغك وأزال المحتوى. شكرًا لمساعدتك في إبقاء المنصة نظيفة.' : 'راجع المشرف بلاغك ورأى أن المحتوى لا يخالف القواعد. شكرًا لك.',
+                    'body_en' => $removed ? 'A moderator reviewed your report and removed the content. Thank you for helping keep the platform clean.' : 'A moderator reviewed your report and found the content within the rules. Thank you.',
+                    'source_type' => 'moderation_report_outcome',
+                    'source_id' => $id,
+                    'meta' => ['type' => $type, 'id' => $id, 'removed' => $removed],
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
     /** The author hears that his post / listing was taken down after a report. */
     private function tellAuthor(string $type, $target): void
     {
         try {
-            $title = (string) ($target->title ?? '');
-            $kindAr = $type === 'post' ? 'منشورك' : 'إعلانك';
-            $kindEn = $type === 'post' ? 'Your post' : 'Your listing';
+            $title = $type === 'comment' ? '' : (string) ($target->title ?? '');
+            $kindAr = ['post' => 'منشورك', 'comment' => 'تعليقك'][$type] ?? 'إعلانك';
+            $kindEn = ['post' => 'Your post', 'comment' => 'Your comment'][$type] ?? 'Your listing';
 
             $this->notifications->dispatch('moderation_content_removed', (int) $target->user_id, [
                 'body_ar' => trim($kindAr . ($title !== '' ? " «{$title}»" : '') . ' أُزيل بعد بلاغات رأى المشرف أنها في محلها.'),
@@ -236,11 +256,11 @@ final class ContentReportService
         DB::transaction(function () use ($type, $id, $target, $moderator) {
             $this->closeReports($type, $id, $moderator, ContentReport::STATUS_ACTIONED, 'removed');
 
-            if ($type === 'post') {
-                $target->update(['is_active' => false]);
-            } else {
-                $this->listings->remove($target);
-            }
+            match ($type) {
+                'post' => $target->update(['is_active' => false]),
+                'comment' => $target->update(['status' => 'removed']),
+                default => $this->listings->remove($target),
+            };
         });
     }
 
@@ -260,8 +280,12 @@ final class ContentReportService
 
     private function closeReports(string $type, int $id, User $moderator, string $status, ?string $action): void
     {
+        $reporters = $this->openReports($type, $id)->pluck('reporter_id')->unique()->all();
+
         ContentReport::query()->where('reportable_type', $type)->where('reportable_id', $id)->where('status', ContentReport::STATUS_OPEN)
             ->update(['status' => $status, 'action' => $action, 'handled_by' => (int) $moderator->id, 'handled_at' => now()]);
+
+        $this->tellReporters($reporters, $type, $id, $status === ContentReport::STATUS_ACTIONED);
     }
 
     // ─────────────────────────── the items ───────────────────────────
@@ -276,9 +300,12 @@ final class ContentReportService
 
     private function isReportable(string $type, $target): bool
     {
-        return $type === 'post'
-            ? (bool) $target->is_active && ($target->expire_at === null || $target->expire_at->isFuture())
-            : in_array($target->status, [OwnerListing::STATUS_ACTIVE, OwnerListing::STATUS_FLAGGED], true);
+        return match ($type) {
+            'post' => (bool) $target->is_active && ($target->expire_at === null || $target->expire_at->isFuture()),
+            // only a public comment: a private one is a conversation between two people, not published content
+            'comment' => $target->status === 'public',
+            default => in_array($target->status, [OwnerListing::STATUS_ACTIVE, OwnerListing::STATUS_FLAGGED], true),
+        };
     }
 
     private function authorId(string $type, $target): int
@@ -332,6 +359,17 @@ final class ContentReportService
                 'image' => $target->image ?: null,
                 'author' => $author ? ['id' => (int) $author->id, 'name' => $author->displayName()] : null,
                 'post_type' => $target->type,
+            ];
+        }
+
+        if ($type === 'comment') {
+            return $base + [
+                'state' => $target->status === 'removed' ? 'hidden' : 'live',
+                'title' => null,
+                'excerpt' => mb_substr(trim((string) $target->comment), 0, 240),
+                'image' => null,
+                'author' => $author ? ['id' => (int) $author->id, 'name' => $author->displayName()] : null,
+                'post_id' => (int) $target->post_id,
             ];
         }
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppNotification;
 use App\Models\OwnerListing;
 use App\Models\OwnerListingInquiry;
 use App\Models\PlatformEventFee;
@@ -425,5 +426,32 @@ class OwnerListingsTest extends TestCase
         Sanctum::actingAs($owner);
         $this->deleteJson("/api/v2/owner-listings/{$listing->id}")->assertOk();
         $this->assertNull(OwnerListing::find($listing->id));
+    }
+
+    public function test_the_owner_is_told_once_before_the_listing_ends_and_again_when_it_has(): void
+    {
+        $owner = $this->user('own');
+        $listing = $this->withPhoto($this->listed($owner));
+        $count = fn (string $event) => AppNotification::where('user_id', $owner->id)->where('source_type', $event)->where('source_id', $listing->id)->count();
+
+        $this->artisan('owner-listings:sweep')->assertSuccessful();
+        $this->assertSame(0, $count('owner_listing_expiring'), 'two months to go');
+
+        $listing->update(['expires_at' => now()->addDays(2)]);
+        $this->artisan('owner-listings:sweep')->assertSuccessful();
+        $this->artisan('owner-listings:sweep')->assertSuccessful();
+        $this->assertSame(1, $count('owner_listing_expiring'), 'told once, not on every hourly run');
+
+        // renewing starts a new run of days: it is announced again when that one nears its end
+        Sanctum::actingAs($owner);
+        $this->postJson("/api/v2/owner-listings/{$listing->id}/renew")->assertOk();
+        $listing->refresh()->update(['expires_at' => now()->addDays(1)]);
+        $this->artisan('owner-listings:sweep')->assertSuccessful();
+        $this->assertSame(2, $count('owner_listing_expiring'));
+
+        $listing->update(['expires_at' => now()->subMinute()]);
+        $this->artisan('owner-listings:sweep')->assertSuccessful();
+        $this->assertSame(1, $count('owner_listing_expired'));
+        $this->assertSame(OwnerListing::STATUS_EXPIRED, $listing->refresh()->status);
     }
 }

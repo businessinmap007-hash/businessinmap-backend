@@ -137,6 +137,8 @@ class NotificationChannelRule extends Model
             'service_request_accepted' => ['اختار العميل عرضك', 'The customer chose your offer', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'owner_listing_inquiry' => ['مهتم بإعلانك', 'Someone is interested in your listing', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_new'],
             'owner_listing_reveal_requested' => ['طلب تبادل الأرقام', 'Request to swap phone numbers', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
+            'owner_listing_expiring' => ['إعلانك سينتهي قريبًا', 'Your listing is about to end', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'owner_listing_expired' => ['انتهى إعلانك', 'Your listing has ended', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'owner_listing_revealed' => ['تم تبادل الأرقام', 'Phone numbers swapped', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_confirmed'],
             'service_request_closed' => ['أُغلق الطلب', 'The request is closed', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'booking_cancelled'],
             'trip_parcel_requested' => ['طلب شحنة جديد', 'New parcel request', AppNotification::TYPE_BOOKING, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'booking_new'],
@@ -193,6 +195,7 @@ class NotificationChannelRule extends Model
             'training_lapse' => ['انقطاع متدرب عن تمارينه', 'Client fell behind', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'training_session_completed' => ['إنهاء المتدرب لتمارين اليوم', 'Client finished a workout', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'training_plan_expiring' => ['شهر الخطة على وشك الانتهاء', 'Plan month ending soon', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'moderation_report_outcome' => ['نتيجة بلاغك', 'The outcome of your report', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'moderation_content_removed' => ['إزالة محتوى بعد بلاغ', 'Content removed after a report', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             'training_plan_declined' => ['رفض خطة التدريب', 'Training plan declined', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
 

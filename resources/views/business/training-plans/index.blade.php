@@ -75,6 +75,9 @@
                             <span class="a2-pill {{ $row->status === 'active' ? 'a2-pill-success' : 'a2-pill-gray' }}">
                                 {{ $statusLabels[$row->status] ?? $row->status }}
                             </span>
+                            @if($row->paid_until && $row->paid_until->lt(now()->startOfDay()))
+                                <span class="a2-pill a2-pill-gray">{{ __('انتهى الشهر') }}</span>
+                            @endif
                         </td>
                         <td class="a2-text-right">
                             <a href="{{ route('business.training-plans.show', $row->id) }}" class="a2-btn a2-btn-sm a2-btn-ghost">{{ __('فتح') }}</a>

@@ -217,4 +217,23 @@ class TrainingProgramChangeFeeTest extends TestCase
         $this->artisan('training:alert-expiring')->assertSuccessful();
         $this->assertSame(4, AppNotification::where('source_type', 'training_plan_expiring')->where('source_id', $id)->count());
     }
+
+    public function test_a_plan_past_its_paid_month_is_not_counted_in_lapse_alerts_or_the_weekly_summary(): void
+    {
+        $id = $this->share(['meals' => []]);
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/training-plans/{$id}/accept")->assertOk();
+
+        Sanctum::actingAs($this->trainer);
+        $this->assertSame(1, $this->getJson('/api/v2/business/training-plans/weekly-summary')->json('data.summary.plans'));
+
+        // schedule a training day every day so a lapse is certain once the plan is old enough, then let the month run out
+        TrainingPlan::whereKey($id)->first()->exercises()->update(['day_of_week' => null]);
+        $this->travel(33)->days();
+
+        Sanctum::actingAs($this->trainer);
+        $this->assertSame(0, $this->getJson('/api/v2/business/training-plans/weekly-summary')->json('data.summary.plans'), 'hidden from the client = nothing to average');
+        $this->artisan('training:alert-lapses')->assertSuccessful();
+        $this->assertSame(0, AppNotification::where('user_id', $this->trainer->id)->where('source_type', 'training_lapse')->count());
+    }
 }

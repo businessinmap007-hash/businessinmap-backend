@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AppNotification;
+use App\Models\Comment;
 use App\Models\ContentReport;
 use App\Models\OwnerListing;
 use App\Models\Post;
@@ -258,5 +259,60 @@ class ContentReportsTest extends TestCase
         Sanctum::actingAs($this->moderator());
         $this->postJson("/api/v2/moderation/reports/post/{$other->id}/dismiss")->assertOk();
         $this->assertSame(2, AppNotification::query()->where('user_id', $author->id)->where('source_type', 'moderation_content_removed')->count());
+    }
+
+    public function test_a_public_comment_can_be_reported_and_a_removed_one_shows_to_nobody(): void
+    {
+        $author = $this->user('author', User::TYPE_BUSINESS);
+        $post = $this->makePost($author);
+        $writer = $this->user('writer');
+        $comment = Comment::query()->create(['post_id' => $post->id, 'user_id' => $writer->id, 'comment' => 'buy cheap pills', 'status' => 'public']);
+        $private = Comment::query()->create(['post_id' => $post->id, 'user_id' => $writer->id, 'comment' => 'just between us', 'status' => 'private']);
+
+        Sanctum::actingAs($this->user('rep'));
+        $this->postJson('/api/v2/reports', ['type' => 'comment', 'id' => $comment->id, 'reason' => 'spam'])->assertOk();
+        $this->postJson('/api/v2/reports', ['type' => 'comment', 'id' => $private->id, 'reason' => 'spam'])->assertStatus(422);
+
+        Sanctum::actingAs($writer);
+        $this->postJson('/api/v2/reports', ['type' => 'comment', 'id' => $comment->id, 'reason' => 'spam'])->assertStatus(422);
+
+        Sanctum::actingAs($this->moderator());
+        $row = collect($this->getJson('/api/v2/moderation/reports?type=comment&per_page=50')->json('data.items'))->firstWhere('id', $comment->id);
+        $this->assertSame('buy cheap pills', $row['excerpt']);
+        $this->postJson("/api/v2/moderation/reports/comment/{$comment->id}/remove")->assertOk();
+        $this->assertSame('removed', $comment->refresh()->status);
+
+        // gone for the public, for the commenter and for the post's author alike
+        foreach ([null, $writer, $author] as $viewer) {
+            $viewer ? Sanctum::actingAs($viewer) : $this->app['auth']->forgetGuards();
+            $texts = collect($this->getJson("/api/v2/posts/{$post->id}/comments")->json('data'))->pluck('comment');
+            $this->assertFalse($texts->contains('buy cheap pills'));
+        }
+
+        // a comment is never restored: what it was before (public or private) is not kept
+        Sanctum::actingAs($this->moderator());
+        $this->postJson("/api/v2/moderation/reports/comment/{$comment->id}/restore")->assertStatus(422);
+    }
+
+    public function test_the_reporter_hears_the_outcome_but_not_who_decided(): void
+    {
+        $post = $this->makePost($this->user('author', User::TYPE_BUSINESS));
+        $kept = $this->makePost($this->user('author2', User::TYPE_BUSINESS));
+        $rep = $this->user('rep');
+
+        Sanctum::actingAs($rep);
+        $this->postJson('/api/v2/reports', ['type' => 'post', 'id' => $post->id, 'reason' => 'fraud'])->assertOk();
+        $this->postJson('/api/v2/reports', ['type' => 'post', 'id' => $kept->id, 'reason' => 'spam'])->assertOk();
+
+        $mod = $this->moderator();
+        Sanctum::actingAs($mod);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/post/{$kept->id}/dismiss")->assertOk();
+
+        $told = AppNotification::query()->where('user_id', $rep->id)->where('source_type', 'moderation_report_outcome')->orderBy('source_id')->get();
+        $this->assertCount(2, $told);
+        $this->assertStringContainsString('أزال', $told->firstWhere('source_id', $post->id)->body_ar);
+        $this->assertStringContainsString('لا يخالف', $told->firstWhere('source_id', $kept->id)->body_ar);
+        $this->assertStringNotContainsString($mod->name, $told->pluck('body_ar')->implode(' '));
     }
 }

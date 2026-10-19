@@ -167,6 +167,8 @@ class TrainingPerformanceService
 
         TrainingPlan::query()
             ->where('status', TrainingPlan::STATUS_ACTIVE)
+            // a plan past its paid month is hidden from the client: nobody is training on it, so nobody is «behind»
+            ->visibleToClient()
             ->chunkById(200, function ($plans) use ($today, &$alerted) {
                 foreach ($plans as $plan) {
                     ['streak' => $streak, 'latest' => $latest] = $this->lapseStreak($plan, $today);

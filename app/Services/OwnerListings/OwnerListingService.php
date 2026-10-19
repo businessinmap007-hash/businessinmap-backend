@@ -206,6 +206,23 @@ final class OwnerListingService
 
         foreach ($expired as $listing) {
             $listing->update(['status' => OwnerListing::STATUS_EXPIRED, 'purge_at' => now()->addDays($grace)]);
+            $this->tellOwner($listing, 'owner_listing_expired',
+                'انتهت مدة إعلانك «' . $listing->title . '». جدّده خلال ' . $grace . ' أيام وإلا يُحذف.',
+                'Your listing "' . $listing->title . '" has ended. Renew it within ' . $grace . ' days or it is deleted.');
+        }
+
+        // «سينتهي قريبًا»: once per run of days, a few days before expires_at (a renewal starts a new run)
+        $days = (int) config('bim.owner_listings.expiry_reminder_days', 3);
+        $soon = OwnerListing::query()->where('status', OwnerListing::STATUS_ACTIVE)
+            ->whereNotNull('expires_at')->where('expires_at', '>', now())->where('expires_at', '<=', now()->addDays($days))
+            ->where(fn ($q) => $q->whereNull('expiry_alerted_for')->orWhereColumn('expiry_alerted_for', '!=', 'expires_at'))
+            ->get();
+
+        foreach ($soon as $listing) {
+            $this->tellOwner($listing, 'owner_listing_expiring',
+                'إعلانك «' . $listing->title . '» ينتهي يوم ' . $listing->expires_at->toDateString() . '. جدّده ليبقى ظاهرًا.',
+                'Your listing "' . $listing->title . '" ends on ' . $listing->expires_at->toDateString() . '. Renew it to keep it visible.');
+            $listing->forceFill(['expiry_alerted_for' => $listing->expires_at])->save();
         }
 
         $purged = 0;
@@ -215,7 +232,25 @@ final class OwnerListingService
             $purged++;
         });
 
-        return ['expired' => $expired->count(), 'purged' => $purged];
+        return ['expired' => $expired->count(), 'purged' => $purged, 'announced' => $soon->count()];
+    }
+
+    private function tellOwner(OwnerListing $listing, string $event, string $ar, string $en): void
+    {
+        try {
+            $this->notifications->dispatch($event, (int) $listing->user_id, [
+                'body_ar' => $ar,
+                'body_en' => $en,
+                'action_type' => 'open_owner_listing',
+                'notifiable_type' => OwnerListing::class,
+                'notifiable_id' => (int) $listing->id,
+                'source_type' => $event,
+                'source_id' => (int) $listing->id,
+                'meta' => ['listing_id' => (int) $listing->id],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     private function purgeThreads(OwnerListing $listing): void

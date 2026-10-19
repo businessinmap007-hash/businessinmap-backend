@@ -145,7 +145,7 @@ return [
     | lets it go. A claim untouched for `claim_minutes` lapses, so a moderator who walks away cannot freeze a report for good.
     */
     'moderation' => [
-        'claim_minutes' => 120,
+        'claim_minutes' => 30,
     ],
 
     /*

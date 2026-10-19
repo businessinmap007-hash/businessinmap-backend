@@ -196,10 +196,22 @@ class ContentReportsTest extends TestCase
         Sanctum::actingAs($other);
         $this->postJson("/api/v2/moderation/reports/post/{$post->id}/claim")->assertOk();
 
-        // a claim nobody touches lapses
+        // `other` holds it now. 29 quiet minutes is still his; touching it (opening it again) restarts the 30
         Sanctum::actingAs($fahim);
         $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertStatus(422);
-        $this->travel(3)->hours();
+        $this->travel(29)->minutes();
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertStatus(422);
+        Sanctum::actingAs($other);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/claim")->assertOk();
+        $this->travel(15)->minutes();
+        Sanctum::actingAs($fahim);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertStatus(422);
+
+        // 30 minutes without a touch: the claim lapses and another moderator may review it
+        $this->travel(16)->minutes();
+        $row = collect($this->getJson('/api/v2/moderation/reports?type=post&per_page=50')->json('data.items'))->firstWhere('id', $post->id);
+        $this->assertFalse($row['locked']);
+        $this->assertNull($row['handler']);
         $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertOk();
 
         $done = collect($this->getJson('/api/v2/moderation/reports?scope=handled&per_page=50')->json('data.items'))->firstWhere('id', $post->id);

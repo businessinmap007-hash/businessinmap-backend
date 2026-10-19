@@ -155,7 +155,7 @@ final class ContentReportService
     public function holder(string $type, int $id): ?array
     {
         $row = $this->openReports($type, $id)->whereNotNull('claimed_by')
-            ->where('claimed_at', '>', now()->subMinutes((int) config('bim.moderation.claim_minutes', 120)))
+            ->where('claimed_at', '>', now()->subMinutes((int) config('bim.moderation.claim_minutes', 30)))
             ->latest('claimed_at')->first(['claimed_by']);
 
         if (! $row) {

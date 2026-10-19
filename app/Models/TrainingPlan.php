@@ -38,6 +38,8 @@ class TrainingPlan extends Model
         'status',
         'starts_on',
         'ends_on',
+        'paid_until',
+        'renewals',
         'duration_weeks',
         'lapse_alerted_on',
         'notes',
@@ -46,8 +48,18 @@ class TrainingPlan extends Model
     protected $casts = [
         'starts_on' => 'date',
         'ends_on' => 'date',
+        'paid_until' => 'date',
         'lapse_alerted_on' => 'date',
     ];
+
+    /**
+     * What the client may see: a plan whose paid month has not run out. A trainer who does not renew loses it from the
+     * client's side (owner, 2026-10-27); `paid_until` null is a plan from before the paid month and is never hidden.
+     */
+    public function scopeVisibleToClient($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('paid_until')->orWhere('paid_until', '>=', now()->toDateString()));
+    }
 
     public function trainer(): BelongsTo
     {

@@ -3,7 +3,6 @@
 namespace App\Services\Training;
 
 use App\Models\PlanExercise;
-use App\Models\PlatformEventCharge;
 use App\Models\PlanExerciseRound;
 use App\Models\PlanProgressLog;
 use App\Models\TrainingPlan;
@@ -40,11 +39,10 @@ class TrainingPlanService
     {
         return DB::transaction(function () use ($trainer, $client, $header, $exercises, $meals) {
             $weeks = isset($header['duration_weeks']) ? (int) $header['duration_weeks'] : null;
-            $startsOn = $header['starts_on'] ?? now()->toDateString();
-            // A programme runs one month unless the trainer sets its length (weeks) or its end.
-            $endsOn = $header['ends_on'] ?? ($weeks
+            $startsOn = $header['starts_on'] ?? ($weeks ? now()->toDateString() : null);
+            $endsOn = $header['ends_on'] ?? ($weeks && $startsOn
                 ? Carbon::parse($startsOn)->addDays($weeks * 7 - 1)->toDateString()
-                : Carbon::parse($startsOn)->addMonthsNoOverflow((int) config('bim.training.plan_months', 1))->subDay()->toDateString());
+                : null);
 
             $plan = TrainingPlan::create([
                 'trainer_id' => (int) $trainer->id,
@@ -56,6 +54,9 @@ class TrainingPlanService
                 'starts_on' => $startsOn,
                 'ends_on' => $endsOn,
                 'duration_weeks' => $weeks,
+                // the paid month: the fee below is taken for it, and it is what keeps the plan in front of the client
+                'paid_until' => $this->periodEnd(),
+                'renewals' => 0,
                 'notes' => $header['notes'] ?? null,
             ]);
 
@@ -73,47 +74,97 @@ class TrainingPlanService
                 ]);
             }
 
+            // Sharing a programme with a client is the use of the service: the first month's fee is taken here, and the
+            // whole thing is undone when a side cannot pay.
+            $this->settle($plan);
+
             $this->notifyAssigned($plan);
 
             return $plan->load(['exercises', 'meals']);
         });
     }
 
+    /** The last day of a paid month that starts today. */
+    private function periodEnd(): string
+    {
+        return now()->addMonthsNoOverflow((int) config('bim.training.plan_months', 1))->toDateString();
+    }
+
+    /** The month the trainer paid for is over: the client no longer sees the plan until it is renewed. */
+    public function isExpired(TrainingPlan $plan): bool
+    {
+        return $plan->paid_until !== null && $plan->paid_until->lt(now()->startOfDay());
+    }
+
     /**
-     * The fee for changing a programme that is already running (control panel: `training_program_change` for the workout,
-     * `nutrition_program_change` for the meals). Called BEFORE the change, so a side that cannot pay stops it and nothing
-     * is half-done.
+     * Take this month's fee for each kind of service the plan uses (the workout = `training_program_change`, the meals =
+     * `nutrition_program_change`; the panel prices each side). Idempotent per month, so adding the first meal to a plan
+     * that already paid for its workout charges only the nutrition fee. `$extra` names a kind about to be added.
      *
-     * A change is only counted once the client has accepted the plan (a pending or paused one is still being drafted), and
-     * a burst of edits is ONE change: while the last fee is younger than `bim.training.change_session_minutes`, further
-     * edits ride on it. Free when the panel has priced neither side.
+     * @param  list<string>  $extra  'training' | 'nutrition'
+     */
+    public function settle(TrainingPlan $plan, array $extra = []): void
+    {
+        $kinds = $extra;
+
+        if ($plan->exercises()->exists()) {
+            $kinds[] = 'training';
+        }
+
+        if ($plan->meals()->exists()) {
+            $kinds[] = 'nutrition';
+        }
+
+        $parties = ['trainer' => (int) $plan->trainer_id, 'client' => (int) $plan->client_id];
+
+        DB::transaction(function () use ($plan, $kinds, $parties) {
+            foreach (array_unique($kinds) as $kind) {
+                $event = $kind === 'nutrition' ? PlatformEventFeeService::NUTRITION_PROGRAM_CHANGE : PlatformEventFeeService::TRAINING_PROGRAM_CHANGE;
+                $this->eventFees->charge($event, $parties, 0, 'training_plan', (int) $plan->id, (string) ((int) $plan->renewals + 1));
+            }
+        });
+    }
+
+    /**
+     * Another paid month (owner, 2026-10-27): the fee is taken again and the plan is back in front of the client. A plan
+     * that is finished, cancelled or declined is not renewed.
+     *
+     * @param  list<string>  $extra
+     */
+    public function renew(TrainingPlan $plan, array $extra = []): TrainingPlan
+    {
+        if (in_array($plan->status, [TrainingPlan::STATUS_COMPLETED, TrainingPlan::STATUS_CANCELLED, TrainingPlan::STATUS_DECLINED], true)) {
+            throw ValidationException::withMessages(['status' => __('لا يمكن تجديد خطة منتهية.')]);
+        }
+
+        return DB::transaction(function () use ($plan, $extra) {
+            $plan->update(['renewals' => (int) $plan->renewals + 1, 'paid_until' => $this->periodEnd()]);
+            $this->settle($plan, $extra);
+
+            return $plan->refresh();
+        });
+    }
+
+    /**
+     * Called BEFORE a change to the programme. Editing a plan whose month has run out renews it (the fee is taken again,
+     * the same as a renewal); inside the month an edit is free, except that the first item of a kind the plan did not
+     * use yet (a meal on a workout-only plan) starts that service's fee for the month.
      *
      * @param  string  $kind  'training' | 'nutrition'
      */
-    public function chargeForChange(TrainingPlan $plan, string $kind): void
+    public function prepareEdit(TrainingPlan $plan, string $kind): void
     {
-        if ($plan->status !== TrainingPlan::STATUS_ACTIVE) {
+        if ($plan->paid_until === null) {
+            return; // a plan from before the paid month
+        }
+
+        if ($this->isExpired($plan)) {
+            $this->renew($plan, [$kind]);
+
             return;
         }
 
-        $event = $kind === 'nutrition' ? PlatformEventFeeService::NUTRITION_PROGRAM_CHANGE : PlatformEventFeeService::TRAINING_PROGRAM_CHANGE;
-        $parties = ['trainer' => (int) $plan->trainer_id, 'client' => (int) $plan->client_id];
-
-        if ($this->eventFees->quote($event, $parties)['total'] <= 0) {
-            return;
-        }
-
-        $last = PlatformEventCharge::query()->where('event_key', $event)->where('reference_type', 'training_plan')
-            ->where('reference_id', $plan->id)->latest('id')->first();
-
-        if ($last && $last->created_at && $last->created_at->gt(now()->subMinutes((int) config('bim.training.change_session_minutes', 60)))) {
-            return;
-        }
-
-        $occurrence = (string) (PlatformEventCharge::query()->where('event_key', $event)->where('reference_type', 'training_plan')
-            ->where('reference_id', $plan->id)->distinct()->count('occurrence') + 1);
-
-        $this->eventFees->charge($event, $parties, 0, 'training_plan', (int) $plan->id, $occurrence);
+        $this->settle($plan, [$kind]);
     }
 
     /**

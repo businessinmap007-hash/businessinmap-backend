@@ -194,13 +194,21 @@ class TrainingPlanController extends Controller
             ...TrainingProgramRules::exercise(),
         ]);
 
-        $this->service->chargeForChange($plan, 'training');
+        $this->service->prepareEdit($plan, 'training');
 
         $plan->exercises()->create(TrainingProgramRules::attributes($data) + [
             'sort_order' => (int) $plan->exercises()->max('sort_order') + 1,
         ]);
 
         return back()->with('success', __('تمت إضافة التمرين.'));
+    }
+
+    /** Another paid month: the fee is taken again and the client sees the plan again. */
+    public function renew(int $id): RedirectResponse
+    {
+        $this->service->renew($this->scoped($id));
+
+        return back()->with('success', __('تم تجديد الخطة شهرًا آخر.'));
     }
 
     /** Set the programme's length and how the weights climb, for every exercise at once. */
@@ -217,7 +225,7 @@ class TrainingPlanController extends Controller
         $rule = array_filter($data['progression'] ?? [], fn ($v) => $v !== null && $v !== '');
         $data['progression'] = $rule === [] ? null : $rule;
 
-        $this->service->chargeForChange($plan, 'training');
+        $this->service->prepareEdit($plan, 'training');
         $this->service->applyProgram($plan, array_filter($data, fn ($v) => $v !== null && $v !== ''));
 
         return back()->with('success', __('تم تحديث البرنامج.'));
@@ -228,7 +236,7 @@ class TrainingPlanController extends Controller
         // first()->delete() and not ->delete() on the query: a mass delete fires
         // no model events, so the owned photos would be left on disk forever.
         $plan = $this->scoped($id);
-        $this->service->chargeForChange($plan, 'training');
+        $this->service->prepareEdit($plan, 'training');
         $plan->exercises()->where('id', $exercise)->first()?->delete();
 
         return back()->with('success', __('تم حذف التمرين.'));
@@ -245,7 +253,7 @@ class TrainingPlanController extends Controller
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $this->service->chargeForChange($plan, 'nutrition');
+        $this->service->prepareEdit($plan, 'nutrition');
 
         $plan->meals()->create($data + [
             'sort_order' => (int) $plan->meals()->max('sort_order') + 1,
@@ -257,7 +265,7 @@ class TrainingPlanController extends Controller
     public function removeMeal(int $id, int $meal): RedirectResponse
     {
         $plan = $this->scoped($id);
-        $this->service->chargeForChange($plan, 'nutrition');
+        $this->service->prepareEdit($plan, 'nutrition');
         $plan->meals()->where('id', $meal)->first()?->delete();
 
         return back()->with('success', __('تم حذف الوجبة.'));

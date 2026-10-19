@@ -26,6 +26,7 @@ class ClientTrainingController extends Controller
     {
         $rows = TrainingPlan::query()
             ->where('client_id', (int) $request->user()->id)
+            ->visibleToClient()
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->get('status')))
             ->with('trainer:id,name,logo,phone')
             ->withCount(['exercises', 'meals'])
@@ -200,6 +201,7 @@ class ClientTrainingController extends Controller
         return TrainingPlan::query()
             ->where('id', $planId)
             ->where('client_id', (int) $request->user()->id)
+            ->visibleToClient()
             ->firstOrFail();
     }
 
@@ -228,6 +230,8 @@ class ClientTrainingController extends Controller
             'status' => (string) $p->status,
             'starts_on' => optional($p->starts_on)->toDateString(),
             'ends_on' => optional($p->ends_on)->toDateString(),
+            // the day the trainer's paid month runs out; the plan disappears from here unless he renews it
+            'paid_until' => optional($p->paid_until)->toDateString(),
             // Programme position: week 3 of 8.
             'week_number' => ExerciseProgression::weekNumber($p, now()),
             'total_weeks' => ExerciseProgression::totalWeeks($p),

@@ -141,13 +141,12 @@ return [
     |--------------------------------------------------------------------------
     | Training and nutrition programmes
     |--------------------------------------------------------------------------
-    | A programme runs `plan_months` month(s) unless the trainer sets its length. Changing a running programme costs the
-    | fee the control panel set (events `training_program_change` / `nutrition_program_change`); a burst of edits within
-    | `change_session_minutes` is one change.
+    | A programme is a PAID month (`plan_months`): the fee set in the control panel (events `training_program_change` for the
+    | workout, `nutrition_program_change` for the meals) is taken when the trainer shares it with a client and again for every
+    | further month; a plan that is not renewed disappears from the client. Editing inside the month is free.
     */
     'training' => [
         'plan_months' => 1,
-        'change_session_minutes' => 60,
     ],
 
     /*

@@ -1499,6 +1499,7 @@ Route::prefix('v2')->group(function () {
             // programme's weeks + progression for the whole plan at once.
             Route::patch('{plan}/exercises/{exercise}', [TrainingPlanController::class, 'updateExercise'])->whereNumber(['plan', 'exercise']);
             Route::put('{plan}/program', [TrainingPlanController::class, 'program'])->whereNumber('plan');
+            Route::post('{plan}/renew', [TrainingPlanController::class, 'renew'])->whereNumber('plan');
             Route::post('{plan}/meals', [TrainingPlanController::class, 'addMeal'])->whereNumber('plan');
             Route::delete('{plan}/exercises/{exercise}', [TrainingPlanController::class, 'removeExercise'])->whereNumber('plan')->whereNumber('exercise');
             // Illustrative photos — the machine, the grip, the plated meal.

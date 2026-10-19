@@ -35,11 +35,11 @@ final class PlatformEventFeeService
             'buyer' => ['المشتري / المستأجر', 'Buyer / renter'],
             'seller' => ['البائع / المؤجِّر', 'Seller / owner'],
         ]],
-        self::TRAINING_PROGRAM_CHANGE => ['تغيير البرنامج التدريبي أثناء الشهر', 'Changing the training program during its month', 'لا شيء (مبلغ ثابت)', [
+        self::TRAINING_PROGRAM_CHANGE => ['البرنامج التدريبي (عند المشاركة مع العميل وعند كل تجديد شهري)', 'Training program (when shared with a client and at every monthly renewal)', 'لا شيء (مبلغ ثابت)', [
             'trainer' => ['المدرب', 'Trainer'],
             'client' => ['المتدرب', 'Trainee'],
         ]],
-        self::NUTRITION_PROGRAM_CHANGE => ['تغيير برنامج التغذية أثناء الشهر', 'Changing the nutrition program during its month', 'لا شيء (مبلغ ثابت)', [
+        self::NUTRITION_PROGRAM_CHANGE => ['برنامج التغذية (عند المشاركة مع العميل وعند كل تجديد شهري)', 'Nutrition program (when shared with a client and at every monthly renewal)', 'لا شيء (مبلغ ثابت)', [
             'trainer' => ['المدرب / الأخصائي', 'Trainer / dietitian'],
             'client' => ['المتدرب', 'Trainee'],
         ]],

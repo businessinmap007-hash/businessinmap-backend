@@ -174,6 +174,7 @@ final class BodyCompositionController extends Controller
         return TrainingPlan::query()
             ->where('id', $planId)
             ->where('client_id', (int) $request->user()->id)
+            ->visibleToClient()
             ->firstOrFail();
     }
 }

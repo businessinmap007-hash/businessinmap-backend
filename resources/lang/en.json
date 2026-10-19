@@ -3182,5 +3182,7 @@
     "تمت إزالة المحتوى.": "The content was removed.",
     "تمت استعادة المحتوى.": "The content was restored.",
     "النسبة لا تزيد على 100.": "A percentage cannot exceed 100.",
-    "حُفظت الرسوم.": "The fees were saved."
+    "حُفظت الرسوم.": "The fees were saved.",
+    "لا يمكن تجديد خطة منتهية.": "A finished plan cannot be renewed.",
+    "تم تجديد الخطة شهرًا آخر.": "The plan was renewed for another month."
 }

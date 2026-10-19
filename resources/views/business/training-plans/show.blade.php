@@ -94,6 +94,24 @@
     </div>
 </form>
 
+@if($plan->paid_until)
+<div class="a2-card">
+    <h2 class="a2-card-title">
+        {{ __('الشهر المدفوع') }}
+        @if($plan->paid_until->lt(now()->startOfDay()))
+            <span class="a2-pill a2-pill-gray">{{ __('انتهى — الخطة مخفية عن العميل') }}</span>
+        @else
+            <span class="a2-pill a2-pill-gray">{{ __('حتى :d', ['d' => $plan->paid_until->toDateString()]) }}</span>
+        @endif
+    </h2>
+    <div class="a2-help">{{ __('تُخصم رسوم الخدمة عند مشاركة الخطة مع العميل وعند كل تجديد شهري. إن لم تجدّدها تختفي من عند العميل، وتعديلها بعد انتهاء الشهر يجدّدها ويخصم الرسوم مرة أخرى.') }}</div>
+    <form method="POST" action="{{ route('business.training-plans.renew', $plan->id) }}">
+        @csrf
+        <button class="a2-btn a2-btn-primary" type="submit">{{ __('تجديد شهر آخر') }}</button>
+    </form>
+</div>
+@endif
+
 {{-- ── البرنامج: المدة وزيادة الأوزان ─────────────────────────────── --}}
 <div class="a2-card">
     <h2 class="a2-card-title">

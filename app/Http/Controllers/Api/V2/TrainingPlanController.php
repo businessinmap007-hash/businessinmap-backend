@@ -186,7 +186,7 @@ class TrainingPlanController extends Controller
             ...TrainingProgramRules::exercise(),
         ]);
 
-        $this->service->chargeForChange($row, 'training');
+        $this->service->prepareEdit($row, 'training');
 
         // Only what was sent changes; an explicit null clears a field.
         $target->update(array_intersect_key($data, array_flip([
@@ -213,7 +213,7 @@ class TrainingPlanController extends Controller
             'progression.exercise_ids.*' => ['integer'],
         ]);
 
-        $this->service->chargeForChange($row, 'training');
+        $this->service->prepareEdit($row, 'training');
         $row = $this->service->applyProgram($row, $data);
 
         return response()->json([
@@ -259,6 +259,18 @@ class TrainingPlanController extends Controller
         ]);
     }
 
+    /** POST /api/v2/business/training-plans/{plan}/renew — another paid month: the fee is taken again and the client sees the plan again. */
+    public function renew(Request $request, int $plan)
+    {
+        $row = $this->service->renew($this->ownedOrFail($request, $plan));
+
+        return response()->json([
+            'success' => true,
+            'message' => __('تم تجديد الخطة شهرًا آخر.'),
+            'data' => ['plan' => $this->serialize($row->fresh(['exercises', 'meals']))],
+        ]);
+    }
+
     public function addExercise(Request $request, int $plan)
     {
         $row = $this->ownedOrFail($request, $plan);
@@ -278,7 +290,7 @@ class TrainingPlanController extends Controller
             'sort_order' => ['nullable', 'integer'],
         ]);
 
-        $this->service->chargeForChange($row, 'training');
+        $this->service->prepareEdit($row, 'training');
         $exercise = $row->exercises()->create(LibraryExercise::withDefaults($data, BusinessContext::id($request)));
 
         return response()->json(['success' => true, 'data' => ['exercise' => $this->exercise($exercise, $row)]], 201);
@@ -300,7 +312,7 @@ class TrainingPlanController extends Controller
             'sort_order' => ['nullable', 'integer'],
         ]);
 
-        $this->service->chargeForChange($row, 'nutrition');
+        $this->service->prepareEdit($row, 'nutrition');
         $meal = $row->meals()->create(FoodItem::withDefaults($data, BusinessContext::id($request)));
 
         return response()->json(['success' => true, 'data' => ['meal' => $this->meal($meal)]], 201);
@@ -317,7 +329,7 @@ class TrainingPlanController extends Controller
     public function removeExercise(Request $request, int $plan, int $exercise)
     {
         $row = $this->ownedOrFail($request, $plan);
-        $this->service->chargeForChange($row, 'training');
+        $this->service->prepareEdit($row, 'training');
         $row->exercises()->where('id', $exercise)->first()?->delete();
 
         return response()->json(['success' => true, 'message' => __('تم حذف التمرين.')]);
@@ -326,7 +338,7 @@ class TrainingPlanController extends Controller
     public function removeMeal(Request $request, int $plan, int $meal)
     {
         $row = $this->ownedOrFail($request, $plan);
-        $this->service->chargeForChange($row, 'nutrition');
+        $this->service->prepareEdit($row, 'nutrition');
         $row->meals()->where('id', $meal)->first()?->delete();
 
         return response()->json(['success' => true, 'message' => __('تم حذف الوجبة.')]);
@@ -536,6 +548,10 @@ class TrainingPlanController extends Controller
             'status' => (string) $p->status,
             'starts_on' => optional($p->starts_on)->toDateString(),
             'ends_on' => optional($p->ends_on)->toDateString(),
+            // The paid month: the plan stays in front of the client until this day; after it the trainer renews it.
+            'paid_until' => optional($p->paid_until)->toDateString(),
+            'renewals' => (int) $p->renewals,
+            'expired' => app(\App\Services\Training\TrainingPlanService::class)->isExpired($p),
             // The programme: how many weeks, and which one it is today.
             'duration_weeks' => ExerciseProgression::totalWeeks($p),
             'week_number' => ExerciseProgression::weekNumber($p, now()),

@@ -177,7 +177,7 @@ class CarWantedRequestsTest extends TestCase
         Sanctum::actingAs($this->dealer('driver', \App\Services\Requests\RideRequestKind::tradeId()));
         $this->getJson('/api/v2/business/service-requests/kinds')->assertOk()->assertJsonPath('data.kinds', ['ride']);
 
-        Sanctum::actingAs($this->dealer('shop', (int) DB::table('category_children_master')->whereNotIn('id', [$this->showroom, $this->owner, \App\Services\Requests\RideRequestKind::tradeId()])->value('id')));
+        Sanctum::actingAs($this->dealer('shop', (int) DB::table('category_children_master')->where('name_ar', 'مواد غذائية')->value('id')));
         $this->getJson('/api/v2/business/service-requests/kinds')->assertOk()->assertJsonPath('data.kinds', []);
     }
 

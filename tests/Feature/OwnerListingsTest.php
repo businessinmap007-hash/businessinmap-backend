@@ -572,4 +572,67 @@ class OwnerListingsTest extends TestCase
         $reports->remove('owner_listing', $idC, $this->user('mod'));
         $this->assertEquals([100, 0], [$balance($c), $locked($c)]);
     }
+
+    public function test_a_listing_can_be_closed_on_its_city_or_governorate_and_the_filters_narrow_the_search(): void
+    {
+        $this->priceDeposit(null);
+        $other = DB::table('cities')->where('governorate_id', '!=', $this->gov)->orderBy('id')->first();
+        $sibling = DB::table('cities')->where('governorate_id', $this->gov)->where('id', '!=', $this->city)->orderBy('id')->first();
+        $this->assertNotNull($other);
+
+        $owner = $this->user('own', User::TYPE_CLIENT, ['governorate_id' => $this->gov, 'city_id' => $this->city]);
+        $local = $this->user('local', User::TYPE_CLIENT, ['governorate_id' => $this->gov, 'city_id' => $this->city]);
+        $neighbour = $this->user('neighbour', User::TYPE_CLIENT, ['governorate_id' => $this->gov, 'city_id' => $sibling?->id ?? $this->city]);
+        $far = $this->user('far', User::TYPE_CLIENT, ['governorate_id' => $other->governorate_id, 'city_id' => $other->id]);
+        $nowhere = $this->user('nowhere');
+
+        $everyone = $this->withPhoto($this->listed($owner, $this->carBody(['title' => 'Open to all'])));
+        $cityOnly = $this->withPhoto($this->listed($owner, [
+            'category' => 'phones', 'deal' => 'sale', 'title' => 'City only phone', 'price' => 1000, 'governorate_id' => $this->gov, 'city_id' => $this->city,
+            'visibility' => 'city', 'attributes' => ['condition' => 'used'],
+        ]));
+        $govOnly = $this->withPhoto($this->listed($owner, [
+            'category' => 'furniture', 'deal' => 'sale', 'title' => 'Governorate only sofa', 'price' => 3000, 'governorate_id' => $this->gov, 'city_id' => $this->city,
+            'visibility' => 'governorate', 'attributes' => ['condition' => 'used'],
+        ]));
+        $this->assertSame('city', $cityOnly->visibility);
+
+        $titles = function (User $viewer, string $query = '') {
+            Sanctum::actingAs($viewer);
+
+            return collect($this->getJson('/api/v2/owner-listings?per_page=50' . $query)->assertOk()->json('data.data'))->pluck('title')->all();
+        };
+
+        $this->assertEqualsCanonicalizing(['Open to all', 'City only phone', 'Governorate only sofa'], array_intersect($titles($local), ['Open to all', 'City only phone', 'Governorate only sofa']));
+        $this->assertContains('Governorate only sofa', $titles($neighbour), 'same governorate, another city');
+        $this->assertNotContains('City only phone', $titles($neighbour));
+        if ($sibling) {
+            $this->assertNotContains('City only phone', $titles($neighbour));
+        }
+        $this->assertSame(['Open to all'], array_values(array_intersect($titles($far), ['Open to all', 'City only phone', 'Governorate only sofa'])));
+        $this->assertSame(['Open to all'], array_values(array_intersect($titles($nowhere), ['Open to all', 'City only phone', 'Governorate only sofa'])), 'no registered place: unrestricted only');
+
+        // direct links and conversations follow the same rule; the owner always sees his own
+        Sanctum::actingAs($far);
+        $this->getJson("/api/v2/owner-listings/{$cityOnly->id}")->assertStatus(404);
+        $this->postJson("/api/v2/owner-listings/{$cityOnly->id}/inquiries")->assertStatus(422);
+        Sanctum::actingAs($local);
+        $this->getJson("/api/v2/owner-listings/{$cityOnly->id}")->assertOk()->assertJsonPath('data.listing.visibility', 'city');
+        Sanctum::actingAs($owner);
+        $this->getJson("/api/v2/owner-listings/{$cityOnly->id}")->assertOk();
+
+        // the search filters: by governorate, then by city
+        $this->assertContains('Open to all', $titles($local, '&governorate_id=' . $this->gov));
+        $this->assertNotContains('Open to all', $titles($local, '&governorate_id=' . $other->governorate_id));
+        $this->assertContains('City only phone', $titles($local, '&city_id=' . $this->city));
+
+        // «لمدينتي فقط» needs a city; the owner can change the scope later
+        Sanctum::actingAs($owner);
+        $noCity = $this->carBody(['category' => 'tools', 'visibility' => 'city']);
+        unset($noCity['city_id']);
+        $this->postJson('/api/v2/owner-listings', ['category' => 'other', 'deal' => 'sale', 'title' => 'Nothing special', 'price' => 10, 'governorate_id' => $this->gov, 'visibility' => 'city'])
+            ->assertStatus(422)->assertJsonValidationErrors('visibility');
+        $this->putJson("/api/v2/owner-listings/{$cityOnly->id}", ['visibility' => 'all'])->assertOk()->assertJsonPath('data.listing.visibility', 'all');
+        $this->assertContains('City only phone', $titles($far));
+    }
 }

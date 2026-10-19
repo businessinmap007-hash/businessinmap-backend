@@ -55,7 +55,7 @@ final class OwnerListingController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ])->validate();
 
-        $page = $this->listings->browse($filters)->with(['images', 'owner:id,name,logo'])->paginate((int) ($filters['per_page'] ?? 20));
+        $page = $this->listings->browse($filters, $request->user())->with(['images', 'owner:id,name,logo'])->paginate((int) ($filters['per_page'] ?? 20));
         $places = $this->placeNames($page->getCollection());
         $page->getCollection()->transform(fn (OwnerListing $l) => $this->card($l, $request, $places));
 
@@ -78,7 +78,7 @@ final class OwnerListingController extends Controller
         $mine = (int) $listing->user_id === (int) $request->user()->id;
 
         // a stranger sees only a live listing; its owner sees it in whatever state it is
-        abort_if(! $mine && ! $listing->isVisible(), 404);
+        abort_if(! $mine && (! $listing->isVisible() || ! $listing->isReachableBy($request->user())), 404);
 
         return response()->json(['success' => true, 'data' => ['listing' => $this->detail($listing, $request)]]);
     }
@@ -95,6 +95,7 @@ final class OwnerListingController extends Controller
             'price_unit' => ['nullable', 'in:day,week,month'],
             'governorate_id' => ['required', 'integer'],
             'city_id' => ['nullable', 'integer'],
+            'visibility' => ['nullable', 'in:all,governorate,city'],
             'attributes' => ['nullable', 'array'],
             // agreeing to leave the seriousness deposit (needed only when the advertiser has no bronze+ guarantee)
             'hold_deposit' => ['nullable', 'boolean'],
@@ -121,6 +122,7 @@ final class OwnerListingController extends Controller
             'price_unit' => ['nullable', 'in:day,week,month'],
             'governorate_id' => ['nullable', 'integer'],
             'city_id' => ['nullable', 'integer'],
+            'visibility' => ['nullable', 'in:all,governorate,city'],
             'attributes' => ['nullable', 'array'],
         ])->validate();
 
@@ -315,6 +317,8 @@ final class OwnerListingController extends Controller
             'cover' => $cover ? (string) $cover->image : null,
             'images_count' => $l->images->count(),
             'status' => $l->status,
+            // who may see it: all | governorate | city (the viewer's own registered place decides)
+            'visibility' => $l->visibility ?: 'all',
             'mine' => (int) $l->user_id === (int) $request->user()->id,
             'expires_at' => optional($l->expires_at)->toIso8601String(),
             'purge_at' => optional($l->purge_at)->toIso8601String(),

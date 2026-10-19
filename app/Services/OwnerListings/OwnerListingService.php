@@ -58,6 +58,7 @@ final class OwnerListingService
             'price_unit' => $unit,
             'governorate_id' => (int) $data['governorate_id'],
             'city_id' => ! empty($data['city_id']) ? (int) $data['city_id'] : null,
+            'visibility' => $this->visibilityOf($data['visibility'] ?? null, $data['city_id'] ?? null),
             'attributes' => OwnerListingCategories::clean($category, $deal, (array) ($data['attributes'] ?? [])),
             'status' => OwnerListing::STATUS_ACTIVE,
             'expires_at' => now()->addDays((int) config('bim.owner_listings.active_days', 60)),
@@ -89,6 +90,7 @@ final class OwnerListingService
             'price_unit' => $unit,
             'governorate_id' => (int) $merged['governorate_id'],
             'city_id' => ! empty($merged['city_id']) ? (int) $merged['city_id'] : null,
+            'visibility' => array_key_exists('visibility', $data) ? $this->visibilityOf($data['visibility'], $merged['city_id'] ?? null) : $listing->visibility,
             'attributes' => OwnerListingCategories::clean($listing->category, $deal, array_key_exists('attributes', $data) ? (array) $data['attributes'] : (array) $listing->attributes),
         ]);
 
@@ -168,9 +170,9 @@ final class OwnerListingService
      *
      * @param  array<string,mixed>  $filters  {category?, deal?, governorate_id?, city_id?, q?, price_min?, price_max?}
      */
-    public function browse(array $filters): Builder
+    public function browse(array $filters, ?User $viewer = null): Builder
     {
-        return OwnerListing::query()->visible()
+        return OwnerListing::query()->visible()->reachableBy($viewer)
             ->when(! empty($filters['category']), fn (Builder $q) => $q->where('category', (string) $filters['category']))
             ->when(! empty($filters['deal']), fn (Builder $q) => $q->where('deal', (string) $filters['deal']))
             ->when(! empty($filters['governorate_id']), fn (Builder $q) => $q->where('governorate_id', (int) $filters['governorate_id']))
@@ -191,7 +193,7 @@ final class OwnerListingService
             throw ValidationException::withMessages(['listing' => __('هذا إعلانك.')]);
         }
 
-        if (! $listing->isVisible()) {
+        if (! $listing->isVisible() || ! $listing->isReachableBy($buyer)) {
             throw ValidationException::withMessages(['listing' => __('هذا الإعلان لم يعد متاحًا.')]);
         }
 
@@ -284,6 +286,18 @@ final class OwnerListingService
 
         Thread::query()->where('subject_type', $inquiry->getMorphClass())->whereIn('subject_id', $ids)->get()
             ->each(fn (Thread $thread) => $this->threads->purge($thread));
+    }
+
+    /** «لمدينتي فقط» needs a city on the listing; anything unknown means everybody. */
+    private function visibilityOf(?string $value, $cityId): string
+    {
+        $value = in_array($value, OwnerListing::VISIBILITIES, true) ? $value : OwnerListing::VISIBILITY_ALL;
+
+        if ($value === OwnerListing::VISIBILITY_CITY && empty($cityId)) {
+            throw ValidationException::withMessages(['visibility' => __('اختر المدينة أولًا ليقتصر الإعلان على أهلها.')]);
+        }
+
+        return $value;
     }
 
     private function assertOpen(OwnerListing $listing): void

@@ -104,6 +104,7 @@ use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\TableServiceCallController;
 use App\Http\Controllers\Api\V2\TripParcelController;
 use App\Http\Controllers\Api\V2\EmptyReturnController;
+use App\Http\Controllers\Api\V2\OwnerListingController;
 use App\Http\Controllers\Api\V2\ServiceRequestController;
 use App\Http\Controllers\Api\V2\TripReservationController;
 use App\Http\Controllers\Api\V2\TripRunController;
@@ -461,12 +462,12 @@ Route::prefix('v2')->group(function () {
         // 7 days after the operation completes, then read-only. {type} is
         // order|booking; only a party to the operation may read or post.
         Route::get('operation-chats/{type}/{id}', [OperationChatController::class, 'show'])
-            ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing']);
         Route::post('operation-chats/{type}/{id}/messages', [OperationChatController::class, 'postMessage'])
-            ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing']);
         // A party deletes an expired, undisputed chat (or lets the sweep do it).
         Route::delete('operation-chats/{type}/{id}', [OperationChatController::class, 'destroy'])
-            ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing']);
 
         // Whether admins may ever read this thread's decrypted content — a
         // standing decision each real participant (never the arbitrator) can
@@ -1331,6 +1332,32 @@ Route::prefix('v2')->group(function () {
             Route::post('{id}/price', [ServiceRequestController::class, 'setPrice'])->whereNumber('id');
             Route::post('{id}/offers/{offer}/accept', [ServiceRequestController::class, 'accept'])->whereNumber(['id', 'offer']);
             Route::post('{id}/cancel', [ServiceRequestController::class, 'cancel'])->whereNumber('id');
+        });
+
+        // «إعلان من المالك»: any account lists ONE item per category (car, flat, phone…) for sale, rent or swap — no business
+        // account. Phone numbers never show: buyer and seller talk in the chat (operation-chats/listing/{inquiry}), and when they
+        // agree either asks to swap numbers; the platform's fee is paid then.
+        Route::prefix('owner-listings')->group(function () {
+            Route::get('categories', [OwnerListingController::class, 'categories']);
+            Route::get('mine', [OwnerListingController::class, 'mine']);
+            Route::get('/', [OwnerListingController::class, 'index']);
+            Route::post('/', [OwnerListingController::class, 'store'])->middleware('throttle:20,1');
+            Route::get('{id}', [OwnerListingController::class, 'show'])->whereNumber('id');
+            Route::put('{id}', [OwnerListingController::class, 'update'])->whereNumber('id');
+            Route::delete('{id}', [OwnerListingController::class, 'destroy'])->whereNumber('id');
+            Route::post('{id}/finish', [OwnerListingController::class, 'finish'])->whereNumber('id');
+            Route::post('{id}/renew', [OwnerListingController::class, 'renew'])->whereNumber('id');
+            Route::post('{id}/images', [OwnerListingController::class, 'addImages'])->whereNumber('id');
+            Route::delete('{id}/images/{image}', [OwnerListingController::class, 'removeImage'])->whereNumber(['id', 'image']);
+            Route::post('{id}/report', [OwnerListingController::class, 'report'])->whereNumber('id')->middleware('throttle:20,1');
+            Route::post('{id}/inquiries', [OwnerListingController::class, 'inquire'])->whereNumber('id')->middleware('throttle:30,1');
+        });
+        Route::prefix('owner-listing-inquiries')->group(function () {
+            Route::get('/', [OwnerListingController::class, 'inquiries']);
+            Route::get('{inquiry}', [OwnerListingController::class, 'inquiry'])->whereNumber('inquiry');
+            Route::post('{inquiry}/reveal/request', [OwnerListingController::class, 'revealRequest'])->whereNumber('inquiry');
+            Route::post('{inquiry}/reveal/accept', [OwnerListingController::class, 'revealAccept'])->whereNumber('inquiry');
+            Route::post('{inquiry}/reveal/cancel', [OwnerListingController::class, 'revealCancel'])->whereNumber('inquiry');
         });
 
         // «راجع فاضي»: the customer who asks for a ride is shown the limousine drivers going back empty on that line, at a

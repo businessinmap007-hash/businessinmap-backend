@@ -145,6 +145,8 @@ tags:
   - name: Schedules (Carrier)
     description: Publishing legs and working their reservation desk. Business accounts only.
   - name: Bookings
+  - name: Owner Listings
+    description: «إعلان من المالك» — any account lists ONE item per category (car, flat, any used thing) for sale, rent or swap, with no business account; the listing is removed 3 days after it is sold or rented; no phone numbers until buyer and seller pay the platform's fee to swap them.
   - name: Service Requests
     description: The requests-and-offers core — a customer posts a need (a limousine ride), the businesses that may answer make offers, he picks one and it becomes a booking.
   - name: Guarantees
@@ -3813,6 +3815,39 @@ paths:
     post: { tags: [Service Requests], summary: "He picks an offer: it becomes a booking (accepted, the customer confirms attendance first), the other offers are turned down, everyone is told. → {request, booking_id}.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /service-requests/{id}/cancel:
     post: { tags: [Service Requests], summary: "Cancel an open request; its offers are turned down and the offerers told.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listings/categories:
+    get: { tags: [Owner Listings], summary: "«إعلان من المالك»: the categories (car, property, phones, computers, appliances, furniture, clothes, kids, sports, tools, other), the deals each allows (sale/rent/swap) and the fields each asks, with the select options filled — what the app draws the form from.", responses: { '200': { description: OK } } }
+  /owner-listings/mine:
+    get: { tags: [Owner Listings], summary: "The caller's own listings in any state (active, flagged, done, expired) — {results: [card…]}.", responses: { '200': { description: OK } } }
+  /owner-listings:
+    get: { tags: [Owner Listings], summary: "Browse live listings, newest first — only those with a photo, not finished, not expired, not hidden by reports. Filters: category, deal, governorate_id, city_id, q, price_min, price_max, per_page. A card never carries a phone number.", parameters: [{ name: category, in: query, schema: { type: string } }, { name: deal, in: query, schema: { type: string } }, { name: governorate_id, in: query, schema: { type: integer } }, { name: q, in: query, schema: { type: string } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Owner Listings], summary: "Post ONE item for sale/rent/swap with no business account: {category, deal, title, description?, price? (a sale or rent needs it), price_unit? (day|week|month, for a rent), governorate_id, city_id?, attributes?} — attributes are checked against the category's fields. One live listing per category per account (422 on the second); lives 60 days; shown to others once it has a photo.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listings/{id}:
+    get: { tags: [Owner Listings], summary: "One listing in full (attributes in words, photos, the owner as a person, never the number). A stranger gets 404 for a listing that is not live; its owner sees it in any state, with `inquiries_count`.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    put: { tags: [Owner Listings], summary: "The owner changes a live listing (deal, title, description, price, place, attributes).", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Owner Listings], summary: "The owner deletes it now: the listing, its photos and every chat about it.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listings/{id}/finish:
+    post: { tags: [Owner Listings], summary: "«تم البيع/التأجير»: {reason: sold|rented|swapped|withdrawn} (the one that fits the deal). Hidden at once and deleted after 3 days, its chats staying until then; his place in the category is free again.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listings/{id}/renew:
+    post: { tags: [Owner Listings], summary: "Another 60 days for a live or just-expired listing (a finished one is not brought back).", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listings/{id}/images:
+    post: { tags: [Owner Listings], summary: "multipart images[] — up to 8 photos per listing.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listings/{id}/images/{image}:
+    delete: { tags: [Owner Listings], summary: "Remove one photo.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { name: image, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listings/{id}/report:
+    post: { tags: [Owner Listings], summary: "Report a listing {reason?}; one report per person, and three different people hide it until it is looked at.", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listings/{id}/inquiries:
+    post: { tags: [Owner Listings], summary: "A buyer opens (or returns to) his conversation about a listing — the chat is `/operation-chats/listing/{inquiry}` (phone numbers cannot be written there until the numbers are swapped).", parameters: [{ name: id, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listing-inquiries:
+    get: { tags: [Owner Listings], summary: "The conversations I am in, as buyer or as seller.", responses: { '200': { description: OK } } }
+  /owner-listing-inquiries/{inquiry}:
+    get: { tags: [Owner Listings], summary: "One conversation: its listing, the other person, the swap state and the fee quote (`reveal: {requested_by_me, requested_by_other, fee_total, my_share, payer}`), and `other_phone` — null until both said yes and the fee was paid.", parameters: [{ name: inquiry, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listing-inquiries/{inquiry}/reveal/request:
+    post: { tags: [Owner Listings], summary: "«اتفقنا»: either side asks to swap numbers. Costs nothing and shows nothing; the asker's own share of the fee must be in his wallet.", parameters: [{ name: inquiry, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listing-inquiries/{inquiry}/reveal/accept:
+    post: { tags: [Owner Listings], summary: "The other side accepts: the platform's fee (a percent of the price between a floor and a ceiling, seller / buyer / half each by setting) is taken from the wallets and each side sees the other's number. 422 `balance` when a wallet cannot pay (nothing is taken). Idempotent.", parameters: [{ name: inquiry, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /owner-listing-inquiries/{inquiry}/reveal/cancel:
+    post: { tags: [Owner Listings], summary: "Decline the request, or take one's own back — the conversation goes on.", parameters: [{ name: inquiry, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /empty-returns/quote:
     get: { tags: [Service Requests], summary: "«راجع فاضي»: the reference fare of a ride and the price a return starts from (half of it, the driver changes it) — {origin_city_id, destination_city_id, distance_km?} → {known, needs_distance, distance_km, reference_price, suggested_price}.", parameters: [{ name: origin_city_id, in: query, required: true, schema: { type: integer } }, { name: destination_city_id, in: query, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /empty-returns:
@@ -5750,7 +5785,7 @@ paths:
         the camera evidence per stage. Only a party to the operation may read it
         (a stranger gets 404); `data.project` is null when nothing is linked yet.
       parameters:
-        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking, listing] } }
         - { in: path, name: id, required: true, schema: { type: integer } }
       responses:
         '200': { description: OK }
@@ -5763,9 +5798,12 @@ paths:
         Opens the chat if it does not exist yet (seating both parties) and
         returns its messages, newest first. Only a party to the operation may
         read it; a stranger gets 404. `meta.thread` carries status, locked,
-        expired and retain_until.
+        expired and retain_until. `listing` is a buyer's conversation about an
+        owner listing (`id` = the inquiry): the same chat, but a phone number
+        cannot be written in it until the two have swapped numbers (422 on
+        `body`).
       parameters:
-        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking, listing] } }
         - { in: path, name: id, required: true, schema: { type: integer } }
         - { in: query, name: per_page, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
       responses:
@@ -5780,7 +5818,7 @@ paths:
         evidence and is kept. Either party may delete; otherwise the sweep
         auto-deletes it after a grace window.
       parameters:
-        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking, listing] } }
         - { in: path, name: id, required: true, schema: { type: integer } }
       responses:
         '200': { description: Deleted }
@@ -5797,7 +5835,7 @@ paths:
         expired (7 days after the operation completed) is locked and refuses new
         messages.
       parameters:
-        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking, listing] } }
         - { in: path, name: id, required: true, schema: { type: integer } }
       requestBody:
         required: true

@@ -338,6 +338,17 @@ class ThreadService
             ]);
         }
 
+        // a conversation about an owner listing may not carry a phone number until the parties have paid to swap them
+        $thread->loadMissing('subject');
+
+        if ($thread->subject instanceof \App\Contracts\BlocksPhoneNumbers
+            && $thread->subject->blocksPhoneNumbers()
+            && \App\Services\OwnerListings\PhoneNumberGuard::contains($body)) {
+            throw ValidationException::withMessages([
+                'body' => __('لا يمكن كتابة رقم هاتف في هذه المحادثة. عند الاتفاق اضغط «اتفقنا» لتبادل الأرقام.'),
+            ]);
+        }
+
         $hasFiles = $files !== [];
 
         if (trim($body) === '' && ! $hasFiles) {

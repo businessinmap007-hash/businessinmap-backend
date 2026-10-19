@@ -136,4 +136,27 @@ return [
             'grace_minutes' => (int) env('BIM_EMPTY_RETURN_GRACE_MINUTES', 30),
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Owner listings (إعلان من المالك) — one item per category, no business account
+    |--------------------------------------------------------------------------
+    | An ordinary account may hold ONE live listing per category (one car, one flat, one phone…). It lives `active_days`
+    | unless renewed; once sold/rented (or expired) it is removed `purge_days` later. Phone numbers never appear in the
+    | listing or in its chat: when the two agree either may ask to swap numbers and the platform's fee is paid then —
+    | `percent` of the price, between `min` and `max` pounds, by `payer` = seller | buyer | split (half each).
+    */
+    'owner_listings' => [
+        'per_category' => (int) env('BIM_OWNER_LISTINGS_PER_CATEGORY', 1),
+        'active_days' => (int) env('BIM_OWNER_LISTINGS_ACTIVE_DAYS', 60),
+        'purge_days' => (int) env('BIM_OWNER_LISTINGS_PURGE_DAYS', 3),
+        'max_images' => (int) env('BIM_OWNER_LISTINGS_MAX_IMAGES', 8),
+        'reports_to_hide' => (int) env('BIM_OWNER_LISTINGS_REPORTS_TO_HIDE', 3),
+        'reveal_fee' => [
+            'percent' => (float) env('BIM_REVEAL_FEE_PERCENT', 1.0),
+            'min' => (float) env('BIM_REVEAL_FEE_MIN', 20),
+            'max' => (float) env('BIM_REVEAL_FEE_MAX', 500),
+            'payer' => env('BIM_REVEAL_FEE_PAYER', 'split'),
+        ],
+    ],
 ];

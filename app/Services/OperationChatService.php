@@ -6,6 +6,7 @@ use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\Dispute;
 use App\Models\Order;
+use App\Models\OwnerListingInquiry;
 use App\Models\Thread;
 use App\Models\ThreadParticipant;
 use App\Services\Notifications\InAppNotificationService;
@@ -43,6 +44,8 @@ class OperationChatService
     public const TYPES = [
         'order' => Order::class,
         'booking' => Booking::class,
+        // a buyer's conversation about an owner listing: the same chat, with its own rules (no phone numbers until paid)
+        'listing' => OwnerListingInquiry::class,
     ];
 
     public function __construct(
@@ -64,6 +67,10 @@ class OperationChatService
     /** @return array{0:int,1:int} [clientId, businessId] */
     public function partiesFor(Model $operation): array
     {
+        if ($operation instanceof OwnerListingInquiry) {
+            return $operation->parties();
+        }
+
         return [(int) $operation->user_id, (int) $operation->business_id];
     }
 
@@ -104,7 +111,9 @@ class OperationChatService
         if (! $existed) {
             $this->threads->system(
                 $thread,
-                'فُتحت محادثة العملية بين العميل والتاجر. تُحفظ المحادثة كدليل موثوق داخل التطبيق.'
+                $operation instanceof OwnerListingInquiry
+                    ? 'محادثة حول إعلان «' . ($operation->listing?->title ?? '') . '». لا يمكن كتابة أرقام الهاتف هنا. عند الاتفاق اضغط «اتفقنا» لتبادل الأرقام (تُحصَّل رسوم المنصة).'
+                    : 'فُتحت محادثة العملية بين العميل والتاجر. تُحفظ المحادثة كدليل موثوق داخل التطبيق.'
             );
         }
 

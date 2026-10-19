@@ -16,6 +16,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\ProcessExpiredGuaranteeGrace::class,
         \App\Console\Commands\ProcessExpiredGuarantees::class,
         \App\Console\Commands\ProcessDisputes::class,
+        \App\Console\Commands\SweepOwnerListings::class,
     ];
 
     protected function schedule(Schedule $schedule): void
@@ -57,6 +58,9 @@ class Kernel extends ConsoleKernel
         // days, so daily off-peak is plenty.
         // Result photos kept on the patient's phone (and read by the doctor) leave the server; unkept ones warn first.
         $schedule->command('investigations:purge-result-files')->dailyAt('03:45')->withoutOverlapping();
+
+        // Owner listings: expire the old, delete the finished three days after they ended. Hourly is ample for days.
+        $schedule->command('owner-listings:sweep')->hourly()->withoutOverlapping();
 
         $schedule->command('operation-chats:expire')
             ->dailyAt('03:30')

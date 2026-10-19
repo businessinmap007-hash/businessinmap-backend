@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppNotification;
 use App\Models\PlatformEventFee;
 use App\Models\TrainingPlan;
 use App\Models\User;
@@ -190,5 +191,30 @@ class TrainingProgramChangeFeeTest extends TestCase
         $this->share();
         $this->assertEquals(100, $this->balance($this->trainer));
         $this->assertEquals(100, $this->balance($this->client));
+    }
+
+    public function test_trainer_and_client_are_told_once_a_few_days_before_the_month_runs_out(): void
+    {
+        $id = $this->share(['meals' => []]);
+
+        $this->artisan('training:alert-expiring')->assertSuccessful();
+        $this->assertSame(0, AppNotification::where('source_type', 'training_plan_expiring')->where('source_id', $id)->count(), 'a fresh plan has a month to go');
+
+        $this->travel(28)->days();
+        $this->artisan('training:alert-expiring')->assertSuccessful();
+        $told = AppNotification::where('source_type', 'training_plan_expiring')->where('source_id', $id)->get();
+        $this->assertEqualsCanonicalizing([$this->trainer->id, $this->client->id], $told->pluck('user_id')->all());
+
+        // the next day announces nothing more
+        $this->travel(1)->days();
+        $this->artisan('training:alert-expiring')->assertSuccessful();
+        $this->assertSame(2, AppNotification::where('source_type', 'training_plan_expiring')->where('source_id', $id)->count());
+
+        // a renewed month is announced again when it nears its end
+        Sanctum::actingAs($this->trainer);
+        $this->postJson("/api/v2/business/training-plans/{$id}/renew")->assertOk();
+        $this->travel(28)->days();
+        $this->artisan('training:alert-expiring')->assertSuccessful();
+        $this->assertSame(4, AppNotification::where('source_type', 'training_plan_expiring')->where('source_id', $id)->count());
     }
 }

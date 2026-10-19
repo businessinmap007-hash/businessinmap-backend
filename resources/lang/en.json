@@ -3184,5 +3184,9 @@
     "النسبة لا تزيد على 100.": "A percentage cannot exceed 100.",
     "حُفظت الرسوم.": "The fees were saved.",
     "لا يمكن تجديد خطة منتهية.": "A finished plan cannot be renewed.",
-    "تم تجديد الخطة شهرًا آخر.": "The plan was renewed for another month."
+    "تم تجديد الخطة شهرًا آخر.": "The plan was renewed for another month.",
+    ":name يتعامل مع هذا البلاغ الآن.": ":name is dealing with this report now.",
+    "لا توجد بلاغات مفتوحة على هذا المحتوى.": "There are no open reports on this content.",
+    "أنت من يتعامل مع هذا البلاغ الآن.": "You are now the one dealing with this report.",
+    "تم تحرير البلاغ.": "The report was released."
 }

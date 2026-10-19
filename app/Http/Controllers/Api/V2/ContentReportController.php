@@ -53,13 +53,33 @@ final class ContentReportController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
-        $page = $this->reports->queue($data['scope'] ?? 'open', $data['type'] ?? null, (int) ($data['per_page'] ?? 20), $this->english());
+        $page = $this->reports->queue($data['scope'] ?? 'open', $data['type'] ?? null, (int) ($data['per_page'] ?? 20), $this->english(), $request->user());
 
         return response()->json([
             'success' => true,
             'data' => ['items' => $page->items()],
             'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()],
         ]);
+    }
+
+    /** POST moderation/reports/{type}/{id}/claim — «أفتح البلاغ وأتعامل معه»: recorded under my name; nobody else may act on it meanwhile. */
+    public function claim(Request $request, string $type, int $id)
+    {
+        $this->authorizeModerator($request);
+        $this->assertType($type);
+        $this->reports->claim($type, $id, $request->user());
+
+        return response()->json(['success' => true, 'message' => __('أنت من يتعامل مع هذا البلاغ الآن.')]);
+    }
+
+    /** POST moderation/reports/{type}/{id}/release — let it go without closing it. */
+    public function release(Request $request, string $type, int $id)
+    {
+        $this->authorizeModerator($request);
+        $this->assertType($type);
+        $this->reports->release($type, $id, $request->user());
+
+        return response()->json(['success' => true, 'message' => __('تم تحرير البلاغ.')]);
     }
 
     /** POST moderation/reports/{type}/{id}/dismiss */

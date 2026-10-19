@@ -139,6 +139,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Moderation
+    |--------------------------------------------------------------------------
+    | A moderator who opens a report is recorded as the one dealing with it; nobody else may act on it until he closes it or
+    | lets it go. A claim untouched for `claim_minutes` lapses, so a moderator who walks away cannot freeze a report for good.
+    */
+    'moderation' => [
+        'claim_minutes' => 120,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Training and nutrition programmes
     |--------------------------------------------------------------------------
     | A programme is a PAID month (`plan_months`): the fee set in the control panel (events `training_program_change` for the
@@ -147,6 +158,8 @@ return [
     */
     'training' => [
         'plan_months' => 1,
+        // days before paid_until that trainer and client are told the month is ending
+        'renew_reminder_days' => 3,
     ],
 
     /*

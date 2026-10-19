@@ -1342,6 +1342,8 @@ Route::prefix('v2')->group(function () {
         Route::prefix('moderation')->group(function () {
             Route::get('me', [ContentReportController::class, 'me']);
             Route::get('reports', [ContentReportController::class, 'queue']);
+            Route::post('reports/{type}/{id}/claim', [ContentReportController::class, 'claim'])->whereNumber('id');
+            Route::post('reports/{type}/{id}/release', [ContentReportController::class, 'release'])->whereNumber('id');
             Route::post('reports/{type}/{id}/dismiss', [ContentReportController::class, 'dismiss'])->whereNumber('id');
             Route::post('reports/{type}/{id}/remove', [ContentReportController::class, 'remove'])->whereNumber('id');
             Route::post('reports/{type}/{id}/restore', [ContentReportController::class, 'restore'])->whereNumber('id');

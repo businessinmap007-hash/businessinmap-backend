@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppNotification;
 use App\Models\ContentReport;
 use App\Models\OwnerListing;
 use App\Models\Post;
@@ -20,6 +21,13 @@ use Tests\TestCase;
 class ContentReportsTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function tearDown(): void
+    {
+        $this->travelBack();
+
+        parent::tearDown();
+    }
 
     private function user(string $tag, string $type = User::TYPE_CLIENT): User
     {
@@ -153,5 +161,90 @@ class ContentReportsTest extends TestCase
         $this->assertNull(OwnerListing::find($listing->id));
         $row = collect($this->getJson('/api/v2/moderation/reports?scope=handled&per_page=50')->json('data.items'))->firstWhere('id', $listing->id);
         $this->assertSame('gone', $row['state']);
+    }
+
+    public function test_the_moderator_who_opens_a_report_is_recorded_and_nobody_else_may_act_until_he_closes_it(): void
+    {
+        $post = $this->makePost($this->user('author', User::TYPE_BUSINESS));
+        Sanctum::actingAs($this->user('rep'));
+        $this->postJson('/api/v2/reports', ['type' => 'post', 'id' => $post->id, 'reason' => 'spam'])->assertOk();
+
+        $fahim = $this->moderator();
+        $other = $this->moderator();
+
+        Sanctum::actingAs($fahim);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/claim")->assertOk();
+        $row = collect($this->getJson('/api/v2/moderation/reports?type=post&per_page=50')->json('data.items'))->firstWhere('id', $post->id);
+        $this->assertTrue($row['claimed_by_me']);
+        $this->assertFalse($row['locked']);
+        $this->assertSame($fahim->displayName(), $row['handler']['name']);
+
+        // another moderator sees who has it, and cannot claim, dismiss or remove it
+        Sanctum::actingAs($other);
+        $row = collect($this->getJson('/api/v2/moderation/reports?type=post&per_page=50')->json('data.items'))->firstWhere('id', $post->id);
+        $this->assertTrue($row['locked']);
+        $this->assertFalse($row['claimed_by_me']);
+        $this->assertSame($fahim->displayName(), $row['handler']['name']);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/claim")->assertStatus(422)->assertJsonValidationErrors('claim');
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertStatus(422);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove")->assertStatus(422);
+        $this->assertTrue((bool) $post->refresh()->is_active);
+
+        // he lets it go: free again
+        Sanctum::actingAs($fahim);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/release")->assertOk();
+        Sanctum::actingAs($other);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/claim")->assertOk();
+
+        // a claim nobody touches lapses
+        Sanctum::actingAs($fahim);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertStatus(422);
+        $this->travel(3)->hours();
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertOk();
+
+        $done = collect($this->getJson('/api/v2/moderation/reports?scope=handled&per_page=50')->json('data.items'))->firstWhere('id', $post->id);
+        $this->assertSame($fahim->displayName(), $done['handled_by'], 'the handled list says who closed it');
+    }
+
+    public function test_acting_without_opening_first_claims_it_and_a_report_with_nothing_open_is_refused(): void
+    {
+        $post = $this->makePost($this->user('author', User::TYPE_BUSINESS));
+        Sanctum::actingAs($this->user('rep'));
+        $this->postJson('/api/v2/reports', ['type' => 'post', 'id' => $post->id, 'reason' => 'spam'])->assertOk();
+
+        $mod = $this->moderator();
+        Sanctum::actingAs($mod);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/dismiss")->assertStatus(422);
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/claim")->assertStatus(422);
+    }
+
+    public function test_the_author_is_told_when_a_moderator_takes_his_content_down(): void
+    {
+        $author = $this->user('author', User::TYPE_BUSINESS);
+        $post = $this->makePost($author);
+        $listing = $this->listing($author);
+
+        foreach ([['post', $post->id], ['owner_listing', $listing->id]] as $i => [$type, $id]) {
+            Sanctum::actingAs($this->user('rep' . $i));
+            $this->postJson('/api/v2/reports', ['type' => $type, 'id' => $id, 'reason' => 'fraud'])->assertOk();
+        }
+
+        Sanctum::actingAs($this->moderator());
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/owner_listing/{$listing->id}/remove")->assertOk();
+
+        $told = AppNotification::query()->where('user_id', $author->id)->where('source_type', 'moderation_content_removed')->get();
+        $this->assertCount(2, $told);
+        $this->assertTrue($told->contains(fn ($n) => str_contains((string) $n->body_ar, 'منشورك')));
+        $this->assertTrue($told->contains(fn ($n) => str_contains((string) $n->body_ar, 'إعلانك')));
+
+        // dismissing tells nobody
+        $other = $this->makePost($author);
+        Sanctum::actingAs($this->user('rep9'));
+        $this->postJson('/api/v2/reports', ['type' => 'post', 'id' => $other->id, 'reason' => 'spam'])->assertOk();
+        Sanctum::actingAs($this->moderator());
+        $this->postJson("/api/v2/moderation/reports/post/{$other->id}/dismiss")->assertOk();
+        $this->assertSame(2, AppNotification::query()->where('user_id', $author->id)->where('source_type', 'moderation_content_removed')->count());
     }
 }

@@ -126,6 +126,52 @@ class TrainingPlanService
     }
 
     /**
+     * «ينتهي شهر الخطة»: trainer and client are told, once per month, a few days before the plan runs out of its paid month
+     * (`bim.training.renew_reminder_days`). Pending / active / paused plans only; a finished one is not renewed anyway.
+     *
+     * @return int plans announced
+     */
+    public function alertExpiring(Carbon $asOf): int
+    {
+        $days = (int) config('bim.training.renew_reminder_days', 3);
+
+        $plans = TrainingPlan::query()
+            ->whereIn('status', [TrainingPlan::STATUS_PENDING, TrainingPlan::STATUS_ACTIVE, TrainingPlan::STATUS_PAUSED])
+            ->whereNotNull('paid_until')
+            ->whereBetween('paid_until', [$asOf->copy()->toDateString(), $asOf->copy()->addDays($days)->toDateString()])
+            ->where(fn ($q) => $q->whereNull('expiry_alerted_for')->orWhereColumn('expiry_alerted_for', '!=', 'paid_until'))
+            ->get();
+
+        foreach ($plans as $plan) {
+            $until = $plan->paid_until->toDateString();
+
+            foreach ([
+                [(int) $plan->trainer_id, "ينتهي الشهر المدفوع لخطة «{$plan->title}» يوم {$until}. جدّدها لتبقى ظاهرة للعميل.", "The paid month of \"{$plan->title}\" ends on {$until}. Renew it to keep it in front of your client."],
+                [(int) $plan->client_id, "ينتهي الشهر المدفوع لخطتك «{$plan->title}» يوم {$until}. اطلب من مدربك تجديدها حتى لا تختفي.", "The paid month of your plan \"{$plan->title}\" ends on {$until}. Ask your trainer to renew it or it will disappear."],
+            ] as [$userId, $ar, $en]) {
+                try {
+                    $this->notifications->dispatch('training_plan_expiring', $userId, [
+                        'body_ar' => $ar,
+                        'body_en' => $en,
+                        'action_type' => $userId === (int) $plan->trainer_id ? 'open_training_plan_manage' : 'open_training_plan',
+                        'notifiable_type' => TrainingPlan::class,
+                        'notifiable_id' => (int) $plan->id,
+                        'source_type' => 'training_plan_expiring',
+                        'source_id' => (int) $plan->id,
+                        'meta' => ['plan_id' => (int) $plan->id, 'paid_until' => $until],
+                    ]);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+
+            $plan->forceFill(['expiry_alerted_for' => $until])->save();
+        }
+
+        return $plans->count();
+    }
+
+    /**
      * Another paid month (owner, 2026-10-27): the fee is taken again and the plan is back in front of the client. A plan
      * that is finished, cancelled or declined is not renewed.
      *

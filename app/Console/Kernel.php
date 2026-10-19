@@ -38,6 +38,8 @@ class Kernel extends ConsoleKernel
         // Once a day, mid-morning: a trainer told a client has missed their
         // scheduled training days (once per lapse, not every day).
         $schedule->command('training:alert-lapses')->dailyAt('10:00')->withoutOverlapping();
+        // A plan's paid month is about to run out: tell trainer and client once.
+        $schedule->command('training:alert-expiring')->dailyAt('10:05')->withoutOverlapping();
         $schedule->command('guarantees:process-expired-grace --limit=200')->hourly();
         $schedule->command('guarantees:process-expired --limit=200')->hourly();
 

@@ -6,6 +6,7 @@ use App\Models\ContentReport;
 use App\Models\OwnerListing;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\OwnerListings\OwnerListingService;
 use App\Support\AdminAbility;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -38,7 +39,10 @@ final class ContentReportService
         'other' => ['سبب آخر', 'Something else'],
     ];
 
-    public function __construct(private readonly OwnerListingService $listings) {}
+    public function __construct(
+        private readonly OwnerListingService $listings,
+        private readonly NotificationDispatcherService $notifications
+    ) {}
 
     /** Whether this account gets the moderation tab. */
     public function isModerator(User $user): bool
@@ -109,7 +113,7 @@ final class ContentReportService
      *
      * @return LengthAwarePaginator<int,array<string,mixed>>
      */
-    public function queue(string $scope, ?string $type, int $perPage, bool $english): LengthAwarePaginator
+    public function queue(string $scope, ?string $type, int $perPage, bool $english, ?User $viewer = null): LengthAwarePaginator
     {
         $page = DB::table('content_reports')
             ->when($scope === 'open', fn ($q) => $q->where('status', ContentReport::STATUS_OPEN))
@@ -120,14 +124,94 @@ final class ContentReportService
             ->orderByDesc('reports')->orderByDesc('last_at')
             ->paginate($perPage);
 
-        $page->getCollection()->transform(fn ($row) => $this->row((string) $row->reportable_type, (int) $row->reportable_id, (int) $row->reports, (string) $row->last_at, $scope, $english));
+        $page->getCollection()->transform(fn ($row) => $this->row((string) $row->reportable_type, (int) $row->reportable_id, (int) $row->reports, (string) $row->last_at, $scope, $english, $viewer));
 
         return $page;
+    }
+
+    /**
+     * A moderator opens a report: from now on it is recorded that HE is dealing with it, and nobody else may act on it until he
+     * closes it (dismiss / remove) or lets it go ({@see self::release()}). A claim nobody touches for
+     * `bim.moderation.claim_minutes` lapses, so a moderator who walks away cannot freeze a report for good.
+     */
+    public function claim(string $type, int $id, User $moderator): void
+    {
+        $this->guard($type, $id, $moderator, claimOnly: true);
+    }
+
+    /** He lets it go without closing it: the report is free for any moderator again. */
+    public function release(string $type, int $id, User $moderator): void
+    {
+        $holder = $this->holder($type, $id);
+
+        if ($holder !== null && $holder['id'] !== (int) $moderator->id) {
+            throw ValidationException::withMessages(['claim' => __(':name يتعامل مع هذا البلاغ الآن.', ['name' => $holder['name']])]);
+        }
+
+        $this->openReports($type, $id)->update(['claimed_by' => null, 'claimed_at' => null]);
+    }
+
+    /** Whoever holds a live claim on this item's open reports, or null. @return array{id:int,name:string}|null */
+    public function holder(string $type, int $id): ?array
+    {
+        $row = $this->openReports($type, $id)->whereNotNull('claimed_by')
+            ->where('claimed_at', '>', now()->subMinutes((int) config('bim.moderation.claim_minutes', 120)))
+            ->latest('claimed_at')->first(['claimed_by']);
+
+        if (! $row) {
+            return null;
+        }
+
+        $user = User::query()->whereKey($row->claimed_by)->first();
+
+        return ['id' => (int) $row->claimed_by, 'name' => $user ? $user->displayName() : '#' . $row->claimed_by];
+    }
+
+    /** The item must have open reports; someone else holding it stops the call; otherwise it is (re)claimed for this moderator. */
+    private function guard(string $type, int $id, User $moderator, bool $claimOnly = false): void
+    {
+        if (! $this->openReports($type, $id)->exists()) {
+            throw ValidationException::withMessages(['claim' => __('لا توجد بلاغات مفتوحة على هذا المحتوى.')]);
+        }
+
+        $holder = $this->holder($type, $id);
+
+        if ($holder !== null && $holder['id'] !== (int) $moderator->id) {
+            throw ValidationException::withMessages(['claim' => __(':name يتعامل مع هذا البلاغ الآن.', ['name' => $holder['name']])]);
+        }
+
+        $this->openReports($type, $id)->update(['claimed_by' => (int) $moderator->id, 'claimed_at' => now()]);
+    }
+
+    private function openReports(string $type, int $id)
+    {
+        return ContentReport::query()->where('reportable_type', $type)->where('reportable_id', $id)->where('status', ContentReport::STATUS_OPEN);
+    }
+
+    /** The author hears that his post / listing was taken down after a report. */
+    private function tellAuthor(string $type, $target): void
+    {
+        try {
+            $title = (string) ($target->title ?? '');
+            $kindAr = $type === 'post' ? 'منشورك' : 'إعلانك';
+            $kindEn = $type === 'post' ? 'Your post' : 'Your listing';
+
+            $this->notifications->dispatch('moderation_content_removed', (int) $target->user_id, [
+                'body_ar' => trim($kindAr . ($title !== '' ? " «{$title}»" : '') . ' أُزيل بعد بلاغات رأى المشرف أنها في محلها.'),
+                'body_en' => trim($kindEn . ($title !== '' ? " \"{$title}\"" : '') . ' was taken down after reports a moderator upheld.'),
+                'source_type' => 'moderation_content_removed',
+                'source_id' => (int) $target->id,
+                'meta' => ['type' => $type, 'id' => (int) $target->id],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** Not a problem after all: the reports are closed and a hidden listing comes back. */
     public function dismiss(string $type, int $id, User $moderator): void
     {
+        $this->guard($type, $id, $moderator);
         $this->closeReports($type, $id, $moderator, ContentReport::STATUS_DISMISSED, null);
 
         $target = $this->find($type, $id);
@@ -145,6 +229,9 @@ final class ContentReportService
         if (! $target) {
             throw ValidationException::withMessages(['target' => __('هذا المحتوى محذوف بالفعل.')]);
         }
+
+        $this->guard($type, $id, $moderator);
+        $this->tellAuthor($type, $target);
 
         DB::transaction(function () use ($type, $id, $target, $moderator) {
             $this->closeReports($type, $id, $moderator, ContentReport::STATUS_ACTIONED, 'removed');
@@ -205,7 +292,7 @@ final class ContentReportService
     }
 
     /** @return array<string,mixed> */
-    private function row(string $type, int $id, int $reports, string $lastAt, string $scope, bool $english): array
+    private function row(string $type, int $id, int $reports, string $lastAt, string $scope, bool $english, ?User $viewer): array
     {
         $target = $this->find($type, $id);
         $reasons = DB::table('content_reports')->where('reportable_type', $type)->where('reportable_id', $id)
@@ -217,6 +304,19 @@ final class ContentReportService
             ->orderByDesc('id')->limit(3)->pluck('details')->all();
 
         $base = ['type' => $type, 'id' => $id, 'reports' => $reports, 'last_reported_at' => \Illuminate\Support\Carbon::parse($lastAt)->toIso8601String(), 'reasons' => $reasons, 'details' => $details];
+
+        if ($scope === 'open') {
+            // who is dealing with it now (recorded when a moderator opened it), and whether that is the one asking
+            $holder = $this->holder($type, $id);
+            $base += [
+                'handler' => $holder,
+                'claimed_by_me' => $holder !== null && $viewer !== null && $holder['id'] === (int) $viewer->id,
+                'locked' => $holder !== null && ($viewer === null || $holder['id'] !== (int) $viewer->id),
+            ];
+        } else {
+            $closedBy = ContentReport::query()->where('reportable_type', $type)->where('reportable_id', $id)->whereNotNull('handled_by')->latest('handled_at')->value('handled_by');
+            $base += ['handled_by' => $closedBy ? User::query()->whereKey($closedBy)->first()?->displayName() : null];
+        }
 
         if (! $target) {
             return $base + ['state' => 'gone', 'title' => null, 'excerpt' => null, 'image' => null, 'author' => null];

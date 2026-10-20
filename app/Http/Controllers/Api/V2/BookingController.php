@@ -512,6 +512,13 @@ final class BookingController extends Controller
         // the booking's customer: the account named, or — for a guest with none — the business's own account standing in
         $customerId = $guest === null ? (int) $user->id : (int) ($guest['customer']?->id ?? $business->id);
 
+        // «اختر مقدّم الخدمة»: must be one of this business's own providers
+        $providerId = ! empty($data['provider_id']) ? (int) $data['provider_id'] : null;
+
+        if ($providerId !== null && ! \App\Support\Providers::isProviderOf($providerId, (int) $business->id)) {
+            throw ValidationException::withMessages(['provider_id' => __('هذا الشخص ليس من مقدّمي الخدمة في هذا النشاط.')]);
+        }
+
         $dayUse = ! empty($data['day_use']);
 
         if ($dayUse) {
@@ -642,7 +649,7 @@ final class BookingController extends Controller
 
         $courseGroupId = ! empty($data['course_group_id']) ? (int) $data['course_group_id'] : null;
 
-        $booking = DB::transaction(function () use ($payload, $allocation, $quantity, $courseGroupId, $data) {
+        $booking = DB::transaction(function () use ($payload, $allocation, $quantity, $courseGroupId, $data, $providerId, $user) {
             if ($courseGroupId !== null) {
                 // the seat is taken under a lock on the group, so the last one is never sold twice
                 $group = \App\Models\CourseGroup::query()->whereKey($courseGroupId)->lockForUpdate()->first();
@@ -693,10 +700,34 @@ final class BookingController extends Controller
                 $payload['chair_id'] = (int) $free->id;
             }
 
+            // A person was chosen: he has one customer at a time (judged under the lock on the business) — and because
+            // several people can work at once, this replaces the «business is one line» rule below for this booking.
+            if ($providerId !== null && ! empty($payload['starts_at'])) {
+                User::query()->whereKey((int) $data['business_id'])->lockForUpdate()->first(['id']);
+
+                $start = Carbon::parse($payload['starts_at']);
+                $end = ! empty($payload['ends_at'])
+                    ? Carbon::parse($payload['ends_at'])
+                    : $start->copy()->addMinutes(\App\Services\AppointmentQueue::serviceMinutes((int) $data['business_id'], (int) ($payload['offering_id'] ?? 0)));
+
+                $busy = Booking::query()
+                    ->where('business_id', (int) $data['business_id'])->assignedTo($providerId)
+                    ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
+                    ->whereNotNull('starts_at')
+                    ->where('starts_at', '<', $end->format('Y-m-d H:i:s'))
+                    ->whereRaw('COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 30 MINUTE)) > ?', [$start->format('Y-m-d H:i:s')])
+                    ->exists();
+
+                if ($busy) {
+                    throw ValidationException::withMessages(['provider_id' => __('هذا المقدّم محجوز في هذا الوقت.')]);
+                }
+            }
+
             // An appointment with the business itself that has no chairs and no unit is ONE line: a time can be held
             // once. The grid already hides a held time; this is what stops two customers (or a direct API call) taking
             // it in the same moment — judged under the same lock on the business as the chairs above.
             if ($chairs->isEmpty()
+                && $providerId === null
                 && empty($payload['bookable_id'])
                 && ! empty($payload['starts_at'])
                 && $courseGroupId === null
@@ -723,6 +754,11 @@ final class BookingController extends Controller
             }
 
             $booking = Booking::query()->create($payload);
+
+            // the customer's choice becomes the assignment — he is told, like any hand-over
+            if ($providerId !== null) {
+                app(\App\Services\Assignments\AssignmentService::class)->assign($booking, $providerId, (int) $user->id);
+            }
 
             if ($allocation) {
                 // مقفولٌ داخل هذه المعاملة نفسها — لا يفوز طلبان بآخر وحدة معًا.
@@ -1845,6 +1881,8 @@ final class BookingController extends Controller
             'business_id' => ['required', 'integer', 'min:1'],
             'service_id' => ['required', 'integer', 'min:1'],
             'bookable_id' => ['nullable', 'integer', 'min:1'],
+            // «اختر مقدّم الخدمة»: the person the customer wants (a barber, a trainer, a technician); none = the business decides
+            'provider_id' => ['nullable', 'integer', 'min:1'],
             // What the customer was looking at. A price row names «كشف عظام»
             // rather than «كشف»; a listing is what a showroom or an estate
             // agent is booked ON. Optional either way.

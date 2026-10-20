@@ -218,11 +218,13 @@ final class AppointmentQueue
     }
 
     /** @return \Illuminate\Support\Collection<int,array{0:Carbon,1:Carbon}> sorted by start */
-    public function heldOn(int $businessId, Carbon $day, Carbon $until, ?int $chairId = null)
+    public function heldOn(int $businessId, Carbon $day, Carbon $until, ?int $chairId = null, ?int $providerId = null)
     {
         return Booking::query()
             ->where('business_id', $businessId)
             ->when($chairId !== null, fn ($q) => $q->where('chair_id', $chairId))
+            // «اختر مقدّم الخدمة»: only what that person already has
+            ->when($providerId !== null, fn ($q) => $q->assignedTo($providerId))
             ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
             ->whereNotNull('starts_at')
             ->where('starts_at', '<', $until->format('Y-m-d H:i:s'))

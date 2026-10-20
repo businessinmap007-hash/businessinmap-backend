@@ -266,12 +266,20 @@ final class UnitDiscoveryController extends Controller
             'date' => ['required', 'date_format:Y-m-d'],
             'offering_id' => ['nullable', 'integer'],
             'chair_id' => ['nullable', 'integer'],
+            'provider_id' => ['nullable', 'integer'],
         ]);
 
         $biz = User::query()->live()->where('type', 'business')->find($business, ['id']);
 
         if (! $biz) {
             return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
+        }
+
+        // «اختر مقدّم الخدمة»: the grid of one person at this business
+        $providerId = ! empty($data['provider_id']) ? (int) $data['provider_id'] : null;
+
+        if ($providerId !== null && ! \App\Support\Providers::isProviderOf($providerId, (int) $biz->id)) {
+            return response()->json(['success' => false, 'message' => __('هذا الشخص ليس من مقدّمي الخدمة في هذا النشاط.')], 422);
         }
 
         $hours = app(\App\Services\BusinessHoursService::class);
@@ -330,17 +338,19 @@ final class UnitDiscoveryController extends Controller
         $queue = app(\App\Services\AppointmentQueue::class);
         $chairs = \App\Services\AppointmentQueue::chairsOf((int) $biz->id);
         $askedChair = ! empty($data['chair_id']) ? (int) $data['chair_id'] : null;
+        // with a person chosen the business is not one line any more: only HIS time counts (and a chair's, if it has chairs)
         $lines = $chairs->isEmpty()
-            ? [$queue->heldOn((int) $biz->id, $day, $until, null)]
+            ? [$providerId !== null ? collect() : $queue->heldOn((int) $biz->id, $day, $until, null)]
             : ($askedChair !== null ? $chairs->where('id', $askedChair) : $chairs)
                 ->map(fn ($c) => $queue->heldOn((int) $biz->id, $day, $until, (int) $c->id))->values()->all();
+        $personHeld = $providerId !== null ? $queue->heldOn((int) $biz->id, $day, $until, null, $providerId) : collect();
 
         $slots = [];
         for ($t = $from->copy(); $t->copy()->addMinutes($minutes)->lte($until) && count($slots) < 48; $t->addMinutes($step)) {
             $end = $t->copy()->addMinutes($minutes);
             $free = $t->gt($now->copy()->addMinutes($lead)) && collect($lines)->contains(
                 fn ($held) => $held->every(fn ($h) => ! ($h[0]->lt($end) && $h[1]->gt($t)))
-            );
+            ) && $personHeld->every(fn ($h) => ! ($h[0]->lt($end) && $h[1]->gt($t)));
 
             $slots[] = [
                 'starts_at' => $t->format('Y-m-d H:i:s'),

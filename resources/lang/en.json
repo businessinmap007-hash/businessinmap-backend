@@ -3275,5 +3275,16 @@
     "أُرسل طلب النشر إلى العميل.": "The request was sent to the customer.",
     "أُوقف عرض المشروع.": "The project is no longer shown.",
     "وافقت على عرض المشروع.": "You agreed to have the project shown.",
-    "رفضت عرض المشروع.": "You declined to have the project shown."
+    "رفضت عرض المشروع.": "You declined to have the project shown.",
+    "أضف تمارين أو وجبات إلى الخطة أولًا.": "Add exercises or meals to the plan first.",
+    "لا تُعرض الخطة قبل أن يقبلها العميل.": "A plan is not shown before the client accepts it.",
+    "الخطة منشورة بالفعل.": "The plan is already shown.",
+    "هذه الخطة ليست خطتك.": "This plan is not yours.",
+    "هذا التقرير ليس من خطتك.": "This report is not from your plan.",
+    "نُشرت النتائج بموافقة العميل العامة.": "The results were shown under the client's general consent.",
+    "أُوقف عرض النتائج.": "The results are no longer shown.",
+    "وافقت على عرض النتائج.": "You agreed to have the results shown.",
+    "رفضت عرض النتائج.": "You declined to have the results shown.",
+    "تم تأكيد نتيجة الشهر.": "The month's result was confirmed.",
+    "حُفظت موافقتك.": "Your consent was saved."
 }

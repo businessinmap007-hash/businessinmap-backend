@@ -49,7 +49,7 @@ class ClientTrainingController extends Controller
                 'exercises' => fn ($q) => $q->withCount(['rounds as completed_rounds_today' => fn ($r) => $r->whereDate('for_date', now()->toDateString())]),
                 'exercises.rounds' => fn ($q) => $q->whereDate('for_date', now()->toDateString())->orderBy('round_number'),
                 'exercises.images', 'exercises.libraryExercise.images', 'meals', 'meals.images', 'progressLogs', 'trainer:id,name,logo,phone',
-            ]))],
+            ])) + ['showcase' => app(\App\Services\Training\PlanShowcaseService::class)->block($row)]],
         ]);
     }
 

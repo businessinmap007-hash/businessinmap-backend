@@ -27,7 +27,9 @@ final class ProjectAgreementService
         private readonly NotificationDispatcherService $notifications,
         private readonly PlatformEventFeeService $fees,
         private readonly ProjectService $projects,
-        private readonly ProjectItemService $items
+        private readonly ProjectItemService $items,
+        private readonly ProjectScheduleService $schedule,
+        private readonly ProjectGuaranteeGate $gate
     ) {}
 
     /** The version in force: the latest agreed one. */
@@ -49,8 +51,11 @@ final class ProjectAgreementService
 
     /* ------------------------------------------------------------------ the first agreement */
 
-    /** The business offers the plan, with its delivery date and grace days. */
-    public function propose(Project $project, User $business, Carbon $dueOn, int $graceDays): ProjectAgreement
+    /**
+     * The business offers the plan: when execution STARTS (in the future — the time until then is the negotiation), the delivery
+     * date, the grace days after it, and — optionally — the guarantee level the customer must hold before work begins.
+     */
+    public function propose(Project $project, User $business, Carbon $startsOn, Carbon $dueOn, int $graceDays, ?string $requiredGuarantee = null): ProjectAgreement
     {
         $customerId = $this->projects->contractedCustomerId($project);
 
@@ -66,11 +71,21 @@ final class ProjectAgreementService
             throw ValidationException::withMessages(['agreement' => __('أضف مراحل المشروع قبل عرض الخطة على العميل.')]);
         }
 
-        if ($dueOn->copy()->startOfDay()->lt(Carbon::today()) || $graceDays < 0 || $graceDays > 365) {
+        if ($startsOn->copy()->startOfDay()->lt(Carbon::today()) || $dueOn->copy()->startOfDay()->lte($startsOn->copy()->startOfDay()) || $graceDays < 0 || $graceDays > 365) {
             throw ValidationException::withMessages(['agreement' => __('موعد التسليم أو مدة السماح غير صالحة.')]);
         }
 
-        return DB::transaction(function () use ($project, $business, $dueOn, $graceDays, $customerId) {
+        $requiredGuarantee = $requiredGuarantee !== null && trim($requiredGuarantee) !== '' ? trim($requiredGuarantee) : null;
+
+        if ($requiredGuarantee !== null && ! $this->gate->isLevel($requiredGuarantee)) {
+            throw ValidationException::withMessages(['required_guarantee' => __('مستوى الضمان المطلوب غير معروف.')]);
+        }
+
+        return DB::transaction(function () use ($project, $business, $startsOn, $dueOn, $graceDays, $customerId, $requiredGuarantee) {
+            // the plan's dates follow the agreed start
+            $this->schedule->alignTo($project, $startsOn);
+            $project->forceFill(['required_guarantee_level' => $requiredGuarantee])->save();
+
             ProjectAgreement::query()->where('project_id', $project->id)->where('status', ProjectAgreement::PROPOSED)
                 ->update(['status' => ProjectAgreement::SUPERSEDED]);
 
@@ -81,17 +96,18 @@ final class ProjectAgreementService
                 'project_id' => $project->id,
                 'version' => (int) ProjectAgreement::query()->where('project_id', $project->id)->max('version') + 1,
                 'status' => ProjectAgreement::PROPOSED,
+                'starts_on' => $startsOn->toDateString(),
                 'due_on' => $dueOn->toDateString(),
                 'grace_until' => $grace->toDateString(),
                 'snapshot' => $snapshot,
-                'content_hash' => $this->hash($snapshot, $dueOn, $grace),
+                'content_hash' => $this->hash($snapshot, $dueOn, $grace, $startsOn),
                 'proposed_by' => (int) $business->id,
                 'business_agreed_at' => now(),
             ]);
 
             $this->tell($customerId, 'اتفاق على خطة مشروعك بانتظار موافقتك', 'A project plan is waiting for your agreement',
-                'عرض عليك «' . $project->title . '» خطة بموعد تسليم ' . $dueOn->toDateString() . ' ومدة سماح حتى ' . $grace->toDateString() . '. راجعها ووافق عليها أو ارفضها.',
-                'The plan of "' . $project->title . '" has a delivery date of ' . $dueOn->toDateString() . ' and a grace until ' . $grace->toDateString() . '. Review it and agree, or decline.',
+                'عرض عليك «' . $project->title . '» خطة تبدأ ' . $startsOn->toDateString() . ' وتسلَّم ' . $dueOn->toDateString() . ' بسماح حتى ' . $grace->toDateString() . '. راجعها ووافق عليها أو ارفضها.',
+                'The plan of "' . $project->title . '" starts ' . $startsOn->toDateString() . ', is delivered ' . $dueOn->toDateString() . ' with a grace until ' . $grace->toDateString() . '. Review it and agree, or decline.',
                 $project);
 
             return $agreement;
@@ -103,6 +119,7 @@ final class ProjectAgreementService
     {
         $this->assertCustomer($project, $customer);
         $agreement = $this->pending($project) ?? throw ValidationException::withMessages(['agreement' => __('لا توجد خطة بانتظار موافقتك.')]);
+        $this->gate->assertMeets($project, $customer);
 
         return DB::transaction(function () use ($project, $customer, $agreement) {
             $parties = ['business' => (int) $project->business_id, 'client' => (int) $customer->id];
@@ -114,6 +131,7 @@ final class ProjectAgreementService
             $agreement->update(['status' => ProjectAgreement::AGREED, 'customer_id' => (int) $customer->id, 'customer_agreed_at' => now()]);
 
             $project->forceFill([
+                'starts_on' => optional($agreement->starts_on)->toDateString() ?? $project->starts_on,
                 'due_on' => $agreement->due_on->toDateString(),
                 'grace_until' => $agreement->grace_until->toDateString(),
                 'status' => in_array($project->status, [Project::STATUS_PLANNING], true) ? Project::STATUS_ACTIVE : $project->status,
@@ -169,6 +187,45 @@ final class ProjectAgreementService
         return $request;
     }
 
+    /**
+     * Postpone the plan, or one stage and what follows it, by [$days] (or to a new start date). Before the agreement it is applied
+     * at once; after it, it is a request that the OTHER side — the customer if the business asks, the business if the customer
+     * asks — approves, and an approval writes a new agreement version with the delivery date and grace moved by the same days.
+     */
+    public function requestShift(Project $project, User $by, string $scope, ?ProjectTask $stage, ?int $days, ?Carbon $newStart, string $reason): ?ProjectChangeRequest
+    {
+        $scope = $scope === 'stage' ? 'stage' : 'plan';
+
+        if ($scope === 'stage' && ! $stage) {
+            throw ValidationException::withMessages(['task_id' => __('اختر المرحلة المراد ترحيلها.')]);
+        }
+
+        $moveDays = $this->schedule->daysFor($project, $scope === 'stage' ? $stage : null, $days, $newStart);
+        $payload = ['scope' => $scope, 'task_id' => $stage?->id, 'days' => $moveDays];
+
+        if (! $this->isAgreed($project)) {
+            $this->schedule->apply($project, $payload);
+
+            return null;
+        }
+
+        $request = ProjectChangeRequest::create([
+            'project_id' => $project->id, 'type' => ProjectChangeRequest::SHIFT, 'payload' => $payload,
+            'note' => mb_substr(trim($reason), 0, 500), 'requested_by' => (int) $by->id,
+        ]);
+
+        $toCustomer = (int) $by->id === (int) $project->business_id;
+        $what = $scope === 'plan' ? 'الخطة' : 'المرحلة «' . $stage->title . '»';
+        $bodyAr = 'طُلب ترحيل ' . $what . ' ' . $moveDays . ' يومًا في «' . $project->title . '». ' . mb_substr(trim($reason), 0, 200);
+        $bodyEn = 'A request to postpone ' . ($scope === 'plan' ? 'the plan' : 'the stage "' . $stage->title . '"') . ' by ' . $moveDays . ' days in "' . $project->title . '".';
+
+        $toCustomer
+            ? $this->tellCustomer($project, 'طلب ترحيل الخطة', 'A request to postpone', $bodyAr, $bodyEn)
+            : $this->tell((int) $project->business_id, 'طلب ترحيل من العميل', 'A postponement request from the customer', $bodyAr, $bodyEn, $project);
+
+        return $request;
+    }
+
     /** A change of scope raised by an edit of a quantity: the customer decides before anything changes. */
     public function requestScope(Project $project, User $by, array $payload, ?string $reason): ProjectChangeRequest
     {
@@ -184,11 +241,23 @@ final class ProjectAgreementService
         return $request;
     }
 
-    /** The customer's answer; an approval is applied and written as a new agreement version. */
+    /**
+     * The answer of the other side — the customer for more time and a change of scope, the customer or the business (whoever did
+     * not ask) for a postponement. An approval is applied and written as a new agreement version.
+     */
     public function decide(ProjectChangeRequest $request, User $customer, bool $approve, ?string $note = null): ProjectChangeRequest
     {
         $project = Project::query()->findOrFail($request->project_id);
-        $this->assertCustomer($project, $customer);
+
+        if ($request->type === ProjectChangeRequest::SHIFT) {
+            $isParty = (int) $customer->id === (int) $project->business_id || $this->projects->contractedCustomerId($project) === (int) $customer->id;
+
+            if (! $isParty || (int) $customer->id === (int) $request->requested_by) {
+                throw ValidationException::withMessages(['request' => __('هذا الطلب ليس بانتظار ردك.')]);
+            }
+        } else {
+            $this->assertCustomer($project, $customer);
+        }
 
         if ($request->status !== ProjectChangeRequest::PENDING) {
             throw ValidationException::withMessages(['request' => __('تم الرد على هذا الطلب من قبل.')]);
@@ -207,25 +276,33 @@ final class ProjectAgreementService
             if ($approve) {
                 if ($request->type === ProjectChangeRequest::EXTENSION) {
                     $this->newVersion($project, $request, (string) $request->payload['grace_until']);
+                } elseif ($request->type === ProjectChangeRequest::SHIFT) {
+                    $this->schedule->apply($project, $request->payload);
+                    $this->newVersion($project, $request, null, (int) $request->payload['days'], ($request->payload['scope'] ?? 'plan') === 'plan');
                 } else {
                     $this->items->applyScopeRequest($request, $customer);
                     $this->newVersion($project, $request, null);
                 }
             }
 
-            $this->tell((int) $project->business_id,
-                $approve ? 'وافق العميل على طلبك' : 'رفض العميل طلبك',
-                $approve ? 'The customer approved your request' : 'The customer declined your request',
-                ($approve ? 'وافق' : 'رفض') . ' العميل طلب ' . ($request->type === ProjectChangeRequest::EXTENSION ? 'التمديد' : 'تعديل النطاق') . ' في «' . $project->title . '».'
+            // whoever asked hears the answer
+            $askedByBusiness = (int) $request->requested_by === (int) $project->business_id;
+            $label = match ($request->type) {
+                ProjectChangeRequest::EXTENSION => 'التمديد', ProjectChangeRequest::SHIFT => 'الترحيل', default => 'تعديل النطاق',
+            };
+            $this->tell((int) $request->requested_by,
+                $approve ? 'وافق الطرف الآخر على طلبك' : 'رفض الطرف الآخر طلبك',
+                $approve ? 'The other side approved your request' : 'The other side declined your request',
+                ($approve ? 'وافق' : 'رفض') . ' ' . ($askedByBusiness ? 'العميل' : 'النشاط') . ' طلب ' . $label . ' في «' . $project->title . '».'
                     . (! $approve && $note ? ' السبب: ' . mb_substr(trim($note), 0, 200) : ''),
-                'The customer ' . ($approve ? 'approved' : 'declined') . ' the request on "' . $project->title . '".', $project);
+                'The other side ' . ($approve ? 'approved' : 'declined') . ' the request on "' . $project->title . '".', $project);
 
             return $request->refresh();
         });
     }
 
     /** A new immutable version after an approval: same plan unless the scope moved, the grace moved for an extension. */
-    private function newVersion(Project $project, ProjectChangeRequest $request, ?string $graceUntil): void
+    private function newVersion(Project $project, ProjectChangeRequest $request, ?string $graceUntil, int $shiftDays = 0, bool $shiftStart = false): void
     {
         $current = $this->current($project);
 
@@ -233,7 +310,9 @@ final class ProjectAgreementService
             return;
         }
 
-        $grace = $graceUntil ? Carbon::parse($graceUntil) : $current->grace_until->copy();
+        $grace = $graceUntil ? Carbon::parse($graceUntil) : $current->grace_until->copy()->addDays($shiftDays);
+        $due = $current->due_on->copy()->addDays($shiftDays);
+        $starts = $current->starts_on ? $current->starts_on->copy()->addDays($shiftStart ? $shiftDays : 0) : null;
         $snapshot = $this->snapshotOf($project);
 
         ProjectAgreement::query()->where('project_id', $project->id)->where('status', ProjectAgreement::AGREED)->update(['status' => ProjectAgreement::SUPERSEDED]);
@@ -242,10 +321,11 @@ final class ProjectAgreementService
             'project_id' => $project->id,
             'version' => (int) ProjectAgreement::query()->where('project_id', $project->id)->max('version') + 1,
             'status' => ProjectAgreement::AGREED,
-            'due_on' => $current->due_on->toDateString(),
+            'starts_on' => $starts?->toDateString(),
+            'due_on' => $due->toDateString(),
             'grace_until' => $grace->toDateString(),
             'snapshot' => $snapshot,
-            'content_hash' => $this->hash($snapshot, $current->due_on, $grace),
+            'content_hash' => $this->hash($snapshot, $due, $grace, $starts),
             'proposed_by' => (int) $request->requested_by,
             'business_agreed_at' => $request->created_at,
             'customer_id' => (int) $request->decided_by,
@@ -272,6 +352,7 @@ final class ProjectAgreementService
         $shown = $current ?? $pending;
         $fmt = fn (?ProjectAgreement $a) => $a ? [
             'version' => (int) $a->version, 'status' => (string) $a->status,
+            'starts_on' => optional($a->starts_on)->toDateString(),
             'due_on' => $a->due_on->toDateString(), 'grace_until' => $a->grace_until->toDateString(),
             'business_agreed_at' => optional($a->business_agreed_at)->toIso8601String(),
             'customer_agreed_at' => optional($a->customer_agreed_at)->toIso8601String(),
@@ -279,9 +360,12 @@ final class ProjectAgreementService
             'change_request_id' => $a->change_request_id ? (int) $a->change_request_id : null,
         ] : null;
 
+        $customer = ($id = $this->projects->contractedCustomerId($project)) ? User::query()->find($id) : null;
+
         return [
             'agreement' => $fmt($shown),
             'agreed' => $current !== null,
+            'guarantee_requirement' => $this->gate->describe($project, $customer),
             'versions' => ProjectAgreement::query()->where('project_id', $project->id)->orderBy('version')->get()->map(fn ($a) => $fmt($a))->all(),
             'change_requests' => ProjectChangeRequest::query()->where('project_id', $project->id)->orderByDesc('id')->limit(30)->get()->map(fn (ProjectChangeRequest $r) => [
                 'id' => (int) $r->id, 'type' => (string) $r->type, 'payload' => $r->payload, 'note' => $r->note, 'status' => (string) $r->status,
@@ -301,9 +385,9 @@ final class ProjectAgreementService
         ])->values()->all();
     }
 
-    private function hash(array $snapshot, Carbon $due, Carbon $grace): string
+    private function hash(array $snapshot, Carbon $due, Carbon $grace, ?Carbon $starts = null): string
     {
-        return hash('sha256', json_encode([$snapshot, $due->toDateString(), $grace->toDateString()], JSON_UNESCAPED_UNICODE));
+        return hash('sha256', json_encode([$snapshot, $starts?->toDateString(), $due->toDateString(), $grace->toDateString()], JSON_UNESCAPED_UNICODE));
     }
 
     private function assertCustomer(Project $project, User $customer): void

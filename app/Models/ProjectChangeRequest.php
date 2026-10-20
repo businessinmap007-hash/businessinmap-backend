@@ -13,6 +13,7 @@ class ProjectChangeRequest extends Model
 {
     public const EXTENSION = 'extension';
     public const SCOPE = 'scope';
+    public const SHIFT = 'shift';
 
     public const PENDING = 'pending';
     public const APPROVED = 'approved';

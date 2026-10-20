@@ -491,6 +491,7 @@ Route::prefix('v2')->group(function () {
         Route::prefix('operations/{type}/{id}/project')->where(['id' => '[0-9]+', 'type' => 'order|booking'])->group(function () {
             Route::post('agreement/agree', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'agree']);
             Route::post('agreement/decline', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'decline']);
+            Route::post('shift-requests', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'customerShift']);
             Route::post('change-requests/{changeRequest}/approve', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'approveRequest'])->whereNumber('changeRequest');
             Route::post('change-requests/{changeRequest}/reject', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'rejectRequest'])->whereNumber('changeRequest');
             Route::post('tasks/{task}/start/approve', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'approveStart'])->whereNumber('task');
@@ -1521,6 +1522,9 @@ Route::prefix('v2')->group(function () {
             Route::post('{project}/agreement', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'propose'])->whereNumber('project');
             Route::post('{project}/extension-requests', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'requestExtension'])->whereNumber('project');
             Route::post('{project}/tasks/{task}/request-start', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'requestStart'])->whereNumber('project')->whereNumber('task');
+            Route::post('{project}/shift', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'shift'])->whereNumber('project');
+            Route::post('{project}/change-requests/{changeRequest}/approve', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'businessApprove'])->whereNumber('project')->whereNumber('changeRequest');
+            Route::post('{project}/change-requests/{changeRequest}/reject', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'businessReject'])->whereNumber('project')->whereNumber('changeRequest');
             Route::delete('{project}/tasks/{task}', [BusinessProjectTaskController::class, 'destroy'])->whereNumber('project')->whereNumber('task');
 
             // Followers: who may follow this project's progress, and at what

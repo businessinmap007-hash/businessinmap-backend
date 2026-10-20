@@ -37,13 +37,22 @@ class ProjectAgreementController extends Controller
         return response()->json(['success' => true, 'data' => $this->agreements->block($this->owned($request, $project))]);
     }
 
-    /** POST business/projects/{project}/agreement {due_on, grace_days} — offer the plan to the customer. */
+    /**
+     * POST business/projects/{project}/agreement {starts_on, due_on, grace_days, required_guarantee?} — offer the plan to the
+     * customer: execution starts on a future date (the time until then is the negotiation), is delivered by `due_on` with a
+     * grace after it, and the customer may be required to hold a guarantee of at least a level before work begins.
+     */
     public function propose(Request $request, int $project)
     {
-        $data = $request->validate(['due_on' => ['required', 'date'], 'grace_days' => ['required', 'integer', 'between:0,365']]);
+        $data = $request->validate([
+            'starts_on' => ['required', 'date'],
+            'due_on' => ['required', 'date'],
+            'grace_days' => ['required', 'integer', 'between:0,365'],
+            'required_guarantee' => ['nullable', 'string', 'max:20'],
+        ]);
         $row = $this->owned($request, $project);
 
-        $this->agreements->propose($row, $request->user(), Carbon::parse($data['due_on']), (int) $data['grace_days']);
+        $this->agreements->propose($row, $request->user(), Carbon::parse($data['starts_on']), Carbon::parse($data['due_on']), (int) $data['grace_days'], $data['required_guarantee'] ?? null);
 
         return response()->json(['success' => true, 'message' => __('عُرضت الخطة على العميل.'), 'data' => $this->agreements->block($row)], 201);
     }
@@ -57,6 +66,55 @@ class ProjectAgreementController extends Controller
         $this->agreements->requestExtension($row, $request->user(), (int) $data['extra_days'], $data['reason']);
 
         return response()->json(['success' => true, 'message' => __('أُرسل طلب التمديد إلى العميل.'), 'data' => $this->agreements->block($row)], 201);
+    }
+
+    /**
+     * POST business/projects/{project}/shift {scope: plan|stage, task_id?, days? | new_start?, reason?} — postpone the plan, or a
+     * stage and what follows it, by a number of days (7 = a week, 30 = a month) or to a later start date. Before the agreement it
+     * happens at once (200); after it, it is a request the customer approves (201).
+     */
+    public function shift(Request $request, int $project)
+    {
+        $data = $request->validate([
+            'scope' => ['required', 'in:plan,stage'],
+            'task_id' => ['nullable', 'integer', 'required_if:scope,stage'],
+            'days' => ['nullable', 'integer', 'between:1,365'],
+            'new_start' => ['nullable', 'date'],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+        $row = $this->owned($request, $project);
+        $stage = ! empty($data['task_id']) ? ProjectTask::query()->where('project_id', $row->id)->findOrFail((int) $data['task_id']) : null;
+
+        $changeRequest = $this->agreements->requestShift(
+            $row, $request->user(), $data['scope'], $stage, $data['days'] ?? null, ! empty($data['new_start']) ? Carbon::parse($data['new_start']) : null, (string) ($data['reason'] ?? ''),
+        );
+
+        return response()->json(
+            ['success' => true, 'message' => $changeRequest ? __('أُرسل طلب الترحيل إلى العميل.') : __('تم ترحيل المواعيد.'), 'data' => $this->agreements->block($row->fresh())],
+            $changeRequest ? 201 : 200,
+        );
+    }
+
+    /** POST business/projects/{project}/change-requests/{id}/approve|reject — the business answers a postponement the customer asked for. */
+    public function businessApprove(Request $request, int $project, int $changeRequest)
+    {
+        return $this->businessDecide($request, $project, $changeRequest, true);
+    }
+
+    public function businessReject(Request $request, int $project, int $changeRequest)
+    {
+        return $this->businessDecide($request, $project, $changeRequest, false);
+    }
+
+    private function businessDecide(Request $request, int $project, int $requestId, bool $approve)
+    {
+        $data = $request->validate(['note' => ['nullable', 'string', 'max:500']]);
+        $row = $this->owned($request, $project);
+        $change = ProjectChangeRequest::query()->where('project_id', $row->id)->findOrFail($requestId);
+
+        $this->agreements->decide($change, $request->user(), $approve, $data['note'] ?? null);
+
+        return response()->json(['success' => true, 'message' => $approve ? __('وافقت على الطلب.') : __('رفضت الطلب.'), 'data' => $this->agreements->block($row->fresh())]);
     }
 
     /** POST business/projects/{project}/tasks/{task}/request-start — ask to start a main stage. */
@@ -87,6 +145,26 @@ class ProjectAgreementController extends Controller
         $this->agreements->reject($project, $request->user(), $data['note']);
 
         return $this->customerReply($project, __('أُرسل رفضك للنشاط.'));
+    }
+
+    /** POST operations/{type}/{id}/project/shift-requests {scope, task_id?, days? | new_start?, reason} — the customer asks to postpone; the business answers. */
+    public function customerShift(Request $request, string $type, int $id)
+    {
+        $data = $request->validate([
+            'scope' => ['required', 'in:plan,stage'],
+            'task_id' => ['nullable', 'integer', 'required_if:scope,stage'],
+            'days' => ['nullable', 'integer', 'between:1,365'],
+            'new_start' => ['nullable', 'date'],
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+        $project = $this->forCustomer($request, $type, $id);
+        $stage = ! empty($data['task_id']) ? ProjectTask::query()->where('project_id', $project->id)->findOrFail((int) $data['task_id']) : null;
+
+        $this->agreements->requestShift(
+            $project, $request->user(), $data['scope'], $stage, $data['days'] ?? null, ! empty($data['new_start']) ? Carbon::parse($data['new_start']) : null, $data['reason'],
+        );
+
+        return $this->customerReply($project, __('أُرسل طلب الترحيل إلى النشاط.'));
     }
 
     public function approveRequest(Request $request, string $type, int $id, int $changeRequest)

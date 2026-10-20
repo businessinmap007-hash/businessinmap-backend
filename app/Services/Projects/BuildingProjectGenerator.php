@@ -9,13 +9,18 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * A residential building in one go (owner, 2026-10-20: five floors and a basement, three flats a floor, supervised by an
- * engineering office). Six main stages — foundations, the concrete frame, masonry, installations, finishing, handover — and,
- * inside them, a work for every level and every flat with its place written on it («الدور الثالث / شقة ٢»), its weight, and
- * the quantities an engineer fills in (columns, concrete, bricks, areas).
+ * engineering office). THREE main stages, as the owner divided the work:
  *
- * The frame and the masonry go level by level; installations and finishing go flat by flat, each flat's trades one after the
- * other; every main stage waits for the one before it. All of it is an ordinary plan afterwards: the engineer edits, adds and
- * removes freely until the plan is agreed.
+ *  1. التجهيز والإنشاءات — excavation, plain concrete, foundations, then the concrete frame (columns and slab) and the masonry
+ *     level by level, and the stairs;
+ *  2. التأسيس — electrical, plumbing and air-conditioning piping flat by flat, safety and cameras level by level, gas and
+ *     intercom/networks for the building;
+ *  3. التشطيبات — plaster, gypsum, tiles, marble, doors and windows, paint, air-conditioning units and fixtures flat by flat,
+ *     the GRP façade, then cleaning and the final handover.
+ *
+ * Inside them every work has its place written on it («الدور الثالث / شقة ٢»), a weight, and the quantities an engineer fills
+ * in (columns, concrete, bricks, areas). Each main stage waits for the one before. All of it is an ordinary plan afterwards: the
+ * engineer edits, adds and removes freely until the plan is agreed.
  */
 final class BuildingProjectGenerator
 {
@@ -55,48 +60,72 @@ final class BuildingProjectGenerator
         DB::transaction(function () use ($project, $levels, $first) {
             $day = $first->copy();
 
-            // 1 — foundations
-            $phase = $this->phase($project, 'الأساسات');
+            // ---------------------------------------------------------------- 1 — preparation and construction
+            $phase = $this->phase($project, 'مرحلة التجهيز والإنشاءات');
             $last = null;
             foreach ([['الحفر', 4, []], ['الخرسانة العادية', 3, [['الخرسانة', 'م³']]], ['القواعد والأساسات', 10, [['الخرسانة', 'م³'], ['حديد التسليح', 'طن'], ['عدد القواعد', 'قاعدة']]]] as [$title, $days, $items]) {
                 [$last, $end] = $this->work($project, $phase, $title, 'المبنى', $days, $day, $items, $last);
                 $day = $end->copy()->addDay();
             }
 
-            // 2 — the concrete frame, level by level
-            $phase = $this->phase($project, 'الهيكل الخرساني');
-            $last = null;
             foreach ($levels as $level) {
                 [$columns, $end] = $this->work($project, $phase, 'الأعمدة', $level['name'], 6, $day, [['عدد الأعمدة', 'عمود'], ['الخرسانة', 'م³'], ['حديد التسليح', 'طن']], $last);
                 [$last, $end] = $this->work($project, $phase, 'السقف', $level['name'], 8, $end->copy()->addDay(), [['الخرسانة', 'م³'], ['حديد التسليح', 'طن']], $columns);
                 $day = $end->copy()->addDay();
             }
 
-            // 3 — masonry, level by level
-            $phase = $this->phase($project, 'المباني');
-            $last = null;
             foreach ($levels as $level) {
                 [$last, $end] = $this->work($project, $phase, 'مباني الطوب', $level['name'], 7, $day, [['الطوب', 'طوبة'], ['الأسمنت', 'كيس']], $last);
                 $day = $end->copy()->addDay();
             }
 
-            // 4 — installations, flat by flat (electrical, then plumbing)
-            $phase = $this->phase($project, 'التمديدات');
-            $installEnd = $day->copy();
+            [, $end] = $this->work($project, $phase, 'السلالم', 'المبنى', 8, $day, [['الخرسانة', 'م³'], ['حديد التسليح', 'طن']], $last);
+            $day = $end->copy()->addDay();
+
+            // ---------------------------------------------------------------- 2 — installations
+            $phase = $this->phase($project, 'مرحلة التأسيس');
+            $from = $day->copy();
+            $installEnd = $from->copy();
+
             foreach ($levels as $level) {
                 for ($f = 1; $f <= $level['flats']; $f++) {
                     $zone = $level['name'] . ' / شقة ' . $f;
-                    [$electrical, $end] = $this->work($project, $phase, 'الكهرباء', $zone, 5, $day, [['نقاط الكهرباء', 'نقطة']]);
-                    [, $end] = $this->work($project, $phase, 'السباكة', $zone, 5, $end->copy()->addDay(), [['نقاط المياه والصرف', 'نقطة']], $electrical);
-                    $installEnd = $end->gt($installEnd) ? $end->copy() : $installEnd;
+                    $at = $from->copy();
+                    $last = null;
+                    foreach ([['الكهرباء', 5, [['نقاط الكهرباء', 'نقطة']]], ['السباكة', 5, [['نقاط المياه والصرف', 'نقطة']]], ['تأسيس التكييف', 3, [['عدد الوحدات', 'وحدة']]]] as [$title, $days, $items]) {
+                        [$last, $end] = $this->work($project, $phase, $title, $zone, $days, $at, $items, $last);
+                        $at = $end->copy()->addDay();
+                    }
+                    $installEnd = $at->gt($installEnd) ? $at->copy() : $installEnd;
                 }
+
+                [, $end] = $this->work($project, $phase, 'سيفتى وكاميرات', $level['name'], 4, $from, [['الكاميرات', 'كاميرا'], ['كواشف ومطافئ الحريق', 'قطعة']]);
+                $installEnd = $end->copy()->addDay()->gt($installEnd) ? $end->copy()->addDay() : $installEnd;
             }
 
-            // 5 — finishing, flat by flat, the trades in their order
-            $phase = $this->phase($project, 'التشطيبات');
-            $day = $installEnd->copy()->addDay();
+            [, $end] = $this->work($project, $phase, 'شبكة الغاز', 'المبنى', 4, $from, [['نقاط الغاز', 'نقطة']]);
+            $installEnd = $end->copy()->addDay()->gt($installEnd) ? $end->copy()->addDay() : $installEnd;
+            [, $end] = $this->work($project, $phase, 'الانتركم وشبكات الاتصال', 'المبنى', 3, $from, [['النقاط', 'نقطة']]);
+            $installEnd = $end->copy()->addDay()->gt($installEnd) ? $end->copy()->addDay() : $installEnd;
+
+            // ---------------------------------------------------------------- 3 — finishing
+            $phase = $this->phase($project, 'مرحلة التشطيبات');
+            $day = $installEnd->copy();
             $finishEnd = $day->copy();
-            $trades = [['المحارة', 7, [['المساحة', 'م²']]], ['الجبس والأسقف', 4, [['المساحة', 'م²']]], ['السيراميك', 7, [['المساحة', 'م²']]], ['الرخام', 4, [['المساحة', 'م²']]], ['الأبواب والشبابيك', 4, [['عدد الأبواب والشبابيك', 'قطعة']]], ['النقاشة', 6, [['المساحة', 'م²']]], ['التكييف', 3, [['عدد الوحدات', 'وحدة']]]];
+
+            $trades = [
+                ['المحارة', 7, [['المساحة', 'م²']]],
+                ['الجبس والأسقف', 4, [['المساحة', 'م²']]],
+                ['السيراميك', 7, [['المساحة', 'م²']]],
+                ['الرخام', 4, [['المساحة', 'م²']]],
+                ['الأبواب والشبابيك', 4, [['عدد الأبواب والشبابيك', 'قطعة']]],
+                ['النقاشة والدهانات', 6, [['المساحة', 'م²']]],
+                ['تركيب وحدات التكييف', 2, [['عدد الوحدات', 'وحدة']]],
+                ['تركيب الأدوات الصحية والكهربائية', 3, [['العدد', 'قطعة']]],
+            ];
+
+            [, $end] = $this->work($project, $phase, 'GRP والواجهات', 'المبنى', 10, $day, [['المساحة', 'م²']]);
+            $finishEnd = $end->copy()->addDay()->gt($finishEnd) ? $end->copy()->addDay() : $finishEnd;
 
             foreach ($levels as $level) {
                 for ($f = 1; $f <= $level['flats']; $f++) {
@@ -111,9 +140,7 @@ final class BuildingProjectGenerator
                 }
             }
 
-            // 6 — handover
-            $phase = $this->phase($project, 'التسليم');
-            $this->work($project, $phase, 'التنظيف والتسليم النهائي', 'المبنى', 3, $finishEnd->copy()->addDay());
+            $this->work($project, $phase, 'التنظيف والتسليم النهائي', 'المبنى', 3, $finishEnd->copy());
         });
 
         $fresh = $project->fresh();

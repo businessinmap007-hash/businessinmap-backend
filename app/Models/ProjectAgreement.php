@@ -18,11 +18,12 @@ class ProjectAgreement extends Model
     public const REJECTED = 'rejected';
 
     protected $fillable = [
-        'project_id', 'version', 'status', 'due_on', 'grace_until', 'snapshot', 'content_hash', 'proposed_by', 'business_agreed_at',
+        'project_id', 'version', 'status', 'starts_on', 'due_on', 'grace_until', 'snapshot', 'content_hash', 'proposed_by', 'business_agreed_at',
         'customer_id', 'customer_agreed_at', 'customer_note', 'change_request_id',
     ];
 
     protected $casts = [
+        'starts_on' => 'date',
         'due_on' => 'date',
         'grace_until' => 'date',
         'snapshot' => 'array',

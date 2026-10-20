@@ -3255,5 +3255,15 @@
     "أُرسل طلب تعديل النطاق إلى العميل ولن يُطبَّق قبل موافقته.": "The scope request was sent to the customer and nothing changes before he approves.",
     "تم حفظ الكمية.": "The quantity was saved.",
     "المشروع فيه مراحل بالفعل؛ أنشئ مشروعًا جديدًا لتوليد المبنى.": "The project already has stages; create a new project to generate the building.",
-    "تم توليد خطة المبنى.": "The building plan was generated."
+    "تم توليد خطة المبنى.": "The building plan was generated.",
+    "مستوى الضمان المطلوب غير معروف.": "The required guarantee level is not known.",
+    "لا يوجد موعد بدء حالي لحساب الترحيل منه.": "There is no current start date to postpone from.",
+    "مدة الترحيل غير صالحة؛ اختر من يوم إلى سنة، أو موعد بدء لاحقًا.": "The postponement is not valid; choose from one day to a year, or a later start date.",
+    "يشترط النشاط أن يكون لحسابك ضمان :level على الأقل قبل بدء العمل على الخطة.": "The business requires your account to hold a :level guarantee at least before work on the plan begins.",
+    "اختر المرحلة المراد ترحيلها.": "Choose the stage to postpone.",
+    "هذا الطلب ليس بانتظار ردك.": "This request is not waiting for your answer.",
+    "لا يبدأ التنفيذ قبل موعد البدء المتفق عليه: :date.": "Execution does not start before the agreed start date: :date.",
+    "أُرسل طلب الترحيل إلى العميل.": "The postponement request was sent to the customer.",
+    "تم ترحيل المواعيد.": "The dates were postponed.",
+    "أُرسل طلب الترحيل إلى النشاط.": "The postponement request was sent to the business."
 }

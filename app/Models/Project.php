@@ -47,6 +47,7 @@ class Project extends Model
         'operation_type',
         'operation_id',
         'grace_until',
+        'required_guarantee_level',
         'completed_at',
         'customer_wait_seconds',
     ];

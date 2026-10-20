@@ -7,6 +7,7 @@ use App\Models\ProjectTask;
 use App\Models\User;
 use App\Services\Fees\PlatformEventFeeService;
 use App\Services\Notifications\NotificationDispatcherService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -23,7 +24,8 @@ final class ProjectStageStartService
         private readonly ProjectService $projects,
         private readonly ProjectAgreementService $agreements,
         private readonly PlatformEventFeeService $fees,
-        private readonly NotificationDispatcherService $notifications
+        private readonly NotificationDispatcherService $notifications,
+        private readonly ProjectGuaranteeGate $gate
     ) {}
 
     /** The business asks to start a top-level stage. */
@@ -41,6 +43,12 @@ final class ProjectStageStartService
 
         if ($task->start_status === 'approved') {
             throw ValidationException::withMessages(['stage' => __('بدأت هذه المرحلة بالفعل.')]);
+        }
+
+        // execution has an agreed START date: the time before it is the negotiation
+        $startsOn = $this->agreements->current($project)?->starts_on;
+        if ($startsOn && Carbon::today()->lt($startsOn->copy()->startOfDay())) {
+            throw ValidationException::withMessages(['stage' => __('لا يبدأ التنفيذ قبل موعد البدء المتفق عليه: :date.', ['date' => $startsOn->toDateString()])]);
         }
 
         if ($task->start_status === 'requested') {
@@ -77,6 +85,10 @@ final class ProjectStageStartService
 
         if (! $approve && ($note === null || trim($note) === '')) {
             throw ValidationException::withMessages(['rejection_note' => __('اكتب سبب الرفض.')]);
+        }
+
+        if ($approve) {
+            $this->gate->assertMeets($project, $customer);
         }
 
         return DB::transaction(function () use ($task, $project, $customer, $approve, $note) {

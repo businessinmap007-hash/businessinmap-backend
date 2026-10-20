@@ -85,7 +85,7 @@ class ProjectBuildingAgreementTest extends TestCase
     private function agreeToPlan(Project $project, string $due = '+60 days', int $grace = 30): void
     {
         Sanctum::actingAs($this->office);
-        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['due_on' => Carbon::parse($due)->toDateString(), 'grace_days' => $grace])->assertCreated();
+        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['starts_on' => now()->toDateString(), 'due_on' => Carbon::parse($due)->toDateString(), 'grace_days' => $grace])->assertCreated();
         Sanctum::actingAs($this->client);
         $this->postJson("/api/v2/operations/booking/{$project->operation_id}/project/agreement/agree")->assertOk();
     }
@@ -100,12 +100,15 @@ class ProjectBuildingAgreementTest extends TestCase
         $res = $this->postJson("/api/v2/business/projects/{$project->id}/generate", ['kind' => 'building', 'floors' => 5, 'basement' => true, 'apartments_per_floor' => 3, 'starts_on' => '2027-01-01'])
             ->assertCreated();
 
-        // 6 main stages; works: foundations 3 + frame 6 levels×2 + masonry 6 + installs 15 flats×2 + finishing 15×7 + handover 1
-        $this->assertSame(3 + 12 + 6 + 30 + 105 + 1, $res->json('data.works'));
-        $this->assertSame(6, $project->tasks()->whereNull('parent_id')->count());
+        // 3 main stages (preparation & construction / installations / finishing)
+        // 1: foundations 3 + frame 6 levels×2 + masonry 6 + stairs 1 = 22 · 2: 15 flats×3 + 6 safety + gas + intercom = 53 · 3: 15×8 + GRP + handover = 122
+        $this->assertSame(22 + 53 + 122, $res->json('data.works'));
+        $this->assertSame(['مرحلة التجهيز والإنشاءات', 'مرحلة التأسيس', 'مرحلة التشطيبات'], $project->tasks()->whereNull('parent_id')->orderBy('sort_order')->pluck('title')->all());
+        $this->assertTrue($project->tasks()->where('title', 'سيفتى وكاميرات')->exists());
+        $this->assertTrue($project->tasks()->where('title', 'GRP والواجهات')->exists());
 
         // a flat's work carries its place; the trades of one flat are chained
-        $paint = $project->tasks()->where('title', 'النقاشة')->where('zone', 'الدور الثالث / شقة 2')->firstOrFail();
+        $paint = $project->tasks()->where('title', 'النقاشة والدهانات')->where('zone', 'الدور الثالث / شقة 2')->firstOrFail();
         $this->assertSame(1, $paint->dependencies()->count());
         $this->assertSame('المساحة', $paint->items()->first()->name);
 
@@ -117,6 +120,9 @@ class ProjectBuildingAgreementTest extends TestCase
         $slab1 = $project->tasks()->where('title', 'السقف')->where('zone', 'الدور الأول')->firstOrFail();
         $columns2 = $project->tasks()->where('title', 'الأعمدة')->where('zone', 'الدور الثاني')->firstOrFail();
         $this->assertTrue(\DB::table('project_task_dependencies')->where('task_id', $columns2->id)->where('depends_on_id', $slab1->id)->exists());
+
+        // the quantities of the columns are ready to be filled
+        $this->assertSame(['عدد الأعمدة', 'الخرسانة', 'حديد التسليح'], $columns2->items()->pluck('name')->all());
 
         // a second generate on a project that has stages is refused
         $this->postJson("/api/v2/business/projects/{$project->id}/generate", ['kind' => 'building', 'floors' => 2, 'apartments_per_floor' => 1])->assertStatus(422);
@@ -219,10 +225,10 @@ class ProjectBuildingAgreementTest extends TestCase
         Sanctum::actingAs($this->office);
         $unlinked = Project::create(['business_id' => $this->office->id, 'title' => 'Internal']);
         $unlinked->tasks()->create(['title' => 'x']);
-        $this->postJson("/api/v2/business/projects/{$unlinked->id}/agreement", ['due_on' => now()->addMonth()->toDateString(), 'grace_days' => 30])->assertStatus(422);
+        $this->postJson("/api/v2/business/projects/{$unlinked->id}/agreement", ['starts_on' => now()->toDateString(), 'due_on' => now()->addMonth()->toDateString(), 'grace_days' => 30])->assertStatus(422);
 
         $due = now()->addMonths(8)->toDateString();
-        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['due_on' => $due, 'grace_days' => 30])->assertCreated()
+        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['starts_on' => now()->toDateString(), 'due_on' => $due, 'grace_days' => 30])->assertCreated()
             ->assertJsonPath('data.agreement.status', 'proposed')->assertJsonPath('data.agreed', false);
 
         // a stranger cannot agree
@@ -333,7 +339,7 @@ class ProjectBuildingAgreementTest extends TestCase
         $this->fund($this->client, 5);
 
         Sanctum::actingAs($this->office);
-        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['due_on' => now()->addMonths(3)->toDateString(), 'grace_days' => 30])->assertCreated();
+        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['starts_on' => now()->toDateString(), 'due_on' => now()->addMonths(3)->toDateString(), 'grace_days' => 30])->assertCreated();
 
         Sanctum::actingAs($this->client);
         $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/agreement/agree")->assertStatus(422);
@@ -343,6 +349,125 @@ class ProjectBuildingAgreementTest extends TestCase
         $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/agreement/agree")->assertOk();
         $this->assertEquals(80.0, (float) Wallet::where('user_id', $this->office->id)->value('balance'));
         $this->assertEquals(38.0, (float) Wallet::where('user_id', $this->client->id)->value('balance'));
+    }
+
+    /* ------------------------------------------------------------------ start date, guarantee, postponing */
+
+    public function test_execution_starts_on_a_future_date_and_no_stage_starts_before_it(): void
+    {
+        $project = $this->project();
+        $phase = $project->tasks()->whereNull('parent_id')->firstOrFail();
+        $startsOn = now()->addDays(30)->toDateString();      // the month in between is the negotiation
+
+        Sanctum::actingAs($this->office);
+        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['starts_on' => now()->subDay()->toDateString(), 'due_on' => now()->addMonths(6)->toDateString(), 'grace_days' => 30])->assertStatus(422);
+        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['starts_on' => $startsOn, 'due_on' => now()->addMonths(6)->toDateString(), 'grace_days' => 30])->assertCreated()
+            ->assertJsonPath('data.agreement.starts_on', $startsOn);
+
+        // the plan's dates follow the agreed start
+        $this->assertSame($startsOn, $project->tasks()->whereNotNull('starts_on')->min('starts_on') ? Carbon::parse($project->tasks()->whereNotNull('starts_on')->min('starts_on'))->toDateString() : $startsOn);
+
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/agreement/agree")->assertOk();
+        $this->assertSame($startsOn, $project->refresh()->starts_on->toDateString());
+
+        // before the start date the business cannot even ask to start
+        Sanctum::actingAs($this->office);
+        $this->postJson("/api/v2/business/projects/{$project->id}/tasks/{$phase->id}/request-start")->assertStatus(422);
+
+        $this->travelTo(now()->addDays(31));
+        $this->postJson("/api/v2/business/projects/{$project->id}/tasks/{$phase->id}/request-start")->assertCreated();
+    }
+
+    public function test_the_business_may_require_the_customer_to_hold_a_guarantee_of_at_least_a_level(): void
+    {
+        $project = $this->project();
+
+        Sanctum::actingAs($this->office);
+        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['starts_on' => now()->toDateString(), 'due_on' => now()->addMonths(6)->toDateString(), 'grace_days' => 30, 'required_guarantee' => 'nonsense'])->assertStatus(422);
+        $this->postJson("/api/v2/business/projects/{$project->id}/agreement", ['starts_on' => now()->toDateString(), 'due_on' => now()->addMonths(6)->toDateString(), 'grace_days' => 30, 'required_guarantee' => 'silver'])->assertCreated()
+            ->assertJsonPath('data.guarantee_requirement.code', 'silver');
+
+        // the customer sees what is asked and that he does not have it; he cannot agree
+        Sanctum::actingAs($this->client);
+        $view = $this->getJson("/api/v2/operations/booking/{$this->booking->id}/project")->assertOk();
+        $this->assertSame('silver', $view->json('data.guarantee_requirement.code'));
+        $this->assertFalse($view->json('data.guarantee_requirement.customer_ok'));
+        $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/agreement/agree")->assertStatus(422)->assertJsonValidationErrors('guarantee');
+
+        // a bronze guarantee is not enough, a silver one is
+        $this->giveGuarantee($this->client, 'bronze');
+        $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/agreement/agree")->assertStatus(422);
+        \App\Models\UserGuarantee::where('user_id', $this->client->id)->delete();
+        $this->giveGuarantee($this->client, 'silver');
+        $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/agreement/agree")->assertOk();
+    }
+
+    private function giveGuarantee(User $user, string $code): void
+    {
+        $level = \App\Models\GuaranteeLevel::query()->where('code', $code)->where('target_type', 'client')->firstOrFail();
+        \App\Models\UserGuarantee::create([
+            'user_id' => $user->id, 'target_type' => 'client', 'purchased_level_id' => $level->id, 'effective_level_id' => $level->id,
+            'status' => \App\Models\UserGuarantee::STATUS_ACTIVE, 'current_coverage_amount' => 1000, 'used_coverage_amount' => 0, 'locked_amount' => 0,
+        ]);
+    }
+
+    public function test_before_the_agreement_the_plan_or_a_stage_is_postponed_at_once(): void
+    {
+        $project = Project::create(['business_id' => $this->office->id, 'title' => 'P', 'status' => Project::STATUS_PLANNING, 'starts_on' => '2027-01-01', 'due_on' => '2027-06-30']);
+        $a = $project->tasks()->create(['title' => 'A', 'starts_on' => '2027-01-01', 'ends_on' => '2027-01-10', 'requires_photo' => false, 'sort_order' => 1]);
+        $b = $project->tasks()->create(['title' => 'B', 'starts_on' => '2027-01-11', 'ends_on' => '2027-01-20', 'requires_photo' => false, 'sort_order' => 2]);
+
+        Sanctum::actingAs($this->office);
+        // a week for the whole plan
+        $this->postJson("/api/v2/business/projects/{$project->id}/shift", ['scope' => 'plan', 'days' => 7])->assertOk();
+        $this->assertSame('2027-01-08', $a->refresh()->starts_on->toDateString());
+        $this->assertSame('2027-01-27', $b->refresh()->ends_on->toDateString());
+        $this->assertSame('2027-01-08', $project->refresh()->starts_on->toDateString());
+        $this->assertSame('2027-07-07', $project->due_on->toDateString());
+
+        // one stage (and what follows) to a chosen start date: B was due on 2027-01-18, now starts 2027-02-01
+        $this->postJson("/api/v2/business/projects/{$project->id}/shift", ['scope' => 'stage', 'task_id' => $b->id, 'new_start' => '2027-02-01'])->assertOk();
+        $this->assertSame('2027-02-01', $b->refresh()->starts_on->toDateString());
+        $this->assertSame('2027-01-08', $a->refresh()->starts_on->toDateString(), 'the stage before it stays');
+
+        // nonsense is refused
+        $this->postJson("/api/v2/business/projects/{$project->id}/shift", ['scope' => 'plan', 'days' => 0])->assertStatus(422);
+        $this->postJson("/api/v2/business/projects/{$project->id}/shift", ['scope' => 'stage', 'task_id' => $b->id, 'new_start' => '2020-01-01'])->assertStatus(422);
+    }
+
+    public function test_after_the_agreement_a_postponement_is_a_request_the_other_side_approves_and_it_moves_the_delivery_too(): void
+    {
+        $project = $this->project();
+        $this->agreeToPlan($project, '+90 days', 30);
+        $agreed = ProjectAgreement::where('project_id', $project->id)->firstOrFail();
+
+        // the business asks a month; nothing moves until the customer answers
+        Sanctum::actingAs($this->office);
+        $this->postJson("/api/v2/business/projects/{$project->id}/shift", ['scope' => 'plan', 'days' => 30, 'reason' => 'materials are late'])->assertCreated();
+        $request = ProjectChangeRequest::where('project_id', $project->id)->where('type', 'shift')->firstOrFail();
+        $this->assertSame($agreed->due_on->toDateString(), $project->refresh()->due_on->toDateString());
+
+        // the asker cannot answer his own request
+        $this->postJson("/api/v2/business/projects/{$project->id}/change-requests/{$request->id}/approve")->assertStatus(422);
+
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/change-requests/{$request->id}/approve")->assertOk();
+        $project->refresh();
+        $this->assertSame($agreed->due_on->copy()->addDays(30)->toDateString(), $project->due_on->toDateString());
+        $this->assertSame($agreed->grace_until->copy()->addDays(30)->toDateString(), $project->grace_until->toDateString());
+        $v2 = ProjectAgreement::where('project_id', $project->id)->where('version', 2)->firstOrFail();
+        $this->assertSame($agreed->starts_on->copy()->addDays(30)->toDateString(), $v2->starts_on->toDateString());
+
+        // the customer asks to postpone too (he cannot pay yet); the BUSINESS answers
+        $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/shift-requests", ['scope' => 'plan', 'days' => 7])->assertStatus(422);   // a reason is needed
+        $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/shift-requests", ['scope' => 'plan', 'days' => 7, 'reason' => 'short of cash'])->assertOk();
+        $second = ProjectChangeRequest::where('project_id', $project->id)->where('type', 'shift')->orderByDesc('id')->firstOrFail();
+        $this->postJson("/api/v2/operations/booking/{$this->booking->id}/project/change-requests/{$second->id}/approve")->assertStatus(422);   // not his to answer
+
+        Sanctum::actingAs($this->office);
+        $this->postJson("/api/v2/business/projects/{$project->id}/change-requests/{$second->id}/reject", ['note' => 'we need the date'])->assertOk();
+        $this->assertSame('rejected', $second->refresh()->status);
     }
 
     /* ------------------------------------------------------------------ the rating */

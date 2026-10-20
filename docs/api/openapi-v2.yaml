@@ -375,6 +375,7 @@ components:
         id: { type: integer }
         status: { type: string, enum: [cart, pending, completed, cancelled] }
         prep_status: { type: string, nullable: true, enum: [accepted, preparing, ready] }
+        handled_by: { type: object, description: "Only for the business's own people (never the customer): who accepted the order and who pressed «preparing» — `{accepted_by:{id,name}|null, preparing_by:{id,name}|null}`. The first to press preparing owns it; a second press gets 409.", properties: { accepted_by: { type: object, nullable: true }, preparing_by: { type: object, nullable: true } } }
         fulfillment_type: { type: string, enum: [delivery, pickup, dine_in] }
         delivery_stage: { type: string, nullable: true, enum: [assigned, picked_up, delivered] }
         is_shared: { type: boolean }

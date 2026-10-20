@@ -301,6 +301,18 @@ class Order extends Model implements \App\Contracts\HasVisitDeposit, \App\Contra
         return $this->belongsTo(User::class);
     }
 
+    /** The person who accepted the order (one of the business's order receivers). */
+    public function acceptedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'accepted_by');
+    }
+
+    /** The person preparing it — «جارٍ تجهيزه من فلان». */
+    public function preparedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'prepared_by');
+    }
+
     public function business()
     {
         return $this->belongsTo(User::class, 'business_id');

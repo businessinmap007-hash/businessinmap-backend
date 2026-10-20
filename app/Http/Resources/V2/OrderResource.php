@@ -30,12 +30,25 @@ class OrderResource extends JsonResource
         return $out;
     }
 
+    private function person($user): ?array
+    {
+        return $user ? ['id' => (int) $user->id, 'name' => $user->displayName()] : null;
+    }
+
     public function toArray($request): array
     {
         return [
             'id' => (int) $this->id,
             'status' => (string) $this->status,
             'prep_status' => $this->prep_status,
+            // who took it and who is preparing it — for the business's own people only; a customer never sees staff names
+            'handled_by' => $this->when(
+                (int) \App\Support\BusinessContext::id($request) === (int) $this->business_id,
+                fn () => [
+                    'accepted_by' => $this->person($this->acceptedBy),
+                    'preparing_by' => $this->person($this->preparedBy),
+                ]
+            ),
             'fulfillment_type' => (string) $this->fulfillment_type,
             'pickup_at' => optional($this->pickup_at)->toIso8601String(),
             'delivery_stage' => $this->delivery_stage,

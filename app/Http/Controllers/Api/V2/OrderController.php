@@ -251,7 +251,9 @@ final class OrderController extends Controller
         // accepting would defeat the whole point of asking in the first place.
         $acceptWithoutDeposit = $request->boolean('accept_without_deposit');
 
-        $model = DB::transaction(function () use ($businessId, $order, $acceptWithoutDeposit) {
+        $actorId = (int) $request->user()->id;
+
+        $model = DB::transaction(function () use ($businessId, $order, $acceptWithoutDeposit, $actorId) {
             /** @var Order|null $m */
             $m = Order::query()
                 ->where('business_id', $businessId)
@@ -294,6 +296,7 @@ final class OrderController extends Controller
             $this->feeSettlement->settleForOrder($m);
 
             $m->prep_status = Order::PREP_ACCEPTED;
+            $m->accepted_by = $actorId;     // whoever took it, among the people who receive this business's orders
             $m->deposit_accepted_without_cover = $uncovered;
             if ($secured) {
                 $m->deposit_covered = true;
@@ -576,8 +579,9 @@ final class OrderController extends Controller
     private function transitionPrep(Request $request, int $order, string $from, string $to): Order
     {
         $businessId = BusinessContext::id($request);
+        $actorId = (int) $request->user()->id;
 
-        $model = DB::transaction(function () use ($businessId, $order, $from, $to) {
+        $model = DB::transaction(function () use ($businessId, $order, $from, $to, $actorId) {
             /** @var Order|null $m */
             $m = Order::query()
                 ->where('business_id', $businessId)
@@ -593,6 +597,11 @@ final class OrderController extends Controller
             }
 
             $m->prep_status = $to;
+            // the first to press «بدء التجهيز» owns the preparation (a second press meets the 409 above)
+            if ($to === Order::PREP_PREPARING) {
+                $m->prepared_by = $actorId;
+                $m->prepared_at = now();
+            }
             $m->save();
 
             return $m;

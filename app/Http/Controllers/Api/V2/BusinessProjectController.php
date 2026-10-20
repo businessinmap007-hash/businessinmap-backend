@@ -22,7 +22,32 @@ class BusinessProjectController extends Controller
         private readonly ProjectService $projects,
         private readonly OperationChatService $operations,
         private readonly \App\Services\Projects\ProjectTemplateService $templates,
+        private readonly \App\Services\Projects\BuildingProjectGenerator $buildings,
     ) {
+    }
+
+    /**
+     * POST /api/v2/business/projects/{project}/generate — write the whole plan of a residential building into an EMPTY project:
+     * {kind: building, floors, basement?, apartments_per_floor, starts_on?}. Returns how many works were made.
+     */
+    public function generate(Request $request, int $project)
+    {
+        $data = $request->validate([
+            'kind' => ['required', Rule::in(['building'])],
+            'floors' => ['required', 'integer', 'between:1,30'],
+            'basement' => ['nullable', 'boolean'],
+            'apartments_per_floor' => ['required', 'integer', 'between:0,10'],
+            'starts_on' => ['nullable', 'date'],
+        ]);
+        $row = $this->ownedOrFail($request, $project);
+
+        if ($row->tasks()->exists()) {
+            throw ValidationException::withMessages(['kind' => __('المشروع فيه مراحل بالفعل؛ أنشئ مشروعًا جديدًا لتوليد المبنى.')]);
+        }
+
+        $made = $this->buildings->generate($row, $data, ! empty($data['starts_on']) ? \Illuminate\Support\Carbon::parse($data['starts_on']) : null);
+
+        return response()->json(['success' => true, 'message' => __('تم توليد خطة المبنى.'), 'data' => ['works' => $made, 'project' => $this->serialize($row->fresh()->loadCount('tasks'))]], 201);
     }
 
     /** GET /api/v2/business/projects/templates — the ready stage plans offered to this business (its trade's + the general ones). */
@@ -159,7 +184,8 @@ class BusinessProjectController extends Controller
             'data' => [
                 'project' => $this->serialize($row->loadCount('tasks')),
                 'timeline' => $this->projects->timeline($row),
-            ],
+            ] + app(\App\Services\Projects\ProjectAgreementService::class)->block($row)
+              + ['quantity_log' => app(\App\Services\Projects\ProjectItemService::class)->log($row)],
         ]);
     }
 
@@ -190,6 +216,10 @@ class BusinessProjectController extends Controller
         $row->update(array_intersect_key($data, array_flip([
             'title', 'description', 'reference', 'status', 'visibility', 'starts_on', 'due_on',
         ])));
+
+        if (($data['status'] ?? null) === Project::STATUS_COMPLETED) {
+            $this->projects->complete($row->fresh());
+        }
 
         return response()->json([
             'success' => true,
@@ -324,6 +354,8 @@ class BusinessProjectController extends Controller
             'progress' => (int) $p->progress,
             'starts_on' => optional($p->starts_on)->toDateString(),
             'due_on' => optional($p->due_on)->toDateString(),
+            'grace_until' => optional($p->grace_until)->toDateString(),
+            'completed_at' => optional($p->completed_at)->toIso8601String(),
             'is_overdue' => $p->isOverdue(),
             'operation' => $p->operation_type && $p->operation_id ? [
                 'type' => $this->operationToken($p->operation_type),

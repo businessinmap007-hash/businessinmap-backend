@@ -138,6 +138,14 @@ return [
     ],
 
     /*
+    | Project tracking (owner, 2026-10-20). A finished project is on time when it ends by the agreed delivery date + grace. The
+    | time a stage waited for the customer's approval to start is NOT held against the business unless this is true.
+    */
+    'projects' => [
+        'count_customer_wait' => false,
+    ],
+
+    /*
     |--------------------------------------------------------------------------
     | Moderation
     |--------------------------------------------------------------------------

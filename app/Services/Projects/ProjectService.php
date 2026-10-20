@@ -87,8 +87,18 @@ class ProjectService
      */
     public function updateTaskProgress(ProjectTask $task, ?int $progress, ?string $status): ProjectTask
     {
+        // a main stage measures itself by the works inside it
+        if ($task->children()->exists()) {
+            throw ValidationException::withMessages(['task' => __('هذه مرحلة رئيسية: نسبتها تُحسب من الأعمال داخلها.')]);
+        }
+
         $targetProgress = $progress === null ? (int) $task->progress : max(0, min(100, $progress));
         $targetStatus = $status ?: $task->status;
+
+        // on an AGREED project nothing advances before the customer approved the start of its main stage
+        if ($targetProgress > 0 || ! in_array($targetStatus, [ProjectTask::STATUS_PENDING], true)) {
+            $this->assertStartAllowed($task);
+        }
 
         $isCompleting = $targetStatus === ProjectTask::STATUS_DONE || $targetProgress >= 100;
 
@@ -106,6 +116,10 @@ class ProjectService
         }
 
         $wasDone = $task->isDone();
+
+        if ($targetProgress > 0 && $targetStatus === ProjectTask::STATUS_PENDING) {
+            $targetStatus = ProjectTask::STATUS_IN_PROGRESS;
+        }
 
         $task->progress = $targetProgress;
         $task->status = $targetStatus;
@@ -284,8 +298,15 @@ class ProjectService
     {
         $assignees = $this->assigneesOf((int) $project->business_id, $project->tasks()->pluck('id')->all());
 
-        $tasks = $project->tasks()->with('photos')->orderBy('sort_order')->orderBy('id')->get()->map(fn (ProjectTask $t) => [
+        $tasks = $project->tasks()->with(['photos', 'items'])->orderBy('sort_order')->orderBy('id')->get()->map(fn (ProjectTask $t) => [
             'id' => (int) $t->id,
+            'parent_id' => $t->parent_id ? (int) $t->parent_id : null,
+            'zone' => $t->zone,
+            'weight' => (int) $t->weight,
+            'details' => $t->details,
+            'start_status' => $t->start_status,
+            'start_note' => $t->start_note,
+            'items' => $t->items->map(fn ($i) => $this->itemPayload($i))->all(),
             'title' => (string) $t->title,
             'status' => (string) $t->status,
             'progress' => (int) $t->progress,
@@ -313,10 +334,14 @@ class ProjectService
                 'progress' => (int) $project->progress,
                 'starts_on' => optional($project->starts_on)->toDateString(),
                 'due_on' => optional($project->due_on)->toDateString(),
+                'grace_until' => optional($project->grace_until)->toDateString(),
+                'completed_at' => optional($project->completed_at)->toIso8601String(),
                 'is_overdue' => $project->isOverdue(),
             ],
             'timeline' => $this->timeline($project),
             'tasks' => $tasks,
+        ] + app(ProjectAgreementService::class)->block($project) + [
+            'quantity_log' => app(ProjectItemService::class)->log($project),
         ];
     }
 
@@ -338,7 +363,7 @@ class ProjectService
     public function timeline(Project $project): array
     {
         /** @var \Illuminate\Support\Collection<int,ProjectTask> $tasks */
-        $tasks = $project->tasks()->with('dependencies:id')->get()->keyBy('id');
+        $tasks = $project->tasks()->with(['dependencies:id', 'items'])->get()->keyBy('id');
 
         if ($tasks->isEmpty()) {
             return [
@@ -463,6 +488,13 @@ class ProjectService
                 'requires_approval' => (bool) $task->requires_approval,
                 'approval_status' => $task->approval_status,
                 'approval_note' => $task->approval_note,
+                'parent_id' => $task->parent_id ? (int) $task->parent_id : null,
+                'zone' => $task->zone,
+                'weight' => (int) $task->weight,
+                'details' => $task->details,
+                'start_status' => $task->start_status,
+                'start_note' => $task->start_note,
+                'items' => $task->items->map(fn ($i) => $this->itemPayload($i))->all(),
             ];
         }
 
@@ -481,16 +513,141 @@ class ProjectService
 
     /* ------------------------------------------------------------ rollups */
 
-    /** Refresh the project's cached progress from its tasks (simple average). */
+    /**
+     * Refresh the project's cached progress. Every work counts by its weight (its own `weight`, else its length in days); a
+     * main stage — one that has children — takes its progress and status from them; the project is the weighted mean of its
+     * top-level stages. When every work is done the project is finished.
+     */
     public function recomputeProgress(?Project $project): void
     {
         if (! $project) {
             return;
         }
 
-        $avg = (int) round((float) $project->tasks()->avg('progress'));
-        $project->progress = max(0, min(100, $avg));
+        $tasks = $project->tasks()->get();
+
+        if ($tasks->isEmpty()) {
+            $project->progress = 0;
+            $project->save();
+
+            return;
+        }
+
+        $byParent = $tasks->groupBy(fn (ProjectTask $t) => (int) $t->parent_id);
+        $weightOf = fn (ProjectTask $t): int => $t->weight > 0 ? (int) $t->weight : $t->durationDays();
+
+        $calc = function (ProjectTask $t) use (&$calc, $byParent, $weightOf): array {
+            $kids = $byParent->get((int) $t->id);
+
+            if (! $kids || $kids->isEmpty()) {
+                return [(float) $t->progress, $weightOf($t)];
+            }
+
+            $sum = 0.0;
+            $weight = 0;
+            $allDone = true;
+            $any = false;
+
+            foreach ($kids as $kid) {
+                [$p, $w] = $calc($kid);
+                $sum += $p * $w;
+                $weight += $w;
+                $allDone = $allDone && $kid->status === ProjectTask::STATUS_DONE;
+                $any = $any || $p > 0;
+            }
+
+            $progress = $weight > 0 ? $sum / $weight : 0.0;
+            $status = $allDone ? ProjectTask::STATUS_DONE : ($any ? ProjectTask::STATUS_IN_PROGRESS : $t->status);
+            $rounded = (int) round($progress);
+
+            if ((int) $t->progress !== $rounded || $t->status !== $status) {
+                $t->forceFill(['progress' => $rounded, 'status' => $status])->saveQuietly();
+            }
+
+            return [$progress, max(1, $weight)];
+        };
+
+        $sum = 0.0;
+        $weight = 0;
+        foreach ($byParent->get(0, collect()) as $root) {
+            [$p, $w] = $calc($root);
+            $sum += $p * $w;
+            $weight += $w;
+        }
+
+        $project->progress = $weight > 0 ? max(0, min(100, (int) round($sum / $weight))) : 0;
         $project->save();
+
+        $leaves = $tasks->filter(fn (ProjectTask $t) => ! $byParent->has((int) $t->id));
+        if ($leaves->isNotEmpty() && $leaves->every(fn (ProjectTask $t) => $t->status === ProjectTask::STATUS_DONE)
+            && ! in_array($project->status, [Project::STATUS_COMPLETED, Project::STATUS_CANCELLED], true)) {
+            $this->complete($project);
+        }
+    }
+
+    /**
+     * The job is finished. On a project agreed with a customer this is also the moment it is rated: on time (by the agreed
+     * date + grace, with the customer's waiting time left out) it counts as a success for the business, otherwise as late.
+     */
+    public function complete(Project $project): void
+    {
+        if ($project->completed_at) {
+            return;
+        }
+
+        $project->forceFill(['status' => Project::STATUS_COMPLETED, 'completed_at' => now(), 'progress' => 100])->save();
+
+        $customerId = $this->contractedCustomerId($project);
+        $deadline = $project->effectiveDeadline();
+
+        if ($customerId && $deadline && app(ProjectAgreementService::class)->isAgreed($project)) {
+            app(\App\Services\Ratings\RatingService::class)->recordOutcome(
+                (int) $project->business_id,
+                \App\Models\UserOperationRating::ROLE_BUSINESS,
+                $project->completed_at->lte($deadline) ? \App\Models\RatingOutcomeEvent::OUTCOME_SUCCESS : \App\Models\RatingOutcomeEvent::OUTCOME_LATE,
+                \App\Models\RatingOutcomeEvent::OP_PROJECT,
+                (int) $project->id,
+            );
+
+            try {
+                $this->notifications->dispatch('project_stage_completed', $customerId, [
+                    'title_ar' => 'اكتمل مشروعك', 'title_en' => 'Your project is complete',
+                    'body_ar' => 'اكتمل المشروع «' . $project->title . '». يمكنك تقييم التعامل.',
+                    'body_en' => 'The project "' . $project->title . '" is complete.',
+                    'notifiable_type' => Project::class, 'notifiable_id' => (int) $project->id,
+                    'source_type' => Project::class, 'source_id' => (int) $project->id,
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
+    /**
+     * On an AGREED project a work may move only after the customer approved the start of its main (top-level) stage.
+     *
+     * @throws ValidationException
+     */
+    public function assertStartAllowed(ProjectTask $task): void
+    {
+        $project = Project::query()->find($task->project_id);
+
+        if (! $project || ! app(ProjectAgreementService::class)->isAgreed($project)) {
+            return;
+        }
+
+        $top = $task;
+        $guard = 0;
+        while ($top->parent_id && $guard++ < 10) {
+            $top = ProjectTask::query()->find($top->parent_id) ?? $top;
+            if (! $top->parent_id) {
+                break;
+            }
+        }
+
+        if ($top->start_status !== 'approved') {
+            throw ValidationException::withMessages(['task' => __('تحتاج هذه المرحلة موافقة العميل على بدئها أولًا.')]);
+        }
     }
 
     /* ------------------------------------------------------------ approval */
@@ -582,10 +739,19 @@ class ProjectService
         return $out;
     }
 
+    /** @return array<string,mixed> */
+    public function itemPayload(\App\Models\ProjectTaskItem $i): array
+    {
+        return [
+            'id' => (int) $i->id, 'name' => (string) $i->name, 'unit' => $i->unit,
+            'planned' => (float) $i->planned, 'done' => (float) $i->done, 'notes' => $i->notes,
+        ];
+    }
+
     /* ------------------------------------------------------------ helpers */
 
     /** The user_id of the customer on the project's linked operation, if any. */
-    private function contractedCustomerId(Project $project): ?int
+    public function contractedCustomerId(Project $project): ?int
     {
         if (! $project->operation_type || ! $project->operation_id) {
             return null;

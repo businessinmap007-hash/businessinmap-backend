@@ -486,6 +486,16 @@ Route::prefix('v2')->group(function () {
             ->whereNumber(['id', 'task'])->whereIn('type', ['order', 'booking']);
         Route::post('operations/{type}/{id}/project/tasks/{task}/reject', [CustomerProjectController::class, 'reject'])
             ->whereNumber(['id', 'task'])->whereIn('type', ['order', 'booking']);
+        // …agrees to the plan (or declines it), answers a request for more time / a change of scope, and approves the START of a
+        // main stage — every answer recorded, none implied by silence.
+        Route::prefix('operations/{type}/{id}/project')->where(['id' => '[0-9]+', 'type' => 'order|booking'])->group(function () {
+            Route::post('agreement/agree', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'agree']);
+            Route::post('agreement/decline', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'decline']);
+            Route::post('change-requests/{changeRequest}/approve', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'approveRequest'])->whereNumber('changeRequest');
+            Route::post('change-requests/{changeRequest}/reject', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'rejectRequest'])->whereNumber('changeRequest');
+            Route::post('tasks/{task}/start/approve', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'approveStart'])->whereNumber('task');
+            Route::post('tasks/{task}/start/decline', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'declineStart'])->whereNumber('task');
+        });
 
         // Follow a project directly (public, shared, or as the contracted
         // customer): view it at your granted depth, request to follow, unfollow.
@@ -1500,6 +1510,17 @@ Route::prefix('v2')->group(function () {
             Route::patch('{project}/tasks/{task}/progress', [BusinessProjectTaskController::class, 'progress'])->whereNumber('project')->whereNumber('task');
             Route::post('{project}/tasks/{task}/photo', [BusinessProjectTaskController::class, 'photo'])->whereNumber('project')->whereNumber('task');
             Route::put('{project}/tasks/{task}/assignee', [BusinessProjectTaskController::class, 'assignee'])->whereNumber('project')->whereNumber('task');
+
+            // Quantities of a stage, the plan agreement, more time, and asking to start a main stage.
+            Route::post('{project}/tasks/{task}/items', [\App\Http\Controllers\Api\V2\ProjectItemController::class, 'store'])->whereNumber('project')->whereNumber('task');
+            Route::match(['put', 'patch'], '{project}/tasks/{task}/items/{item}', [\App\Http\Controllers\Api\V2\ProjectItemController::class, 'update'])->whereNumber('project')->whereNumber('task')->whereNumber('item');
+            Route::delete('{project}/tasks/{task}/items/{item}', [\App\Http\Controllers\Api\V2\ProjectItemController::class, 'destroy'])->whereNumber('project')->whereNumber('task')->whereNumber('item');
+            Route::get('{project}/quantity-log', [\App\Http\Controllers\Api\V2\ProjectItemController::class, 'log'])->whereNumber('project');
+            Route::post('{project}/generate', [BusinessProjectController::class, 'generate'])->whereNumber('project');
+            Route::get('{project}/agreement', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'show'])->whereNumber('project');
+            Route::post('{project}/agreement', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'propose'])->whereNumber('project');
+            Route::post('{project}/extension-requests', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'requestExtension'])->whereNumber('project');
+            Route::post('{project}/tasks/{task}/request-start', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'requestStart'])->whereNumber('project')->whereNumber('task');
             Route::delete('{project}/tasks/{task}', [BusinessProjectTaskController::class, 'destroy'])->whereNumber('project')->whereNumber('task');
 
             // Followers: who may follow this project's progress, and at what

@@ -37,6 +37,9 @@ class BusinessProjectTaskController extends Controller
             'progress' => ['nullable', 'integer', 'between:0,100'],
             'requires_photo' => ['nullable', 'boolean'],
             'requires_approval' => ['nullable', 'boolean'],
+            'zone' => ['nullable', 'string', 'max:120'],
+            'weight' => ['nullable', 'integer', 'between:0,100000'],
+            'details' => ['nullable', 'string', 'max:5000'],
             'sort_order' => ['nullable', 'integer'],
             'depends_on' => ['nullable', 'array'],
             'depends_on.*' => ['integer'],
@@ -56,6 +59,9 @@ class BusinessProjectTaskController extends Controller
             'progress' => $data['progress'] ?? 0,
             'requires_photo' => $data['requires_photo'] ?? true,
             'requires_approval' => $data['requires_approval'] ?? false,
+            'zone' => $data['zone'] ?? null,
+            'weight' => $data['weight'] ?? 0,
+            'details' => $data['details'] ?? null,
             'sort_order' => $data['sort_order'] ?? 0,
         ]);
 
@@ -82,14 +88,20 @@ class BusinessProjectTaskController extends Controller
             'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'requires_photo' => ['nullable', 'boolean'],
             'requires_approval' => ['nullable', 'boolean'],
+            'zone' => ['nullable', 'string', 'max:120'],
+            'weight' => ['nullable', 'integer', 'between:0,100000'],
+            'details' => ['nullable', 'string', 'max:5000'],
             'sort_order' => ['nullable', 'integer'],
             'depends_on' => ['nullable', 'array'],
             'depends_on.*' => ['integer'],
         ]);
 
         $row->fill(array_intersect_key($data, array_flip([
-            'title', 'notes', 'starts_on', 'ends_on', 'requires_photo', 'requires_approval', 'sort_order',
+            'title', 'notes', 'starts_on', 'ends_on', 'requires_photo', 'requires_approval', 'zone', 'weight', 'details', 'sort_order',
         ])))->save();
+
+        // a weight moves the project's progress
+        $this->projects->recomputeProgress($owned->fresh());
 
         if (array_key_exists('depends_on', $data)) {
             $this->projects->setDependencies($row, $data['depends_on'] ?? []);
@@ -212,6 +224,11 @@ class BusinessProjectTaskController extends Controller
             'progress' => (int) $t->progress,
             'requires_photo' => (bool) $t->requires_photo,
             'requires_approval' => (bool) $t->requires_approval,
+            'zone' => $t->zone,
+            'weight' => (int) $t->weight,
+            'details' => $t->details,
+            'start_status' => $t->start_status,
+            'items' => $t->items()->get()->map(fn ($i) => $this->projects->itemPayload($i))->all(),
             'approval_status' => $t->approval_status,
             'approval_note' => $t->approval_note,
             'assignee' => $this->projects->assigneesOf((int) $t->project()->value('business_id'), [(int) $t->id])[(int) $t->id] ?? null,

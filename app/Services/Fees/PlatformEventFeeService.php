@@ -24,6 +24,8 @@ final class PlatformEventFeeService
     public const OWNER_LISTING_CONTACT = 'owner_listing_contact';
     public const TRAINING_PROGRAM_CHANGE = 'training_program_change';
     public const NUTRITION_PROGRAM_CHANGE = 'nutrition_program_change';
+    public const PROJECT_PLAN_AGREED = 'project_plan_agreed';
+    public const PROJECT_STAGE_STARTED = 'project_stage_started';
 
     /** A deposit HELD for the life of an owner listing and handed back — priced here, never taken as a fee. */
     public const OWNER_LISTING_DEPOSIT = 'owner_listing_deposit';
@@ -48,6 +50,14 @@ final class PlatformEventFeeService
         self::NUTRITION_PROGRAM_CHANGE => ['برنامج التغذية (عند المشاركة مع العميل وعند كل تجديد شهري)', 'Nutrition program (when shared with a client and at every monthly renewal)', 'لا شيء (مبلغ ثابت)', [
             'trainer' => ['المدرب / الأخصائي', 'Trainer / dietitian'],
             'client' => ['المتدرب', 'Trainee'],
+        ]],
+        self::PROJECT_PLAN_AGREED => ['متابعة المشاريع: عند اتفاق الطرفين على الخطة (مرة واحدة لكل نسخة متفق عليها)', 'Project tracking: when both sides agree the plan (once per agreed version)', 'لا شيء (مبلغ ثابت)', [
+            'business' => ['النشاط', 'Business'],
+            'client' => ['العميل', 'Customer'],
+        ]],
+        self::PROJECT_STAGE_STARTED => ['متابعة المشاريع: عند بدء كل مرحلة رئيسية (بموافقة العميل)', 'Project tracking: when each main stage starts (with the customer\'s approval)', 'لا شيء (مبلغ ثابت)', [
+            'business' => ['النشاط', 'Business'],
+            'client' => ['العميل', 'Customer'],
         ]],
     ];
 

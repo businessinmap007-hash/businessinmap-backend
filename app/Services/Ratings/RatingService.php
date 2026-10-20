@@ -230,6 +230,8 @@ final class RatingService
             'success_count' => (int) ($rating->success_count ?? 0),
             'cancelled_count' => (int) ($rating->cancelled_count ?? 0),
             'disputed_count' => (int) ($rating->disputed_count ?? 0),
+            'late_count' => (int) ($rating->late_count ?? 0),
+            'late_rate' => $rating ? $rating->lateRate() : 0.0,
             // Of the disputes, how many a ruling decided AGAINST vs FOR this party.
             'fault_count' => (int) ($rating->fault_count ?? 0),
             'vindicated_count' => (int) ($rating->vindicated_count ?? 0),
@@ -380,6 +382,7 @@ final class RatingService
             RatingOutcomeEvent::OUTCOME_SUCCESS => 'success_count',
             RatingOutcomeEvent::OUTCOME_CANCELLED => 'cancelled_count',
             RatingOutcomeEvent::OUTCOME_DISPUTED => 'disputed_count',
+            RatingOutcomeEvent::OUTCOME_LATE => 'late_count',
         };
     }
 }

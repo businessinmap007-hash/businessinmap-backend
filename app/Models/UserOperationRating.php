@@ -23,6 +23,7 @@ class UserOperationRating extends Model
         'success_count',
         'cancelled_count',
         'disputed_count',
+        'late_count',
         'fault_count',
         'vindicated_count',
     ];
@@ -33,6 +34,7 @@ class UserOperationRating extends Model
         'success_count' => 'integer',
         'cancelled_count' => 'integer',
         'disputed_count' => 'integer',
+        'late_count' => 'integer',
         'fault_count' => 'integer',
         'vindicated_count' => 'integer',
     ];
@@ -55,6 +57,12 @@ class UserOperationRating extends Model
     public function disputeRate(): float
     {
         return $this->rate($this->disputed_count);
+    }
+
+    /** How often a project was finished after its agreed date + grace. */
+    public function lateRate(): float
+    {
+        return $this->rate((int) $this->late_count);
     }
 
     /** How often a ruling was decided against this party, out of all operations. */

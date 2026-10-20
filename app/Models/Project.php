@@ -46,11 +46,17 @@ class Project extends Model
         'progress',
         'operation_type',
         'operation_id',
+        'grace_until',
+        'completed_at',
+        'customer_wait_seconds',
     ];
 
     protected $casts = [
         'starts_on' => 'date',
         'due_on' => 'date',
+        'grace_until' => 'date',
+        'completed_at' => 'datetime',
+        'customer_wait_seconds' => 'integer',
         'progress' => 'integer',
     ];
 
@@ -88,6 +94,23 @@ class Project extends Model
     public function scopeForBusiness(Builder $query, int $businessId): Builder
     {
         return $query->where('business_id', $businessId);
+    }
+
+    /**
+     * The last moment the business may finish and still be on time: the end of the agreed grace (else the delivery date), plus —
+     * unless `bim.projects.count_customer_wait` — the time stages waited for the customer's start approval.
+     */
+    public function effectiveDeadline(): ?\Illuminate\Support\Carbon
+    {
+        $base = $this->grace_until ?? $this->due_on;
+
+        if (! $base) {
+            return null;
+        }
+
+        $deadline = $base->copy()->endOfDay();
+
+        return config('bim.projects.count_customer_wait', false) ? $deadline : $deadline->addSeconds((int) $this->customer_wait_seconds);
     }
 
     public function isOverdue(): bool

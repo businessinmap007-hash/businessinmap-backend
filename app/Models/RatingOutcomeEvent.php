@@ -14,10 +14,13 @@ class RatingOutcomeEvent extends Model
 {
     public const OP_BOOKING = 'booking';
     public const OP_ORDER = 'order';
+    public const OP_PROJECT = 'project';
 
     public const OUTCOME_SUCCESS = 'success';
     public const OUTCOME_CANCELLED = 'cancelled';
     public const OUTCOME_DISPUTED = 'disputed';
+    // A project finished after its agreed delivery date + grace (on time = success).
+    public const OUTCOME_LATE = 'late';
     // The ruling outcomes: a dispute was decided AGAINST this party (fault) or
     // IN THEIR FAVOUR (vindicated). Deliberately NOT in outcomes() — they overlay
     // an operation already counted as `disputed` and are written only by
@@ -44,6 +47,6 @@ class RatingOutcomeEvent extends Model
 
     public static function outcomes(): array
     {
-        return [self::OUTCOME_SUCCESS, self::OUTCOME_CANCELLED, self::OUTCOME_DISPUTED];
+        return [self::OUTCOME_SUCCESS, self::OUTCOME_CANCELLED, self::OUTCOME_DISPUTED, self::OUTCOME_LATE];
     }
 }

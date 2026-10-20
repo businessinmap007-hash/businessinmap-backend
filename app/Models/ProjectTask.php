@@ -47,6 +47,13 @@ class ProjectTask extends Model
         'approval_status',
         'approval_note',
         'approval_at',
+        'zone',
+        'weight',
+        'details',
+        'start_status',
+        'start_requested_at',
+        'start_decided_at',
+        'start_note',
         'sort_order',
     ];
 
@@ -57,8 +64,17 @@ class ProjectTask extends Model
         'requires_photo' => 'boolean',
         'requires_approval' => 'boolean',
         'approval_at' => 'datetime',
+        'start_requested_at' => 'datetime',
+        'start_decided_at' => 'datetime',
+        'weight' => 'integer',
         'sort_order' => 'integer',
     ];
+
+    /** The measurable quantities of this stage (columns, concrete, bricks…). */
+    public function items(): HasMany
+    {
+        return $this->hasMany(ProjectTaskItem::class, 'task_id')->orderBy('sort_order')->orderBy('id');
+    }
 
     /** A stage is the business's: this lets the assignment core hand it to one of the business's people. */
     public function getBusinessIdAttribute(): ?int

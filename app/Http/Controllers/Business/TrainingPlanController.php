@@ -59,6 +59,12 @@ class TrainingPlanController extends Controller
         ]);
     }
 
+    /** «حاسبة الوزن المناسب» — the same maths as the app's, computed in the browser; nothing is stored or sent. */
+    public function calculator(): View
+    {
+        return view('business.training-plans.calculator');
+    }
+
     public function create(): View
     {
         return view('business.training-plans.create');

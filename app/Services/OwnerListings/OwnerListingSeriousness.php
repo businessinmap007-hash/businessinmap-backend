@@ -81,8 +81,9 @@ final class OwnerListingSeriousness
      *
      * @return array{required:bool,guarantee_ok:bool,needs_deposit:bool,deposit_amount:float,balance:float,min_level:array{code:string,name:string},violations:list<array{key:string,name:string}>}
      */
-    public function requirement(User $user, bool $english = false): array
+    public function requirement(User $user, ?bool $english = null): array
     {
+        $english ??= app()->getLocale() === 'en';
         $amount = $this->fees->quote(PlatformEventFeeService::OWNER_LISTING_DEPOSIT, ['owner' => (int) $user->id], 0)['total'];
         $required = $amount > 0;
 
@@ -100,7 +101,7 @@ final class OwnerListingSeriousness
             'needs_deposit' => $required && ! $guaranteeOk,
             'deposit_amount' => $amount,
             'balance' => (float) $this->wallets->getOrCreateWallet((int) $user->id)->balance,
-            'min_level' => ['code' => $code, 'name' => (string) ($min?->name_ar ?: $code)],
+            'min_level' => ['code' => $code, 'name' => (string) (($english ? $min?->name_en : $min?->name_ar) ?: $code)],
             'violations' => self::violations($english),
         ];
     }

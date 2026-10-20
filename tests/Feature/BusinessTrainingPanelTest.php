@@ -33,6 +33,13 @@ class BusinessTrainingPanelTest extends TestCase
         $this->client = $this->user(User::TYPE_CLIENT, 'متدرب اللوحة');
     }
 
+    /** The weight calculator is a plain page for the trainer (the maths runs in the browser). */
+    public function test_the_trainer_opens_the_weight_calculator_and_it_is_linked_from_the_plans_list(): void
+    {
+        $this->actingAs($this->trainer)->get(route('business.training-plans.calculator'))->assertOk()->assertSee('c-weight', false);
+        $this->actingAs($this->trainer)->get(route('business.training-plans.index'))->assertOk()->assertSee(route('business.training-plans.calculator'), false);
+    }
+
     /** The screen exists, and the plan is created from it. */
     public function test_the_trainer_creates_a_plan_from_the_panel(): void
     {

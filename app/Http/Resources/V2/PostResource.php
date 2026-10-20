@@ -2,7 +2,9 @@
 
 namespace App\Http\Resources\V2;
 
+use App\Models\ProjectShowcase;
 use App\Services\Posts\PostSubjectService;
+use App\Services\Projects\ProjectShowcaseService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -34,6 +36,8 @@ class PostResource extends JsonResource
                 ->map(fn ($i) => ['id' => (int) $i->id, 'image' => $i->image, 'source' => $i->source])
                 ->values()
                 ->all()),
+            // «نتائج موثَّقة»: a project shown with its customer's consent — the progress is read live, so it grows by itself.
+            'showcase' => $this->when($this->subject_type === ProjectShowcase::POST_SUBJECT, fn () => $this->showcase()),
             'is_active' => (bool) $this->is_active,
             'share_count' => (int) ($this->share_count ?? 0),
             'likes_count' => (int) ($this->likes_count ?? 0),
@@ -52,6 +56,13 @@ class PostResource extends JsonResource
             'is_mine' => $this->when(isset($this->is_mine), fn () => (bool) $this->is_mine),
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];
+    }
+
+    private function showcase(): ?array
+    {
+        $row = ProjectShowcase::query()->find((int) $this->subject_id);
+
+        return $row ? app(ProjectShowcaseService::class)->payload($row) : null;
     }
 
     /**

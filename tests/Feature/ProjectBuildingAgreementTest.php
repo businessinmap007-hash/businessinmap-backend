@@ -101,8 +101,9 @@ class ProjectBuildingAgreementTest extends TestCase
             ->assertCreated();
 
         // 3 main stages (preparation & construction / installations / finishing)
-        // 1: foundations 3 + frame 6 levels×2 + masonry 6 + stairs 1 = 22 · 2: 15 flats×3 + 6 safety + gas + intercom = 53 · 3: 15×8 + GRP + handover = 122
-        $this->assertSame(22 + 53 + 122, $res->json('data.works'));
+        // 1: foundations 3 + frame 6 levels×2 + masonry 6 + stairs 1 + lift shaft 1 = 23 · 2: 15 flats×3 + 6 safety + lift + gas + intercom = 54 · 3: 15×8 + lift + GRP + handover = 123
+        $this->assertSame(23 + 54 + 123, $res->json('data.works'));
+        $this->assertSame(3, $project->tasks()->where('title', 'like', '%المصعد%')->count(), 'the lift is in all three stages');
         $this->assertSame(['مرحلة التجهيز والإنشاءات', 'مرحلة التأسيس', 'مرحلة التشطيبات'], $project->tasks()->whereNull('parent_id')->orderBy('sort_order')->pluck('title')->all());
         $this->assertTrue($project->tasks()->where('title', 'سيفتى وكاميرات')->exists());
         $this->assertTrue($project->tasks()->where('title', 'GRP والواجهات')->exists());
@@ -123,6 +124,11 @@ class ProjectBuildingAgreementTest extends TestCase
 
         // the quantities of the columns are ready to be filled
         $this->assertSame(['عدد الأعمدة', 'الخرسانة', 'حديد التسليح'], $columns2->items()->pluck('name')->all());
+
+        // a building without a lift has none of its three works
+        $plain = Project::create(['business_id' => $this->office->id, 'title' => 'No lift', 'status' => Project::STATUS_PLANNING]);
+        $this->postJson("/api/v2/business/projects/{$plain->id}/generate", ['kind' => 'building', 'floors' => 2, 'apartments_per_floor' => 1, 'elevator' => false])->assertCreated();
+        $this->assertSame(0, $plain->tasks()->where('title', 'like', '%المصعد%')->count());
 
         // a second generate on a project that has stages is refused
         $this->postJson("/api/v2/business/projects/{$project->id}/generate", ['kind' => 'building', 'floors' => 2, 'apartments_per_floor' => 1])->assertStatus(422);

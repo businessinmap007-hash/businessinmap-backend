@@ -35,7 +35,7 @@ final class BuildingProjectGenerator
     }
 
     /**
-     * @param  array{floors:int,basement?:bool,apartments_per_floor:int}  $opts  `floors` counts the ground floor
+     * @param  array{floors:int,basement?:bool,apartments_per_floor:int,elevator?:bool}  $opts  `floors` counts the ground floor; `elevator` (default true) adds the lift's three works
      * @return int the number of works written
      */
     public function generate(Project $project, array $opts, ?Carbon $start = null): int
@@ -46,6 +46,7 @@ final class BuildingProjectGenerator
 
         $floors = max(1, min(30, (int) $opts['floors']));
         $flats = max(0, min(10, (int) $opts['apartments_per_floor']));
+        $elevator = ! array_key_exists('elevator', $opts) || (bool) $opts['elevator'];
 
         $levels = [];
         if (! empty($opts['basement'])) {
@@ -57,7 +58,7 @@ final class BuildingProjectGenerator
 
         $first = ($start ?? ($project->starts_on ? Carbon::parse($project->starts_on) : Carbon::today()))->copy()->startOfDay();
 
-        DB::transaction(function () use ($project, $levels, $first) {
+        DB::transaction(function () use ($project, $levels, $first, $elevator) {
             $day = $first->copy();
 
             // ---------------------------------------------------------------- 1 — preparation and construction
@@ -79,8 +80,13 @@ final class BuildingProjectGenerator
                 $day = $end->copy()->addDay();
             }
 
-            [, $end] = $this->work($project, $phase, 'السلالم', 'المبنى', 8, $day, [['الخرسانة', 'م³'], ['حديد التسليح', 'طن']], $last);
+            [$stairs, $end] = $this->work($project, $phase, 'السلالم', 'المبنى', 8, $day, [['الخرسانة', 'م³'], ['حديد التسليح', 'طن']], $last);
             $day = $end->copy()->addDay();
+
+            if ($elevator) {
+                [, $end] = $this->work($project, $phase, 'بئر المصعد', 'المبنى', 6, $day, [['الخرسانة', 'م³'], ['حديد التسليح', 'طن'], ['عدد الوقفات', 'وقفة']], $stairs);
+                $day = $end->copy()->addDay();
+            }
 
             // ---------------------------------------------------------------- 2 — installations
             $phase = $this->phase($project, 'مرحلة التأسيس');
@@ -100,6 +106,11 @@ final class BuildingProjectGenerator
                 }
 
                 [, $end] = $this->work($project, $phase, 'سيفتى وكاميرات', $level['name'], 4, $from, [['الكاميرات', 'كاميرا'], ['كواشف ومطافئ الحريق', 'قطعة']]);
+                $installEnd = $end->copy()->addDay()->gt($installEnd) ? $end->copy()->addDay() : $installEnd;
+            }
+
+            if ($elevator) {
+                [, $end] = $this->work($project, $phase, 'تأسيس المصعد (القضبان والكهرباء)', 'المبنى', 7, $from, [['القضبان', 'متر'], ['عدد الوقفات', 'وقفة']]);
                 $installEnd = $end->copy()->addDay()->gt($installEnd) ? $end->copy()->addDay() : $installEnd;
             }
 
@@ -123,6 +134,11 @@ final class BuildingProjectGenerator
                 ['تركيب وحدات التكييف', 2, [['عدد الوحدات', 'وحدة']]],
                 ['تركيب الأدوات الصحية والكهربائية', 3, [['العدد', 'قطعة']]],
             ];
+
+            if ($elevator) {
+                [, $end] = $this->work($project, $phase, 'تركيب وتشغيل المصعد والترخيص', 'المبنى', 10, $day, [['عدد المصاعد', 'مصعد'], ['عدد الوقفات', 'وقفة']]);
+                $finishEnd = $end->copy()->addDay()->gt($finishEnd) ? $end->copy()->addDay() : $finishEnd;
+            }
 
             [, $end] = $this->work($project, $phase, 'GRP والواجهات', 'المبنى', 10, $day, [['المساحة', 'م²']]);
             $finishEnd = $end->copy()->addDay()->gt($finishEnd) ? $end->copy()->addDay() : $finishEnd;

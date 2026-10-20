@@ -342,6 +342,7 @@ class ProjectService
             'tasks' => $tasks,
         ] + app(ProjectAgreementService::class)->block($project) + [
             'quantity_log' => app(ProjectItemService::class)->log($project),
+            'showcase' => app(ProjectShowcaseService::class)->block($project),
         ];
     }
 

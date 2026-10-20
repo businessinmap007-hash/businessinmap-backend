@@ -37,6 +37,7 @@ class BusinessProjectController extends Controller
             'floors' => ['required', 'integer', 'between:1,30'],
             'basement' => ['nullable', 'boolean'],
             'apartments_per_floor' => ['required', 'integer', 'between:0,10'],
+            'elevator' => ['nullable', 'boolean'],
             'starts_on' => ['nullable', 'date'],
         ]);
         $row = $this->ownedOrFail($request, $project);

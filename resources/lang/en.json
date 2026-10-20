@@ -3265,5 +3265,15 @@
     "لا يبدأ التنفيذ قبل موعد البدء المتفق عليه: :date.": "Execution does not start before the agreed start date: :date.",
     "أُرسل طلب الترحيل إلى العميل.": "The postponement request was sent to the customer.",
     "تم ترحيل المواعيد.": "The dates were postponed.",
-    "أُرسل طلب الترحيل إلى النشاط.": "The postponement request was sent to the business."
+    "أُرسل طلب الترحيل إلى النشاط.": "The postponement request was sent to the business.",
+    "اربط المشروع بطلب أو حجز عميل أولًا.": "Link the project to a customer's order or booking first.",
+    "لا يُعرض المشروع قبل اتفاق العميل على الخطة.": "A project is not shown before the customer agrees to the plan.",
+    "المشروع منشور بالفعل.": "The project is already shown.",
+    "طلب النشر ينتظر رد العميل.": "The request is waiting for the customer's answer.",
+    "لا يوجد طلب نشر ينتظر ردك.": "There is no request waiting for your answer.",
+    "لا يوجد منشور لسحبه.": "There is no post to take down.",
+    "أُرسل طلب النشر إلى العميل.": "The request was sent to the customer.",
+    "أُوقف عرض المشروع.": "The project is no longer shown.",
+    "وافقت على عرض المشروع.": "You agreed to have the project shown.",
+    "رفضت عرض المشروع.": "You declined to have the project shown."
 }

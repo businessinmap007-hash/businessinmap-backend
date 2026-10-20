@@ -496,6 +496,10 @@ Route::prefix('v2')->group(function () {
             Route::post('change-requests/{changeRequest}/reject', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'rejectRequest'])->whereNumber('changeRequest');
             Route::post('tasks/{task}/start/approve', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'approveStart'])->whereNumber('task');
             Route::post('tasks/{task}/start/decline', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'declineStart'])->whereNumber('task');
+            // …and lets the business show the project as a post (anonymous, only what he confirmed), or takes it back.
+            Route::post('showcase/approve', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'approve']);
+            Route::post('showcase/decline', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'decline']);
+            Route::post('showcase/withdraw', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'customerWithdraw']);
         });
 
         // Follow a project directly (public, shared, or as the contracted
@@ -1523,6 +1527,9 @@ Route::prefix('v2')->group(function () {
             Route::post('{project}/extension-requests', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'requestExtension'])->whereNumber('project');
             Route::post('{project}/tasks/{task}/request-start', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'requestStart'])->whereNumber('project')->whereNumber('task');
             Route::post('{project}/shift', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'shift'])->whereNumber('project');
+            Route::get('{project}/showcase', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'show'])->whereNumber('project');
+            Route::post('{project}/showcase', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'request'])->whereNumber('project');
+            Route::delete('{project}/showcase', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'businessWithdraw'])->whereNumber('project');
             Route::post('{project}/change-requests/{changeRequest}/approve', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'businessApprove'])->whereNumber('project')->whereNumber('changeRequest');
             Route::post('{project}/change-requests/{changeRequest}/reject', [\App\Http\Controllers\Api\V2\ProjectAgreementController::class, 'businessReject'])->whereNumber('project')->whereNumber('changeRequest');
             Route::delete('{project}/tasks/{task}', [BusinessProjectTaskController::class, 'destroy'])->whereNumber('project')->whereNumber('task');

@@ -122,7 +122,8 @@ final class PostController extends Controller
         $user = $this->viewer($request);
         $perPage = (int) ($data['per_page'] ?? 15);
 
-        $query = $this->baseQuery();
+        // a post switched off (a showcase its customer withdrew, a post its owner hid) is not shown to readers
+        $query = $this->baseQuery()->where('is_active', 1);
 
         if ($user) {
             $authorIds = $this->audience->authorIdsFor($user);
@@ -202,6 +203,8 @@ final class PostController extends Controller
     /** GET /api/v2/posts/{post} — one post. */
     public function show(Request $request, FeedPost $post)
     {
+        abort_if(! $post->is_active && (int) $post->user_id !== (int) optional($this->viewer($request))->id, 404);
+
         $post->loadMissing(['user:id,name,logo,image', 'images'])
             ->loadCount(self::counts());
 

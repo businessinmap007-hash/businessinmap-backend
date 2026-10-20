@@ -274,6 +274,7 @@ final class RetailDiscoveryController extends Controller
 
         $offers = DB::table('business_catalog_listings as l')
             ->join('users as u', 'u.id', '=', 'l.business_id')
+            ->tap(fn ($live) => User::applyLive($live, 'u'))
             ->where('l.catalog_product_id', $product)
             ->where('l.is_active', 1)
             ->tap(fn ($qq) => $this->visibility->apply($qq, $this->viewer($request), 'l'))
@@ -350,6 +351,7 @@ final class RetailDiscoveryController extends Controller
 
         $rows = DB::table('business_catalog_listings as l')
             ->join('users as u', 'u.id', '=', 'l.business_id')
+            ->tap(fn ($live) => User::applyLive($live, 'u'))
             ->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
             ->leftJoin('user_operation_ratings as uor', function ($join) {
                 $join->on('uor.user_id', '=', 'u.id')->where('uor.role', 'business');
@@ -437,7 +439,7 @@ final class RetailDiscoveryController extends Controller
      */
     public function business(Request $request, int $business)
     {
-        $biz = User::query()->where('type', 'business')
+        $biz = User::query()->live()->where('type', 'business')
             ->find($business, ['id', 'name', 'name_en', 'logo']);
 
         if (! $biz) {

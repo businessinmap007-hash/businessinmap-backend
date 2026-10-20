@@ -27,7 +27,7 @@ final class MenuDiscoveryController extends Controller
     public function show(int $business)
     {
         $this->describingMemo = []; // a controller instance outlives one request under tests and long-lived workers
-        $biz = User::query()->where('type', 'business')
+        $biz = User::query()->live()->where('type', 'business')
             ->find($business, ['id', 'name', 'logo', 'category_child_id', 'category_id']);
 
         if (! $biz) {
@@ -177,7 +177,7 @@ final class MenuDiscoveryController extends Controller
             ->find($item);
 
         $biz = $row
-            ? User::query()->where('type', 'business')->find($row->business_id, ['id', 'name', 'logo'])
+            ? User::query()->live()->where('type', 'business')->find($row->business_id, ['id', 'name', 'logo'])
             : null;
 
         if (! $row || ! $biz) {

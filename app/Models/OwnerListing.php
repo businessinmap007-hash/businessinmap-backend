@@ -61,7 +61,9 @@ class OwnerListing extends Model
     {
         return $query->where('status', self::STATUS_ACTIVE)
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
-            ->whereHas('images');
+            ->whereHas('images')
+            // a frozen (or banned) owner's listings are hidden while the freeze lasts
+            ->whereHas('owner', fn ($o) => $o->live());
     }
 
     /**
@@ -103,6 +105,6 @@ class OwnerListing extends Model
 
     public function isVisible(): bool
     {
-        return $this->status === self::STATUS_ACTIVE && ($this->expires_at === null || $this->expires_at->isFuture()) && $this->images()->exists();
+        return $this->status === self::STATUS_ACTIVE && ($this->expires_at === null || $this->expires_at->isFuture()) && $this->images()->exists() && User::query()->live()->whereKey($this->user_id)->exists();
     }
 }

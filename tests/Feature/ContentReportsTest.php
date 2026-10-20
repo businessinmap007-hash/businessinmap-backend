@@ -426,4 +426,73 @@ class ContentReportsTest extends TestCase
     {
         return ['category' => 'other', 'deal' => 'sale', 'title' => 'Anything', 'price' => 10, 'governorate_id' => 1];
     }
+
+    public function test_each_freeze_is_counted_warned_about_and_the_fifth_deletes_the_account_and_confiscates_balance_and_guarantee(): void
+    {
+        $account = $this->user('shady');
+        $wallets = app(\App\Services\WalletService::class);
+        $wallets->getOrCreateWallet($account->id)->update(['status' => \App\Models\Wallet::STATUS_ACTIVE, 'balance' => 250, 'locked_balance' => 100, 'total_out' => 0]);
+        $level = \App\Models\GuaranteeLevel::query()->where('code', 'bronze')->where('target_type', 'client')->firstOrFail();
+        $guarantee = \App\Models\UserGuarantee::create([
+            'user_id' => $account->id, 'target_type' => 'client', 'purchased_level_id' => $level->id, 'effective_level_id' => $level->id,
+            'status' => \App\Models\UserGuarantee::STATUS_ACTIVE, 'current_coverage_amount' => 1000, 'used_coverage_amount' => 0, 'locked_amount' => 100,
+        ]);
+        $mod = $this->moderator();
+
+        $freezeOnce = function (int $round) use ($account, $mod) {
+            Sanctum::actingAs($this->user('rep' . $round));
+            $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $account->id, 'reason' => 'fraud'])->assertOk();
+            Sanctum::actingAs($mod);
+
+            return $this->postJson("/api/v2/moderation/reports/account/{$account->id}/freeze");
+        };
+
+        foreach ([1, 2, 3, 4] as $n) {
+            $res = $freezeOnce($n)->assertOk()->assertJsonPath('data.freeze_count', $n)->assertJsonPath('data.deleted', false);
+            $this->assertTrue($account->refresh()->isFrozen());
+
+            // the freeze screen can warn: «freeze N of 5»
+            Sanctum::actingAs($account);
+            $this->getJson('/api/v2/auth/me')->assertOk()->assertJsonPath('data.freeze_count', $n)->assertJsonPath('data.freezes_to_delete', 5);
+            $this->assertStringContainsString("{$n} من 5", \App\Models\AppNotification::where('user_id', $account->id)->where('source_type', 'moderation_account_frozen')->latest('id')->value('body_ar'));
+
+            // the moderator's queue row shows the count too, and the freeze is lifted before the next round
+            Sanctum::actingAs($mod);
+            $this->postJson("/api/v2/moderation/reports/account/{$account->id}/unfreeze")->assertOk();
+            $this->assertEquals($n, $account->refresh()->freeze_count, 'lifting a freeze does not erase it');
+        }
+
+        // the fifth
+        $res = $freezeOnce(5)->assertOk()->assertJsonPath('data.deleted', true);
+        $this->assertEquals(350, $res->json('data.confiscated'), '250 balance + 100 of the guarantee');
+
+        $wallet = $wallets->getOrCreateWallet($account->id)->refresh();
+        $this->assertEquals(0, (float) $wallet->balance);
+        $this->assertEquals(0, (float) $wallet->locked_balance);
+        $this->assertSame(\App\Models\UserGuarantee::STATUS_CANCELLED, $guarantee->refresh()->status);
+        $account->refresh();
+        $this->assertNotNull($account->banned_at, 'banned: sessions revoked, identity blocked');
+        $this->assertNotNull($account->deletion_requested_at ?? $account->deleted_at, 'its deletion was requested');
+        $this->assertSame('deleted', \App\Models\AccountCase::where('user_id', $account->id)->latest('id')->value('outcome'));
+    }
+
+    public function test_a_frozen_account_is_hidden_from_everyone_else_for_the_length_of_the_freeze(): void
+    {
+        $shop = $this->user('shop', User::TYPE_BUSINESS);
+        $viewer = $this->user('viewer');
+        Sanctum::actingAs($viewer);
+        $this->getJson("/api/v2/businesses/{$shop->id}")->assertStatus(200);
+        $this->assertTrue(User::query()->live()->whereKey($shop->id)->exists());
+
+        $shop->forceFill(['frozen_until' => now()->addDays(3)])->save();
+        $this->assertFalse(User::query()->live()->whereKey($shop->id)->exists(), 'hidden from public lists');
+        $this->getJson("/api/v2/businesses/{$shop->id}")->assertStatus(404);
+
+        // a frozen account's posts wall is hidden too
+        $this->getJson("/api/v2/businesses/{$shop->id}/posts")->assertStatus(404);
+
+        // the freeze ends by itself and the account is back
+        $this->travel(4)->days();
+        $this->assertTrue(User::query()->live()->whereKey($shop->id)->exists());
+    }
 }

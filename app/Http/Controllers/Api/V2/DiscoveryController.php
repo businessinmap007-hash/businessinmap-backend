@@ -153,6 +153,7 @@ final class DiscoveryController extends Controller
 
         $counts = DB::table('option_user as ou')
             ->join('users as u', 'u.id', '=', 'ou.user_id')
+            ->tap(fn ($live) => User::applyLive($live, 'u'))
             ->where('u.type', 'business')
             ->where('u.category_child_id', $childId)
             ->when($rootId > 0, fn ($q) => $q->where('u.category_id', $rootId))
@@ -281,6 +282,7 @@ final class DiscoveryController extends Controller
         $cityId = (int) ($data['city_id'] ?? 0);
 
         $query = User::query()
+            ->live()
             ->where('type', 'business')
             ->where('category_child_id', $childId)
             ->when((int) ($data['category_id'] ?? 0) > 0, fn (Builder $w) => $w->where('category_id', (int) $data['category_id']))
@@ -458,6 +460,7 @@ final class DiscoveryController extends Controller
         $serviceKey = $serviceId > 0 ? (string) (PlatformService::find($serviceId)?->key) : null;
 
         $businesses = User::query()
+            ->live()
             ->where('users.type', 'business')
             ->when($categoryId > 0, fn (Builder $w) => $w->where('users.category_id', $categoryId))
             ->when($serviceId > 0, fn (Builder $w) => $w->where(function (Builder $inner) use ($serviceId, $serviceKey, $menuKind) {

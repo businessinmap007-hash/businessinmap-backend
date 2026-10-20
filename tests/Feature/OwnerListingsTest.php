@@ -729,4 +729,23 @@ class OwnerListingsTest extends TestCase
         $keys = array_column($this->getJson('/api/v2/moderation/violations')->assertOk()->json('data.violations'), 'key');
         $this->assertEqualsCanonicalizing(array_keys(\App\Services\OwnerListings\OwnerListingSeriousness::VIOLATIONS), $keys);
     }
+
+    public function test_the_listings_of_a_frozen_owner_are_hidden_until_the_freeze_ends(): void
+    {
+        $this->priceDeposit(null);
+        $owner = $this->user('own');
+        $listing = $this->withPhoto($this->listed($owner));
+        $buyer = $this->user('buyer');
+
+        Sanctum::actingAs($buyer);
+        $this->assertContains($listing->id, array_column($this->getJson('/api/v2/owner-listings?per_page=50')->json('data.data'), 'id'));
+
+        $owner->forceFill(['frozen_until' => now()->addDays(3)])->save();
+        $this->assertNotContains($listing->id, array_column($this->getJson('/api/v2/owner-listings?per_page=50')->json('data.data'), 'id'));
+        $this->getJson("/api/v2/owner-listings/{$listing->id}")->assertStatus(404);
+        $this->postJson("/api/v2/owner-listings/{$listing->id}/inquiries")->assertStatus(422);
+
+        $owner->forceFill(['frozen_until' => null])->save();
+        $this->getJson("/api/v2/owner-listings/{$listing->id}")->assertOk();
+    }
 }

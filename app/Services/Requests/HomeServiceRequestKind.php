@@ -122,7 +122,7 @@ final class HomeServiceRequestKind implements RequestKind
             ->where('category_child_id', (int) $request->category_child_id)
             ->where('governorate_id', (int) $request->governorate_id)
             ->where('id', '!=', (int) $request->requester_id)
-            ->whereNull('banned_at')->whereNull('anonymized_at')->whereNull('requests_paused_at')
+            ->live()->whereNull('anonymized_at')->whereNull('requests_paused_at')
             ->orderByRaw('CASE WHEN city_id = ? THEN 0 ELSE 1 END', [(int) $request->city_id])
             ->limit($limit)
             ->get(['id', 'name']);
@@ -135,7 +135,7 @@ final class HomeServiceRequestKind implements RequestKind
             && in_array((int) $business->category_child_id, $this->tradeIds(), true)
             && (int) $business->governorate_id === (int) $request->governorate_id
             && (int) $business->id !== (int) $request->requester_id
-            && $business->banned_at === null
+            && $business->banned_at === null && ! $business->isFrozen()
             && $business->anonymized_at === null
             && $business->acceptsRequests();
     }

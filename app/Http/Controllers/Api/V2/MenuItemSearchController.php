@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V2;
 use App\Http\Controllers\Controller;
 use App\Models\MenuDetailProfile;
 use App\Models\MenuItem;
+use App\Models\User;
 use App\Services\Catalog\ProductSpecs;
 use App\Services\Menu\MenuItemAttributes;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -59,6 +60,7 @@ final class MenuItemSearchController extends Controller
         $base = DB::table('menu_items')
             ->join('users as biz', 'biz.id', '=', 'menu_items.business_id')
             ->where('biz.type', 'business')
+            ->tap(fn ($live) => User::applyLive($live, 'biz'))
             ->where('menu_items.is_active', true)
             ->tap(fn ($q) => app(\App\Services\Business\StoreSetup::class)->onlyComplete($q, 'menu_items.business_id'))
             ->when(! empty($data['catalog_product_id']), fn ($q) => $q->where('menu_items.catalog_product_id', (int) $data['catalog_product_id']))

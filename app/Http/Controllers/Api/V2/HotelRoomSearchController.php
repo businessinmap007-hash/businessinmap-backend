@@ -146,7 +146,7 @@ final class HotelRoomSearchController extends Controller
 
         return DB::table('users as u')
             ->where('u.type', 'business')->where('u.category_id', $root)
-            ->whereNull('u.banned_at')->whereNull('u.anonymized_at')
+            ->tap(fn ($live) => User::applyLive($live, 'u'))->whereNull('u.anonymized_at')
             ->whereExists(fn ($q) => $q->select(DB::raw(1))->from('bookable_items as b')
                 ->whereColumn('b.business_id', 'u.id')->where('b.item_type', 'booking_stay')->where('b.is_active', 1))
             ->get(['u.id', 'u.name', 'u.logo', 'u.governorate_id', 'u.city_id']);

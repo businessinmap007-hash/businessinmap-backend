@@ -183,7 +183,7 @@ final class PostController extends Controller
     public function business(Request $request, int $business)
     {
         abort_unless(
-            User::query()->where('type', 'business')->whereKey($business)->exists(),
+            User::query()->live()->where('type', 'business')->whereKey($business)->exists(),
             404
         );
 
@@ -442,6 +442,7 @@ final class PostController extends Controller
         // Nearest-first, computed in SQL. v1 pulled every row into PHP to do
         // this, which is why the guest feed degraded with the table size.
         $query->join('users', 'users.id', '=', 'posts.user_id')
+            ->tap(fn ($live) => User::applyLive($live, 'users'))
             ->whereNotNull('users.latitude')
             ->whereNotNull('users.longitude')
             ->select('posts.*')

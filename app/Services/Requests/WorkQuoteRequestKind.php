@@ -137,7 +137,7 @@ final class WorkQuoteRequestKind implements RequestKind
             ->where('category_child_id', (int) $request->category_child_id)
             ->when(! $nationwide, fn ($q) => $q->where('governorate_id', (int) $request->governorate_id))
             ->where('id', '!=', (int) $request->requester_id)
-            ->whereNull('banned_at')->whereNull('anonymized_at')->whereNull('requests_paused_at')
+            ->live()->whereNull('anonymized_at')->whereNull('requests_paused_at')
             ->orderByRaw('CASE WHEN city_id = ? THEN 0 WHEN governorate_id = ? THEN 1 ELSE 2 END', [(int) $request->city_id, (int) $request->governorate_id])
             ->limit($limit)
             ->get(['id', 'name']);
@@ -152,7 +152,7 @@ final class WorkQuoteRequestKind implements RequestKind
             && in_array((int) $business->category_child_id, $this->tradeIds(), true)
             && ($nationwide || (int) $business->governorate_id === (int) $request->governorate_id)
             && (int) $business->id !== (int) $request->requester_id
-            && $business->banned_at === null
+            && $business->banned_at === null && ! $business->isFrozen()
             && $business->anonymized_at === null
             && $business->acceptsRequests();
     }

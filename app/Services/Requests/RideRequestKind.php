@@ -127,7 +127,7 @@ final class RideRequestKind implements RequestKind
             ->where('category_child_id', self::tradeId())
             ->where('governorate_id', (int) $request->governorate_id)
             ->where('id', '!=', (int) $request->requester_id)
-            ->whereNull('banned_at')->whereNull('anonymized_at')->whereNull('requests_paused_at')
+            ->live()->whereNull('anonymized_at')->whereNull('requests_paused_at')
             ->limit(2000)
             ->get(['id', 'name', 'latitude', 'longitude']);
 
@@ -152,7 +152,7 @@ final class RideRequestKind implements RequestKind
             && (int) $business->category_child_id === self::tradeId()
             && (int) $business->governorate_id === (int) $request->governorate_id
             && (int) $business->id !== (int) $request->requester_id
-            && $business->banned_at === null
+            && $business->banned_at === null && ! $business->isFrozen()
             && $business->anonymized_at === null
             && $business->acceptsRequests();
     }

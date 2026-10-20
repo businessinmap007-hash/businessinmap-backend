@@ -194,6 +194,21 @@ class User extends Authenticatable
         return $this->frozen_until !== null && $this->frozen_until->isFuture();
     }
 
+    /**
+     * Public lists show only LIVE accounts: not banned, not frozen by a moderator (a frozen account is hidden for the length of the
+     * freeze — owner, 2026-10-20). Works on Eloquent and query builders alike; $alias is the users table's alias in the query.
+     */
+    public static function applyLive($query, string $alias = 'users')
+    {
+        return $query->whereNull("{$alias}.banned_at")
+            ->where(fn ($q) => $q->whereNull("{$alias}.frozen_until")->orWhere("{$alias}.frozen_until", '<=', now()));
+    }
+
+    public function scopeLive($query)
+    {
+        return self::applyLive($query, $this->getTable());
+    }
+
     /** Requested deletion and still inside the grace window (restorable). */
     public function isPendingDeletion(): bool
     {

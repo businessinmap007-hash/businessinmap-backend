@@ -309,20 +309,23 @@ final class ContentReportService
         return $this->accounts->openChat($account, $moderator);
     }
 
-    /** Freeze the reported account for three days (never removes it); the reports are closed as actioned. */
-    public function freezeAccount(int $id, User $moderator): \App\Models\AccountCase
+    /**
+     * Freeze the reported account (never removes it, except that the fifth freeze deletes it and confiscates its balance and
+     * guarantee); the reports are closed as actioned.
+     *
+     * @return array{case:\App\Models\AccountCase,deleted:bool,count:int,confiscated:float}
+     */
+    public function freezeAccount(int $id, User $moderator): array
     {
         $account = $this->accountOrFail($id);
         $this->guard('account', $id, $moderator);
 
-        $case = DB::transaction(function () use ($account, $id, $moderator) {
-            $case = $this->accounts->freeze($account, $moderator);
-            $this->closeReports('account', $id, $moderator, ContentReport::STATUS_ACTIONED, 'frozen');
+        return DB::transaction(function () use ($account, $id, $moderator) {
+            $result = $this->accounts->freeze($account, $moderator);
+            $this->closeReports('account', $id, $moderator, ContentReport::STATUS_ACTIONED, $result['deleted'] ? 'deleted' : 'frozen', ['confiscated_amount' => $result['confiscated']]);
 
-            return $case;
+            return $result;
         });
-
-        return $case;
     }
 
     /** The moderator lifts the freeze early. */
@@ -459,6 +462,8 @@ final class ContentReportService
                 'author' => null,
                 'account_type' => (string) $target->type,
                 'frozen_until' => $target->isFrozen() ? $target->frozen_until->toIso8601String() : null,
+                'freeze_count' => (int) $target->freeze_count,
+                'freezes_to_delete' => (int) config('bim.moderation.freezes_to_delete', 5),
                 'case' => $case ? ['id' => (int) $case->id, 'status' => $case->status, 'chat_opened' => true] : null,
             ];
         }

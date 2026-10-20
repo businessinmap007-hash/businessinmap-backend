@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\CommercialOffer;
+use App\Models\User;
 use App\Services\Commercial\OfferAudience;
 use App\Services\Commercial\OfferComparisonService;
 use Illuminate\Database\Eloquent\Builder;
@@ -155,6 +156,7 @@ final class OfferDiscoveryController extends Controller
                 $join->whereRaw('seller.id = COALESCE(commercial_offers.seller_business_id, commercial_offers.owner_business_id)');
             })
             ->join('categories as root', 'root.id', '=', 'seller.category_id')
+            ->tap(fn ($live) => User::applyLive($live, 'seller'))
             ->selectRaw('root.id, root.name_ar, root.name_en, root.slug, COUNT(*) as offers_count')
             ->groupBy('root.id', 'root.name_ar', 'root.name_en', 'root.slug')
             ->orderByDesc('offers_count')

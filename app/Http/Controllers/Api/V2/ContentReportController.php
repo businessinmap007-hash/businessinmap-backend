@@ -103,9 +103,15 @@ final class ContentReportController extends Controller
     public function accountFreeze(Request $request, int $id)
     {
         $this->authorizeModerator($request);
-        $case = $this->reports->freezeAccount($id, $request->user());
+        $r = $this->reports->freezeAccount($id, $request->user());
 
-        return response()->json(['success' => true, 'message' => __('جُمِّد الحساب.'), 'data' => ['case_id' => (int) $case->id, 'frozen_until' => optional($case->frozen_until)->toIso8601String()]]);
+        return response()->json(['success' => true, 'message' => $r['deleted'] ? __('حُذف الحساب وصودر رصيده وضمانه.') : __('جُمِّد الحساب.'), 'data' => [
+            'case_id' => (int) $r['case']->id,
+            'frozen_until' => optional($r['case']->frozen_until)->toIso8601String(),
+            'freeze_count' => $r['count'],
+            'deleted' => $r['deleted'],
+            'confiscated' => $r['confiscated'],
+        ]]);
     }
 
     /** POST moderation/reports/account/{id}/unfreeze — lift the freeze early and close the case. */

@@ -150,7 +150,7 @@ final class SearchOffersController extends Controller
 
     private function businessesQuery(array $data): Builder
     {
-        $query = User::query()->where('type', 'business');
+        $query = User::query()->live()->where('type', 'business');
 
         $q = trim((string) ($data['q'] ?? ''));
 

@@ -38,7 +38,7 @@ final class BusinessPageController extends Controller
     public function show(Request $request, int $business)
     {
         /** @var User|null $model */
-        $model = User::query()->where('type', 'business')->whereKey($business)->first();
+        $model = User::query()->live()->where('type', 'business')->whereKey($business)->first();
 
         abort_unless((bool) $model, 404, __('النشاط التجاري غير موجود.'));
 

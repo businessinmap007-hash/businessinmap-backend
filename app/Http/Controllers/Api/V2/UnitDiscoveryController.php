@@ -49,7 +49,7 @@ final class UnitDiscoveryController extends Controller
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
         ]);
 
-        $biz = User::query()->where('type', 'business')
+        $biz = User::query()->live()->where('type', 'business')
             ->find($business, ['id', 'name', 'logo', 'category_id', 'category_child_id']);
 
         if (! $biz) {
@@ -155,7 +155,7 @@ final class UnitDiscoveryController extends Controller
             'item_type' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $biz = User::query()->where('type', 'business')->find($business, ['id']);
+        $biz = User::query()->live()->where('type', 'business')->find($business, ['id']);
 
         if (! $biz) {
             return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
@@ -268,7 +268,7 @@ final class UnitDiscoveryController extends Controller
             'chair_id' => ['nullable', 'integer'],
         ]);
 
-        $biz = User::query()->where('type', 'business')->find($business, ['id']);
+        $biz = User::query()->live()->where('type', 'business')->find($business, ['id']);
 
         if (! $biz) {
             return response()->json(['success' => false, 'message' => __('النشاط غير موجود.')], 404);
@@ -367,7 +367,7 @@ final class UnitDiscoveryController extends Controller
             'chair_id' => ['nullable', 'integer'],
         ]);
 
-        abort_unless(User::query()->where('type', 'business')->whereKey($business)->exists(), 404, __('النشاط غير موجود.'));
+        abort_unless(User::query()->live()->where('type', 'business')->whereKey($business)->exists(), 404, __('النشاط غير موجود.'));
 
         $tz = app(\App\Services\BusinessHoursService::class)->timezoneFor($business);
         $day = \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $data['date'], $tz)->startOfDay();

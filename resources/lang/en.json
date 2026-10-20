@@ -3212,5 +3212,6 @@
     "لا يوجد قرار حذف يمكنك الاعتراض عليه.": "There is no deletion decision you can object to.",
     "جُمِّد الحساب وعُرض حذفه على لجنة المشرفين.": "The account was frozen and its deletion was put to the moderators' panel.",
     "وصل اعتراضك وسيُعرض على لجنة المشرفين من جديد.": "Your objection was received and goes back to the moderators' panel.",
-    "سُجِّل صوتك.": "Your vote was recorded."
+    "سُجِّل صوتك.": "Your vote was recorded.",
+    "جارٍ العمل على هذا الطلب من زميل آخر.": "A colleague is already working on this order."
 }

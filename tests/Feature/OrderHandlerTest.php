@@ -86,8 +86,10 @@ class OrderHandlerTest extends TestCase
         $this->as($second)->postJson("/api/v2/business/orders/{$mine->id}/preparing")->assertOk()
             ->assertJsonPath('data.handled_by.accepted_by.id', $first->id)->assertJsonPath('data.handled_by.preparing_by.id', $second->id);
 
-        // a second press on the same order does not steal it
-        $this->as($first)->postJson("/api/v2/business/orders/{$mine->id}/preparing")->assertStatus(409);
+        // a second press on the same order does not steal it — and says why
+        $this->as($first)->postJson("/api/v2/business/orders/{$mine->id}/preparing")->assertStatus(409)
+            ->assertJsonFragment(['message' => 'A colleague is already working on this order.']);
+        $this->as($first)->postJson("/api/v2/business/orders/{$mine->id}/accept")->assertStatus(409);
         $this->assertSame($second->id, (int) $mine->refresh()->prepared_by);
 
         // marking it ready keeps the preparer

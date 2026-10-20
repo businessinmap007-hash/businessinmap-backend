@@ -265,6 +265,10 @@ final class OrderController extends Controller
                 abort(404, __('الطلب غير موجود.'));
             }
             if ((string) $m->status !== 'pending' || $m->prep_status !== null) {
+                // two receivers pressed accept on the same order: the loser is told a colleague has it
+                if ((string) $m->status === 'pending' && $m->accepted_by && (int) $m->accepted_by !== $actorId) {
+                    abort(409, __('جارٍ العمل على هذا الطلب من زميل آخر.'));
+                }
                 abort(409, __('لا يمكن قبول هذا الطلب في حالته الحالية.'));
             }
             // The deposit the merchant's threshold asked for is judged NOW, not as it was at checkout (the customer's
@@ -593,6 +597,10 @@ final class OrderController extends Controller
                 abort(404, __('الطلب غير موجود.'));
             }
             if ((string) $m->status !== 'pending' || (string) $m->prep_status !== $from) {
+                // somebody else already started preparing it: say so, instead of a bare «not possible now»
+                if ($to === Order::PREP_PREPARING && $m->prepared_by && (int) $m->prepared_by !== $actorId) {
+                    abort(409, __('جارٍ العمل على هذا الطلب من زميل آخر.'));
+                }
                 abort(409, __('لا يمكن نقل الطلب إلى هذه الحالة الآن.'));
             }
 

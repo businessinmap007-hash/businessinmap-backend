@@ -48,7 +48,7 @@ final class ProjectStageStartService
         // execution has an agreed START date: the time before it is the negotiation
         $startsOn = $this->agreements->current($project)?->starts_on;
         if ($startsOn && Carbon::today()->lt($startsOn->copy()->startOfDay())) {
-            throw ValidationException::withMessages(['stage' => __('لا يبدأ التنفيذ قبل موعد البدء المتفق عليه: :date.', ['date' => $startsOn->toDateString()])]);
+            throw ValidationException::withMessages(['stage' => __('لا يبدأ التنفيذ قبل موعد البدء المتفق عليه: :date.', ['date' => $startsOn->copy()->locale(app()->getLocale())->translatedFormat('j F Y')])]);
         }
 
         if ($task->start_status === 'requested') {

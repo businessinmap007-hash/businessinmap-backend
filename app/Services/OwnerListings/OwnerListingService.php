@@ -45,9 +45,9 @@ final class OwnerListingService
         $this->assertPlace($data);
 
         // «جدية الإعلان»: a bronze+ guarantee, or a deposit held until the listing ends
-        $deposit = $this->seriousness->assertCanPublish($owner, $holdDeposit);
+        $stake = $this->seriousness->assertCanPublish($owner, $holdDeposit);
 
-        return DB::transaction(function () use ($owner, $category, $deal, $data, $price, $unit, $deposit) {
+        return DB::transaction(function () use ($owner, $category, $deal, $data, $price, $unit, $stake) {
             $listing = OwnerListing::create([
             'user_id' => (int) $owner->id,
             'category' => $category,
@@ -64,7 +64,7 @@ final class OwnerListingService
             'expires_at' => now()->addDays((int) config('bim.owner_listings.active_days', 60)),
             ]);
 
-            $this->seriousness->hold($listing, $deposit);
+            $this->seriousness->hold($listing, $stake);
 
             return $listing->refresh();
         });
@@ -140,7 +140,7 @@ final class OwnerListingService
         // an expired listing gave its deposit back; bringing it back asks for the same condition again
         $again = $listing->deposit_state === OwnerListingSeriousness::STATE_RELEASED
             ? $this->seriousness->assertCanPublish($listing->owner, true)
-            : 0.0;
+            : ['kind' => null, 'amount' => 0.0];
 
         DB::transaction(function () use ($listing, $again) {
             $listing->update([
@@ -153,6 +153,22 @@ final class OwnerListingService
         });
 
         return $listing->refresh();
+    }
+
+    /**
+     * A moderator takes the listing down for a violation: the stake behind it is confiscated (unless the moderator chose
+     * not to), then the listing goes as when its owner deletes it. Returns the sum confiscated.
+     */
+    public function removeForViolation(OwnerListing $listing, string $violation, bool $confiscate = true): float
+    {
+        $taken = 0.0;
+
+        DB::transaction(function () use ($listing, $violation, $confiscate, &$taken) {
+            $taken = $confiscate ? $this->seriousness->forfeit($listing, $violation) : 0.0;
+            $this->remove($listing);
+        });
+
+        return $taken;
     }
 
     /** The owner deletes it now: the listing, its photos and every chat about it. */

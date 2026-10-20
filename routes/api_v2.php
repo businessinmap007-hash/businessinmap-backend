@@ -1341,6 +1341,7 @@ Route::prefix('v2')->group(function () {
         Route::post('reports', [ContentReportController::class, 'store'])->middleware('throttle:20,1');
         Route::prefix('moderation')->group(function () {
             Route::get('me', [ContentReportController::class, 'me']);
+            Route::get('violations', [ContentReportController::class, 'violations']);
             Route::get('reports', [ContentReportController::class, 'queue']);
             Route::post('reports/{type}/{id}/claim', [ContentReportController::class, 'claim'])->whereNumber('id');
             Route::post('reports/{type}/{id}/release', [ContentReportController::class, 'release'])->whereNumber('id');

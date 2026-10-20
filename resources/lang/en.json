@@ -3190,5 +3190,7 @@
     "أنت من يتعامل مع هذا البلاغ الآن.": "You are now the one dealing with this report.",
     "تم تحرير البلاغ.": "The report was released.",
     "لنشر إعلانك: ضمان :level فأعلى، أو عربون جدية :amount جنيه يُحجز من محفظتك ويُردّ عند البيع أو الإنهاء.": "To publish your listing you need a :level guarantee or higher, or a seriousness deposit of :amount EGP held from your wallet and handed back when you sell or end it.",
-    "رصيدك لا يكفي لعربون الجدية (:amount جنيه). اشحن محفظتك أولًا.": "Your balance is not enough for the seriousness deposit (:amount EGP). Top up your wallet first."
+    "رصيدك لا يكفي لعربون الجدية (:amount جنيه). اشحن محفظتك أولًا.": "Your balance is not enough for the seriousness deposit (:amount EGP). Top up your wallet first.",
+    "اختر المدينة أولًا ليقتصر الإعلان على أهلها.": "Choose the city first to limit the listing to its people.",
+    "اختر القاعدة التي خالفها الإعلان.": "Choose the rule the listing broke."
 }

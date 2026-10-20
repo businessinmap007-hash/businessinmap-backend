@@ -38,7 +38,7 @@ final class OwnerListingController extends Controller
     /** GET owner-listings/requirements — what this account must do to publish: a bronze+ guarantee or a deposit (priced in the cPanel). */
     public function requirements(Request $request)
     {
-        return response()->json(['success' => true, 'data' => ['requirements' => $this->seriousness->requirement($request->user())]]);
+        return response()->json(['success' => true, 'data' => ['requirements' => $this->seriousness->requirement($request->user(), $this->english())]]);
     }
 
     /** GET owner-listings — what a person browses: live listings, newest first. */
@@ -344,7 +344,7 @@ final class OwnerListingController extends Controller
             'my_inquiry_id' => $inquiry?->id ? (int) $inquiry->id : null,
             'inquiries_count' => $mine ? (int) $l->inquiries()->count() : null,
             // the owner's own seriousness deposit: how much, and whether it is still held
-            'deposit' => $mine && (float) $l->deposit_amount > 0 ? ['amount' => (float) $l->deposit_amount, 'state' => $l->deposit_state] : null,
+            'deposit' => $mine && (float) $l->deposit_amount > 0 ? ['amount' => (float) $l->deposit_amount, 'state' => $l->deposit_state, 'kind' => $l->deposit_kind] : null,
         ];
     }
 

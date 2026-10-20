@@ -121,7 +121,7 @@ class ContentReportsTest extends TestCase
         $this->assertSame('Big sale', $row['title']);
         $this->assertSame(['spam' => 2, 'fraud' => 1], collect($row['reasons'])->pluck('count', 'key')->all());
 
-        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove", ['violation' => 'fraud'])->assertOk();
         $this->assertFalse((bool) $post->refresh()->is_active, 'hidden, not deleted');
         $handled = collect($this->getJson('/api/v2/moderation/reports?scope=handled&per_page=50')->json('data.items'))->firstWhere('id', $post->id);
         $this->assertSame('hidden', $handled['state']);
@@ -157,7 +157,7 @@ class ContentReportsTest extends TestCase
         $this->postJson('/api/v2/reports', ['type' => 'owner_listing', 'id' => $listing->id, 'reason' => 'fraud'])->assertOk();
 
         Sanctum::actingAs($this->moderator());
-        $this->postJson("/api/v2/moderation/reports/owner_listing/{$listing->id}/remove")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/owner_listing/{$listing->id}/remove", ['violation' => 'fraud'])->assertOk();
 
         $this->assertNull(OwnerListing::find($listing->id));
         $row = collect($this->getJson('/api/v2/moderation/reports?scope=handled&per_page=50')->json('data.items'))->firstWhere('id', $listing->id);
@@ -244,8 +244,8 @@ class ContentReportsTest extends TestCase
         }
 
         Sanctum::actingAs($this->moderator());
-        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove")->assertOk();
-        $this->postJson("/api/v2/moderation/reports/owner_listing/{$listing->id}/remove")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove", ['violation' => 'fraud'])->assertOk();
+        $this->postJson("/api/v2/moderation/reports/owner_listing/{$listing->id}/remove", ['violation' => 'fraud'])->assertOk();
 
         $told = AppNotification::query()->where('user_id', $author->id)->where('source_type', 'moderation_content_removed')->get();
         $this->assertCount(2, $told);
@@ -279,7 +279,7 @@ class ContentReportsTest extends TestCase
         Sanctum::actingAs($this->moderator());
         $row = collect($this->getJson('/api/v2/moderation/reports?type=comment&per_page=50')->json('data.items'))->firstWhere('id', $comment->id);
         $this->assertSame('buy cheap pills', $row['excerpt']);
-        $this->postJson("/api/v2/moderation/reports/comment/{$comment->id}/remove")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/comment/{$comment->id}/remove", ['violation' => 'fraud'])->assertOk();
         $this->assertSame('removed', $comment->refresh()->status);
 
         // gone for the public, for the commenter and for the post's author alike
@@ -306,7 +306,7 @@ class ContentReportsTest extends TestCase
 
         $mod = $this->moderator();
         Sanctum::actingAs($mod);
-        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/post/{$post->id}/remove", ['violation' => 'fraud'])->assertOk();
         $this->postJson("/api/v2/moderation/reports/post/{$kept->id}/dismiss")->assertOk();
 
         $told = AppNotification::query()->where('user_id', $rep->id)->where('source_type', 'moderation_report_outcome')->orderBy('source_id')->get();

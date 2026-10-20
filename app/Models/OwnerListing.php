@@ -33,7 +33,7 @@ class OwnerListing extends Model
 
     protected $fillable = [
         'user_id', 'category', 'deal', 'title', 'description', 'price', 'price_unit', 'currency', 'governorate_id', 'city_id', 'visibility',
-        'attributes', 'status', 'done_reason', 'done_at', 'expires_at', 'expiry_alerted_for', 'purge_at', 'reports_count', 'deposit_amount', 'deposit_state',
+        'attributes', 'status', 'done_reason', 'done_at', 'expires_at', 'expiry_alerted_for', 'purge_at', 'reports_count', 'deposit_amount', 'deposit_kind', 'deposit_state',
     ];
 
     protected $casts = [

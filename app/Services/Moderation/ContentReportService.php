@@ -9,6 +9,7 @@ use App\Models\Post;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
 use App\Services\OwnerListings\OwnerListingService;
+use App\Services\OwnerListings\OwnerListingSeriousness;
 use App\Support\AdminAbility;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -208,20 +209,30 @@ final class ContentReportService
         }
     }
 
-    /** The author hears that his post / listing was taken down after a report. */
-    private function tellAuthor(string $type, $target): void
+    /** The author hears that his content was taken down — for a listing, which rule it broke and what was confiscated. */
+    private function tellAuthor(string $type, $target, ?string $violation = null, float $taken = 0.0, ?string $kind = null): void
     {
         try {
             $title = $type === 'comment' ? '' : (string) ($target->title ?? '');
             $kindAr = ['post' => 'منشورك', 'comment' => 'تعليقك'][$type] ?? 'إعلانك';
             $kindEn = ['post' => 'Your post', 'comment' => 'Your comment'][$type] ?? 'Your listing';
+            $ar = trim($kindAr . ($title !== '' ? " «{$title}»" : '') . ' أُزيل بعد بلاغات رأى المشرف أنها في محلها.');
+            $en = trim($kindEn . ($title !== '' ? " \"{$title}\"" : '') . ' was taken down after reports a moderator upheld.');
+
+            if ($type === 'owner_listing' && isset(OwnerListingSeriousness::VIOLATIONS[(string) $violation])) {
+                [$ruleAr, $ruleEn] = OwnerListingSeriousness::VIOLATIONS[$violation];
+                $sum = rtrim(rtrim(number_format($taken, 2, '.', ''), '0'), '.');
+                $thing = $kind === OwnerListingSeriousness::KIND_GUARANTEE ? ['الضمان', 'guarantee'] : ['العربون', 'deposit'];
+                $ar .= " السبب: {$ruleAr}." . ($taken > 0 ? " صودر {$thing[0]} ({$sum} جنيه)." : ' لم يُصادَر شيء.');
+                $en .= " Reason: {$ruleEn}." . ($taken > 0 ? " The {$thing[1]} ({$sum} EGP) was confiscated." : ' Nothing was confiscated.');
+            }
 
             $this->notifications->dispatch('moderation_content_removed', (int) $target->user_id, [
-                'body_ar' => trim($kindAr . ($title !== '' ? " «{$title}»" : '') . ' أُزيل بعد بلاغات رأى المشرف أنها في محلها.'),
-                'body_en' => trim($kindEn . ($title !== '' ? " \"{$title}\"" : '') . ' was taken down after reports a moderator upheld.'),
+                'body_ar' => $ar,
+                'body_en' => $en,
                 'source_type' => 'moderation_content_removed',
                 'source_id' => (int) $target->id,
-                'meta' => ['type' => $type, 'id' => (int) $target->id],
+                'meta' => ['type' => $type, 'id' => (int) $target->id, 'violation' => $violation, 'confiscated' => $taken],
             ]);
         } catch (\Throwable $e) {
             report($e);
@@ -241,8 +252,12 @@ final class ContentReportService
         }
     }
 
-    /** A post is hidden; a listing is deleted. */
-    public function remove(string $type, int $id, User $moderator): void
+    /**
+     * A post is hidden, a comment is hidden, a listing is deleted. For a LISTING the moderator names the rule it broke
+     * ({@see OwnerListingSeriousness::VIOLATIONS}) and, unless he chooses otherwise, the stake behind it — a held deposit or the
+     * frozen guarantee — is confiscated. Returns the sum confiscated.
+     */
+    public function remove(string $type, int $id, User $moderator, ?string $violation = null, bool $confiscate = true): float
     {
         $target = $this->find($type, $id);
 
@@ -250,18 +265,27 @@ final class ContentReportService
             throw ValidationException::withMessages(['target' => __('هذا المحتوى محذوف بالفعل.')]);
         }
 
+        if ($type === 'owner_listing' && ! isset(OwnerListingSeriousness::VIOLATIONS[(string) $violation])) {
+            throw ValidationException::withMessages(['violation' => __('اختر القاعدة التي خالفها الإعلان.')]);
+        }
+
         $this->guard($type, $id, $moderator);
-        $this->tellAuthor($type, $target);
+        $kind = $target->deposit_kind ?? null;
+        $taken = 0.0;
 
-        DB::transaction(function () use ($type, $id, $target, $moderator) {
-            $this->closeReports($type, $id, $moderator, ContentReport::STATUS_ACTIONED, 'removed');
-
+        DB::transaction(function () use ($type, $id, $target, $moderator, $violation, $confiscate, &$taken) {
             match ($type) {
                 'post' => $target->update(['is_active' => false]),
                 'comment' => $target->update(['status' => 'removed']),
-                default => $this->listings->remove($target),
+                default => $taken = $this->listings->removeForViolation($target, (string) $violation, $confiscate),
             };
+
+            $this->closeReports($type, $id, $moderator, ContentReport::STATUS_ACTIONED, 'removed', ['violation' => $violation, 'confiscated_amount' => $taken]);
         });
+
+        $this->tellAuthor($type, $target, $violation, $taken, $kind);
+
+        return $taken;
     }
 
     /** A hidden post goes back up (a moderator changed their mind). */
@@ -278,12 +302,12 @@ final class ContentReportService
             ->update(['status' => ContentReport::STATUS_DISMISSED, 'action' => null, 'handled_by' => (int) $moderator->id, 'handled_at' => now()]);
     }
 
-    private function closeReports(string $type, int $id, User $moderator, string $status, ?string $action): void
+    private function closeReports(string $type, int $id, User $moderator, string $status, ?string $action, array $extra = []): void
     {
         $reporters = $this->openReports($type, $id)->pluck('reporter_id')->unique()->all();
 
         ContentReport::query()->where('reportable_type', $type)->where('reportable_id', $id)->where('status', ContentReport::STATUS_OPEN)
-            ->update(['status' => $status, 'action' => $action, 'handled_by' => (int) $moderator->id, 'handled_at' => now()]);
+            ->update(['status' => $status, 'action' => $action, 'handled_by' => (int) $moderator->id, 'handled_at' => now()] + $extra);
 
         $this->tellReporters($reporters, $type, $id, $status === ContentReport::STATUS_ACTIONED);
     }

@@ -521,7 +521,7 @@ class OwnerListingsTest extends TestCase
         $this->assertEquals(300, (float) $wallets->getOrCreateWallet($u->id)->refresh()->balance);
     }
 
-    public function test_a_bronze_guarantee_stands_behind_the_listing_so_no_deposit_is_taken(): void
+    public function test_a_bronze_guarantee_stands_behind_the_listing_so_no_cash_deposit_is_taken(): void
     {
         $this->priceDeposit(100);
         $u = $this->user('own');
@@ -532,7 +532,8 @@ class OwnerListingsTest extends TestCase
         $this->assertTrue($req['guarantee_ok']);
         $this->assertFalse($req['needs_deposit']);
 
-        $this->postJson('/api/v2/owner-listings', $this->carBody())->assertCreated()->assertJsonPath('data.listing.deposit', null);
+        // the stake is the frozen guarantee coverage: nothing is locked in the wallet
+        $this->postJson('/api/v2/owner-listings', $this->carBody())->assertCreated()->assertJsonPath('data.listing.deposit.state', 'held');
         $this->assertEquals(0, (float) app(WalletService::class)->getOrCreateWallet($u->id)->locked_balance);
     }
 
@@ -569,7 +570,8 @@ class OwnerListingsTest extends TestCase
         $idC = $this->postJson('/api/v2/owner-listings', $this->carBody() + ['hold_deposit' => true])->assertCreated()->json('data.listing.id');
         $reports = app(\App\Services\Moderation\ContentReportService::class);
         $reports->report($this->user('rep'), 'owner_listing', $idC, 'fraud');
-        $reports->remove('owner_listing', $idC, $this->user('mod'));
+        // a moderator who removes it WITHOUT confiscating hands it back
+        $reports->remove('owner_listing', $idC, $this->user('mod'), 'wrong_info', false);
         $this->assertEquals([100, 0], [$balance($c), $locked($c)]);
     }
 
@@ -634,5 +636,97 @@ class OwnerListingsTest extends TestCase
             ->assertStatus(422)->assertJsonValidationErrors('visibility');
         $this->putJson("/api/v2/owner-listings/{$cityOnly->id}", ['visibility' => 'all'])->assertOk()->assertJsonPath('data.listing.visibility', 'all');
         $this->assertContains('City only phone', $titles($far));
+    }
+
+    public function test_a_moderators_removal_for_a_violation_confiscates_the_deposit_and_tells_the_owner_why(): void
+    {
+        $this->priceDeposit(50);
+        $owner = $this->user('own');
+        $this->fund($owner, 100);
+        $wallets = app(WalletService::class);
+        Sanctum::actingAs($owner);
+        $id = $this->postJson('/api/v2/owner-listings', $this->carBody() + ['hold_deposit' => true])->assertCreated()->json('data.listing.id');
+
+        // no rule named -> refused; the listing and the deposit stay
+        $reports = app(\App\Services\Moderation\ContentReportService::class);
+        $reports->report($this->user('rep'), 'owner_listing', $id, 'fraud');
+        $mod = $this->user('mod');
+        try {
+            $reports->remove('owner_listing', $id, $mod);
+            $this->fail('a rule must be named');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertArrayHasKey('violation', $e->errors());
+        }
+        $this->assertNotNull(OwnerListing::find($id));
+
+        $taken = $reports->remove('owner_listing', $id, $mod, 'fraud');
+        $this->assertEquals(50, $taken);
+        $wallet = $wallets->getOrCreateWallet($owner->id)->refresh();
+        $this->assertEquals([50, 0], [(float) $wallet->balance, (float) $wallet->locked_balance], 'the 50 is gone, not handed back');
+        $this->assertNull(OwnerListing::find($id));
+
+        $note = \App\Models\AppNotification::where('user_id', $owner->id)->where('source_type', 'moderation_content_removed')->latest('id')->first();
+        $this->assertStringContainsString('احتيال', $note->body_ar);
+        $this->assertStringContainsString('صودر العربون', $note->body_ar);
+        $this->assertEquals(50, (float) \App\Models\ContentReport::where('reportable_id', $id)->where('reportable_type', 'owner_listing')->value('confiscated_amount'));
+    }
+
+    public function test_a_guarantee_holder_has_the_coverage_frozen_for_the_listings_life_and_loses_it_on_a_violation(): void
+    {
+        $this->priceDeposit(100);
+        $owner = $this->user('own');
+        $this->giveBronze($owner);          // coverage 1000
+        $this->fund($owner, 300);
+        $guarantee = fn () => UserGuarantee::where('user_id', $owner->id)->first();
+        Sanctum::actingAs($owner);
+
+        $a = $this->postJson('/api/v2/owner-listings', $this->carBody())->assertCreated()->assertJsonPath('data.listing.deposit.state', 'held')->json('data.listing.id');
+        $this->assertSame('guarantee', OwnerListing::find($a)->deposit_kind);
+        $this->assertEquals(100, (float) $guarantee()->used_coverage_amount, 'frozen for the life of the listing');
+        $this->assertEquals(300, (float) app(WalletService::class)->getOrCreateWallet($owner->id)->refresh()->balance, 'the wallet is not touched');
+
+        // sold: unfrozen
+        $this->postJson("/api/v2/owner-listings/{$a}/finish", ['reason' => 'sold'])->assertOk();
+        $this->assertEquals(0, (float) $guarantee()->used_coverage_amount);
+
+        // a second listing, removed for a violation: charged to the guarantee holder
+        $b = $this->postJson('/api/v2/owner-listings', $this->carBody(['category' => 'phones', 'deal' => 'sale', 'title' => 'Phone', 'attributes' => ['condition' => 'used']]))->assertCreated()->json('data.listing.id');
+        $this->assertEquals(100, (float) $guarantee()->used_coverage_amount);
+
+        $reports = app(\App\Services\Moderation\ContentReportService::class);
+        $reports->report($this->user('rep'), 'owner_listing', $b, 'prohibited');
+        $taken = $reports->remove('owner_listing', $b, $this->user('mod'), 'prohibited');
+
+        $this->assertEquals(100, $taken);
+        $this->assertEquals(200, (float) app(WalletService::class)->getOrCreateWallet($owner->id)->refresh()->balance, 'the penalty came out of his funds');
+        $this->assertNull(OwnerListing::find($b));
+    }
+
+    public function test_a_guarantee_whose_free_coverage_is_below_the_stake_does_not_count_so_a_deposit_is_asked(): void
+    {
+        $this->priceDeposit(5000);          // more than the bronze coverage (1000)
+        $u = $this->user('own');
+        $this->giveBronze($u);
+        Sanctum::actingAs($u);
+
+        $req = $this->getJson('/api/v2/owner-listings/requirements')->json('data.requirements');
+        $this->assertFalse($req['guarantee_ok']);
+        $this->assertTrue($req['needs_deposit']);
+        $this->assertContains('fraud', array_column($req['violations'], 'key'), 'the rules the app warns about come with the requirement');
+        $this->assertGreaterThanOrEqual(7, count($req['violations']));
+    }
+
+    public function test_the_moderator_gets_the_list_of_rules_a_listing_is_removed_for(): void
+    {
+        $mod = $this->user('mod');
+        \Silber\Bouncer\BouncerFacade::allow($mod)->to(\App\Support\AdminAbility::CONTENT);
+        \Silber\Bouncer\BouncerFacade::refreshFor($mod);
+
+        Sanctum::actingAs($this->user('plain'));
+        $this->getJson('/api/v2/moderation/violations')->assertStatus(404);
+
+        Sanctum::actingAs($mod);
+        $keys = array_column($this->getJson('/api/v2/moderation/violations')->assertOk()->json('data.violations'), 'key');
+        $this->assertEqualsCanonicalizing(array_keys(\App\Services\OwnerListings\OwnerListingSeriousness::VIOLATIONS), $keys);
     }
 }

@@ -36,6 +36,14 @@ final class ContentReportController extends Controller
         return response()->json(['success' => true, 'message' => __('وصلنا بلاغك، شكرًا.')]);
     }
 
+    /** GET moderation/violations — the rules a listing is removed for (the remove dialog's choices). */
+    public function violations(Request $request)
+    {
+        $this->authorizeModerator($request);
+
+        return response()->json(['success' => true, 'data' => ['violations' => \App\Services\OwnerListings\OwnerListingSeriousness::violations($this->english())]]);
+    }
+
     /** GET moderation/me — does this account get the moderation tab? */
     public function me(Request $request)
     {
@@ -97,9 +105,14 @@ final class ContentReportController extends Controller
     {
         $this->authorizeModerator($request);
         $this->assertType($type);
-        $this->reports->remove($type, $id, $request->user());
+        $data = $request->validate([
+            // for a listing: the rule it broke; the stake behind it is confiscated unless confiscate=false
+            'violation' => ['nullable', 'string', 'max:30'],
+            'confiscate' => ['nullable', 'boolean'],
+        ]);
+        $taken = $this->reports->remove($type, $id, $request->user(), $data['violation'] ?? null, (bool) ($data['confiscate'] ?? true));
 
-        return response()->json(['success' => true, 'message' => __('تمت إزالة المحتوى.')]);
+        return response()->json(['success' => true, 'message' => __('تمت إزالة المحتوى.'), 'data' => ['confiscated' => $taken]]);
     }
 
     /** POST moderation/reports/{type}/{id}/restore */

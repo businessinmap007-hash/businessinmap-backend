@@ -21,7 +21,60 @@ class BusinessProjectController extends Controller
     public function __construct(
         private readonly ProjectService $projects,
         private readonly OperationChatService $operations,
+        private readonly \App\Services\Projects\ProjectTemplateService $templates,
     ) {
+    }
+
+    /** GET /api/v2/business/projects/templates — the ready stage plans offered to this business (its trade's + the general ones). */
+    public function templates(Request $request)
+    {
+        $business = BusinessContext::business($request);
+
+        $items = $business ? $this->templates->forBusiness($business)->map(fn (\App\Models\ProjectTemplate $t) => [
+            'id' => (int) $t->id,
+            'code' => (string) $t->code,
+            'title' => $t->title(),
+            'stages' => $t->stages->map(fn (\App\Models\ProjectTemplateStage $s) => [
+                'title' => $s->title(),
+                'duration_days' => (int) $s->duration_days,
+                'requires_approval' => (bool) $s->requires_approval,
+            ])->values()->all(),
+        ])->values() : collect();
+
+        return response()->json(['success' => true, 'data' => ['templates' => $items]]);
+    }
+
+    /**
+     * GET /api/v2/business/projects/my-stages — the stages assigned to ME at the acting business that still need work (not
+     * done, or done and sent back by the customer): what a staff member does today.
+     */
+    public function myStages(Request $request)
+    {
+        $me = (int) $request->user()->id;
+        $businessId = BusinessContext::id($request);
+
+        $rows = \App\Models\ProjectTask::query()
+            ->assignedTo($me)
+            ->whereHas('project', fn ($q) => $q->where('business_id', $businessId)->whereNotIn('status', [Project::STATUS_COMPLETED, Project::STATUS_CANCELLED]))
+            ->where(fn ($q) => $q->where('status', '!=', \App\Models\ProjectTask::STATUS_DONE)->orWhere('approval_status', \App\Models\ProjectTask::APPROVAL_REJECTED))
+            ->with('project:id,title')
+            ->orderBy('starts_on')->orderBy('id')
+            ->get()
+            ->map(fn (\App\Models\ProjectTask $t) => [
+                'id' => (int) $t->id,
+                'project_id' => (int) $t->project_id,
+                'project_title' => (string) optional($t->project)->title,
+                'title' => (string) $t->title,
+                'status' => (string) $t->status,
+                'progress' => (int) $t->progress,
+                'starts_on' => optional($t->starts_on)->toDateString(),
+                'ends_on' => optional($t->ends_on)->toDateString(),
+                'requires_photo' => (bool) $t->requires_photo,
+                'approval_status' => $t->approval_status,
+                'approval_note' => $t->approval_note,
+            ])->values();
+
+        return response()->json(['success' => true, 'data' => ['stages' => $rows]]);
     }
 
     /** GET /api/v2/business/projects — my projects, newest first. */
@@ -51,7 +104,19 @@ class BusinessProjectController extends Controller
             'due_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'operation_type' => ['nullable', Rule::in(array_keys(OperationChatService::TYPES)), 'required_with:operation_id'],
             'operation_id' => ['nullable', 'integer', 'required_with:operation_type'],
+            // start from a ready stage plan (GET business/projects/templates)
+            'template_id' => ['nullable', 'integer'],
         ]);
+
+        $template = null;
+        if (! empty($data['template_id'])) {
+            $template = \App\Models\ProjectTemplate::query()->with('stages')->find((int) $data['template_id']);
+            $business = BusinessContext::business($request);
+
+            if (! $template || ! $business || ! $this->templates->offeredTo($template, $business)) {
+                throw ValidationException::withMessages(['template_id' => __('هذا القالب غير متاح لنشاطك.')]);
+            }
+        }
 
         $project = new Project([
             'business_id' => BusinessContext::id($request),
@@ -72,10 +137,15 @@ class BusinessProjectController extends Controller
             );
         }
 
+        if ($template) {
+            $this->templates->apply($project, $template);
+            $project = $project->fresh();
+        }
+
         return response()->json([
             'success' => true,
             'message' => __('تم إنشاء المشروع.'),
-            'data' => ['project' => $this->serialize($project)],
+            'data' => ['project' => $this->serialize($project->loadCount('tasks'))],
         ], 201);
     }
 

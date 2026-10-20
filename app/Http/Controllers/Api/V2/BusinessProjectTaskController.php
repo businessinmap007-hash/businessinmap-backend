@@ -36,6 +36,7 @@ class BusinessProjectTaskController extends Controller
             'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'progress' => ['nullable', 'integer', 'between:0,100'],
             'requires_photo' => ['nullable', 'boolean'],
+            'requires_approval' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer'],
             'depends_on' => ['nullable', 'array'],
             'depends_on.*' => ['integer'],
@@ -54,6 +55,7 @@ class BusinessProjectTaskController extends Controller
             'ends_on' => $data['ends_on'] ?? null,
             'progress' => $data['progress'] ?? 0,
             'requires_photo' => $data['requires_photo'] ?? true,
+            'requires_approval' => $data['requires_approval'] ?? false,
             'sort_order' => $data['sort_order'] ?? 0,
         ]);
 
@@ -79,13 +81,14 @@ class BusinessProjectTaskController extends Controller
             'starts_on' => ['nullable', 'date'],
             'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'requires_photo' => ['nullable', 'boolean'],
+            'requires_approval' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer'],
             'depends_on' => ['nullable', 'array'],
             'depends_on.*' => ['integer'],
         ]);
 
         $row->fill(array_intersect_key($data, array_flip([
-            'title', 'notes', 'starts_on', 'ends_on', 'requires_photo', 'sort_order',
+            'title', 'notes', 'starts_on', 'ends_on', 'requires_photo', 'requires_approval', 'sort_order',
         ])))->save();
 
         if (array_key_exists('depends_on', $data)) {
@@ -120,6 +123,27 @@ class BusinessProjectTaskController extends Controller
             'success' => true,
             'message' => __('تم تحديث تقدّم المهمة.'),
             'data' => ['task' => $this->serialize($updated->load(['dependencies:id', 'photos']))],
+        ]);
+    }
+
+    /**
+     * PUT /business/projects/{project}/tasks/{task}/assignee {assignee_id|null} — who is responsible for this stage. One of
+     * the business's providers (the assignment core); a staff member who is himself a provider cannot hand work around.
+     */
+    public function assignee(Request $request, int $project, int $task)
+    {
+        $owned = $this->projectOrFail($request, $project);
+        $row = $this->taskInProject($owned, $task);
+
+        abort_if(\App\Support\Providers::actingId($request) !== null, 403, __('لا يمكنك إعادة توزيع العمل.'));
+
+        $data = $request->validate(['assignee_id' => ['nullable', 'integer']]);
+
+        app(\App\Services\Assignments\AssignmentService::class)->assign($row, $data['assignee_id'] ?? null, (int) $request->user()->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['task' => $this->serialize($row->fresh(['dependencies:id', 'photos', 'project']))],
         ]);
     }
 
@@ -187,6 +211,10 @@ class BusinessProjectTaskController extends Controller
             'status' => (string) $t->status,
             'progress' => (int) $t->progress,
             'requires_photo' => (bool) $t->requires_photo,
+            'requires_approval' => (bool) $t->requires_approval,
+            'approval_status' => $t->approval_status,
+            'approval_note' => $t->approval_note,
+            'assignee' => $this->projects->assigneesOf((int) $t->project()->value('business_id'), [(int) $t->id])[(int) $t->id] ?? null,
             'starts_on' => optional($t->starts_on)->toDateString(),
             'ends_on' => optional($t->ends_on)->toDateString(),
             'sort_order' => (int) $t->sort_order,

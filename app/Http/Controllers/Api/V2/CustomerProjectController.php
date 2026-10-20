@@ -34,17 +34,55 @@ class CustomerProjectController extends Controller
             ->where('operation_id', $operation->getKey())
             ->first();
 
+        // who is asking: the business of the operation, or its customer (the chat card and the screen differ)
+        $viewer = (int) $operation->business_id === (int) $request->user()->id ? 'business' : 'customer';
+
         if (! $project) {
             return response()->json([
                 'success' => true,
                 'message' => __('لا توجد خطة تقدّم لهذه العملية بعد.'),
-                'data' => ['project' => null],
+                'data' => ['project' => null, 'viewer' => $viewer],
             ]);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $this->projects->customerView($project),
+            'data' => $this->projects->customerView($project) + ['viewer' => $viewer],
+        ]);
+    }
+
+    /** POST /api/v2/operations/{type}/{id}/project/tasks/{task}/approve — the customer approves a completed stage. */
+    public function approve(Request $request, string $type, int $id, int $task)
+    {
+        return $this->decide($request, $type, $id, $task, true);
+    }
+
+    /** POST …/reject {note} — the customer sends a completed stage back; the business reopens it. */
+    public function reject(Request $request, string $type, int $id, int $task)
+    {
+        return $this->decide($request, $type, $id, $task, false);
+    }
+
+    private function decide(Request $request, string $type, int $id, int $taskId, bool $approve)
+    {
+        $data = $request->validate(['note' => ['nullable', 'string', 'max:500']]);
+
+        $operation = $this->operations->resolve($type, $id);
+        $this->operations->assertParty($operation, (int) $request->user()->id);
+
+        $project = Project::query()
+            ->where('operation_type', $operation->getMorphClass())
+            ->where('operation_id', $operation->getKey())
+            ->firstOrFail();
+
+        $task = \App\Models\ProjectTask::query()->where('project_id', $project->id)->findOrFail($taskId);
+
+        $this->projects->decideApproval($task, $request->user(), $approve, $data['note'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => $approve ? __('تم اعتماد المرحلة.') : __('أُعيدت المرحلة إلى النشاط.'),
+            'data' => $this->projects->customerView($project->fresh()),
         ]);
     }
 

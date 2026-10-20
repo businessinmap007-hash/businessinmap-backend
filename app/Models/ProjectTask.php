@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasAssignee;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,6 +15,12 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  */
 class ProjectTask extends Model
 {
+    use HasAssignee;
+
+    public const APPROVAL_PENDING = 'pending';
+    public const APPROVAL_APPROVED = 'approved';
+    public const APPROVAL_REJECTED = 'rejected';
+
     public const STATUS_PENDING = 'pending';
     public const STATUS_IN_PROGRESS = 'in_progress';
     public const STATUS_BLOCKED = 'blocked';
@@ -36,6 +43,10 @@ class ProjectTask extends Model
         'ends_on',
         'progress',
         'requires_photo',
+        'requires_approval',
+        'approval_status',
+        'approval_note',
+        'approval_at',
         'sort_order',
     ];
 
@@ -44,8 +55,16 @@ class ProjectTask extends Model
         'ends_on' => 'date',
         'progress' => 'integer',
         'requires_photo' => 'boolean',
+        'requires_approval' => 'boolean',
+        'approval_at' => 'datetime',
         'sort_order' => 'integer',
     ];
+
+    /** A stage is the business's: this lets the assignment core hand it to one of the business's people. */
+    public function getBusinessIdAttribute(): ?int
+    {
+        return $this->project?->business_id ? (int) $this->project->business_id : null;
+    }
 
     public function project(): BelongsTo
     {

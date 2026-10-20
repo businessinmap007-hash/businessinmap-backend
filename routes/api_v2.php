@@ -481,6 +481,11 @@ Route::prefix('v2')->group(function () {
         // camera evidence per stage. Only a party to the operation may read it.
         Route::get('operations/{type}/{id}/project', [CustomerProjectController::class, 'show'])
             ->whereNumber('id')->whereIn('type', ['order', 'booking']);
+        // …and approves a completed stage that asks for it, or sends it back with a note.
+        Route::post('operations/{type}/{id}/project/tasks/{task}/approve', [CustomerProjectController::class, 'approve'])
+            ->whereNumber(['id', 'task'])->whereIn('type', ['order', 'booking']);
+        Route::post('operations/{type}/{id}/project/tasks/{task}/reject', [CustomerProjectController::class, 'reject'])
+            ->whereNumber(['id', 'task'])->whereIn('type', ['order', 'booking']);
 
         // Follow a project directly (public, shared, or as the contracted
         // customer): view it at your granted depth, request to follow, unfollow.
@@ -1482,6 +1487,9 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/projects')->middleware('business.member:' . BusinessCapability::PROJECTS)->group(function () {
             Route::get('/', [BusinessProjectController::class, 'index']);
             Route::post('/', [BusinessProjectController::class, 'store']);
+            // ready stage plans for this trade, and the stages assigned to me (before the {project} routes)
+            Route::get('templates', [BusinessProjectController::class, 'templates']);
+            Route::get('my-stages', [BusinessProjectController::class, 'myStages']);
             Route::get('{project}', [BusinessProjectController::class, 'show'])->whereNumber('project');
             Route::match(['put', 'patch'], '{project}', [BusinessProjectController::class, 'update'])->whereNumber('project');
             Route::delete('{project}', [BusinessProjectController::class, 'destroy'])->whereNumber('project');
@@ -1491,6 +1499,7 @@ Route::prefix('v2')->group(function () {
             Route::match(['put', 'patch'], '{project}/tasks/{task}', [BusinessProjectTaskController::class, 'update'])->whereNumber('project')->whereNumber('task');
             Route::patch('{project}/tasks/{task}/progress', [BusinessProjectTaskController::class, 'progress'])->whereNumber('project')->whereNumber('task');
             Route::post('{project}/tasks/{task}/photo', [BusinessProjectTaskController::class, 'photo'])->whereNumber('project')->whereNumber('task');
+            Route::put('{project}/tasks/{task}/assignee', [BusinessProjectTaskController::class, 'assignee'])->whereNumber('project')->whereNumber('task');
             Route::delete('{project}/tasks/{task}', [BusinessProjectTaskController::class, 'destroy'])->whereNumber('project')->whereNumber('task');
 
             // Followers: who may follow this project's progress, and at what

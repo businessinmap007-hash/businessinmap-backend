@@ -3214,5 +3214,12 @@
     "وصل اعتراضك وسيُعرض على لجنة المشرفين من جديد.": "Your objection was received and goes back to the moderators' panel.",
     "سُجِّل صوتك.": "Your vote was recorded.",
     "جارٍ العمل على هذا الطلب من زميل آخر.": "A colleague is already working on this order.",
-    "هذا المقدّم محجوز في هذا الوقت.": "This provider is booked at that time."
+    "هذا المقدّم محجوز في هذا الوقت.": "This provider is booked at that time.",
+    "هذا القالب غير متاح لنشاطك.": "This plan is not offered to your business.",
+    "هذه المرحلة ليست من مشروعك.": "This stage is not part of your project.",
+    "هذه المرحلة لا تنتظر اعتمادك.": "This stage is not waiting for your approval.",
+    "اكتب ملاحظتك على المرحلة.": "Write your note on the stage.",
+    "لا يمكنك إعادة توزيع العمل.": "You cannot hand work around.",
+    "تم اعتماد المرحلة.": "The stage was approved.",
+    "أُعيدت المرحلة إلى النشاط.": "The stage was sent back to the business."
 }

@@ -1918,9 +1918,27 @@ paths:
                 due_on: { type: string, format: date }
                 operation_type: { type: string, enum: [order, booking], description: 'Link the project to an operation you own so the customer can follow progress (send with operation_id)' }
                 operation_id: { type: integer }
+                template_id: { type: integer, description: 'Start from a ready stage plan (see GET /business/projects/templates): its stages are written into the project as a chain, each starting the day after the previous one ends and waiting for it. 422 for a plan not offered to this business.' }
       responses:
         '201': { description: Created }
         '422': { $ref: '#/components/responses/Validation' }
+  /business/projects/templates:
+    get:
+      tags: [Projects]
+      summary: The ready stage plans offered to my business
+      description: >-
+        `{templates:[{id, code, title, stages:[{title, duration_days, requires_approval}]}]}` — the plans of my trade (a car
+        workshop gets bodywork → mechanics → electrical → paint; an engineering office gets survey → design → permits →
+        supervision → handover…) plus the general ones. Pass an `id` as `template_id` when creating a project.
+      responses: { '200': { description: OK } }
+  /business/projects/my-stages:
+    get:
+      tags: [Projects]
+      summary: The stages assigned to me at the acting business that still need work
+      description: >-
+        `{stages:[{id, project_id, project_title, title, status, progress, starts_on, ends_on, requires_photo, approval_status,
+        approval_note}]}` — not done yet, or done and sent back by the customer. A staff member's day.
+      responses: { '200': { description: OK } }
   /business/projects/{project}:
     get:
       tags: [Projects]
@@ -2056,6 +2074,28 @@ paths:
                 source: { type: string, enum: [camera, upload] }
       responses:
         '201': { description: Created }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /business/projects/{project}/tasks/{task}/assignee:
+    put:
+      tags: [Projects]
+      summary: Hand a stage to one of the business's providers (or release it with null)
+      description: >-
+        Goes through the assignment core: the person is told once, and sees the stage in `GET /business/projects/my-stages`.
+        422 for someone who is not a provider here; 403 for a staff member who is himself a provider (he cannot hand work
+        around). Every task payload and the timeline carry `assignee {id, name, title}`, `requires_approval`,
+        `approval_status` (null | pending | approved | rejected) and `approval_note`.
+      parameters:
+        - { name: project, in: path, required: true, schema: { type: integer } }
+        - { name: task, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { assignee_id: { type: integer, nullable: true } } }
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/Validation' }
   /business/projects/{project}/followers:
@@ -5834,13 +5874,48 @@ paths:
         The contracted customer's read-only view of the project the business
         linked to this order/booking — the timeline, which stage it reached, and
         the camera evidence per stage. Only a party to the operation may read it
-        (a stranger gets 404); `data.project` is null when nothing is linked yet.
+        (a stranger gets 404); `data.project` is null when nothing is linked yet. `data.viewer` is `business` for the operation's business and `customer` for its buyer; each task carries `requires_approval`, `approval_status`, `approval_note` and `assignee {id,name,title}`.
       parameters:
         - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking, listing, moderation] } }
         - { in: path, name: id, required: true, schema: { type: integer } }
       responses:
         '200': { description: OK }
         '404': { description: 'Not found, or you are not a party to it' }
+  /operations/{type}/{id}/project/tasks/{task}/approve:
+    post:
+      tags: [Projects]
+      summary: The customer approves a completed stage that asked for his approval
+      description: >-
+        Only the contracted customer of the linked operation, and only a stage whose `approval_status` is `pending` (the stage
+        was completed and `requires_approval`). Returns the customer view of the project. 422 otherwise.
+      parameters:
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - { in: path, name: task, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
+  /operations/{type}/{id}/project/tasks/{task}/reject:
+    post:
+      tags: [Projects]
+      summary: The customer sends a completed stage back, with a note
+      description: >-
+        Body `{note}` is required. The stage reopens (in_progress, at most 90%), the business is told with the note, and it
+        must be completed again — which asks for approval again.
+      parameters:
+        - { in: path, name: type, required: true, schema: { type: string, enum: [order, booking] } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - { in: path, name: task, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [note], properties: { note: { type: string, maxLength: 500 } } }
+      responses:
+        '200': { description: OK }
+        '404': { description: 'Not found, or you are not a party to it' }
+        '422': { $ref: '#/components/responses/Validation' }
   /operation-chats/{type}/{id}:
     get:
       tags: [Operation Chats]

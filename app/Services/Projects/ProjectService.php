@@ -114,8 +114,13 @@ class ProjectService
         $project = $task->project()->first();
         $this->recomputeProgress($project);
 
-        // A stage just crossed into "done" → tell the followers progress moved.
+        // A stage just crossed into "done" → tell the followers progress moved; one that asks for the customer's approval
+        // now waits for it.
         if (! $wasDone && $task->isDone() && $project) {
+            if ($task->requires_approval) {
+                $task->forceFill(['approval_status' => ProjectTask::APPROVAL_PENDING, 'approval_note' => null, 'approval_at' => null])->save();
+            }
+
             $this->notifyStageCompleted($project, $task);
         }
 
@@ -277,11 +282,17 @@ class ProjectService
      */
     public function customerView(Project $project): array
     {
-        $tasks = $project->tasks()->with('photos')->get()->map(fn (ProjectTask $t) => [
+        $assignees = $this->assigneesOf((int) $project->business_id, $project->tasks()->pluck('id')->all());
+
+        $tasks = $project->tasks()->with('photos')->orderBy('sort_order')->orderBy('id')->get()->map(fn (ProjectTask $t) => [
             'id' => (int) $t->id,
             'title' => (string) $t->title,
             'status' => (string) $t->status,
             'progress' => (int) $t->progress,
+            'requires_approval' => (bool) $t->requires_approval,
+            'approval_status' => $t->approval_status,
+            'approval_note' => $t->approval_note,
+            'assignee' => $assignees[(int) $t->id] ?? null,
             'starts_on' => optional($t->starts_on)->toDateString(),
             'ends_on' => optional($t->ends_on)->toDateString(),
             'photos' => $t->photos->map(fn (Image $i) => [
@@ -449,7 +460,15 @@ class ProjectService
                 'is_overdue' => (bool) $isOverdue,
                 'starts_before_dependencies' => (bool) $startsBeforeDeps,
                 'depends_on' => $preds[$id],
+                'requires_approval' => (bool) $task->requires_approval,
+                'approval_status' => $task->approval_status,
+                'approval_note' => $task->approval_note,
             ];
+        }
+
+        // who is responsible for each stage (the assignment core)
+        foreach ($this->assigneesOf((int) $project->business_id, array_keys($rows)) as $taskId => $person) {
+            $rows[$taskId]['assignee'] = $person;
         }
 
         return [
@@ -472,6 +491,95 @@ class ProjectService
         $avg = (int) round((float) $project->tasks()->avg('progress'));
         $project->progress = max(0, min(100, $avg));
         $project->save();
+    }
+
+    /* ------------------------------------------------------------ approval */
+
+    /**
+     * The contracted customer's answer on a completed stage that asks for it: approve it, or send it back with a note (the
+     * stage reopens at 90% and must be completed — with its photo — again). Only the customer of the linked operation.
+     *
+     * @throws ValidationException
+     */
+    public function decideApproval(ProjectTask $task, User $customer, bool $approve, ?string $note = null): ProjectTask
+    {
+        $project = $task->project()->first();
+
+        if (! $project || $this->contractedCustomerId($project) !== (int) $customer->id) {
+            throw ValidationException::withMessages(['task' => __('هذه المرحلة ليست من مشروعك.')]);
+        }
+
+        if ($task->approval_status !== ProjectTask::APPROVAL_PENDING) {
+            throw ValidationException::withMessages(['task' => __('هذه المرحلة لا تنتظر اعتمادك.')]);
+        }
+
+        $note = $note !== null ? mb_substr(trim($note), 0, 500) : null;
+
+        if (! $approve && ($note === null || $note === '')) {
+            throw ValidationException::withMessages(['rejection_note' => __('اكتب ملاحظتك على المرحلة.')]);
+        }
+
+        if ($approve) {
+            $task->forceFill(['approval_status' => ProjectTask::APPROVAL_APPROVED, 'approval_note' => $note ?: null, 'approval_at' => now()])->save();
+        } else {
+            $task->forceFill([
+                'approval_status' => ProjectTask::APPROVAL_REJECTED, 'approval_note' => $note, 'approval_at' => now(),
+                'status' => ProjectTask::STATUS_IN_PROGRESS, 'progress' => min(90, (int) $task->progress),
+            ])->save();
+            $this->recomputeProgress($project);
+        }
+
+        $this->notifyApprovalDecision($project, $task, $approve);
+
+        return $task->fresh();
+    }
+
+    /** The business hears the customer's answer on its stage. */
+    private function notifyApprovalDecision(Project $project, ProjectTask $task, bool $approved): void
+    {
+        try {
+            $this->notifications->dispatch('project_stage_completed', (int) $project->business_id, [
+                'title_ar' => $approved ? 'اعتمد العميل مرحلة' : 'أعاد العميل مرحلة للتعديل',
+                'title_en' => $approved ? 'The customer approved a stage' : 'The customer sent a stage back',
+                'body_ar' => ($approved ? 'اعتُمدت المرحلة «' : 'أُعيدت المرحلة «') . $task->title . '» في المشروع «' . $project->title . '».'
+                    . ($approved || ! $task->approval_note ? '' : ' الملاحظة: ' . $task->approval_note),
+                'body_en' => 'The stage "' . $task->title . '" of "' . $project->title . '" was ' . ($approved ? 'approved.' : 'sent back.')
+                    . ($approved || ! $task->approval_note ? '' : ' Note: ' . $task->approval_note),
+                'notifiable_type' => Project::class,
+                'notifiable_id' => (int) $project->id,
+                'source_type' => ProjectTask::class,
+                'source_id' => (int) $task->id,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * The people responsible for stages, for many at once: task id → {id, name, title}. Reads the assignment core; a former
+     * provider still names who did the work.
+     *
+     * @param  iterable<int>  $taskIds
+     * @return array<int,array{id:int,name:string,title:?string}>
+     */
+    public function assigneesOf(int $businessId, iterable $taskIds): array
+    {
+        $map = app(\App\Services\Assignments\AssignmentService::class)->assigneesOf((new ProjectTask())->getMorphClass(), $taskIds);
+
+        if ($map === []) {
+            return [];
+        }
+
+        $people = \App\Support\Providers::parties($businessId, array_values($map));
+        $out = [];
+
+        foreach ($map as $taskId => $userId) {
+            if (isset($people[$userId])) {
+                $out[(int) $taskId] = ['id' => (int) $userId, 'name' => (string) $people[$userId]['name'], 'title' => $people[$userId]['title'] ?? null];
+            }
+        }
+
+        return $out;
     }
 
     /* ------------------------------------------------------------ helpers */
@@ -512,13 +620,16 @@ class ProjectService
         )));
 
         foreach ($recipients as $userId) {
+            // the contracted customer is asked to approve a stage that wants it
+            $asks = $task->requires_approval && $userId === $customerId;
+
             try {
                 $this->notifications->dispatch('project_stage_completed', $userId, [
                     // Stored notification content stays UNwrapped (bilingual columns).
-                    'title_ar' => 'اكتملت مرحلة في مشروعك',
-                    'title_en' => 'A stage was completed',
-                    'body_ar' => 'اكتملت المرحلة «' . $task->title . '» في المشروع «' . $project->title . '».',
-                    'body_en' => 'The stage "' . $task->title . '" of "' . $project->title . '" is complete.',
+                    'title_ar' => $asks ? 'مرحلة بانتظار اعتمادك' : 'اكتملت مرحلة في مشروعك',
+                    'title_en' => $asks ? 'A stage is waiting for your approval' : 'A stage was completed',
+                    'body_ar' => ($asks ? 'اكتملت المرحلة «' . $task->title . '» في المشروع «' . $project->title . '» وتنتظر اعتمادك.' : 'اكتملت المرحلة «' . $task->title . '» في المشروع «' . $project->title . '».'),
+                    'body_en' => ($asks ? 'The stage "' . $task->title . '" of "' . $project->title . '" is complete and waits for your approval.' : 'The stage "' . $task->title . '" of "' . $project->title . '" is complete.'),
                     'notifiable_type' => Project::class,
                     'notifiable_id' => (int) $project->id,
                     'source_type' => ProjectTask::class,

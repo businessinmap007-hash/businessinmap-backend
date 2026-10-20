@@ -7,7 +7,6 @@ use App\Models\Image;
 use App\Models\Project;
 use App\Models\ProjectShowcase;
 use App\Models\ProjectTask;
-use App\Models\ShowcaseConsent;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Facades\DB;
@@ -53,10 +52,6 @@ final class ProjectShowcaseService
             throw ValidationException::withMessages(['project' => $showcase->isLive() ? __('المشروع منشور بالفعل.') : __('طلب النشر ينتظر رد العميل.')]);
         }
 
-        // his general consent covers it (and the photos, if asked) — unless he himself took it down or refused it before
-        $consent = ShowcaseConsent::forUser($customerId);
-        $general = $consent['projects'] && (! $showPhotos || $consent['project_photos']) && (! $showcase || $showcase->withdrawn_by === 'business');
-
         $showcase = ProjectShowcase::query()->updateOrCreate(['project_id' => $project->id], [
             'business_id' => (int) $project->business_id,
             'public_title' => mb_substr(trim($publicTitle), 0, 191),
@@ -67,25 +62,7 @@ final class ProjectShowcaseService
             'decided_at' => null,
             'decision_note' => null,
             'decided_by' => null,
-            'decided_via' => null,
-            'withdrawn_by' => null,
         ]);
-
-        if ($general) {
-            DB::transaction(function () use ($showcase, $project, $customerId) {
-                $showcase->forceFill(['status' => ProjectShowcase::APPROVED, 'decided_at' => now(), 'decided_by' => $customerId, 'decided_via' => 'general'])->save();
-                $this->publish($showcase, $project);
-            });
-
-            $this->tell(
-                $customerId, $project,
-                'نُشر مشروعك بموافقتك العامة', 'Your project was shown under your general consent',
-                'عُرض تقدّم المشروع «' . $project->title . '» دون اسمك ولا عنوانك، وفق موافقتك العامة. يمكنك إيقافه في أي وقت.',
-                '"' . $project->title . '" is shown without your name or address under your general consent. You can stop it any time.'
-            );
-
-            return $showcase->fresh();
-        }
 
         $this->tell(
             $customerId, $project,
@@ -113,7 +90,6 @@ final class ProjectShowcaseService
                 'status' => $approve ? ProjectShowcase::APPROVED : ProjectShowcase::DECLINED,
                 'decided_at' => now(),
                 'decided_by' => (int) $customer->id,
-                'decided_via' => 'request',
                 'decision_note' => $note !== null && trim($note) !== '' ? mb_substr(trim($note), 0, 500) : null,
             ])->save();
 
@@ -148,7 +124,7 @@ final class ProjectShowcaseService
         }
 
         DB::transaction(function () use ($showcase, $isBusiness) {
-            $showcase->forceFill(['status' => ProjectShowcase::WITHDRAWN, 'decided_at' => now(), 'withdrawn_by' => $isBusiness ? 'business' : 'customer'])->save();
+            $showcase->forceFill(['status' => ProjectShowcase::WITHDRAWN, 'decided_at' => now()])->save();
             $showcase->post_id && FeedPost::query()->whereKey($showcase->post_id)->update(['is_active' => false]);
         });
 
@@ -261,7 +237,6 @@ final class ProjectShowcaseService
             'requested_at' => optional($s->requested_at)->toIso8601String(),
             'decided_at' => optional($s->decided_at)->toIso8601String(),
             'decision_note' => $s->decision_note,
-            'decided_via' => $s->decided_via,
         ] : null;
     }
 

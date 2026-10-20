@@ -617,14 +617,10 @@ Route::prefix('v2')->group(function () {
         Route::get('training-plans/{plan}/weekly-summary', [ClientTrainingController::class, 'weeklySummary'])->whereNumber('plan');
         // My own monthly body reports, read-only: the trainer records them.
         Route::get('training-plans/{plan}/body-reports', [BodyCompositionController::class, 'clientIndex'])->whereNumber('plan');
-        // …the client confirms a month's result, and answers the trainer's request to show the plan's results.
-        Route::post('training-plans/{plan}/body-reports/{report}/confirm', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'confirmReport'])->whereNumber(['plan', 'report']);
+        // …the client answers the trainer's request to show the plan's results (one approval covers the whole programme).
         Route::post('training-plans/{plan}/showcase/approve', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'approve'])->whereNumber('plan');
         Route::post('training-plans/{plan}/showcase/decline', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'decline'])->whereNumber('plan');
         Route::post('training-plans/{plan}/showcase/withdraw', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'clientWithdraw'])->whereNumber('plan');
-        // «موافقة عامة»: allow once that my projects / training plans / nutrition plans may be shown (anonymous, confirmed results).
-        Route::get('showcase-consent', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'consent']);
-        Route::put('showcase-consent', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'updateConsent']);
 
         // Clinic appointments — the patient's side: request, read mine, cancel.
         Route::get('clinic-appointments', [ClinicAppointmentController::class, 'index']);

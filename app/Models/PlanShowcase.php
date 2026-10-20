@@ -16,7 +16,7 @@ class PlanShowcase extends Model
 
     protected $fillable = [
         'training_plan_id', 'trainer_id', 'post_id', 'public_title', 'note', 'status',
-        'requested_at', 'decided_at', 'decision_note', 'decided_by', 'decided_via', 'withdrawn_by',
+        'requested_at', 'decided_at', 'decision_note', 'decided_by',
     ];
 
     protected $casts = ['requested_at' => 'datetime', 'decided_at' => 'datetime'];

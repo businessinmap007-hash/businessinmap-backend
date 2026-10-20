@@ -34,7 +34,6 @@ class BodyCompositionReport extends Model
         'bone_mass_kg',
         'visceral_fat',
         'notes',
-        'client_confirmed_at',
     ];
 
     protected $casts = [
@@ -49,7 +48,6 @@ class BodyCompositionReport extends Model
         'water_percent' => 'decimal:2',
         'bone_mass_kg' => 'decimal:2',
         'visceral_fat' => 'decimal:2',
-        'client_confirmed_at' => 'datetime',
     ];
 
     public function plan(): BelongsTo

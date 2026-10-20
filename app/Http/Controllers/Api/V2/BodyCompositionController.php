@@ -96,7 +96,6 @@ final class BodyCompositionController extends Controller
                 'trainer_id' => (int) $row->trainer_id,
                 'measured_on' => $data['measured_on'] ?? $month->toDateString(),
                 'notes' => $data['notes'] ?? null,
-                'client_confirmed_at' => null, // a re-measured month asks for the client's word again
             ]
         );
 
@@ -158,8 +157,6 @@ final class BodyCompositionController extends Controller
             'bone_mass_kg' => $number($report->bone_mass_kg),
             'visceral_fat' => $number($report->visceral_fat),
             'notes' => $report->notes,
-            'confirmed' => $report->client_confirmed_at !== null,
-            'confirmed_on' => optional($report->client_confirmed_at)->toDateString(),
             'change' => $report->deltaFrom($previous),
         ];
     }

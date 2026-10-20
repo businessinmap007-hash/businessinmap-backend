@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AccountCase;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\Dispute;
@@ -46,6 +47,8 @@ class OperationChatService
         'booking' => Booking::class,
         // a buyer's conversation about an owner listing: the same chat, with its own rules (no phone numbers until paid)
         'listing' => OwnerListingInquiry::class,
+        // a moderator's chat with a reported account (to learn what the report is about)
+        'moderation' => AccountCase::class,
     ];
 
     public function __construct(
@@ -67,7 +70,7 @@ class OperationChatService
     /** @return array{0:int,1:int} [clientId, businessId] */
     public function partiesFor(Model $operation): array
     {
-        if ($operation instanceof OwnerListingInquiry) {
+        if ($operation instanceof OwnerListingInquiry || $operation instanceof AccountCase) {
             return $operation->parties();
         }
 
@@ -111,9 +114,11 @@ class OperationChatService
         if (! $existed) {
             $this->threads->system(
                 $thread,
-                $operation instanceof OwnerListingInquiry
+                $operation instanceof AccountCase
+                    ? 'محادثة مع المشرفين بخصوص بلاغ عن الحساب. اكتب ما يوضح الأمر ليتأكد المشرف من السبب.'
+                    : ($operation instanceof OwnerListingInquiry
                     ? 'محادثة حول إعلان «' . ($operation->listing?->title ?? '') . '». لا يمكن كتابة أرقام الهاتف هنا. عند الاتفاق اضغط «اتفقنا» لتبادل الأرقام (تُحصَّل رسوم المنصة).'
-                    : 'فُتحت محادثة العملية بين العميل والتاجر. تُحفظ المحادثة كدليل موثوق داخل التطبيق.'
+                    : 'فُتحت محادثة العملية بين العميل والتاجر. تُحفظ المحادثة كدليل موثوق داخل التطبيق.')
             );
         }
 
@@ -129,6 +134,10 @@ class OperationChatService
 
         if ($operation instanceof Order) {
             return (string) $operation->status === 'completed';
+        }
+
+        if ($operation instanceof AccountCase) {
+            return $operation->status === AccountCase::STATUS_CLOSED;
         }
 
         return false;

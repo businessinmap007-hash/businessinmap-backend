@@ -252,7 +252,6 @@ Route::prefix('business')->name('business.')->group(function () {
         // `create` and `lookup` stay ahead of {id}, which is a plan number.
         Route::get('training-plans', [TrainingPlanController::class, 'index'])->name('training-plans.index');
         Route::get('training-plans/create', [TrainingPlanController::class, 'create'])->name('training-plans.create');
-        Route::get('training-plans/calculator', [TrainingPlanController::class, 'calculator'])->name('training-plans.calculator');
         Route::get('training-plans/lookup', [TrainingPlanController::class, 'lookup'])->name('training-plans.lookup');
         Route::post('training-plans', [TrainingPlanController::class, 'store'])->name('training-plans.store');
         Route::get('training-plans/{id}', [TrainingPlanController::class, 'show'])->whereNumber('id')->name('training-plans.show');

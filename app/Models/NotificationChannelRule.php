@@ -195,6 +195,8 @@ class NotificationChannelRule extends Model
             'training_lapse' => ['انقطاع متدرب عن تمارينه', 'Client fell behind', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'training_session_completed' => ['إنهاء المتدرب لتمارين اليوم', 'Client finished a workout', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'training_plan_expiring' => ['شهر الخطة على وشك الانتهاء', 'Plan month ending soon', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'moderation_chat_opened' => ['مشرف فتح محادثة معك', 'A moderator opened a chat with you', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            'moderation_account_frozen' => ['تجميد الحساب', 'Account frozen', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, true, 0, 'system'],
             'moderation_report_outcome' => ['نتيجة بلاغك', 'The outcome of your report', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'moderation_content_removed' => ['إزالة محتوى بعد بلاغ', 'Content removed after a report', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
             'training_plan_declined' => ['رفض خطة التدريب', 'Training plan declined', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],

@@ -3192,5 +3192,10 @@
     "لنشر إعلانك: ضمان :level فأعلى، أو عربون جدية :amount جنيه يُحجز من محفظتك ويُردّ عند البيع أو الإنهاء.": "To publish your listing you need a :level guarantee or higher, or a seriousness deposit of :amount EGP held from your wallet and handed back when you sell or end it.",
     "رصيدك لا يكفي لعربون الجدية (:amount جنيه). اشحن محفظتك أولًا.": "Your balance is not enough for the seriousness deposit (:amount EGP). Top up your wallet first.",
     "اختر المدينة أولًا ليقتصر الإعلان على أهلها.": "Choose the city first to limit the listing to its people.",
-    "اختر القاعدة التي خالفها الإعلان.": "Choose the rule the listing broke."
+    "اختر القاعدة التي خالفها الإعلان.": "Choose the rule the listing broke.",
+    "لا يمكن تجميد هذا الحساب.": "This account cannot be frozen.",
+    "الحسابات لا تُزال؛ تُجمَّد ثلاثة أيام.": "Accounts are not removed; they are frozen for three days.",
+    "جُمِّد الحساب.": "The account was frozen.",
+    "رُفع التجميد.": "The freeze was lifted.",
+    "حسابك مجمَّد مؤقتًا. تواصل مع المشرفين من شاشة التجميد.": "Your account is temporarily frozen. Talk to the moderators from the freeze screen."
 }

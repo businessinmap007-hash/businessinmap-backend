@@ -146,6 +146,8 @@ return [
     */
     'moderation' => [
         'claim_minutes' => 30,
+        // a reported account is frozen (not removed) for this many days
+        'freeze_days' => 3,
     ],
 
     /*

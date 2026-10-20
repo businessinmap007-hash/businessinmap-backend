@@ -90,6 +90,45 @@ final class ContentReportController extends Controller
         return response()->json(['success' => true, 'message' => __('تم تحرير البلاغ.')]);
     }
 
+    /** POST moderation/reports/account/{id}/chat — open the chat with the reported account (needs the claim). Returns the case: chat at operation-chats/moderation/{case}. */
+    public function accountChat(Request $request, int $id)
+    {
+        $this->authorizeModerator($request);
+        $case = $this->reports->chatWithAccount($id, $request->user());
+
+        return response()->json(['success' => true, 'data' => ['case_id' => (int) $case->id]]);
+    }
+
+    /** POST moderation/reports/account/{id}/freeze — freeze it for `bim.moderation.freeze_days` (3); the account is never removed. */
+    public function accountFreeze(Request $request, int $id)
+    {
+        $this->authorizeModerator($request);
+        $case = $this->reports->freezeAccount($id, $request->user());
+
+        return response()->json(['success' => true, 'message' => __('جُمِّد الحساب.'), 'data' => ['case_id' => (int) $case->id, 'frozen_until' => optional($case->frozen_until)->toIso8601String()]]);
+    }
+
+    /** POST moderation/reports/account/{id}/unfreeze — lift the freeze early and close the case. */
+    public function accountUnfreeze(Request $request, int $id)
+    {
+        $this->authorizeModerator($request);
+        $this->reports->unfreezeAccount($id, $request->user());
+
+        return response()->json(['success' => true, 'message' => __('رُفع التجميد.')]);
+    }
+
+    /** GET moderation/my-case — for a REPORTED account: its open case (the chat with the moderators) and whether it is frozen. */
+    public function myCase(Request $request, \App\Services\Moderation\AccountModerationService $accounts)
+    {
+        $case = $accounts->caseFor($request->user());
+
+        return response()->json(['success' => true, 'data' => ['case' => $case ? [
+            'id' => (int) $case->id,
+            'status' => $case->status,
+            'frozen_until' => optional($case->frozen_until)->toIso8601String(),
+        ] : null]]);
+    }
+
     /** POST moderation/reports/{type}/{id}/dismiss */
     public function dismiss(Request $request, string $type, int $id)
     {

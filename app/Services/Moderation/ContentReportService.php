@@ -29,6 +29,8 @@ final class ContentReportService
     public const TYPES = [
         'post' => Post::class,
         'comment' => Comment::class,
+        // an ACCOUNT is never removed: a moderator may chat with it and freeze it for three days
+        'account' => User::class,
         'owner_listing' => OwnerListing::class,
     ];
 
@@ -43,6 +45,7 @@ final class ContentReportService
     ];
 
     public function __construct(
+        private readonly AccountModerationService $accounts,
         private readonly OwnerListingService $listings,
         private readonly NotificationDispatcherService $notifications
     ) {}
@@ -247,6 +250,11 @@ final class ContentReportService
 
         $target = $this->find($type, $id);
 
+        if ($type === 'account' && $target instanceof User && ! $target->isFrozen()) {
+            \App\Models\AccountCase::query()->where('user_id', $id)->where('status', 'open')->get()
+                ->each(fn ($c) => $this->accounts->close($c, $moderator, 'cleared'));
+        }
+
         if ($type === 'owner_listing' && $target instanceof OwnerListing && $target->status === OwnerListing::STATUS_FLAGGED) {
             $target->update(['status' => OwnerListing::STATUS_ACTIVE, 'reports_count' => 0]);
         }
@@ -263,6 +271,10 @@ final class ContentReportService
 
         if (! $target) {
             throw ValidationException::withMessages(['target' => __('هذا المحتوى محذوف بالفعل.')]);
+        }
+
+        if ($type === 'account') {
+            throw ValidationException::withMessages(['target' => __('الحسابات لا تُزال؛ تُجمَّد ثلاثة أيام.')]);
         }
 
         if ($type === 'owner_listing' && ! isset(OwnerListingSeriousness::VIOLATIONS[(string) $violation])) {
@@ -288,10 +300,58 @@ final class ContentReportService
         return $taken;
     }
 
+    /** The moderator opens a chat with the reported account, to find out what the report is about. */
+    public function chatWithAccount(int $id, User $moderator): \App\Models\AccountCase
+    {
+        $account = $this->accountOrFail($id);
+        $this->guard('account', $id, $moderator);
+
+        return $this->accounts->openChat($account, $moderator);
+    }
+
+    /** Freeze the reported account for three days (never removes it); the reports are closed as actioned. */
+    public function freezeAccount(int $id, User $moderator): \App\Models\AccountCase
+    {
+        $account = $this->accountOrFail($id);
+        $this->guard('account', $id, $moderator);
+
+        $case = DB::transaction(function () use ($account, $id, $moderator) {
+            $case = $this->accounts->freeze($account, $moderator);
+            $this->closeReports('account', $id, $moderator, ContentReport::STATUS_ACTIONED, 'frozen');
+
+            return $case;
+        });
+
+        return $case;
+    }
+
+    /** The moderator lifts the freeze early. */
+    public function unfreezeAccount(int $id, User $moderator): void
+    {
+        $this->accounts->unfreeze($this->accountOrFail($id), $moderator);
+    }
+
+    private function accountOrFail(int $id): User
+    {
+        $account = User::query()->find($id);
+
+        if (! $account) {
+            throw ValidationException::withMessages(['target' => __('هذا المحتوى محذوف بالفعل.')]);
+        }
+
+        return $account;
+    }
+
     /** A hidden post goes back up (a moderator changed their mind). */
     public function restore(string $type, int $id, User $moderator): void
     {
         $target = $this->find($type, $id);
+
+        if ($type === 'account' && $target) {
+            $this->accounts->unfreeze($target, $moderator);
+
+            return;
+        }
 
         if ($type !== 'post' || ! $target) {
             throw ValidationException::withMessages(['target' => __('لا يمكن استعادة هذا المحتوى.')]);
@@ -328,13 +388,15 @@ final class ContentReportService
             'post' => (bool) $target->is_active && ($target->expire_at === null || $target->expire_at->isFuture()),
             // only a public comment: a private one is a conversation between two people, not published content
             'comment' => $target->status === 'public',
+            // any ordinary account: not a staff account, not one that is already banned or gone
+            'account' => (string) $target->type !== 'admin' && ! $target->isBanned() && $target->anonymized_at === null,
             default => in_array($target->status, [OwnerListing::STATUS_ACTIVE, OwnerListing::STATUS_FLAGGED], true),
         };
     }
 
     private function authorId(string $type, $target): int
     {
-        return (int) $target->user_id;
+        return $type === 'account' ? (int) $target->id : (int) $target->user_id;
     }
 
     private function openCount(string $type, int $id): int
@@ -383,6 +445,21 @@ final class ContentReportService
                 'image' => $target->image ?: null,
                 'author' => $author ? ['id' => (int) $author->id, 'name' => $author->displayName()] : null,
                 'post_type' => $target->type,
+            ];
+        }
+
+        if ($type === 'account') {
+            $case = \App\Models\AccountCase::query()->where('user_id', $id)->latest('id')->first();
+
+            return $base + [
+                'state' => $target->isFrozen() ? 'frozen' : 'live',
+                'title' => $target->displayName(),
+                'excerpt' => mb_substr(trim((string) $target->about), 0, 240),
+                'image' => $target->logo ?: ($target->image ?: null),
+                'author' => null,
+                'account_type' => (string) $target->type,
+                'frozen_until' => $target->isFrozen() ? $target->frozen_until->toIso8601String() : null,
+                'case' => $case ? ['id' => (int) $case->id, 'status' => $case->status, 'chat_opened' => true] : null,
             ];
         }
 

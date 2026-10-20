@@ -18,7 +18,6 @@
         <div class="a2-page-subtitle">{{ __('خطة التمرين والنظام الغذائي لكل عميل. لا يراها إلا أنت والعميل نفسه.') }}</div>
     </div>
     <div class="a2-page-actions">
-        <a href="{{ route('business.training-plans.calculator') }}" class="a2-btn a2-btn-ghost">{{ __('حاسبة الوزن المناسب') }}</a>
         <a href="{{ route('business.training-plans.create') }}" class="a2-btn a2-btn-primary">{{ __('خطة جديدة') }}</a>
     </div>
 </div>

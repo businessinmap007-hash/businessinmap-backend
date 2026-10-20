@@ -170,6 +170,8 @@ class User extends Authenticatable
         'deletion_scheduled_at' => 'datetime',
         'anonymized_at'         => 'datetime',
         'banned_at'             => 'datetime',
+        // frozen by a moderator after reports (three days by default); not mass-assignable
+        'frozen_until'          => 'datetime',
         // «استراحة»: not mass-assignable, set only through the availability switch
         'requests_paused_at'    => 'datetime',
     ];
@@ -184,6 +186,12 @@ class User extends Authenticatable
     public function isBanned(): bool
     {
         return $this->banned_at !== null;
+    }
+
+    /** Frozen by a moderator: the account keeps only its chat with the moderators until this passes. */
+    public function isFrozen(): bool
+    {
+        return $this->frozen_until !== null && $this->frozen_until->isFuture();
     }
 
     /** Requested deletion and still inside the grace window (restorable). */

@@ -463,12 +463,12 @@ Route::prefix('v2')->group(function () {
         // 7 days after the operation completes, then read-only. {type} is
         // order|booking; only a party to the operation may read or post.
         Route::get('operation-chats/{type}/{id}', [OperationChatController::class, 'show'])
-            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing']);
+            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing', 'moderation']);
         Route::post('operation-chats/{type}/{id}/messages', [OperationChatController::class, 'postMessage'])
-            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing']);
+            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing', 'moderation']);
         // A party deletes an expired, undisputed chat (or lets the sweep do it).
         Route::delete('operation-chats/{type}/{id}', [OperationChatController::class, 'destroy'])
-            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing']);
+            ->whereNumber('id')->whereIn('type', ['order', 'booking', 'listing', 'moderation']);
 
         // Whether admins may ever read this thread's decrypted content — a
         // standing decision each real participant (never the arbitrator) can
@@ -1342,6 +1342,10 @@ Route::prefix('v2')->group(function () {
         Route::prefix('moderation')->group(function () {
             Route::get('me', [ContentReportController::class, 'me']);
             Route::get('violations', [ContentReportController::class, 'violations']);
+            Route::get('my-case', [ContentReportController::class, 'myCase']);
+            Route::post('reports/account/{id}/chat', [ContentReportController::class, 'accountChat'])->whereNumber('id');
+            Route::post('reports/account/{id}/freeze', [ContentReportController::class, 'accountFreeze'])->whereNumber('id');
+            Route::post('reports/account/{id}/unfreeze', [ContentReportController::class, 'accountUnfreeze'])->whereNumber('id');
             Route::get('reports', [ContentReportController::class, 'queue']);
             Route::post('reports/{type}/{id}/claim', [ContentReportController::class, 'claim'])->whereNumber('id');
             Route::post('reports/{type}/{id}/release', [ContentReportController::class, 'release'])->whereNumber('id');

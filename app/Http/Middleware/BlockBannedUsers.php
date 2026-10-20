@@ -27,6 +27,31 @@ class BlockBannedUsers
             ], 403);
         }
 
+        // A moderator froze the account (reports on it): it keeps ONE screen — the chat with the moderators — and the way out.
+        if ($user && $user->isFrozen() && ! $this->frozenMayReach($request)) {
+            return response()->json([
+                'success' => false,
+                'code' => 'account_frozen',
+                'message' => __('حسابك مجمَّد مؤقتًا. تواصل مع المشرفين من شاشة التجميد.'),
+                'errors' => ['account' => [__('حسابك مجمَّد مؤقتًا. تواصل مع المشرفين من شاشة التجميد.')]],
+                'data' => ['frozen_until' => $user->frozen_until->toIso8601String()],
+            ], 423);
+        }
+
         return $next($request);
+    }
+
+    /** What a frozen account can still do: see itself, sign out, read/answer the moderators' chat, read its own case. */
+    private function frozenMayReach(Request $request): bool
+    {
+        $path = trim($request->path(), '/');
+
+        foreach (['api/v2/auth/', 'api/v2/operation-chats/moderation/', 'api/v2/moderation/my-case'] as $allowed) {
+            if (str_starts_with($path . '/', $allowed) || str_starts_with($path, $allowed)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

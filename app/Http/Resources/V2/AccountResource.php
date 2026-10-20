@@ -51,6 +51,8 @@ class AccountResource extends JsonResource
             // (SpecialtyServicesService).
             'specialty_services' => $this->isBusiness() && app(\App\Services\Clinics\SpecialtyServicesService::class)->hasLists($this->resource),
             // Any account holding the content ability gets the moderation tab (reports on posts and listings).
+            // a moderator froze it: the app shows only the chat with the moderators until this moment
+            'frozen_until' => $this->isFrozen() ? $this->frozen_until->toIso8601String() : null,
             'is_moderator' => app(\App\Services\Moderation\ContentReportService::class)->isModerator($this->resource),
             'created_at' => optional($this->created_at)->toIso8601String(),
         ];

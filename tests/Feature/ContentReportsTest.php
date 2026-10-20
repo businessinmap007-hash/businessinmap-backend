@@ -315,4 +315,115 @@ class ContentReportsTest extends TestCase
         $this->assertStringContainsString('لا يخالف', $told->firstWhere('source_id', $kept->id)->body_ar);
         $this->assertStringNotContainsString($mod->name, $told->pluck('body_ar')->implode(' '));
     }
+
+    public function test_a_reported_account_is_never_removed_the_moderator_chats_with_it_and_may_freeze_it_for_three_days(): void
+    {
+        $account = $this->user('shady', User::TYPE_BUSINESS);
+        $rep1 = $this->user('rep1');
+        $rep2 = $this->user('rep2');
+
+        foreach ([$rep1, $rep2] as $r) {
+            Sanctum::actingAs($r);
+            $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $account->id, 'reason' => 'fraud'])->assertOk();
+        }
+
+        // not oneself, not a staff account, not a made-up one
+        Sanctum::actingAs($account);
+        $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $account->id, 'reason' => 'spam'])->assertStatus(422);
+        Sanctum::actingAs($rep1);
+        $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $this->user('boss', 'admin')->id, 'reason' => 'spam'])->assertStatus(422);
+
+        $mod = $this->moderator();
+        Sanctum::actingAs($mod);
+        $row = collect($this->getJson('/api/v2/moderation/reports?type=account&per_page=50')->assertOk()->json('data.items'))->firstWhere('id', $account->id);
+        $this->assertSame(2, $row['reports']);
+        $this->assertSame('live', $row['state']);
+
+        // «remove» is refused for an account
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/remove")->assertStatus(422);
+
+        // chat first: the account is told, and both can talk in the moderation chat
+        $caseId = $this->postJson("/api/v2/moderation/reports/account/{$account->id}/chat")->assertOk()->json('data.case_id');
+        $this->assertSame(1, AppNotification::where('user_id', $account->id)->where('source_type', 'moderation_chat_opened')->count());
+        $this->getJson("/api/v2/operation-chats/moderation/{$caseId}")->assertOk();
+        $this->postJson("/api/v2/operation-chats/moderation/{$caseId}/messages", ['body' => 'Tell me about the reports'])->assertStatus(201);
+        $this->assertFalse($account->refresh()->isFrozen(), 'a chat alone freezes nothing');
+
+        // freeze: three days
+        $res = $this->postJson("/api/v2/moderation/reports/account/{$account->id}/freeze")->assertOk();
+        $this->assertTrue($account->refresh()->isFrozen());
+        $this->assertEqualsWithDelta(3 * 86400, $account->frozen_until->diffInSeconds(now()), 120);
+
+        // the frozen account reaches ONLY the moderators' chat and the way out
+        Sanctum::actingAs($account);
+        $this->getJson('/api/v2/auth/me')->assertOk()->assertJsonPath('data.frozen_until', $account->frozen_until->toIso8601String());
+        $this->getJson('/api/v2/moderation/my-case')->assertOk()->assertJsonPath('data.case.id', $caseId);
+        $this->getJson("/api/v2/operation-chats/moderation/{$caseId}")->assertOk();
+        $this->postJson("/api/v2/operation-chats/moderation/{$caseId}/messages", ['body' => 'I can explain'])->assertStatus(201);
+        $this->getJson('/api/v2/owner-listings')->assertStatus(423)->assertJsonPath('code', 'account_frozen');
+        $this->postJson('/api/v2/owner-listings', $this->listingBody())->assertStatus(423);
+
+        // a stranger cannot read the chat; the reports were closed as actioned and the reporters told
+        Sanctum::actingAs($rep1);
+        $this->getJson("/api/v2/operation-chats/moderation/{$caseId}")->assertStatus(404);
+        $this->assertSame(0, ContentReport::where('reportable_type', 'account')->where('reportable_id', $account->id)->where('status', 'open')->count());
+        $this->assertSame(1, AppNotification::where('user_id', $rep1->id)->where('source_type', 'moderation_report_outcome')->count());
+
+        // after three days it works again by itself
+        $this->travel(3)->days();
+        $this->travel(1)->hours();
+        Sanctum::actingAs($account->refresh());
+        $this->assertFalse($account->isFrozen());
+        $this->getJson('/api/v2/owner-listings')->assertOk();
+    }
+
+    public function test_the_moderator_can_lift_the_freeze_early_and_dismissing_a_report_closes_its_case(): void
+    {
+        $account = $this->user('shady');
+        Sanctum::actingAs($this->user('rep'));
+        $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $account->id, 'reason' => 'inappropriate'])->assertOk();
+
+        $mod = $this->moderator();
+        Sanctum::actingAs($mod);
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/freeze")->assertOk();
+        $this->assertTrue($account->refresh()->isFrozen());
+
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/unfreeze")->assertOk();
+        $this->assertFalse($account->refresh()->isFrozen());
+        $this->assertSame(0, \App\Models\AccountCase::where('user_id', $account->id)->where('status', 'open')->count());
+
+        // a second report, dismissed after a chat: the open case closes, nothing is frozen
+        Sanctum::actingAs($this->user('rep2'));
+        $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $account->id, 'reason' => 'spam'])->assertOk();
+        Sanctum::actingAs($mod);
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/chat")->assertOk();
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/dismiss")->assertOk();
+        $this->assertFalse($account->refresh()->isFrozen());
+        $this->assertSame(0, \App\Models\AccountCase::where('user_id', $account->id)->where('status', 'open')->count());
+    }
+
+    public function test_only_the_moderator_holding_the_report_can_chat_or_freeze(): void
+    {
+        $account = $this->user('shady');
+        Sanctum::actingAs($this->user('rep'));
+        $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $account->id, 'reason' => 'fraud'])->assertOk();
+
+        $first = $this->moderator();
+        $second = $this->moderator();
+        Sanctum::actingAs($first);
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/claim")->assertOk();
+
+        Sanctum::actingAs($second);
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/chat")->assertStatus(422);
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/freeze")->assertStatus(422);
+        $this->assertFalse($account->refresh()->isFrozen());
+
+        Sanctum::actingAs($this->user('plain'));
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/freeze")->assertStatus(404);
+    }
+
+    private function listingBody(): array
+    {
+        return ['category' => 'other', 'deal' => 'sale', 'title' => 'Anything', 'price' => 10, 'governorate_id' => 1];
+    }
 }

@@ -12,9 +12,9 @@ class ContentReport extends Model
     public const STATUS_DISMISSED = 'dismissed';
     public const STATUS_ACTIONED = 'actioned';
 
-    protected $fillable = ['reporter_id', 'reportable_type', 'reportable_id', 'reason', 'details', 'status', 'handled_by', 'handled_at', 'action'];
+    protected $fillable = ['reporter_id', 'reportable_type', 'reportable_id', 'reason', 'details', 'message_ids', 'status', 'handled_by', 'handled_at', 'action'];
 
-    protected $casts = ['handled_at' => 'datetime'];
+    protected $casts = ['handled_at' => 'datetime', 'message_ids' => 'array'];
 
     public function reporter(): BelongsTo
     {

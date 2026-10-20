@@ -1343,6 +1343,14 @@ Route::prefix('v2')->group(function () {
             Route::get('me', [ContentReportController::class, 'me']);
             Route::get('violations', [ContentReportController::class, 'violations']);
             Route::get('my-case', [ContentReportController::class, 'myCase']);
+            Route::post('my-case/objection', [ContentReportController::class, 'objectToDeletion']);
+            Route::get('deletion-proposals', [ContentReportController::class, 'deletionProposals']);
+            Route::post('deletion-proposals/{id}/vote', [ContentReportController::class, 'voteOnDeletion'])->whereNumber('id');
+            Route::post('reports/conversation/{id}/request-consent', [ContentReportController::class, 'conversationRequestConsent'])->whereNumber('id');
+            Route::post('reports/conversation/{id}/vouch', [ContentReportController::class, 'conversationVouch'])->whereNumber('id');
+            Route::get('reports/conversation/{id}/messages', [ContentReportController::class, 'conversationMessages'])->whereNumber('id');
+            Route::post('reports/conversation/{id}/party/{user}/chat', [ContentReportController::class, 'conversationPartyChat'])->whereNumber(['id', 'user']);
+            Route::post('reports/conversation/{id}/party/{user}/freeze', [ContentReportController::class, 'conversationPartyFreeze'])->whereNumber(['id', 'user']);
             Route::post('reports/account/{id}/chat', [ContentReportController::class, 'accountChat'])->whereNumber('id');
             Route::post('reports/account/{id}/freeze', [ContentReportController::class, 'accountFreeze'])->whereNumber('id');
             Route::post('reports/account/{id}/unfreeze', [ContentReportController::class, 'accountUnfreeze'])->whereNumber('id');

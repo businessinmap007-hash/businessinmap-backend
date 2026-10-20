@@ -427,7 +427,7 @@ class ContentReportsTest extends TestCase
         return ['category' => 'other', 'deal' => 'sale', 'title' => 'Anything', 'price' => 10, 'governorate_id' => 1];
     }
 
-    public function test_each_freeze_is_counted_warned_about_and_the_fifth_deletes_the_account_and_confiscates_balance_and_guarantee(): void
+    public function test_each_freeze_is_counted_and_warned_about_and_the_fifth_files_a_deletion_proposal_instead_of_deleting(): void
     {
         $account = $this->user('shady');
         $wallets = app(\App\Services\WalletService::class);
@@ -462,10 +462,52 @@ class ContentReportsTest extends TestCase
             $this->assertEquals($n, $account->refresh()->freeze_count, 'lifting a freeze does not erase it');
         }
 
-        // the fifth
-        $res = $freezeOnce(5)->assertOk()->assertJsonPath('data.deleted', true);
-        $this->assertEquals(350, $res->json('data.confiscated'), '250 balance + 100 of the guarantee');
+        // the 4th freeze warned that the next one may lead to a deletion
+        $this->assertTrue(\App\Models\AppNotification::where('user_id', $account->id)->where('source_type', 'moderation_account_frozen')->where('body_ar', 'like', '%التجميد القادم%')->exists());
 
+        // the fifth freezes too — but nothing is deleted or confiscated by one moderator's hand: a proposal goes to the panel
+        $res = $freezeOnce(5)->assertOk()->assertJsonPath('data.deleted', false)->assertJsonPath('data.pending_deletion', true);
+        $this->assertEquals(0, $res->json('data.confiscated'));
+        $this->assertTrue($account->refresh()->isFrozen());
+        $this->assertNull($account->banned_at);
+        $this->assertEquals(250, (float) $wallets->getOrCreateWallet($account->id)->refresh()->balance, 'untouched');
+        $this->assertSame(5, \App\Models\AccountFreeze::where('user_id', $account->id)->count(), 'every freeze keeps a row');
+        $proposal = \App\Models\AccountDeletionProposal::where('user_id', $account->id)->firstOrFail();
+        $this->assertSame('pending', $proposal->status);
+
+        // the panel: the freezing moderator already approved; he cannot vote twice, and the account itself cannot vote
+        $vote = fn (User $who, string $v) => (function () use ($who, $v, $proposal) {
+            Sanctum::actingAs($who);
+
+            return $this->postJson("/api/v2/moderation/deletion-proposals/{$proposal->id}/vote", ['vote' => $v]);
+        })();
+        $vote($mod, 'approve')->assertStatus(422);
+
+        $second = $this->moderator();
+        $row = collect($this->getJson('/api/v2/moderation/deletion-proposals')->assertOk()->json('data.items'))->firstWhere('id', $proposal->id);
+        $this->assertFalse($row['can_vote'], 'the freezing moderator has already approved');
+        Sanctum::actingAs($second);
+        $row = collect($this->getJson('/api/v2/moderation/deletion-proposals')->assertOk()->json('data.items'))->firstWhere('id', $proposal->id);
+        $this->assertSame(1, $row['approvals']);
+        $this->assertTrue($row['can_vote']);
+        $this->assertCount(5, $row['freezes']);
+        $this->assertArrayNotHasKey('proposed_by', $row, 'no moderator names');
+
+        $vote($second, 'approve')->assertOk()->assertJsonPath('data.status', 'pending');
+        $this->assertSame(250.0, (float) $wallets->getOrCreateWallet($account->id)->refresh()->balance, 'two of three is not enough');
+        $vote($this->moderator(), 'approve')->assertOk()->assertJsonPath('data.status', 'approved');
+
+        // approved ≠ executed: the account has a grace period and is told
+        $this->assertSame(250.0, (float) $wallets->getOrCreateWallet($account->id)->refresh()->balance);
+        $this->assertNull($account->refresh()->banned_at);
+        Sanctum::actingAs($account);
+        $this->getJson('/api/v2/moderation/my-case')->assertOk()->assertJsonPath('data.deletion.state', 'scheduled')->assertJsonPath('data.deletion.can_object', true);
+        $this->artisan('moderation:execute-deletions')->assertSuccessful();
+        $this->assertNull($account->refresh()->banned_at, 'still inside the grace period');
+
+        // …and after it, it runs: balance and guarantee confiscated, banned, deletion requested
+        $this->travel(4)->days();
+        $this->artisan('moderation:execute-deletions')->assertSuccessful();
         $wallet = $wallets->getOrCreateWallet($account->id)->refresh();
         $this->assertEquals(0, (float) $wallet->balance);
         $this->assertEquals(0, (float) $wallet->locked_balance);
@@ -474,6 +516,96 @@ class ContentReportsTest extends TestCase
         $this->assertNotNull($account->banned_at, 'banned: sessions revoked, identity blocked');
         $this->assertNotNull($account->deletion_requested_at ?? $account->deleted_at, 'its deletion was requested');
         $this->assertSame('deleted', \App\Models\AccountCase::where('user_id', $account->id)->latest('id')->value('outcome'));
+        $this->assertSame('executed', $proposal->refresh()->status);
+    }
+
+    /** Builds an account with four recent freezes and the fifth just filed; returns [account, proposal, proposer]. */
+    private function fifthFreezeFiled(): array
+    {
+        $account = $this->user('serial');
+        $mod = $this->moderator();
+        foreach (range(1, 4) as $i) {
+            \App\Models\AccountFreeze::create(['user_id' => $account->id, 'frozen_by' => $mod->id, 'reason' => 'fraud ' . $i]);
+        }
+        Sanctum::actingAs($this->user('rep'));
+        $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $account->id, 'reason' => 'fraud'])->assertOk();
+        Sanctum::actingAs($mod);
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/freeze", ['reason' => 'the fifth'])->assertOk()->assertJsonPath('data.pending_deletion', true);
+
+        return [$account, \App\Models\AccountDeletionProposal::where('user_id', $account->id)->firstOrFail(), $mod];
+    }
+
+    private function panelVote(\App\Models\AccountDeletionProposal $p, User $who, string $vote)
+    {
+        Sanctum::actingAs($who);
+
+        return $this->postJson("/api/v2/moderation/deletion-proposals/{$p->id}/vote", ['vote' => $vote]);
+    }
+
+    public function test_only_freezes_of_the_last_twelve_months_count_towards_deletion(): void
+    {
+        $account = $this->user('old');
+        $mod = $this->moderator();
+        foreach (range(1, 4) as $i) {
+            $f = \App\Models\AccountFreeze::create(['user_id' => $account->id, 'frozen_by' => $mod->id, 'reason' => 'long ago']);
+            $f->forceFill(['created_at' => now()->subMonths(13)])->save();
+        }
+        $this->assertSame(0, $account->recentFreezeCount());
+
+        Sanctum::actingAs($this->user('rep'));
+        $this->postJson('/api/v2/reports', ['type' => 'account', 'id' => $account->id, 'reason' => 'fraud'])->assertOk();
+        Sanctum::actingAs($mod);
+        $this->postJson("/api/v2/moderation/reports/account/{$account->id}/freeze")->assertOk()
+            ->assertJsonPath('data.freeze_count', 1)->assertJsonPath('data.pending_deletion', false);
+        $this->assertSame(0, \App\Models\AccountDeletionProposal::where('user_id', $account->id)->count(), 'four old freezes + one new is not five');
+    }
+
+    public function test_two_rejections_cancel_the_deletion_and_the_account_just_serves_its_freeze(): void
+    {
+        [$account, $proposal] = $this->fifthFreezeFiled();
+
+        $this->panelVote($proposal, $this->moderator(), 'reject')->assertOk()->assertJsonPath('data.status', 'pending');
+        $this->panelVote($proposal, $this->moderator(), 'reject')->assertOk()->assertJsonPath('data.status', 'cancelled');
+
+        $this->panelVote($proposal, $this->moderator(), 'approve')->assertStatus(422);   // nothing open any more
+        $this->assertNull($account->refresh()->banned_at);
+        $this->assertTrue($account->isFrozen(), 'still serves the ordinary freeze');
+        $this->travel(10)->days();
+        $this->artisan('moderation:execute-deletions')->assertSuccessful();
+        $this->assertNull($account->refresh()->banned_at);
+    }
+
+    public function test_an_objection_in_the_grace_period_sends_the_deletion_back_to_the_panel_and_approving_it_again_deletes_at_once(): void
+    {
+        [$account, $proposal] = $this->fifthFreezeFiled();
+        $this->panelVote($proposal, $this->moderator(), 'approve');
+        $this->panelVote($proposal, $this->moderator(), 'approve')->assertJsonPath('data.status', 'approved');
+
+        // too short an objection is refused; a real one is accepted once
+        Sanctum::actingAs($account);
+        $this->postJson('/api/v2/moderation/my-case/objection', ['objection' => 'no'])->assertStatus(422);
+        $this->postJson('/api/v2/moderation/my-case/objection', ['objection' => 'These reports were made by a competitor, please look again.'])->assertOk()
+            ->assertJsonPath('data.deletion.state', 'review');
+        $this->postJson('/api/v2/moderation/my-case/objection', ['objection' => 'Again, a second objection must not be possible.'])->assertStatus(422);
+
+        // the grace period passing deletes nothing while the panel is deciding
+        $this->travel(5)->days();
+        $this->artisan('moderation:execute-deletions')->assertSuccessful();
+        $this->assertNull($account->refresh()->banned_at);
+        $this->assertTrue($account->isFrozen(), 'kept frozen while the panel looks again');
+
+        // the panel sees the objection and votes again (a fresh round: earlier voters may vote again)
+        Sanctum::actingAs($this->moderator());
+        $row = collect($this->getJson('/api/v2/moderation/deletion-proposals')->assertOk()->json('data.items'))->firstWhere('id', $proposal->id);
+        $this->assertSame(2, $row['round']);
+        $this->assertStringContainsString('competitor', $row['objection']);
+        $this->assertSame(0, $row['approvals']);
+
+        foreach (range(1, 3) as $i) {
+            $this->panelVote($proposal, $this->moderator(), 'approve')->assertOk();
+        }
+        $this->assertNotNull($account->refresh()->banned_at, 'second approval: no further wait');
+        $this->assertSame('executed', $proposal->refresh()->status);
     }
 
     public function test_a_frozen_account_is_hidden_from_everyone_else_for_the_length_of_the_freeze(): void
@@ -494,5 +626,126 @@ class ContentReportsTest extends TestCase
         // the freeze ends by itself and the account is back
         $this->travel(4)->days();
         $this->assertTrue(User::query()->live()->whereKey($shop->id)->exists());
+    }
+
+    /** A direct chat between two people, with a few messages (the first two are the ones the reporter will show). */
+    private function chatBetween(User $a, User $b): array
+    {
+        $thread = \App\Models\Thread::query()->create(['status' => \App\Models\Thread::STATUS_OPEN]);
+        $thread->participants()->create(['user_id' => $a->id, 'role' => \App\Models\ThreadParticipant::ROLE_CLIENT]);
+        $thread->participants()->create(['user_id' => $b->id, 'role' => \App\Models\ThreadParticipant::ROLE_BUSINESS]);
+        $ids = [];
+        foreach ([[$a, 'send me money outside the app'], [$b, 'ok, my number is mine'], [$a, 'private chit-chat'], [$b, 'more private words']] as [$who, $body]) {
+            $ids[] = \App\Models\ThreadMessage::query()->create(['thread_id' => $thread->id, 'sender_id' => $who->id, 'kind' => 'message', 'body' => $body])->id;
+        }
+
+        return [$thread, $ids];
+    }
+
+    public function test_a_conversation_is_reported_by_one_of_its_people_who_may_choose_the_messages_to_show(): void
+    {
+        $a = $this->user('a');
+        $b = $this->user('b', User::TYPE_BUSINESS);
+        [$thread, $ids] = $this->chatBetween($a, $b);
+
+        // a stranger cannot report it (it does not even exist for him)
+        Sanctum::actingAs($this->user('stranger'));
+        $this->postJson('/api/v2/reports', ['type' => 'conversation', 'id' => $thread->id, 'reason' => 'fraud'])->assertStatus(422);
+
+        // a dispute room or a moderator's own chat is never reportable
+        $room = \App\Models\Thread::query()->create(['status' => 'open', 'subject_type' => (new \App\Models\Dispute())->getMorphClass(), 'subject_id' => 1]);
+        $room->participants()->create(['user_id' => $a->id, 'role' => \App\Models\ThreadParticipant::ROLE_CLIENT]);
+        Sanctum::actingAs($a);
+        $this->postJson('/api/v2/reports', ['type' => 'conversation', 'id' => $room->id, 'reason' => 'fraud'])->assertStatus(422);
+
+        // the real thing, showing the first two messages (and one id that is not from this chat: it is dropped)
+        $this->postJson('/api/v2/reports', ['type' => 'conversation', 'id' => $thread->id, 'reason' => 'fraud', 'message_ids' => [$ids[0], $ids[1], 999999999]])->assertOk();
+        $this->assertEquals([$ids[0], $ids[1]], ContentReport::where('reportable_type', 'conversation')->where('reportable_id', $thread->id)->first()->message_ids);
+
+        // the moderator's card: who talks, the chosen messages (only), and the chat is closed to him
+        Sanctum::actingAs($this->moderator());
+        $row = collect($this->getJson('/api/v2/moderation/reports?type=conversation&per_page=50')->assertOk()->json('data.items'))->firstWhere('id', $thread->id);
+        $this->assertCount(2, $row['conversation']['parties']);
+        $this->assertSame(['send me money outside the app', 'ok, my number is mine'], array_column($row['conversation']['selected'], 'body'), 'only what the reporter chose');
+        $this->assertFalse($row['conversation']['access']['accessible']);
+        $this->assertSame(3, $row['conversation']['access']['quorum']);
+
+        // remove is refused for a conversation
+        $this->postJson("/api/v2/moderation/reports/conversation/{$thread->id}/remove", ['violation' => 'fraud'])->assertStatus(422);
+    }
+
+    public function test_the_whole_conversation_opens_by_the_consent_of_both_parties_or_by_a_quorum_of_moderators(): void
+    {
+        $a = $this->user('a');
+        $b = $this->user('b', User::TYPE_BUSINESS);
+        [$thread, $ids] = $this->chatBetween($a, $b);
+        Sanctum::actingAs($a);
+        $this->postJson('/api/v2/reports', ['type' => 'conversation', 'id' => $thread->id, 'reason' => 'fraud', 'message_ids' => [$ids[0]]])->assertOk();
+
+        $mod = $this->moderator();
+        Sanctum::actingAs($mod);
+        $url = "/api/v2/moderation/reports/conversation/{$thread->id}";
+
+        // closed: 403 with where things stand
+        $this->getJson("$url/messages")->assertStatus(403)->assertJsonPath('code', 'conversation_locked')->assertJsonPath('data.access.approvals', 0);
+
+        // way 2: ask the parties — both are nudged; one saying yes is not enough, both are
+        $this->postJson("$url/request-consent")->assertOk();
+        $this->assertSame(1, AppNotification::where('user_id', $a->id)->where('source_type', \App\Models\Thread::class)->where('source_id', $thread->id)->count());
+        $this->assertSame(1, AppNotification::where('user_id', $b->id)->where('source_type', \App\Models\Thread::class)->where('source_id', $thread->id)->count());
+        $gate = app(\App\Services\Chat\ThreadAccessGateService::class);
+        $gate->recordPartyConsent($thread, $a, 'approved');
+        $this->getJson("$url/messages")->assertStatus(403);
+        $gate->recordPartyConsent($thread, $b, 'approved');
+        $all = $this->getJson("$url/messages")->assertOk()->json('data.messages');
+        $this->assertCount(4, $all);
+        $this->assertSame('private chit-chat', $all[2]['body']);
+    }
+
+    public function test_a_quorum_of_moderators_opens_it_without_the_parties_and_a_decline_keeps_the_gate_shut_for_consent_only(): void
+    {
+        $a = $this->user('a');
+        $b = $this->user('b', User::TYPE_BUSINESS);
+        [$thread] = $this->chatBetween($a, $b);
+        Sanctum::actingAs($a);
+        $this->postJson('/api/v2/reports', ['type' => 'conversation', 'id' => $thread->id, 'reason' => 'inappropriate'])->assertOk();
+
+        app(\App\Services\Chat\ThreadAccessGateService::class)->recordPartyConsent($thread, $b, 'declined');
+        $url = "/api/v2/moderation/reports/conversation/{$thread->id}";
+
+        $mods = [$this->moderator(), $this->moderator(), $this->moderator()];
+
+        // each moderator takes the report in turn (the claim lapses after 30 minutes) and vouches once
+        foreach ($mods as $i => $m) {
+            Sanctum::actingAs($m);
+            $this->postJson("$url/claim")->assertOk();
+            $this->postJson("$url/vouch")->assertOk();
+            $this->postJson("$url/vouch")->assertOk();      // voting twice counts once
+            $this->getJson("$url/messages")->assertStatus($i < 2 ? 403 : 200);
+            $this->postJson("$url/release")->assertOk();
+        }
+    }
+
+    public function test_after_reading_a_moderator_can_chat_with_or_freeze_one_of_the_conversations_people_but_only_a_party(): void
+    {
+        $a = $this->user('a');
+        $b = $this->user('b', User::TYPE_BUSINESS);
+        [$thread] = $this->chatBetween($a, $b);
+        Sanctum::actingAs($a);
+        $this->postJson('/api/v2/reports', ['type' => 'conversation', 'id' => $thread->id, 'reason' => 'fraud'])->assertOk();
+
+        $mod = $this->moderator();
+        Sanctum::actingAs($mod);
+        $url = "/api/v2/moderation/reports/conversation/{$thread->id}";
+
+        $this->postJson("$url/party/{$this->user('outsider')->id}/freeze")->assertStatus(422);
+
+        $caseId = $this->postJson("$url/party/{$b->id}/chat")->assertOk()->json('data.case_id');
+        $this->assertSame(1, AppNotification::where('user_id', $b->id)->where('source_type', 'moderation_chat_opened')->count());
+        $this->getJson("/api/v2/operation-chats/moderation/{$caseId}")->assertOk();
+
+        $this->postJson("$url/party/{$b->id}/freeze")->assertOk()->assertJsonPath('data.freeze_count', 1)->assertJsonPath('data.deleted', false);
+        $this->assertTrue($b->refresh()->isFrozen());
+        $this->assertSame(0, ContentReport::where('reportable_type', 'conversation')->where('reportable_id', $thread->id)->where('status', 'open')->count());
     }
 }

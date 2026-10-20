@@ -188,6 +188,12 @@ class User extends Authenticatable
         return $this->banned_at !== null;
     }
 
+    /** How many times a moderator froze this account within `bim.moderation.freeze_window_months` — older freezes no longer count. */
+    public function recentFreezeCount(): int
+    {
+        return \App\Models\AccountFreeze::query()->where('user_id', $this->id)->counting()->count();
+    }
+
     /** Frozen by a moderator: the account keeps only its chat with the moderators until this passes. */
     public function isFrozen(): bool
     {

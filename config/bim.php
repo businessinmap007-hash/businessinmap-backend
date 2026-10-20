@@ -148,8 +148,16 @@ return [
         'claim_minutes' => 30,
         // a reported account is frozen (not removed) for this many days
         'freeze_days' => 3,
-        // the Nth freeze deletes the account and confiscates its balance and guarantee
+        // the Nth RECENT freeze files a deletion proposal for a panel of moderators (confiscating balance and guarantee if approved)
         'freezes_to_delete' => 5,
+        // only freezes inside this many months count
+        'freeze_window_months' => 12,
+        // the panel: approvals that approve, rejections that cancel, and the days an approved deletion waits (the account may object)
+        'deletion_approvals' => 3,
+        'deletion_rejections' => 2,
+        'deletion_grace_days' => 3,
+        // an account that objects stays frozen this many days while the panel looks again
+        'deletion_review_days' => 14,
     ],
 
     /*

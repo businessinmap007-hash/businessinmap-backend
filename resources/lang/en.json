@@ -3198,5 +3198,19 @@
     "جُمِّد الحساب.": "The account was frozen.",
     "رُفع التجميد.": "The freeze was lifted.",
     "حسابك مجمَّد مؤقتًا. تواصل مع المشرفين من شاشة التجميد.": "Your account is temporarily frozen. Talk to the moderators from the freeze screen.",
-    "حُذف الحساب وصودر رصيده وضمانه.": "The account was deleted and its balance and guarantee were confiscated."
+    "حُذف الحساب وصودر رصيده وضمانه.": "The account was deleted and its balance and guarantee were confiscated.",
+    "المحادثات لا تُزال؛ تُراجَع ويُتصرَّف مع أحد طرفيها.": "Conversations are not removed; they are reviewed and action is taken on one of their people.",
+    "هذا الحساب ليس طرفًا في المحادثة.": "This account is not a party to the conversation.",
+    "المحادثة مغلقة: تُفتح بموافقة الطرفين أو بنصاب من المشرفين.": "The conversation is closed: it opens with both parties' consent or a quorum of moderators.",
+    "أُرسل طلب الموافقة للطرفين.": "The consent request was sent to both parties.",
+    "سُجِّل تأييدك للاطلاع.": "Your vote to read it was recorded.",
+    "صوت غير صالح.": "Invalid vote.",
+    "لا يوجد قرار حذف مفتوح للتصويت.": "There is no open deletion decision to vote on.",
+    "لا يمكنك التصويت على حذف حسابك.": "You cannot vote on deleting your own account.",
+    "سبق أن صوّتّ على هذا القرار.": "You have already voted on this decision.",
+    "اكتب اعتراضك بوضوح (10 أحرف على الأقل).": "Write your objection clearly (at least 10 characters).",
+    "لا يوجد قرار حذف يمكنك الاعتراض عليه.": "There is no deletion decision you can object to.",
+    "جُمِّد الحساب وعُرض حذفه على لجنة المشرفين.": "The account was frozen and its deletion was put to the moderators' panel.",
+    "وصل اعتراضك وسيُعرض على لجنة المشرفين من جديد.": "Your objection was received and goes back to the moderators' panel.",
+    "سُجِّل صوتك.": "Your vote was recorded."
 }

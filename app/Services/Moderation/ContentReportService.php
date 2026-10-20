@@ -3,6 +3,7 @@
 namespace App\Services\Moderation;
 
 use App\Models\Comment;
+use App\Models\Thread;
 use App\Models\ContentReport;
 use App\Models\OwnerListing;
 use App\Models\Post;
@@ -31,6 +32,8 @@ final class ContentReportService
         'comment' => Comment::class,
         // an ACCOUNT is never removed: a moderator may chat with it and freeze it for three days
         'account' => User::class,
+        // a CONVERSATION (an operation chat, a DM, a group): what a moderator may read of it is gated — see ConversationReviewService
+        'conversation' => Thread::class,
         'owner_listing' => OwnerListing::class,
     ];
 
@@ -46,6 +49,7 @@ final class ContentReportService
 
     public function __construct(
         private readonly AccountModerationService $accounts,
+        private readonly ConversationReviewService $conversations,
         private readonly OwnerListingService $listings,
         private readonly NotificationDispatcherService $notifications
     ) {}
@@ -71,12 +75,19 @@ final class ContentReportService
     // ─────────────────────────── reporting ───────────────────────────
 
     /** One person reports one item; a second report of the same item by the same person changes nothing. */
-    public function report(User $reporter, string $type, int $id, string $reason, ?string $details = null): ContentReport
+    public function report(User $reporter, string $type, int $id, string $reason, ?string $details = null, ?array $messageIds = null): ContentReport
     {
         $target = $this->find($type, $id);
 
         if (! $target || ! $this->isReportable($type, $target)) {
             throw ValidationException::withMessages(['target' => __('هذا المحتوى غير متاح.')]);
+        }
+
+        // a conversation is reported by one of the people in it, optionally with the messages he chooses to show the moderators
+        $chosen = null;
+        if ($type === 'conversation') {
+            $this->conversations->assertReportable($target, $reporter);
+            $chosen = $this->conversations->cleanMessageIds($target, $messageIds);
         }
 
         if ((int) $this->authorId($type, $target) === (int) $reporter->id) {
@@ -89,8 +100,13 @@ final class ContentReportService
 
         $report = ContentReport::query()->firstOrCreate(
             ['reporter_id' => (int) $reporter->id, 'reportable_type' => $type, 'reportable_id' => $id],
-            ['reason' => $reason, 'details' => $details !== null && trim($details) !== '' ? mb_substr(trim($details), 0, 500) : null, 'status' => ContentReport::STATUS_OPEN]
+            ['reason' => $reason, 'details' => $details !== null && trim($details) !== '' ? mb_substr(trim($details), 0, 500) : null, 'message_ids' => $chosen ?: null, 'status' => ContentReport::STATUS_OPEN]
         );
+
+        // reporting the same conversation again may add messages to the ones already shown
+        if ($type === 'conversation' && ! $report->wasRecentlyCreated && $chosen) {
+            $report->update(['message_ids' => array_values(array_unique(array_merge((array) $report->message_ids, $chosen)))]);
+        }
 
         if ($type === 'owner_listing' && $report->wasRecentlyCreated) {
             $this->flagListingIfEnough($target);
@@ -277,6 +293,10 @@ final class ContentReportService
             throw ValidationException::withMessages(['target' => __('الحسابات لا تُزال؛ تُجمَّد ثلاثة أيام.')]);
         }
 
+        if ($type === 'conversation') {
+            throw ValidationException::withMessages(['target' => __('المحادثات لا تُزال؛ تُراجَع ويُتصرَّف مع أحد طرفيها.')]);
+        }
+
         if ($type === 'owner_listing' && ! isset(OwnerListingSeriousness::VIOLATIONS[(string) $violation])) {
             throw ValidationException::withMessages(['violation' => __('اختر القاعدة التي خالفها الإعلان.')]);
         }
@@ -300,6 +320,74 @@ final class ContentReportService
         return $taken;
     }
 
+    // ───────────── a reported CONVERSATION: the three ways to look, and acting on one of its people ─────────────
+
+    /** Way 2: ask both parties to allow the moderators to read the conversation. */
+    public function conversationRequestConsent(int $id, User $moderator): void
+    {
+        $thread = $this->threadOrFail($id);
+        $this->guard('conversation', $id, $moderator);
+        $this->conversations->requestConsent($thread);
+    }
+
+    /** Way 3: this moderator's vote toward the quorum that opens the conversation without the parties. */
+    public function conversationVouch(int $id, User $moderator): void
+    {
+        $thread = $this->threadOrFail($id);
+        $this->guard('conversation', $id, $moderator);
+        $this->conversations->vouch($thread, $moderator);
+    }
+
+    /** The whole conversation, read-only, once it is open by consent or by quorum (403 with where things stand otherwise). */
+    public function conversationMessages(int $id, User $moderator): array
+    {
+        $thread = $this->threadOrFail($id);
+        $this->guard('conversation', $id, $moderator);
+
+        return $this->conversations->messages($thread, $moderator);
+    }
+
+    /** After reading: open a moderator chat with one of the conversation's people (the account case machinery). */
+    public function conversationPartyChat(int $id, int $userId, User $moderator): \App\Models\AccountCase
+    {
+        $this->assertParty($this->threadOrFail($id), $userId);
+        $this->guard('conversation', $id, $moderator);
+
+        return $this->accounts->openChat($this->accountOrFail($userId), $moderator);
+    }
+
+    /** …or freeze him (counted like any freeze; the fifth deletes); the conversation's reports close as actioned. */
+    public function conversationPartyFreeze(int $id, int $userId, User $moderator): array
+    {
+        $this->assertParty($this->threadOrFail($id), $userId);
+        $this->guard('conversation', $id, $moderator);
+
+        return DB::transaction(function () use ($id, $userId, $moderator) {
+            $result = $this->accounts->freeze($this->accountOrFail($userId), $moderator);
+            $this->closeReports('conversation', $id, $moderator, ContentReport::STATUS_ACTIONED, $result['deleted'] ? 'deleted' : 'frozen', ['confiscated_amount' => $result['confiscated']]);
+
+            return $result;
+        });
+    }
+
+    private function threadOrFail(int $id): Thread
+    {
+        $thread = Thread::query()->find($id);
+
+        if (! $thread) {
+            throw ValidationException::withMessages(['target' => __('هذا المحتوى محذوف بالفعل.')]);
+        }
+
+        return $thread;
+    }
+
+    private function assertParty(Thread $thread, int $userId): void
+    {
+        if (! in_array($userId, array_column($this->conversations->parties($thread), 'id'), true)) {
+            throw ValidationException::withMessages(['target' => __('هذا الحساب ليس طرفًا في المحادثة.')]);
+        }
+    }
+
     /** The moderator opens a chat with the reported account, to find out what the report is about. */
     public function chatWithAccount(int $id, User $moderator): \App\Models\AccountCase
     {
@@ -315,13 +403,13 @@ final class ContentReportService
      *
      * @return array{case:\App\Models\AccountCase,deleted:bool,count:int,confiscated:float}
      */
-    public function freezeAccount(int $id, User $moderator): array
+    public function freezeAccount(int $id, User $moderator, ?string $reason = null): array
     {
         $account = $this->accountOrFail($id);
         $this->guard('account', $id, $moderator);
 
-        return DB::transaction(function () use ($account, $id, $moderator) {
-            $result = $this->accounts->freeze($account, $moderator);
+        return DB::transaction(function () use ($account, $id, $moderator, $reason) {
+            $result = $this->accounts->freeze($account, $moderator, $reason);
             $this->closeReports('account', $id, $moderator, ContentReport::STATUS_ACTIONED, $result['deleted'] ? 'deleted' : 'frozen', ['confiscated_amount' => $result['confiscated']]);
 
             return $result;
@@ -393,13 +481,18 @@ final class ContentReportService
             'comment' => $target->status === 'public',
             // any ordinary account: not a staff account, not one that is already banned or gone
             'account' => (string) $target->type !== 'admin' && ! $target->isBanned() && $target->anonymized_at === null,
+            'conversation' => true,
             default => in_array($target->status, [OwnerListing::STATUS_ACTIVE, OwnerListing::STATUS_FLAGGED], true),
         };
     }
 
     private function authorId(string $type, $target): int
     {
-        return $type === 'account' ? (int) $target->id : (int) $target->user_id;
+        return match ($type) {
+            'account' => (int) $target->id,
+            'conversation' => 0,
+            default => (int) $target->user_id,
+        };
     }
 
     private function openCount(string $type, int $id): int
@@ -451,6 +544,19 @@ final class ContentReportService
             ];
         }
 
+        if ($type === 'conversation') {
+            $info = $this->conversations->summary($target, $viewer);
+
+            return $base + [
+                'state' => 'live',
+                'title' => null,
+                'excerpt' => null,
+                'image' => null,
+                'author' => null,
+                'conversation' => $info,
+            ];
+        }
+
         if ($type === 'account') {
             $case = \App\Models\AccountCase::query()->where('user_id', $id)->latest('id')->first();
 
@@ -462,7 +568,7 @@ final class ContentReportService
                 'author' => null,
                 'account_type' => (string) $target->type,
                 'frozen_until' => $target->isFrozen() ? $target->frozen_until->toIso8601String() : null,
-                'freeze_count' => (int) $target->freeze_count,
+                'freeze_count' => (int) $target->recentFreezeCount(),
                 'freezes_to_delete' => (int) config('bim.moderation.freezes_to_delete', 5),
                 'case' => $case ? ['id' => (int) $case->id, 'status' => $case->status, 'chat_opened' => true] : null,
             ];

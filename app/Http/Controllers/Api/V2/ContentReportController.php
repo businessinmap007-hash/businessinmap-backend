@@ -29,9 +29,12 @@ final class ContentReportController extends Controller
             'id' => ['required', 'integer', 'min:1'],
             'reason' => ['required', 'string', 'max:30'],
             'details' => ['nullable', 'string', 'max:500'],
+            // a conversation: the messages the reporter chooses to show the moderators (at most 30)
+            'message_ids' => ['nullable', 'array', 'max:30'],
+            'message_ids.*' => ['integer'],
         ]);
 
-        $this->reports->report($request->user(), $data['type'], (int) $data['id'], $data['reason'], $data['details'] ?? null);
+        $this->reports->report($request->user(), $data['type'], (int) $data['id'], $data['reason'], $data['details'] ?? null, $data['message_ids'] ?? null);
 
         return response()->json(['success' => true, 'message' => __('وصلنا بلاغك، شكرًا.')]);
     }
@@ -103,13 +106,15 @@ final class ContentReportController extends Controller
     public function accountFreeze(Request $request, int $id)
     {
         $this->authorizeModerator($request);
-        $r = $this->reports->freezeAccount($id, $request->user());
+        $reason = $request->validate(['reason' => 'nullable|string|max:255'])['reason'] ?? null;
+        $r = $this->reports->freezeAccount($id, $request->user(), $reason);
 
-        return response()->json(['success' => true, 'message' => $r['deleted'] ? __('حُذف الحساب وصودر رصيده وضمانه.') : __('جُمِّد الحساب.'), 'data' => [
+        return response()->json(['success' => true, 'message' => $r['pending_deletion'] ? __('جُمِّد الحساب وعُرض حذفه على لجنة المشرفين.') : __('جُمِّد الحساب.'), 'data' => [
             'case_id' => (int) $r['case']->id,
             'frozen_until' => optional($r['case']->frozen_until)->toIso8601String(),
             'freeze_count' => $r['count'],
             'deleted' => $r['deleted'],
+            'pending_deletion' => $r['pending_deletion'],
             'confiscated' => $r['confiscated'],
         ]]);
     }
@@ -124,7 +129,7 @@ final class ContentReportController extends Controller
     }
 
     /** GET moderation/my-case — for a REPORTED account: its open case (the chat with the moderators) and whether it is frozen. */
-    public function myCase(Request $request, \App\Services\Moderation\AccountModerationService $accounts)
+    public function myCase(Request $request, \App\Services\Moderation\AccountModerationService $accounts, \App\Services\Moderation\AccountDeletionPanelService $panel)
     {
         $case = $accounts->caseFor($request->user());
 
@@ -132,7 +137,80 @@ final class ContentReportController extends Controller
             'id' => (int) $case->id,
             'status' => $case->status,
             'frozen_until' => optional($case->frozen_until)->toIso8601String(),
-        ] : null]]);
+        ] : null, 'deletion' => $panel->stateFor($request->user())]]);
+    }
+
+    /** POST moderation/my-case/objection — the frozen account objects in writing to an approved deletion; the panel votes again. */
+    public function objectToDeletion(Request $request, \App\Services\Moderation\AccountDeletionPanelService $panel)
+    {
+        $data = $request->validate(['objection' => 'required|string|max:2000']);
+        $panel->object($request->user(), $data['objection']);
+
+        return response()->json(['success' => true, 'message' => __('وصل اعتراضك وسيُعرض على لجنة المشرفين من جديد.'), 'data' => ['deletion' => $panel->stateFor($request->user())]]);
+    }
+
+    /** GET moderation/deletion-proposals — deletions waiting for the moderators' panel to vote (no names of other moderators). */
+    public function deletionProposals(Request $request, \App\Services\Moderation\AccountDeletionPanelService $panel)
+    {
+        $this->authorizeModerator($request);
+
+        return response()->json(['success' => true, 'data' => ['items' => $panel->queue($request->user())]]);
+    }
+
+    /** POST moderation/deletion-proposals/{id}/vote {vote: approve|reject, note?} */
+    public function voteOnDeletion(Request $request, \App\Services\Moderation\AccountDeletionPanelService $panel, int $id)
+    {
+        $this->authorizeModerator($request);
+        $data = $request->validate(['vote' => 'required|string|in:approve,reject', 'note' => 'nullable|string|max:255']);
+        $p = $panel->vote($id, $request->user(), $data['vote'], $data['note'] ?? null);
+
+        return response()->json(['success' => true, 'message' => __('سُجِّل صوتك.'), 'data' => ['status' => $p->status]]);
+    }
+
+    /** POST moderation/reports/conversation/{id}/request-consent — way 2: ask both parties to allow reading. */
+    public function conversationRequestConsent(Request $request, int $id)
+    {
+        $this->authorizeModerator($request);
+        $this->reports->conversationRequestConsent($id, $request->user());
+
+        return response()->json(['success' => true, 'message' => __('أُرسل طلب الموافقة للطرفين.')]);
+    }
+
+    /** POST moderation/reports/conversation/{id}/vouch — way 3: my vote toward the moderators' quorum. */
+    public function conversationVouch(Request $request, int $id)
+    {
+        $this->authorizeModerator($request);
+        $this->reports->conversationVouch($id, $request->user());
+
+        return response()->json(['success' => true, 'message' => __('سُجِّل تأييدك للاطلاع.')]);
+    }
+
+    /** GET moderation/reports/conversation/{id}/messages — the conversation, read-only, when it is open (403 conversation_locked otherwise). */
+    public function conversationMessages(Request $request, int $id)
+    {
+        $this->authorizeModerator($request);
+
+        return response()->json(['success' => true, 'data' => ['messages' => $this->reports->conversationMessages($id, $request->user())]]);
+    }
+
+    /** POST moderation/reports/conversation/{id}/party/{user}/chat — open a moderator chat with one of its people. */
+    public function conversationPartyChat(Request $request, int $id, int $user)
+    {
+        $this->authorizeModerator($request);
+        $case = $this->reports->conversationPartyChat($id, $user, $request->user());
+
+        return response()->json(['success' => true, 'data' => ['case_id' => (int) $case->id]]);
+    }
+
+    /** POST moderation/reports/conversation/{id}/party/{user}/freeze — freeze one of its people (counted; the fifth deletes). */
+    public function conversationPartyFreeze(Request $request, int $id, int $user)
+    {
+        $this->authorizeModerator($request);
+        $r = $this->reports->conversationPartyFreeze($id, $user, $request->user());
+
+        return response()->json(['success' => true, 'message' => $r['pending_deletion'] ? __('جُمِّد الحساب وعُرض حذفه على لجنة المشرفين.') : __('جُمِّد الحساب.'), 'data' => [
+            'case_id' => (int) $r['case']->id, 'freeze_count' => $r['count'], 'deleted' => $r['deleted'], 'pending_deletion' => $r['pending_deletion'], 'confiscated' => $r['confiscated'],
+        ]]);
     }
 
     /** POST moderation/reports/{type}/{id}/dismiss */

@@ -3,6 +3,8 @@
 namespace App\Services\Moderation;
 
 use App\Models\AccountCase;
+use App\Models\AccountDeletionProposal;
+use App\Models\AccountFreeze;
 use App\Models\UserGuarantee;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
@@ -24,6 +26,11 @@ use Illuminate\Validation\ValidationException;
  *
  * Everything hangs on an {@see AccountCase}: the moderator's file on the account, whose chat is the thread
  * `operation-chats/moderation/{case}`.
+ *
+ * Deleting an account after repeated freezes has three guards (owner, 2026-10-20): only freezes of the last
+ * `bim.moderation.freeze_window_months` months count, each freeze keeps its reason, and the deleting freeze is not one
+ * moderator's decision — it files a proposal for a panel ({@see AccountDeletionPanelService}), then waits out a grace period
+ * in which the account may object.
  */
 final class AccountModerationService
 {
@@ -74,12 +81,13 @@ final class AccountModerationService
     }
 
     /**
-     * Freeze the account for the configured days; the chat is opened too, so the account can answer. Every freeze is counted, and
-     * the Nth (`bim.moderation.freezes_to_delete`, 5) deletes the account and confiscates its balance and guarantee instead.
+     * Freeze the account for the configured days; the chat is opened too, so the account can answer. Every freeze is recorded with
+     * its reason and counted while it is recent. The Nth recent one (`bim.moderation.freezes_to_delete`, 5) still freezes — and
+     * files a deletion PROPOSAL for the moderators' panel: nothing is deleted or confiscated by this call.
      *
-     * @return array{case:AccountCase,deleted:bool,count:int,confiscated:float}
+     * @return array{case:AccountCase,deleted:bool,count:int,confiscated:float,pending_deletion:bool}
      */
-    public function freeze(User $account, User $moderator): array
+    public function freeze(User $account, User $moderator, ?string $reason = null): array
     {
         $this->assertCanBeFrozen($account);
 
@@ -88,30 +96,55 @@ final class AccountModerationService
 
         // already frozen: nothing new to count
         if ($account->isFrozen()) {
-            return ['case' => $case, 'deleted' => false, 'count' => (int) $account->freeze_count, 'confiscated' => 0.0];
-        }
-
-        $count = (int) $account->freeze_count + 1;
-
-        if ($count >= $limit) {
-            $taken = $this->deleteAndConfiscate($account, $moderator, $case, $count);
-
-            return ['case' => $case->refresh(), 'deleted' => true, 'count' => $count, 'confiscated' => $taken];
+            return ['case' => $case, 'deleted' => false, 'count' => $account->recentFreezeCount(), 'confiscated' => 0.0, 'pending_deletion' => false];
         }
 
         $until = now()->addDays((int) config('bim.moderation.freeze_days', 3));
+        $window = (int) config('bim.moderation.freeze_window_months', 12);
 
-        DB::transaction(function () use ($account, $case, $until, $count) {
+        $count = DB::transaction(function () use ($account, $case, $until, $moderator, $reason) {
+            AccountFreeze::create([
+                'user_id' => (int) $account->id, 'case_id' => (int) $case->id, 'frozen_by' => (int) $moderator->id,
+                'reason' => mb_substr(trim((string) ($reason ?: $case->reason)), 0, 255) ?: null,
+            ]);
+            $count = $account->recentFreezeCount();
             $account->forceFill(['frozen_until' => $until, 'freeze_count' => $count])->save();
             $case->update(['frozen_until' => $until, 'outcome' => 'frozen']);
+
+            return $count;
         });
 
         $days = (int) config('bim.moderation.freeze_days', 3);
-        $this->tell($account, 'moderation_account_frozen', $case,
-            "جُمِّد حسابك {$days} أيام بسبب بلاغات عنه (هذا التجميد رقم {$count} من {$limit}). إذا تكرر التجميد {$limit} مرات يُحذف الحساب ويُصادَر رصيده وضمانه. يمكنك التواصل مع المشرفين من شاشة التجميد.",
-            "Your account is frozen for {$days} days after reports about it (freeze {$count} of {$limit}). If it is frozen {$limit} times the account is deleted and its balance and guarantee are confiscated. Use the freeze screen to talk to the moderators.");
+        $proposal = null;
 
-        return ['case' => $case->refresh(), 'deleted' => false, 'count' => $count, 'confiscated' => 0.0];
+        if ($count >= $limit) {
+            $proposal = app(AccountDeletionPanelService::class)->propose($account, $case, $moderator);
+        }
+
+        $tail = $count >= $limit
+            ? "عُرض حذف حسابك على لجنة من المشرفين؛ ستُبلَّغ بقرارها ولك حق الاعتراض كتابةً."
+            : ($count === $limit - 1
+                ? "تنبيه: التجميد القادم خلال {$window} شهرًا قد يؤدي إلى حذف الحساب ومصادرة رصيده وضمانه بعد قرار لجنة من المشرفين، ولك حق الاعتراض."
+                : "إذا تكرر التجميد {$limit} مرات خلال {$window} شهرًا عُرض حذف الحساب ومصادرة رصيده وضمانه على لجنة من المشرفين.");
+        $tailEn = $count >= $limit
+            ? "Deleting your account was put to a panel of moderators; you will be told its decision and may object in writing."
+            : ($count === $limit - 1
+                ? "Warning: the next freeze within {$window} months may lead to the account being deleted and its balance and guarantee confiscated, after a moderator panel decides; you may object."
+                : "If it is frozen {$limit} times within {$window} months, deleting the account and confiscating its balance and guarantee goes to a panel of moderators.");
+
+        $this->tell($account, 'moderation_account_frozen', $case,
+            "جُمِّد حسابك {$days} أيام بسبب بلاغات عنه (هذا التجميد رقم {$count} من {$limit}). {$tail} يمكنك التواصل مع المشرفين من شاشة التجميد.",
+            "Your account is frozen for {$days} days after reports about it (freeze {$count} of {$limit}). {$tailEn} Use the freeze screen to talk to the moderators.");
+
+        return ['case' => $case->refresh(), 'deleted' => false, 'count' => $count, 'confiscated' => 0.0, 'pending_deletion' => $proposal !== null];
+    }
+
+    /** The panel approved and the grace period passed: confiscate, request the deletion, ban. */
+    public function executeDeletion(User $account, AccountDeletionProposal $proposal): float
+    {
+        $case = $proposal->case_id ? AccountCase::query()->find($proposal->case_id) : null;
+
+        return $this->deleteAndConfiscate($account, (int) $proposal->proposed_by, $case, $account->recentFreezeCount());
     }
 
     /**
@@ -119,7 +152,7 @@ final class AccountModerationService
      * cancelled, the account is banned (its identities blocked, its sessions revoked) and its deletion is requested. If
      * something still blocks the deletion (a live booking…) the ban stands, so the account is unusable either way.
      */
-    private function deleteAndConfiscate(User $account, User $moderator, AccountCase $case, int $count): float
+    private function deleteAndConfiscate(User $account, int $moderatorId, ?AccountCase $case, int $count): float
     {
         $taken = $this->confiscateFunds($account);
 
@@ -132,9 +165,9 @@ final class AccountModerationService
             report($e);
         }
 
-        $this->bans->ban($account->refresh(), "حُذف الحساب بعد تجميده {$count} مرات", (int) $moderator->id);
+        $this->bans->ban($account->refresh(), "حُذف الحساب بعد تجميده {$count} مرات", $moderatorId);
 
-        $this->close($case, $moderator, 'deleted');
+        $case?->update(['status' => AccountCase::STATUS_CLOSED, 'outcome' => 'deleted', 'closed_by' => $moderatorId, 'closed_at' => now()]);
 
         return $taken;
     }

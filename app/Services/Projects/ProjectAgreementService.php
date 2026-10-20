@@ -369,6 +369,7 @@ final class ProjectAgreementService
             'versions' => ProjectAgreement::query()->where('project_id', $project->id)->orderBy('version')->get()->map(fn ($a) => $fmt($a))->all(),
             'change_requests' => ProjectChangeRequest::query()->where('project_id', $project->id)->orderByDesc('id')->limit(30)->get()->map(fn (ProjectChangeRequest $r) => [
                 'id' => (int) $r->id, 'type' => (string) $r->type, 'payload' => $r->payload, 'note' => $r->note, 'status' => (string) $r->status,
+                'requested_by_business' => (int) $r->requested_by === (int) $project->business_id,
                 'requested_at' => optional($r->created_at)->toIso8601String(), 'decided_at' => optional($r->decided_at)->toIso8601String(),
                 'decision_note' => $r->decision_note,
             ])->all(),

@@ -365,4 +365,26 @@ class PromotionsTest extends TestCase
 
         $this->assertSame(now()->addDays(15)->toDateString(), $res->json('data.not_yet_discounted.0.eligible_from'));
     }
+
+    public function test_an_order_placed_before_the_offer_keeps_its_prices_and_is_never_repriced(): void
+    {
+        $item = $this->seedMenuItem($this->shop->id, null, 100.0);
+
+        $this->addToCart($item);
+        $this->postJson("/api/v2/cart/{$this->shop->id}/checkout", ['fulfillment_type' => 'pickup', 'pickup_at' => now()->addHour()->toIso8601String()])->assertCreated();
+        $order = Order::query()->where('user_id', $this->buyer->id)->where('business_id', $this->shop->id)->latest('id')->firstOrFail();
+        $this->assertEquals(100.0, (float) $order->final_total);
+
+        // an offer starts afterwards: the placed order is not touched, by a read or by a change of its lines
+        $p = $this->promo(Promotion::PERCENT, ['value' => 50], [[Promotion::TARGET_ALL, null]]);
+        app(\App\Services\MenuOrderService::class)->recalc($order->fresh());
+        $order = $order->fresh();
+
+        $this->assertEquals(0.0, (float) $order->items()->first()->discount);
+        $this->assertEquals(100.0, (float) $order->items()->first()->total_price);
+        $this->assertSame(0, $p->fresh()->used_count);
+
+        // a NEW cart (a reorder, a fresh purchase) is priced by the offer as usual
+        $this->assertEquals(50.0, $this->addToCart($item)['bill']['offers_discount']);
+    }
 }

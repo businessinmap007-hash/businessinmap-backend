@@ -36,8 +36,7 @@ class AuthorizationTest extends TestCase
             'orders queue' => ['/api/v2/business/orders'],
             'menu items' => ['/api/v2/business/menu/items'],
             'menu sections' => ['/api/v2/business/menu/sections'],
-            'offers' => ['/api/v2/business/offers'],
-            'boost packages' => ['/api/v2/business/offers/boost/packages'],
+            'offers' => ['/api/v2/business/promotions'],
         ];
     }
 

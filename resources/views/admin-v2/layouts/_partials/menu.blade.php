@@ -144,16 +144,11 @@
         // Moved out of «الخدمات والتسعير»: selling BETWEEN businesses, and
         // promoting what they sell, is a different job from deciding what a
         // category child is allowed to offer at all.
-        ['label' => 'العروض والشراكات', 'route' => 'admin.business-partnerships.index', 'icon' => 'ticket', 'active' => ['admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.commercial-offers.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.business-offers-subscriptions.', 'admin.notification-center.'], 'children' => [
+        ['label' => 'العروض والشراكات', 'route' => 'admin.business-partnerships.index', 'icon' => 'ticket', 'active' => ['admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.business-offers-subscriptions.', 'admin.notification-center.'], 'children' => [
             ['label' => 'الشراكات', 'type' => 'section', 'children' => [
                 ['label' => 'شراكات الأعمال', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
-                ['label' => 'العروض التجارية', 'route' => 'admin.commercial-offers.index', 'active' => 'admin.commercial-offers.'],
             ]],
             ['label' => 'التسويق', 'type' => 'section', 'children' => [
-                ['label' => 'أداء العروض', 'route' => 'admin.offer-performance.index', 'active' => 'admin.offer-performance.'],
-                ['label' => 'باقات تعزيز العروض', 'route' => 'admin.offer-boost-packages.index', 'active' => 'admin.offer-boost-packages.'],
-                ['label' => 'متابعات العروض', 'route' => 'admin.offer-follows.index', 'active' => 'admin.offer-follows.'],
-                ['label' => 'اشتراكات عروض الأعمال', 'route' => 'admin.business-offers-subscriptions.form', 'active' => 'admin.business-offers-subscriptions.'],
                 ['label' => 'مركز الإشعارات', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],

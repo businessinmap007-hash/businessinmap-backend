@@ -172,7 +172,7 @@ class StaffDelegationTest extends TestCase
         $this->getJson('/api/v2/business/schedules')->assertOk();
         $this->getJson('/api/v2/business/schedules/reservations')->assertOk();
         // …but offers is not (no `offers` capability).
-        $this->getJson('/api/v2/business/offers')->assertForbidden();
+        $this->getJson('/api/v2/business/promotions')->assertForbidden();
     }
 
     public function test_an_offers_delegate_reaches_the_offer_surfaces(): void
@@ -188,9 +188,8 @@ class StaffDelegationTest extends TestCase
         ]);
 
         Sanctum::actingAs($marketer);
-        $this->getJson('/api/v2/business/offers')->assertOk();
-        $this->getJson('/api/v2/business/offers/performance/me')->assertOk();
-        $this->getJson('/api/v2/business/offers/boost/purchases')->assertOk();
+        $this->getJson('/api/v2/business/promotions')->assertOk();
+        $this->getJson('/api/v2/business/promotions/catalog')->assertOk();
     }
 
     public function test_a_stranger_cannot_act_for_a_business(): void

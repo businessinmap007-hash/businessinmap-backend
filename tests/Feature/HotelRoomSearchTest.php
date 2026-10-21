@@ -4,7 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\BookableItem;
 use App\Models\BusinessServicePrice;
-use App\Models\CommercialOffer;
+use App\Models\BookableAllocation;
+use App\Models\BusinessPartnership;
 use App\Models\PlatformService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -153,24 +154,24 @@ class HotelRoomSearchTest extends TestCase
             'password' => Hash::make('Passw0rdTest'), 'type' => User::TYPE_BUSINESS, 'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
         ]);
 
-        $offer = fn (array $extra = []) => CommercialOffer::create($extra + [
-            'offerable_type' => CommercialOffer::OFFERABLE_BOOKABLE_ITEM, 'offerable_id' => $unit->id,
-            'owner_business_id' => $hotel->id, 'seller_business_id' => $agency->id,
-            'source_type' => CommercialOffer::SOURCE_ALLOCATION, 'source_id' => random_int(100000, 999999),
-            'audience_type' => CommercialOffer::AUDIENCE_BOTH, 'title_ar' => 'room', 'title_en' => 'room',
-            'base_price' => 1500, 'final_price' => 1650, 'currency' => 'EGP',
-            'availability_mode' => CommercialOffer::AVAILABILITY_LIMITED, 'available_quantity' => 3, 'status' => CommercialOffer::STATUS_ACTIVE,
+        $partnership = BusinessPartnership::create(['owner_business_id' => $hotel->id, 'partner_business_id' => $agency->id, 'relationship_type' => BusinessPartnership::TYPE_HOTEL_ALLOTMENT, 'status' => BusinessPartnership::STATUS_ACTIVE]);
+
+        // an allocation the hotel gave the agency: contract 1500 + 10% → 1650
+        $allocation = fn (array $extra = []) => BookableAllocation::create($extra + [
+            'partnership_id' => $partnership->id, 'owner_business_id' => $hotel->id, 'partner_business_id' => $agency->id, 'bookable_item_id' => $unit->id,
+            'allocation_type' => BookableAllocation::TYPE_GUARANTEED, 'quantity_total' => 3, 'quantity_sold' => 0, 'quantity_reserved' => 0, 'quantity_released' => 0,
+            'contract_price' => 1500, 'currency' => 'EGP', 'markup_type' => 'percent', 'markup_value' => 10, 'status' => BookableAllocation::STATUS_ACTIVE,
         ]);
 
-        $offer();
-        $offer(['final_price' => 1200, 'status' => CommercialOffer::STATUS_PAUSED, 'source_id' => random_int(100000, 999999)]);   // paused: never shown
-        $offer(['final_price' => 1100, 'available_quantity' => 0, 'source_id' => random_int(100000, 999999)]);                    // sold out
-        $offer(['final_price' => 1000, 'audience_type' => CommercialOffer::AUDIENCE_B2B, 'source_id' => random_int(100000, 999999)]); // trade only
+        $allocation();
+        $allocation(['contract_price' => 1000, 'status' => BookableAllocation::STATUS_PAUSED]);       // paused: never shown
+        $allocation(['contract_price' => 900, 'quantity_sold' => 3]);                                  // sold out
+        $allocation(['contract_price' => 800, 'ends_at' => now()->subDay()]);                          // over
 
         $row = $this->mine($this->rooms(['class_option_id' => $this->five]), [$hotel])[0];
 
         $this->assertEquals(2000, $row['price'], "the hotel's own price");
-        $this->assertCount(1, $row['partner_offers'], 'only the live offer a customer may see');
+        $this->assertCount(1, $row['partner_offers'], 'only the live allocation with quantity left');
         $this->assertEquals(1650, $row['partner_offers'][0]['price']);
         $this->assertSame($agency->id, $row['partner_offers'][0]['seller']['id']);
         $this->assertEquals(1650, $row['best_price'], 'the list is sorted on the cheapest of the two');
@@ -213,13 +214,11 @@ class HotelRoomSearchTest extends TestCase
             'password' => Hash::make('Passw0rdTest'), 'type' => User::TYPE_BUSINESS, 'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
         ]);
 
-        CommercialOffer::create([
-            'offerable_type' => CommercialOffer::OFFERABLE_BOOKABLE_ITEM, 'offerable_id' => $unit->id,
-            'owner_business_id' => $hotel->id, 'seller_business_id' => $agency->id,
-            'source_type' => CommercialOffer::SOURCE_ALLOCATION, 'source_id' => random_int(100000, 999999),
-            'audience_type' => CommercialOffer::AUDIENCE_BOTH, 'title_ar' => 'room', 'title_en' => 'room',
-            'base_price' => 1500, 'final_price' => 1650, 'currency' => 'EGP', 'availability_mode' => CommercialOffer::AVAILABILITY_LIMITED,
-            'available_quantity' => 3, 'status' => CommercialOffer::STATUS_ACTIVE, 'meta' => ['min_nights' => 3],
+        $partnership = BusinessPartnership::create(['owner_business_id' => $hotel->id, 'partner_business_id' => $agency->id, 'relationship_type' => BusinessPartnership::TYPE_HOTEL_ALLOTMENT, 'status' => BusinessPartnership::STATUS_ACTIVE]);
+        BookableAllocation::create([
+            'partnership_id' => $partnership->id, 'owner_business_id' => $hotel->id, 'partner_business_id' => $agency->id, 'bookable_item_id' => $unit->id,
+            'allocation_type' => BookableAllocation::TYPE_GUARANTEED, 'quantity_total' => 3, 'quantity_sold' => 0, 'quantity_reserved' => 0, 'quantity_released' => 0,
+            'contract_price' => 1650, 'currency' => 'EGP', 'markup_type' => 'none', 'min_nights' => 3, 'status' => BookableAllocation::STATUS_ACTIVE,
         ]);
 
         $from = now()->addDays(20)->startOfDay();

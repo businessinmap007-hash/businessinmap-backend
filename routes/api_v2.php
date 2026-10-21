@@ -21,7 +21,6 @@ use App\Http\Controllers\Api\V2\BusinessMenuBundleController;
 use App\Http\Controllers\Api\V2\BusinessMenuItemController;
 use App\Http\Controllers\Api\V2\BusinessMenuSectionController;
 use App\Http\Controllers\Api\V2\MenuMarketCatalogController;
-use App\Http\Controllers\Api\V2\BusinessOfferController;
 use App\Http\Controllers\Api\V2\BusinessOfferingsController;
 use App\Http\Controllers\Api\V2\BusinessRetailListingController;
 use App\Http\Controllers\Api\V2\BusinessServicePriceController;
@@ -79,11 +78,6 @@ use App\Http\Controllers\Api\V2\JobFollowController;
 use App\Http\Controllers\Api\V2\LocationController;
 use App\Http\Controllers\Api\V2\RatingController;
 use App\Http\Controllers\Api\V2\NotificationCenterController;
-use App\Http\Controllers\Api\V2\OfferBoostController;
-use App\Http\Controllers\Api\V2\OfferComparisonController;
-use App\Http\Controllers\Api\V2\OfferDiscoveryController;
-use App\Http\Controllers\Api\V2\OfferFollowController;
-use App\Http\Controllers\Api\V2\OfferTrackingController;
 use App\Http\Controllers\Api\V2\OperationGuarantorController;
 use App\Http\Controllers\Api\V2\OrderController;
 use App\Http\Controllers\Api\V2\OrderTrustController;
@@ -98,7 +92,6 @@ use App\Http\Controllers\Api\V2\ProfileController;
 use App\Http\Controllers\Api\V2\PushTokenController;
 use App\Http\Controllers\Api\V2\RetailDiscoveryController;
 use App\Http\Controllers\Api\V2\SharedCartController;
-use App\Http\Controllers\Api\V2\SearchOffersController;
 use App\Http\Controllers\Api\V2\OperatorSessionController;
 use App\Http\Controllers\Api\V2\TableController;
 use App\Http\Controllers\Api\V2\TableServiceCallController;
@@ -154,18 +147,7 @@ Route::prefix('v2')->group(function () {
         Route::get('nearest', [LocationController::class, 'nearest']);
     });
 
-    Route::prefix('offers')->group(function () {
-        Route::get('/', [OfferDiscoveryController::class, 'index']);
-        Route::get('categories', [OfferDiscoveryController::class, 'categories']);
-        Route::get('lowest', [OfferDiscoveryController::class, 'lowestForOfferable']);
-        Route::get('business/{business}', [OfferDiscoveryController::class, 'byBusiness'])->whereNumber('business');
-        Route::post('{offer}/track', [OfferTrackingController::class, 'track'])->whereNumber('offer');
-        Route::get('{offer}', [OfferDiscoveryController::class, 'show'])->whereNumber('offer');
-    });
-
     Route::prefix('search')->group(function () {
-        Route::get('offers', [SearchOffersController::class, 'index']);
-        Route::get('business/{business}/offers', [SearchOffersController::class, 'business'])->whereNumber('business');
 
         // Scheduling/routes: carriers on a route + day, ranked by trust
         // (guarantee coverage + operation rating). Public discovery.
@@ -1336,20 +1318,6 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/deposit/decline-as-payment', [BookingController::class, 'declineDepositAsPayment'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
         });
 
-        Route::prefix('offers')->group(function () {
-            Route::get('compare', [OfferComparisonController::class, 'compare']);
-            Route::post('compare', [OfferComparisonController::class, 'compare']);
-        });
-
-        // Offer-follow matches surface in the unified /notifications center
-        // (type=offer, via InAppNotificationService::createFromOfferFollowNotification),
-        // so there is no separate offer-notification inbox — only follow CRUD here.
-        Route::prefix('offer-follows')->group(function () {
-            Route::get('/', [OfferFollowController::class, 'index']);
-            Route::post('/', [OfferFollowController::class, 'store']);
-            Route::delete('{follow}', [OfferFollowController::class, 'destroy'])->whereNumber('follow');
-        });
-
         // The requests-and-offers core: a customer posts a need (a limousine ride today), the businesses that may answer
         // it make offers, he picks one and it becomes a booking.
         Route::prefix('service-requests')->group(function () {
@@ -1763,17 +1731,5 @@ Route::prefix('v2')->group(function () {
             Route::delete('{promotion}', [\App\Http\Controllers\Api\V2\PromotionController::class, 'destroy'])->whereNumber('promotion');
         });
 
-        Route::prefix('business/offers')->middleware('business.member:' . BusinessCapability::OFFERS)->group(function () {
-            Route::get('/', [BusinessOfferController::class, 'index']);
-            Route::post('/', [BusinessOfferController::class, 'store']);
-            Route::get('performance/me', [OfferTrackingController::class, 'myPerformance']);
-            Route::get('boost/packages', [OfferBoostController::class, 'packages']);
-            Route::get('boost/purchases', [OfferBoostController::class, 'myPurchases']);
-            Route::post('{offer}/boost', [OfferBoostController::class, 'activate'])->whereNumber('offer');
-            Route::put('{offer}', [BusinessOfferController::class, 'update'])->whereNumber('offer');
-            Route::patch('{offer}', [BusinessOfferController::class, 'update'])->whereNumber('offer');
-            Route::post('{offer}/toggle', [BusinessOfferController::class, 'toggle'])->whereNumber('offer');
-            Route::delete('{offer}', [BusinessOfferController::class, 'destroy'])->whereNumber('offer');
-        });
     });
 });

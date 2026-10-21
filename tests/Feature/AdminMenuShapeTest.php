@@ -214,11 +214,6 @@ class AdminMenuShapeTest extends TestCase
          */
         foreach ([
             'admin.business-partnerships.index',
-            'admin.commercial-offers.index',
-            'admin.offer-performance.index',
-            'admin.offer-boost-packages.index',
-            'admin.offer-follows.index',
-            'admin.business-offers-subscriptions.form',
             'admin.notification-center.index',
         ] as $route) {
             $this->assertContains($route, $routes, "{$route} was lost in the move");

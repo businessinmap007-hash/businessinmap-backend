@@ -101,18 +101,16 @@ class BusinessHoursTest extends TestCase
         $this->assertTrue($map[$unknown->id]);
     }
 
-    public function test_open_now_is_accepted_by_retail_and_offers_search(): void
+    public function test_open_now_is_accepted_by_retail_search(): void
     {
-        // The filter must apply cleanly (no SQL error) on both surfaces.
+        // The filter must apply cleanly (no SQL error).
         $this->getJson('/api/v2/discovery/retail/products?open_now=1')->assertOk();
-        $this->getJson('/api/v2/search/offers?open_now=1')->assertOk();
     }
 
     public function test_open_now_is_accepted_across_all_discovery_screens(): void
     {
         $shop = $this->makeBusiness();
 
-        $this->getJson('/api/v2/offers?open_now=1')->assertOk();
         $this->getJson('/api/v2/discovery/retail/filters?open_now=1')->assertOk();
         $this->getJson('/api/v2/discovery/filters?child_id=1&open_now=1')->assertOk();
         $this->getJson('/api/v2/discovery/attributes?child_id=1&open_now=1')->assertOk();

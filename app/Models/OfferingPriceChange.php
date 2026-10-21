@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * One price move on one priced row.
  *
  * Written by {@see \App\Models\Concerns\RecordsPriceHistory} and read by
- * {@see \App\Services\Offers\OfferEligibility}. Nothing else writes it and
+ * {@see \App\Services\Promotions\PromotionPricing}. Nothing else writes it and
  * nothing edits it — a history somebody can revise is not a history.
  */
 class OfferingPriceChange extends Model

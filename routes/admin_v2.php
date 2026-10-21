@@ -13,7 +13,6 @@ use App\Http\Controllers\AdminV2\{
     BookableItemController,
     BookableItemPriceRuleController,
     BookingController,
-    BusinessOffersSubscriptionController,
     BusinessPartnershipController,
     BusinessServicePriceController,
     CatalogAttributeController,
@@ -26,7 +25,6 @@ use App\Http\Controllers\AdminV2\{
     CategoryServiceBulkController,
     ChildWorkbenchController,
     BusinessTableAdminController,
-    CommercialOfferController,
     DashboardController,
     DeliveryAdminController,
     ArbitratorController,
@@ -60,9 +58,6 @@ use App\Http\Controllers\AdminV2\{
     MenuItemExtraController,
     MenuItemVariantController,
     NotificationCenterAdminController,
-    OfferBoostPackageController,
-    OfferFollowDashboardController,
-    OfferPerformanceController,
     OptionController,
     OptionGroupController,
     PaymentController,
@@ -414,20 +409,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('{bookableAllocation}', [BookableAllocationController::class, 'destroy'])->whereNumber('bookableAllocation')->name('destroy');
             Route::post('{bookableAllocation}/activate', [BookableAllocationController::class, 'activate'])->whereNumber('bookableAllocation')->name('activate');
             Route::post('{bookableAllocation}/stop', [BookableAllocationController::class, 'stop'])->whereNumber('bookableAllocation')->name('stop');
-        });
-
-        Route::middleware('can:' . AdminAbility::COMMERCE)->group(function () {
-            Route::resource('commercial-offers', CommercialOfferController::class)->except(['show'])->names('commercial-offers');
-            Route::post('commercial-offers/{commercialOffer}/toggle', [CommercialOfferController::class, 'toggle'])->whereNumber('commercialOffer')->name('commercial-offers.toggle');
-            Route::get('offer-performance', [OfferPerformanceController::class, 'index'])->name('offer-performance.index');
-            Route::get('offer-boost-packages', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.index');
-            Route::get('offer-boost-packages/boost', fn () => redirect()->route('admin.business-offers-subscriptions.form'))->name('offer-boost-packages.boost-form');
-        });
-
-        Route::prefix('business-offers-subscriptions')->name('business-offers-subscriptions.')->middleware('can:' . AdminAbility::COMMERCE)->group(function () {
-            Route::get('/', [BusinessOffersSubscriptionController::class, 'form'])->name('form');
-            Route::post('activate', [BusinessOffersSubscriptionController::class, 'activate'])->name('activate');
-            Route::post('deactivate', [BusinessOffersSubscriptionController::class, 'deactivate'])->name('deactivate');
         });
 
         Route::prefix('bookable-items')->name('bookable-items.')->middleware('can:' . AdminAbility::OPERATIONS)->group(function () {
@@ -838,27 +819,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('albums/{album}/images/{imageId}', [AlbumController::class, 'deleteImage'])->whereNumber('album')->whereNumber('imageId')->name('albums.images.delete');
         });
 
-        // ── Merged in from the former routes/admin_v2_extras.php. Kept at the
-        // end of this group so the offer-boost-packages redirect stubs above
-        // still take precedence over the real routes below (same as the prior
-        // load order admin_v2 → admin_v2_extras).
+        // ── Merged in from the former routes/admin_v2_extras.php.
         Route::get('wallet-overview', [WalletOverviewController::class, 'index'])->middleware('can:' . AdminAbility::MONEY)->name('wallet-overview.index');
-        Route::get('offer-follows', [OfferFollowDashboardController::class, 'index'])->middleware('can:' . AdminAbility::COMMERCE)->name('offer-follows.index');
 
         Route::prefix('notification-center')->name('notification-center.')->middleware('can:' . AdminAbility::SETTINGS)->group(function () {
             Route::get('/', [NotificationCenterAdminController::class, 'index'])->name('index');
-            Route::post('sync-offers', [NotificationCenterAdminController::class, 'syncOffers'])->name('sync-offers');
         });
 
-        Route::prefix('offer-boost-packages')->name('offer-boost-packages.')->middleware('can:' . AdminAbility::COMMERCE)->group(function () {
-            Route::get('/', [OfferBoostPackageController::class, 'index'])->name('index');
-            Route::get('create', [OfferBoostPackageController::class, 'create'])->name('create');
-            Route::post('/', [OfferBoostPackageController::class, 'store'])->name('store');
-            Route::get('boost', [OfferBoostPackageController::class, 'boostForm'])->name('boost-form');
-            Route::post('boost', [OfferBoostPackageController::class, 'activateBoost'])->name('activate');
-            Route::get('{offerBoostPackage}/edit', [OfferBoostPackageController::class, 'edit'])->whereNumber('offerBoostPackage')->name('edit');
-            Route::put('{offerBoostPackage}', [OfferBoostPackageController::class, 'update'])->whereNumber('offerBoostPackage')->name('update');
-            Route::post('{offerBoostPackage}/toggle', [OfferBoostPackageController::class, 'toggle'])->whereNumber('offerBoostPackage')->name('toggle');
-        });
     });
 });

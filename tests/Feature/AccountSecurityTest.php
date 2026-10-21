@@ -206,33 +206,6 @@ class AccountSecurityTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | What a public search may ask about
-    |--------------------------------------------------------------------------
-    */
-
-    /**
-     * `GET /api/v2/search/offers` needs no authentication and used to match
-     * `users.email`, so anyone could confirm an address belonged to a
-     * registered account — and harvest addresses by narrowing.
-     */
-    public function test_a_public_search_cannot_probe_contact_details(): void
-    {
-        $business = $this->business('Zz Findable');
-
-        $byEmail = $this->getJson('/api/v2/search/offers?q=' . urlencode($business->email))->assertOk();
-        $byPhone = $this->getJson('/api/v2/search/offers?q=' . urlencode($business->phone))->assertOk();
-
-        foreach ([$byEmail, $byPhone] as $response) {
-            $this->assertStringNotContainsString(
-                'Zz Findable',
-                (string) $response->getContent(),
-                'a contact detail identified an account to an anonymous caller'
-            );
-        }
-    }
-
-    /*
-    |--------------------------------------------------------------------------
     | The two names
     |--------------------------------------------------------------------------
     */

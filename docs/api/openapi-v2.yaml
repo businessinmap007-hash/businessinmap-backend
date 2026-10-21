@@ -162,9 +162,7 @@ tags:
       operation between the two.
   - name: Notifications
   - name: Push Tokens
-  - name: Offer Follows
   - name: Discovery
-  - name: Offers (Discovery)
   - name: Search
   - name: Jobs
     description: |
@@ -2934,7 +2932,7 @@ paths:
   # ─────────────────────── Business Offers ───────────────────────
   /business/promotions:
     get: { tags: [Business Offers], summary: "«العروض والخصومات»: my promotions, each with its targets, usage and whether it is running now. Open to every business (the `offers` capability for a delegate).", responses: { '200': { description: OK } } }
-    post: { tags: [Business Offers], summary: "Write a promotion: `{title?, kind: percent|amount|n_for_price_of|spend_percent, params: {value} | {n, pay} | {min_total, value}, audience?: all|new_customers, starts_at?, ends_at?, max_uses?, targets: [{type: all|menu_section|menu_item|listing|listing_category, id?}]}`. A discount that REACHES THE PRICE: the cart prices each line by the best running rule that fits it (never two stacked), on the item's own price (extras are not discounted), and the fee/tax follow the discounted price. `n_for_price_of` is «اشترِ n وادفع ثمن أغلى pay» (n=3, pay=1) or «اشترِ ٢ والثالثة مجانًا» (n=3, pay=2). Needs an end: `ends_at` or `max_uses`. Targets must be the business's own; an `amount` may not reach the cheapest covered item's price. The answer lists `not_yet_discounted` items whose price rose in the last 30 days.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+    post: { tags: [Business Offers], summary: "Write a promotion: `{title?, kind: percent|amount|n_for_price_of|spend_percent, params: {value} | {n, pay} | {min_total, value}, audience?: all|new_customers, starts_at?, ends_at?, max_uses?, targets: [{type: all|menu_section|menu_item|listing|listing_category, id?}]}`. A discount that REACHES THE PRICE: the cart prices each line by the best running rule that fits it (never two stacked), on the item's own price (extras are not discounted), and the fee/tax follow the discounted price. `n_for_price_of` is «اشترِ pay واحصل على n»: the customer pays the dearest `pay` of every group of `n` pieces and takes the rest free (pay=2, n=6 → «اشترِ ٢ واحصل على ٦»; pay=1, n=3 → «٣ بسعر الأغلى»). Optional `params.same_item` (a group is pieces of ONE item) and `params.max_groups` (a cap on groups per order); a group repeats while the cart holds whole groups. Needs an end: `ends_at` or `max_uses`. Targets must be the business's own; an `amount` may not reach the cheapest covered item's price. The answer lists `not_yet_discounted` items (with `eligible_from`) whose price rose by more than 5% within the last 15 days — the «no fake discount» rule, both numbers config (`bim.promotions`) and returned as `rules` by the list.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/promotions/catalog:
     get: { tags: [Business Offers], summary: "My products by section to pick from: `menu` (sections of menu items) and `shop` (retail listings by product category); each group has `type`/`id` (null for «بدون قسم») and its `items` with price.", responses: { '200': { description: OK } } }
   /business/promotions/{promotion}:
@@ -2944,26 +2942,6 @@ paths:
     post: { tags: [Business Offers], summary: "Pause or resume a promotion.", parameters: [{ name: promotion, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /businesses/{business}/promotions:
     get: { tags: [Business Offers], summary: "The promotions running now on a business, for its page's offers tab (a first-order offer is hidden from a returning customer): each with its targets, remaining uses and up to 12 covered items with `price_after` where the rule can say it. The business page's `sections.offers` says whether the tab shows.", parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
-  /business/offers:
-    get: { tags: [Business Offers], summary: The business's offers, responses: { '200': { description: OK } } }
-    post: { tags: [Business Offers], summary: Create an offer (matches followers), responses: { '201': { description: Created } } }
-  /business/offers/{offer}:
-    parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }]
-    put: { tags: [Business Offers], summary: Update an offer, responses: { '200': { description: OK } } }
-    patch: { tags: [Business Offers], summary: Update an offer, responses: { '200': { description: OK } } }
-    delete: { tags: [Business Offers], summary: Delete an offer, responses: { '200': { description: OK } } }
-  /business/offers/{offer}/toggle:
-    post: { tags: [Business Offers], summary: Activate/pause an offer, parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
-  /business/offers/{offer}/boost:
-    post: { tags: [Business Offers], summary: Activate a boost package on an offer, parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
-  /business/offers/boost/packages:
-    get: { tags: [Business Offers], summary: Available boost packages, responses: { '200': { description: OK } } }
-  /business/offers/boost/purchases:
-    get: { tags: [Business Offers], summary: My boost purchases, responses: { '200': { description: OK } } }
-  /business/offers/performance/me:
-    get: { tags: [Business Offers], summary: My offer performance stats, responses: { '200': { description: OK } } }
-
-  # ─────────────────────────── Delivery ───────────────────────────
   /delivery/register:
     post: { tags: [Delivery], summary: 'Register as a delivery driver (Shipping & Delivery business accounts only)', responses: { '201': { description: Registered }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /delivery/delivery-fee:
@@ -3797,32 +3775,6 @@ paths:
       responses: { '200': { description: OK } }
 
   # ─────────────────────── Offer Follows ───────────────────────
-  /offer-follows:
-    get: { tags: [Offer Follows], summary: My follows, responses: { '200': { description: OK } } }
-    post:
-      tags: [Offer Follows]
-      summary: Follow offers (keyword / business / category-child / offerable)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [followable_type]
-              properties:
-                followable_type: { type: string }
-                followable_id: { type: integer }
-                keyword: { type: string }
-                category_id: { type: integer }
-                category_child_id: { type: integer }
-                audience_type: { type: string, enum: [b2c, b2b, both, private] }
-                min_price: { type: number }
-                max_price: { type: number }
-      responses: { '201': { description: Created } }
-  /offer-follows/{follow}:
-    delete: { tags: [Offer Follows], summary: Unfollow, parameters: [{ name: follow, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
-
-  # ─────────────────────────── Discovery ───────────────────────────
   /discovery/service-types:
     get: { tags: [Discovery], summary: 'The full platform-service vocabulary (booking/menu/delivery/retail/schedules/training), unscoped by specialty (public) — powers a "what kind of service?" chip row shown before any category child is chosen. Contrast with /discovery/services, which is scoped to one child.', security: [], responses: { '200': { description: OK } } }
   /discovery/services:
@@ -4030,28 +3982,6 @@ paths:
     get: { tags: [Discovery], summary: Retail product + its offers (public), security: [], parameters: [{ name: product, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
 
   # ─────────────────────── Offers (Discovery) ───────────────────────
-  /offers:
-    get: { tags: [Offers (Discovery)], summary: 'Browse offers (public). Filterable by category_id/child_id — the selling business''s own root/child, not the offerable''s. open_now=1 keeps only offers whose selling shop is open now. Each row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta`.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }, { name: category_id, in: query, required: false, schema: { type: integer } }, { name: child_id, in: query, required: false, schema: { type: integer } }], responses: { '200': { description: OK } } }
-  /offers/categories:
-    get: { tags: [Offers (Discovery)], summary: Root categories that currently have live offers, with a count each (public) — the offers tab's own top-level navigation, security: [], responses: { '200': { description: OK } } }
-  /offers/lowest:
-    get: { tags: [Offers (Discovery)], summary: Lowest offer for an offerable (public), description: 'The row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta`.', security: [], responses: { '200': { description: OK } } }
-  /offers/business/{business}:
-    get: { tags: [Offers (Discovery)], summary: A business's offers (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
-  /offers/{offer}:
-    get: { tags: [Offers (Discovery)], summary: Offer detail (public), description: 'The row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta`.', security: [], parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
-  /offers/{offer}/track:
-    post: { tags: [Offers (Discovery)], summary: Track an offer view/click (public), security: [], parameters: [{ name: offer, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
-  /offers/compare:
-    get: { tags: [Offers (Discovery)], summary: Compare offers (authed), description: 'The row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta` (exactly what a competitor would most want to read off this endpoint).', responses: { '200': { description: OK } } }
-
-  # ─────────────────────────── Search ───────────────────────────
-  /search/offers:
-    get: { tags: [Search], summary: 'Search offers (public). open_now=1 keeps only offers whose selling shop is open now. Each row is a curated payload, not the model''s raw attributes — never `ranking_score`/`boost_score`/`meta`.', security: [], parameters: [{ name: open_now, in: query, required: false, schema: { type: boolean } }], responses: { '200': { description: OK } } }
-  /search/business/{business}/offers:
-    get: { tags: [Search], summary: Search a business's offers (public), security: [], parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
-
-  # ─────────────────────────── Jobs ───────────────────────────
   /jobs:
     get: { tags: [Jobs], summary: Browse open jobs — filterable by category_id/category_child_id (public), security: [], responses: { '200': { description: OK } } }
     post:

@@ -4,9 +4,11 @@ namespace App\Services\Promotions;
 
 use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
+use App\Models\OfferingPriceChange;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Promotion;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -17,8 +19,8 @@ use Illuminate\Support\Facades\DB;
  *  - A line carries ONE promotion: of every rule that fits it, the one that takes the most off it (ties go to the older rule). Two
  *    offers never stack on the same line.
  *  - The discount is taken off the item's OWN price — its extras and add-ons are not discounted.
- *  - Never on an item whose price rose in the last 30 days (the same «no fake discount» rule the offers have always had), nor on a
- *    line bought on instalments (that price belongs to its plan).
+ *  - Never on an item whose price rose by more than the tolerance within the quiet days (config `bim.promotions`: 15 days, 5%) —
+ *    the «no fake discount» rule — nor on a line bought on instalments (that price belongs to its plan).
  *  - The service fee and the tax are billed on what is left, because the line's `total_price` IS what is left; `discount` and
  *    `promotion_id` only remember what was promised.
  *  - Only a CART is repriced. An order that was placed keeps the line prices it was placed with.
@@ -27,9 +29,6 @@ use Illuminate\Support\Facades\DB;
  */
 final class PromotionPricing
 {
-    /** «شهر كامل» without a price rise — the same threshold as OfferEligibility::QUIET_DAYS. */
-    private const QUIET_DAYS = 30;
-
     /** @var array<string,bool> quiet-month answers per item, for this run */
     private array $quiet = [];
 
@@ -129,7 +128,7 @@ final class PromotionPricing
     /**
      * The lines a promotion could touch, with what each is made of.
      *
-     * @return Collection<int,array{id:int,keys:list<string>,base:float,qty:float}>
+     * @return Collection<int,array{id:int,item:string,keys:list<string>,base:float,qty:float}>
      */
     private function eligibleLines(Collection $items): Collection
     {
@@ -155,6 +154,7 @@ final class PromotionPricing
 
             return [
                 'id' => (int) $l->id,
+                'item' => $l->offering_type . ':' . $l->offering_id,
                 'keys' => $keys,
                 'base' => round(max((float) $l->price - $addons, 0), 2),
                 'qty' => (float) $l->qty,
@@ -163,24 +163,49 @@ final class PromotionPricing
         })->filter(fn (array $l) => $l['quiet'] && $l['base'] > 0)->values();
     }
 
-    /** True when the item's price has not risen for thirty days — a discount on it is a real one. */
+    /** True when the item's price has not risen (by more than the tolerance) within the quiet days — a discount on it is a real one. */
     public function quietMonth(string $type, int $id): bool
     {
         $key = $type . ':' . $id;
 
         if (! isset($this->quiet[$key])) {
-            $model = $type::query()->find($id);
-            $rise = $model && method_exists($model, 'lastPriceIncreaseAt') ? $model->lastPriceIncreaseAt() : null;
-            $this->quiet[$key] = ! $rise || $rise->copy()->addDays(self::QUIET_DAYS)->isPast();
+            $this->quiet[$key] = $this->eligibleFrom($type, $id) === null;
         }
 
         return $this->quiet[$key];
     }
 
+    /** The day the item may be discounted again, or null if it may be now. */
+    public function eligibleFrom(string $type, int $id): ?Carbon
+    {
+        $model = $type::query()->find($id);
+
+        if (! $model) {
+            return null;
+        }
+
+        $tolerance = (float) config('bim.promotions.rise_tolerance_percent', 5);
+        $days = (int) config('bim.promotions.quiet_days', 15);
+
+        $at = OfferingPriceChange::query()->for($model)->increases()
+            ->whereRaw('old_price > 0 AND (new_price - old_price) * 100 / old_price > ?', [$tolerance])
+            ->max('changed_at');
+
+        $from = $at ? Carbon::parse($at)->addDays($days) : null;
+
+        return $from && $from->isFuture() ? $from : null;
+    }
+
+    /** The two numbers of the rule, for the screen that explains it to the merchant. @return array{quiet_days:int,rise_tolerance_percent:float} */
+    public function rules(): array
+    {
+        return ['quiet_days' => (int) config('bim.promotions.quiet_days', 15), 'rise_tolerance_percent' => (float) config('bim.promotions.rise_tolerance_percent', 5)];
+    }
+
     /**
      * What one promotion takes off each line it fits.
      *
-     * @param  Collection<int,array{id:int,keys:list<string>,base:float,qty:float}>  $lines
+     * @param  Collection<int,array{id:int,item:string,keys:list<string>,base:float,qty:float}>  $lines
      * @return array<int,float> line id => discount
      */
     private function allocate(Promotion $promotion, Collection $lines): array
@@ -227,21 +252,30 @@ final class PromotionPricing
                     break;
                 }
 
-                // every whole piece, dearest first; in each group of n the cheapest (n - pay) are free
-                $units = [];
+                // «اشترِ pay واحصل على n»: every whole piece, dearest first; in each group of n the cheapest (n - pay) are free.
+                // With `same_item` a group is made of pieces of ONE item; `max_groups` caps how many groups an order may take.
+                $sameItem = (bool) ($promotion->params['same_item'] ?? false);
+                $cap = (int) ($promotion->params['max_groups'] ?? 0);
+                $taken = 0;
+
+                $pools = [];
                 foreach ($fit as $l) {
                     for ($i = 0, $whole = (int) floor($l['qty']); $i < $whole; $i++) {
-                        $units[] = ['id' => $l['id'], 'price' => $l['base']];
+                        $pools[$sameItem ? $l['item'] : 'all'][] = ['id' => $l['id'], 'price' => $l['base']];
                     }
                 }
-                usort($units, fn ($a, $b) => $b['price'] <=> $a['price']);
 
-                foreach (array_chunk($units, $n) as $group) {
-                    if (count($group) < $n) {
-                        continue;
-                    }
-                    foreach (array_slice($group, $pay) as $free) {
-                        $out[$free['id']] = round(($out[$free['id']] ?? 0) + $free['price'], 2);
+                foreach ($pools as $units) {
+                    usort($units, fn ($a, $b) => $b['price'] <=> $a['price']);
+
+                    foreach (array_chunk($units, $n) as $group) {
+                        if (count($group) < $n || ($cap > 0 && $taken >= $cap)) {
+                            continue;
+                        }
+                        $taken++;
+                        foreach (array_slice($group, $pay) as $free) {
+                            $out[$free['id']] = round(($out[$free['id']] ?? 0) + $free['price'], 2);
+                        }
                     }
                 }
                 break;

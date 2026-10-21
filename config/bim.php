@@ -141,6 +141,19 @@ return [
     | Project tracking (owner, 2026-10-20). A finished project is on time when it ends by the agreed delivery date + grace. The
     | time a stage waited for the customer's approval to start is NOT held against the business unless this is true.
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Promotions («العروض والخصومات»)
+    |--------------------------------------------------------------------------
+    | The «no fake discount» rule: an item whose price ROSE by more than `rise_tolerance_percent` within the last `quiet_days`
+    | is not discounted yet (raise the price, announce a discount, put it back). 15 days and 5% by the owner's word, 2026-10-21 —
+    | a number to tune here, not a constant in the code. The merchant is told the same numbers on his offers screen.
+    */
+    'promotions' => [
+        'quiet_days' => (int) env('BIM_PROMO_QUIET_DAYS', 15),
+        'rise_tolerance_percent' => (float) env('BIM_PROMO_RISE_TOLERANCE', 5),
+    ],
+
     'projects' => [
         'count_customer_wait' => false,
     ],

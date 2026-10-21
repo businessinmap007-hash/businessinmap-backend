@@ -4,14 +4,13 @@ namespace App\Http\Controllers\Api\V2;
 
 use App\Http\Controllers\Controller;
 use App\Models\BookableItem;
-use App\Models\CommercialOffer;
+use App\Models\BookableAllocation;
 use App\Models\OfferingOption;
 use App\Models\PlatformService;
 use App\Models\User;
 use App\Services\BookableAvailabilityService;
 use App\Services\BusinessServicePriceResolver;
 use App\Services\ServiceExecutionEngine;
-use App\Services\Commercial\OfferAudience;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -26,8 +25,7 @@ use Illuminate\Support\Facades\DB;
  *
  * A room is shown as a TYPE per hotel («غرفة مزدوجة · إطلالة» at the hotel), the way the hotel page shows it, with the
  * price its own price line gives. A partner company that holds an ALLOCATION of that room and offers it at its own price
- * (`commercial_offers`, source = allocation) is listed beside it as an alternative — the comparison the owner asked for —
- * subject to the same audience rules as every other offer.
+ * (a `bookable_allocations` row, read as it is) is listed beside it as an alternative — the comparison the owner asked for.
  *
  * Public, like the rest of discovery.
  */
@@ -39,7 +37,6 @@ final class HotelRoomSearchController extends Controller
 
     public function __construct(
         private readonly BusinessServicePriceResolver $prices,
-        private readonly OfferAudience $audience,
         private readonly BookableAvailabilityService $availability,
         private readonly ServiceExecutionEngine $engine,
     ) {}
@@ -279,8 +276,9 @@ final class HotelRoomSearchController extends Controller
     }
 
     /**
-     * The partner companies' offers on these units — an allocation the hotel gave a company, which the company offers at
-     * its own price. Only ones a customer may see (audience), still active, in their window, with quantity left.
+     * The partner companies' offers on these units — an allocation the hotel gave a company, which the company sells at its own
+     * price (the contract price plus its markup). Only ones still active, in their window, with quantity left and a stay length
+     * the allocation allows.
      *
      * @param  list<int>  $unitIds
      * @return array<int,list<array<string,mixed>>> unit id → offers
@@ -291,37 +289,28 @@ final class HotelRoomSearchController extends Controller
             return [];
         }
 
-        $query = CommercialOffer::query()
-            ->where('source_type', CommercialOffer::SOURCE_ALLOCATION)
-            ->where('offerable_type', CommercialOffer::OFFERABLE_BOOKABLE_ITEM)
-            ->whereIn('offerable_id', $unitIds)
-            ->where('status', CommercialOffer::STATUS_ACTIVE)
-            ->where(fn ($q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
-            ->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
-            ->where(fn ($q) => $q->whereNull('available_quantity')->orWhere('available_quantity', '>', 0));
-
-        $viewer = $this->audience->viewer(request());
-        $this->audience->apply($query, $viewer);
-
-        $offers = $query->get();
-        $sellers = User::query()->whereIn('id', $offers->pluck('seller_business_id')->filter())->get(['id', 'name'])->keyBy('id');
+        $allocations = BookableAllocation::query()->active()->whereIn('bookable_item_id', $unitIds)->get();
+        $sellers = User::query()->whereIn('id', $allocations->pluck('partner_business_id')->filter())->get(['id', 'name'])->keyBy('id');
         $out = [];
 
-        foreach ($offers as $offer) {
-            // a stay shorter or longer than the allocation allows is not an offer for it
-            $min = data_get($offer->meta, 'min_nights');
-            $max = data_get($offer->meta, 'max_nights');
+        foreach ($allocations as $allocation) {
+            $left = $allocation->availableQuantity();
 
-            if ($nights !== null && (($min && $nights < (int) $min) || ($max && $nights > (int) $max))) {
+            if ($left <= 0) {
                 continue;
             }
 
-            $out[(int) $offer->offerable_id][] = [
-                'offer_id' => (int) $offer->id,
-                'seller' => ['id' => (int) $offer->seller_business_id, 'name' => $sellers[$offer->seller_business_id]->name ?? null],
-                'price' => round((float) $offer->final_price, 2),
-                'currency' => (string) ($offer->currency ?: 'EGP'),
-                'available_quantity' => $offer->available_quantity !== null ? (int) $offer->available_quantity : null,
+            // a stay shorter or longer than the allocation allows is not an offer for it
+            if ($nights !== null && (($allocation->min_nights && $nights < (int) $allocation->min_nights) || ($allocation->max_nights && $nights > (int) $allocation->max_nights))) {
+                continue;
+            }
+
+            $out[(int) $allocation->bookable_item_id][] = [
+                'allocation_id' => (int) $allocation->id,
+                'seller' => ['id' => (int) $allocation->partner_business_id, 'name' => $sellers[$allocation->partner_business_id]->name ?? null],
+                'price' => round((float) $allocation->finalPrice(), 2),
+                'currency' => (string) ($allocation->currency ?: 'EGP'),
+                'available_quantity' => $left,
             ];
         }
 

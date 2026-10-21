@@ -69,13 +69,6 @@ final class NotificationCenterAdminController extends Controller
         ]);
     }
 
-    public function syncOffers(InAppNotificationService $service)
-    {
-        $created = $service->syncOfferFollowNotifications(1000);
-
-        return back()->with('success', __('تم مزامنة إشعارات العروض. New created: ') . $created);
-    }
-
     private function applyFilters(Builder $query, array $data): void
     {
         $q = trim((string) ($data['q'] ?? ''));

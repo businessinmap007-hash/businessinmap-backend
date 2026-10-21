@@ -52,6 +52,12 @@ final class PromotionService
         return $promotion;
     }
 
+    /** The «no fake discount» rule's two numbers, for the screen that explains it. @return array{quiet_days:int,rise_tolerance_percent:float} */
+    public function rules(): array
+    {
+        return $this->pricing->rules();
+    }
+
     /** @return array<string,mixed> */
     public function serialize(Promotion $p, bool $withItems = false): array
     {
@@ -75,9 +81,9 @@ final class PromotionService
     }
 
     /**
-     * Items a promotion covers that it will NOT discount yet, because their price rose in the last thirty days.
+     * Items a promotion covers that it will NOT discount yet, because their price rose within the quiet days, and the day each may be.
      *
-     * @return list<array{name:string,type:string,id:int}>
+     * @return list<array{name:string,type:string,id:int,eligible_from:string}>
      */
     public function recentlyRaised(Promotion $promotion): array
     {
@@ -86,8 +92,10 @@ final class PromotionService
         foreach ($this->catalog->coveredItems($promotion, 500) as $item) {
             $class = $item['type'] === Promotion::TARGET_MENU_ITEM ? MenuItem::class : BusinessCatalogListing::class;
 
-            if (! $this->pricing->quietMonth($class, (int) $item['id'])) {
-                $out[] = ['name' => $item['name'], 'type' => $item['type'], 'id' => (int) $item['id']];
+            $from = $this->pricing->eligibleFrom($class, (int) $item['id']);
+
+            if ($from) {
+                $out[] = ['name' => $item['name'], 'type' => $item['type'], 'id' => (int) $item['id'], 'eligible_from' => $from->toDateString()];
             }
         }
 
@@ -107,8 +115,8 @@ final class PromotionService
         match ($kind) {
             Promotion::PERCENT => ($v = (float) ($p['value'] ?? 0)) >= 1 && $v <= 90 ?: $bad('params.value', __('نسبة الخصم بين ١٪ و٩٠٪.')),
             Promotion::AMOUNT => (float) ($p['value'] ?? 0) > 0 ?: $bad('params.value', __('اكتب مبلغ الخصم.')),
-            Promotion::N_FOR_PRICE_OF => ($n = (int) ($p['n'] ?? 0)) >= 2 && $n <= 10 && ($pay = (int) ($p['pay'] ?? 1)) >= 1 && $pay < $n
-                ?: $bad('params.n', __('اشترِ من ٢ إلى ١٠ قطع، وادفع ثمن قطعة أو أكثر لكن أقل من العدد.')),
+            Promotion::N_FOR_PRICE_OF => ($n = (int) ($p['n'] ?? 0)) >= 2 && $n <= 20 && ($pay = (int) ($p['pay'] ?? 1)) >= 1 && $pay < $n
+                ?: $bad('params.n', __('اشترِ عددًا، واحصل على عدد أكبر منه (حتى ٢٠ قطعة).')),
             Promotion::SPEND_PERCENT => (float) ($p['min_total'] ?? 0) > 0 && ($v = (float) ($p['value'] ?? 0)) >= 1 && $v <= 90
                 ?: $bad('params.min_total', __('اكتب حدًّا أدنى للطلب ونسبة خصم بين ١٪ و٩٠٪.')),
             default => $bad('kind', __('نوع العرض غير معروف.')),

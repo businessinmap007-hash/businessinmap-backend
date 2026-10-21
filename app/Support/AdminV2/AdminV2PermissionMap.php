@@ -122,24 +122,6 @@ final class AdminV2PermissionMap
 
             
 
-            [
-                'key'     => 'coupons',
-                'label'   => 'أكواد الخصم',
-                'icon'    => 'zmdi zmdi-accounts-outline',
-                'ability' => null,
-                'children' => [
-                    [
-                        'label' => 'مشاهدة الأكواد',
-                        'route' => 'admin.coupons.index',
-                        'ability' => null,
-                    ],
-                    [
-                        'label' => 'إضافة كود خصم',
-                        'route' => 'admin.coupons.create',
-                        'ability' => null,
-                    ],
-                ],
-            ],
 
             [
                 'key'     => 'settings',

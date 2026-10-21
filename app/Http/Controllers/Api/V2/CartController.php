@@ -165,6 +165,12 @@ final class CartController extends Controller
     /** Serialize a cart/order with resolved line names and totals. */
     private function presentCart(Order $order): array
     {
+        // a cart shows the promotions as they stand now: one started (or ended) since the last edit is already in the price
+        if ($order->status === 'cart') {
+            app(\App\Services\Promotions\PromotionPricing::class)->apply($order);
+            $order->unsetRelation('items');
+        }
+
         $order->loadMissing('items', 'business:id,name,logo');
         $names = $this->displayNames($order);
         $sizeNames = $this->sizeNames($order);

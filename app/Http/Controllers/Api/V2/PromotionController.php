@@ -31,7 +31,7 @@ class PromotionController extends Controller
     {
         $rows = Promotion::query()->where('business_id', BusinessContext::id($request))->with('targets')->orderByDesc('id')->get();
 
-        return response()->json(['success' => true, 'data' => ['promotions' => $rows->map(fn (Promotion $p) => $this->promotions->serialize($p))->values()]]);
+        return response()->json(['success' => true, 'data' => ['promotions' => $rows->map(fn (Promotion $p) => $this->promotions->serialize($p))->values(), 'rules' => $this->promotions->rules()]]);
     }
 
     /** GET business/promotions/catalog — the products by section, to pick from. */
@@ -105,8 +105,10 @@ class PromotionController extends Controller
             'kind' => ['required', Rule::in(Promotion::KINDS)],
             'params' => ['required', 'array'],
             'params.value' => ['nullable', 'numeric', 'min:0'],
-            'params.n' => ['nullable', 'integer', 'min:2', 'max:10'],
-            'params.pay' => ['nullable', 'integer', 'min:1', 'max:9'],
+            'params.n' => ['nullable', 'integer', 'min:2', 'max:20'],
+            'params.pay' => ['nullable', 'integer', 'min:1', 'max:19'],
+            'params.same_item' => ['nullable', 'boolean'],
+            'params.max_groups' => ['nullable', 'integer', 'min:1', 'max:50'],
             'params.min_total' => ['nullable', 'numeric', 'min:0'],
             'audience' => ['nullable', Rule::in([Promotion::AUDIENCE_ALL, Promotion::AUDIENCE_NEW])],
             'starts_at' => ['nullable', 'date'],

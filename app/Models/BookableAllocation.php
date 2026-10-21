@@ -103,12 +103,6 @@ class BookableAllocation extends Model
         return $this->belongsTo(PlatformService::class, 'platform_service_id');
     }
 
-    public function commercialOffers()
-    {
-        return $this->hasMany(CommercialOffer::class, 'source_id')
-            ->where('source_type', CommercialOffer::SOURCE_ALLOCATION);
-    }
-
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE)

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\BookableAllocation;
 use App\Models\BookableItem;
 use App\Models\BusinessPartnership;
-use App\Models\CommercialOffer;
 use App\Models\PlatformService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -123,14 +122,13 @@ class BookableAllocationController extends Controller
 
         $allocation = DB::transaction(function () use ($data) {
             $allocation = BookableAllocation::create($data);
-            $this->syncOffer($allocation);
 
             return $allocation;
         });
 
         return redirect()
             ->route('admin.bookable-allocations.edit', $allocation->id)
-            ->with('success', __('تم إنشاء الحصة وتوليد العرض التجاري.'));
+            ->with('success', __('تم إنشاء الحصة.'));
     }
 
     public function edit(BookableAllocation $bookableAllocation)
@@ -144,34 +142,27 @@ class BookableAllocationController extends Controller
 
         DB::transaction(function () use ($bookableAllocation, $data) {
             $bookableAllocation->update($data);
-            $this->syncOffer($bookableAllocation->refresh());
         });
 
         return redirect()
             ->route('admin.bookable-allocations.edit', $bookableAllocation->id)
-            ->with('success', __('تم تحديث الحصة وتحديث العرض التجاري.'));
+            ->with('success', __('تم تحديث الحصة.'));
     }
 
     public function destroy(BookableAllocation $bookableAllocation)
     {
         DB::transaction(function () use ($bookableAllocation) {
-            CommercialOffer::query()
-                ->where('source_type', CommercialOffer::SOURCE_ALLOCATION)
-                ->where('source_id', (int) $bookableAllocation->id)
-                ->delete();
-
             $bookableAllocation->delete();
         });
 
         return redirect()
             ->route('admin.bookable-allocations.index')
-            ->with('success', __('تم حذف الحصة والعرض المرتبط بها.'));
+            ->with('success', __('تم حذف الحصة.'));
     }
 
     public function stop(BookableAllocation $bookableAllocation)
     {
         $bookableAllocation->update(['status' => BookableAllocation::STATUS_STOPPED]);
-        $this->syncOffer($bookableAllocation->refresh());
 
         return back()->with('success', __('تم إيقاف الحصة.'));
     }
@@ -179,7 +170,6 @@ class BookableAllocationController extends Controller
     public function activate(BookableAllocation $bookableAllocation)
     {
         $bookableAllocation->update(['status' => BookableAllocation::STATUS_ACTIVE]);
-        $this->syncOffer($bookableAllocation->refresh());
 
         return back()->with('success', __('تم تفعيل الحصة.'));
     }
@@ -228,55 +218,6 @@ class BookableAllocationController extends Controller
         unset($data['meta_json']);
 
         return $data;
-    }
-
-    private function syncOffer(BookableAllocation $allocation): CommercialOffer
-    {
-        $allocation->loadMissing(['bookableItem', 'ownerBusiness', 'partnerBusiness']);
-
-        $bookable = $allocation->bookableItem;
-        $title = $bookable ? $bookable->display_name : ('Allocation #' . $allocation->id);
-        $availableQuantity = $allocation->availableQuantity();
-        $status = $allocation->status === BookableAllocation::STATUS_ACTIVE
-            ? CommercialOffer::STATUS_ACTIVE
-            : CommercialOffer::STATUS_PAUSED;
-
-        return CommercialOffer::updateOrCreate(
-            [
-                'source_type' => CommercialOffer::SOURCE_ALLOCATION,
-                'source_id' => (int) $allocation->id,
-            ],
-            [
-                'offerable_type' => CommercialOffer::OFFERABLE_BOOKABLE_ITEM,
-                'offerable_id' => (int) $allocation->bookable_item_id,
-                'owner_business_id' => (int) $allocation->owner_business_id,
-                'seller_business_id' => (int) $allocation->partner_business_id,
-                'title_ar' => $title,
-                'title_en' => $title,
-                'base_price' => (float) $allocation->contract_price,
-                'final_price' => $allocation->finalPrice(),
-                'currency' => $allocation->currency ?: 'EGP',
-                'discount_type' => null,
-                'discount_value' => null,
-                'availability_mode' => CommercialOffer::AVAILABILITY_LIMITED,
-                'available_quantity' => $availableQuantity,
-                'starts_at' => $allocation->starts_at,
-                'ends_at' => $allocation->ends_at,
-                'is_refundable' => (bool) data_get($allocation->meta, 'is_refundable', false),
-                'payment_model' => data_get($allocation->meta, 'payment_model'),
-                'ranking_score' => (float) data_get($allocation->meta, 'ranking_score', 0),
-                'status' => $status,
-                'meta' => [
-                    'allocation_id' => (int) $allocation->id,
-                    'partnership_id' => (int) $allocation->partnership_id,
-                    'allocation_type' => (string) $allocation->allocation_type,
-                    'release_days_before' => (int) $allocation->release_days_before,
-                    'min_nights' => $allocation->min_nights,
-                    'max_nights' => $allocation->max_nights,
-                    'source' => 'bookable_allocation_admin',
-                ],
-            ]
-        );
     }
 
     private function decodeJson(?string $json): ?array

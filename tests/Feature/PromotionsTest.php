@@ -283,4 +283,86 @@ class PromotionsTest extends TestCase
         $this->deleteJson("/api/v2/business/promotions/{$p->id}")->assertOk();
         $this->assertNull(Promotion::query()->find($p->id));
     }
+
+    /* ------------------------------------------------------------------ «اشترِ ن واحصل على م» */
+
+    public function test_buy_n_get_m_charges_the_dearest_n_of_every_m_for_the_owners_three_examples(): void
+    {
+        $item = $this->seedMenuItem($this->shop->id, null, 50.0);
+
+        foreach ([[1, 3, 6, 4], [2, 6, 6, 4], [4, 8, 8, 4]] as [$pay, $take, $qty, $free]) {
+            Promotion::query()->where('business_id', $this->shop->id)->delete();
+            $this->promo(Promotion::N_FOR_PRICE_OF, ['n' => $take, 'pay' => $pay], [[Promotion::TARGET_ALL, null]]);
+
+            Sanctum::actingAs($this->buyer);
+            \App\Models\Order::query()->where('user_id', $this->buyer->id)->where('business_id', $this->shop->id)->where('status', 'cart')->delete();
+            $this->postJson('/api/v2/cart/items', ['kind' => 'menu', 'offering_id' => $item->id, 'qty' => $qty])->assertCreated();
+            $bill = $this->cart()['bill'];
+
+            // one group of $take pieces: only $pay of them are paid; a second incomplete group pays in full
+            $groups = intdiv($qty, $take);
+            $this->assertEquals(($qty - $groups * ($take - $pay)) * 50.0, $bill['menu_subtotal'], "buy $pay get $take with $qty pieces");
+        }
+    }
+
+    public function test_a_group_can_be_limited_to_one_item_and_the_repeats_can_be_capped(): void
+    {
+        $a = $this->seedMenuItem($this->shop->id, null, 100.0, 'A');
+        $b = $this->seedMenuItem($this->shop->id, null, 60.0, 'B');
+        $p = $this->promo(Promotion::N_FOR_PRICE_OF, ['n' => 2, 'pay' => 1], [[Promotion::TARGET_ALL, null]]);
+
+        $this->addToCart($a);
+        $this->assertEquals(60.0, $this->addToCart($b)['bill']['offers_discount'], 'mixed: the dearer of the pair is paid');
+
+        $p->update(['params' => ['n' => 2, 'pay' => 1, 'same_item' => true]]);
+        $this->assertEquals(0.0, $this->cart()['bill']['offers_discount'], 'one of each is not a pair of the same item');
+    }
+
+    public function test_repeats_in_an_order_stop_at_the_cap(): void
+    {
+        $item = $this->seedMenuItem($this->shop->id, null, 50.0);
+        $this->promo(Promotion::N_FOR_PRICE_OF, ['n' => 2, 'pay' => 1, 'max_groups' => 1], [[Promotion::TARGET_ALL, null]]);
+
+        $cart = $this->addToCart($item, 6);
+
+        $this->assertEquals(50.0, $cart['bill']['offers_discount'], 'six pieces make three pairs, but the offer takes one');
+    }
+
+    /* ------------------------------------------------------------------ the quiet days */
+
+    public function test_a_small_rise_does_not_block_a_big_one_does_for_fifteen_days(): void
+    {
+        $small = $this->seedMenuItem($this->shop->id, null, 100.0, 'Small');
+        $small->update(['base_price' => 104.0]);   // +4%, under the 5% tolerance
+        $big = $this->seedMenuItem($this->shop->id, null, 100.0, 'Big');
+        $big->update(['base_price' => 120.0]);     // +20%
+        $this->promo(Promotion::PERCENT, ['value' => 10], [[Promotion::TARGET_ALL, null]]);
+
+        $this->addToCart($small);
+        $cart = $this->addToCart($big);
+
+        $this->assertEquals(10.4, $this->line($cart, $small)['discount']);
+        $this->assertEquals(0.0, $this->line($cart, $big)['discount']);
+
+        // fifteen days after the rise the big one may be discounted
+        \App\Models\OfferingPriceChange::query()->where('priceable_id', $big->id)->update(['changed_at' => now()->subDays(16)]);
+        $cart = $this->cart();
+        $this->assertEquals(12.0, $this->line($cart, $big)['discount']);
+    }
+
+    public function test_the_rule_is_explained_with_its_numbers_and_the_day_an_item_becomes_eligible(): void
+    {
+        $item = $this->seedMenuItem($this->shop->id, null, 100.0);
+        $item->update(['base_price' => 130.0]);
+
+        Sanctum::actingAs($this->shop);
+        $this->assertEquals(['quiet_days' => 15, 'rise_tolerance_percent' => 5.0], $this->getJson('/api/v2/business/promotions')->assertOk()->json('data.rules'));
+
+        $res = $this->postJson('/api/v2/business/promotions', [
+            'kind' => 'percent', 'params' => ['value' => 10], 'ends_at' => now()->addWeek()->toDateString(),
+            'targets' => [['type' => 'menu_item', 'id' => $item->id]],
+        ])->assertCreated();
+
+        $this->assertSame(now()->addDays(15)->toDateString(), $res->json('data.not_yet_discounted.0.eligible_from'));
+    }
 }

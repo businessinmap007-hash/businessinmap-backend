@@ -11,12 +11,6 @@
             <h1 class="a2-page-title">{{ __('مركز الإشعارات') }}</h1>
             <div class="a2-page-subtitle">{{ __('مركز عام لإشعارات التطبيق: عروض، حجوزات، محفظة، ضمان، نزاعات، نظام، وخدمات مفعلة من Platform Services.') }}</div>
         </div>
-        <div class="a2-page-actions">
-            <form method="POST" action="{{ route('admin.notification-center.sync-offers') }}">
-                @csrf
-                <button class="a2-btn a2-btn-primary" type="submit">{{ __('مزامنة إشعارات العروض') }}</button>
-            </form>
-        </div>
     </div>
 
     @if(session('success'))

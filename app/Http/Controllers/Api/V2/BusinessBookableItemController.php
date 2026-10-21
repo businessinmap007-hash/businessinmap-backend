@@ -207,6 +207,7 @@ final class BusinessBookableItemController extends Controller
             'quantity' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['nullable', 'boolean'],
             'status' => ['nullable', 'in:' . BookableItem::STATUS_AVAILABLE . ',' . BookableItem::STATUS_MAINTENANCE],
+            'guest_scope' => ['nullable', 'in:' . implode(',', BookableItem::SCOPES)],
         ]);
 
         $serviceId = (int) $data['service_id'];
@@ -231,7 +232,8 @@ final class BusinessBookableItemController extends Controller
             'quantity' => max(1, (int) ($data['quantity'] ?? 1)),
             'is_active' => (int) $request->boolean('is_active', true),
             'status' => $data['status'] ?? BookableItem::STATUS_AVAILABLE,
-        ];
+            // written only when sent, so an edit that does not know the field never resets a hotel's local or foreign rate
+        ] + (isset($data['guest_scope']) ? ['guest_scope' => $data['guest_scope']] : []);
     }
 
     private function localizeService($service): ?string

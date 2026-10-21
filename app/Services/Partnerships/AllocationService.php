@@ -41,7 +41,7 @@ final class AllocationService
         }
 
         $quantity = (int) $data['quantity_total'];
-        $capacity = max((int) $unit->quantity, (int) $unit->rooms()->count(), 1);
+        $capacity = $unit->stockCount();
         $given = (int) BookableAllocation::query()->where('bookable_item_id', $unit->id)
             ->whereIn('status', [BookableAllocation::STATUS_ACTIVE, BookableAllocation::STATUS_PAUSED])->sum('quantity_total');
 
@@ -165,6 +165,7 @@ final class AllocationService
             'bookable_id' => (int) $unit->id,
             'service_id' => (int) $unit->service_id,
             'item_type' => (string) $unit->item_type,
+            'guest_scope' => (string) ($unit->guest_scope ?: 'all'),
             'price' => round($a->finalPrice(), 2),
             'currency' => (string) ($a->currency ?: 'EGP'),
             'from' => $a->ownerBusiness ? ['id' => (int) $a->ownerBusiness->id, 'name' => (string) $a->ownerBusiness->name] : null,

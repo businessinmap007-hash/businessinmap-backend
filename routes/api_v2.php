@@ -1119,6 +1119,9 @@ Route::prefix('v2')->group(function () {
             Route::put('flow', [\App\Http\Controllers\Api\V2\BusinessBookingFlowController::class, 'update']);
         });
 
+        // «شاشة الغرف»: the month board of a hotel's room types, taken and free night by night.
+        Route::get('business/occupancy', [\App\Http\Controllers\Api\V2\HotelOccupancyController::class, 'index'])->middleware('business.member:' . BusinessCapability::BOOKINGS);
+
         // The rooms behind a room type (the hotel's own list) and putting a stay in one.
         Route::prefix('business/bookable-items/{item}/rooms')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('item')->group(function () {
             Route::get('/', [BusinessBookableRoomController::class, 'index']);

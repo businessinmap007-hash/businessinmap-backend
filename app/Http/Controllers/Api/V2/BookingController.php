@@ -574,8 +574,16 @@ final class BookingController extends Controller
         $this->serviceExecutionEngine->assertBookableAvailable(
             $bookable,
             $data['starts_at'] ?? null,
-            $data['ends_at'] ?? null
+            $data['ends_at'] ?? null,
+            max((int) ($data['quantity'] ?? 1), 1),
+            ($calc['allocation'] ?? null) ? (int) $calc['allocation']->partner_business_id : null
         );
+
+        if ($bookable && ! $bookable->allowsOrigin($data['guest_origin'] ?? null)) {
+            throw ValidationException::withMessages(['guest_origin' => $bookable->guest_scope === \App\Models\BookableItem::SCOPE_LOCALS
+                ? __('هذه الغرفة للمصريين والمقيمين في مصر فقط.')
+                : __('هذه الغرفة للأجانب فقط.')]);
+        }
 
         $data = $this->applyKindGranularity($data, $business, $bookable);
 
@@ -640,6 +648,8 @@ final class BookingController extends Controller
                 'created_by_user_id' => (int) $user->id,
                 // what the customer ticked: a reschedule prices the new window with the same choices
                 'requested_option_ids' => array_values(array_map('intval', $data['option_ids'] ?? [])),
+                // what the guest declared for a scoped room; the hotel asks for the papers on arrival
+                'guest_origin' => ($bookable && $bookable->guest_scope !== \App\Models\BookableItem::SCOPE_ALL) ? ($data['guest_origin'] ?? null) : null,
             ]),
             calc: $calc,
             bookable: $bookable
@@ -1902,6 +1912,8 @@ final class BookingController extends Controller
             'timezone' => ['nullable', 'string', 'max:80'],
             'quantity' => ['nullable', 'integer', 'min:1'],
             'party_size' => ['nullable', 'integer', 'min:1'],
+            // the guest's own declaration (an Egyptian or a resident / a foreigner) for a room type sold to one of them only
+            'guest_origin' => ['nullable', Rule::in(['local', 'foreign'])],
             'notes' => ['nullable', 'string', 'max:2000'],
             'meta' => ['nullable', 'array'],
             // المُوصِّفات التى اختارها العميل — «شاشة كبيرة»، «بلايستيشن ٥».

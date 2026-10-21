@@ -336,7 +336,10 @@ class ServiceExecutionEngine
             $availability = $this->bookableAvailabilityService->check(
                 $calc['bookable'],
                 $startsAt,
-                $endsAt
+                $endsAt,
+                $quantity,
+                $calc['allocation'] ? (int) $calc['allocation']->partner_business_id : null,
+                true
             );
         }
 
@@ -1685,13 +1688,13 @@ class ServiceExecutionEngine
      * stopped a second customer booking the same room for the same nights. The
      * booking endpoints call this before writing.
      */
-    public function assertBookableAvailable(?BookableItem $bookable, mixed $startsAt, mixed $endsAt): void
+    public function assertBookableAvailable(?BookableItem $bookable, mixed $startsAt, mixed $endsAt, int $quantity = 1, ?int $viaPartnerId = null): void
     {
         if (! $bookable || ! $startsAt || ! $endsAt) {
             return; // nothing to check, or no window to check it against
         }
 
-        $availability = $this->bookableAvailabilityService->check($bookable, $startsAt, $endsAt);
+        $availability = $this->bookableAvailabilityService->check($bookable, $startsAt, $endsAt, $quantity, $viaPartnerId, true);
 
         if ((bool) ($availability['available'] ?? true)) {
             return;

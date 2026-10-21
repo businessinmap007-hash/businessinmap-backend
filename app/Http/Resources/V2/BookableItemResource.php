@@ -37,6 +37,8 @@ class BookableItemResource extends JsonResource
             'capacity' => $this->capacity !== null ? (int) $this->capacity : null,
             'quantity' => (int) $this->quantity,
             'is_active' => (bool) $this->is_active,
+            // «أسعار للمصريين والمقيمين فقط»: all | locals | foreigners
+            'guest_scope' => (string) ($this->guest_scope ?: 'all'),
             'status' => (string) ($this->status ?: \App\Models\BookableItem::STATUS_AVAILABLE),
             'is_currently_booked' => $this->resource->isCurrentlyBooked(),
             // «Day use» — only a room type of a stay has one

@@ -47,6 +47,8 @@ final class UnitDiscoveryController extends Controller
             'item_type' => ['nullable', 'string', 'max:100'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
+            // a guest who has said who they are sees only the room types sold to them
+            'guest_origin' => ['nullable', 'in:local,foreign'],
         ]);
 
         $biz = User::query()->live()->where('type', 'business')
@@ -72,7 +74,9 @@ final class UnitDiscoveryController extends Controller
             ->orderBy('item_type')
             ->orderBy('code')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(fn (BookableItem $u) => empty($data['guest_origin']) || $u->allowsOrigin($data['guest_origin']))
+            ->values();
 
         // A window is optional: without it the answer is «what exists and what
         // it costs», with it «what is still free». Asking for a price is the
@@ -478,6 +482,7 @@ final class UnitDiscoveryController extends Controller
             'label' => $byType ? (string) (optional($unit->lineOption)->name_ar ?: optional($unit->lineOption)->name_en ?: $unit->displayLabel()) : $unit->displayLabel(),
             'description' => $unit->description,
             'capacity' => $unit->capacity !== null ? (int) $unit->capacity : null,
+            'guest_scope' => (string) ($unit->guest_scope ?: 'all'),
             'images' => $unit->imagePayload(),
             // «Day use»: the room type is also sold through the day — {from, to, price}; null when it is not
             'day_use' => app(\App\Services\BookingDayUseService::class)->offer($unit),

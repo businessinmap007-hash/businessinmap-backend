@@ -176,7 +176,7 @@ class PartnershipController extends Controller
             ->selectRaw('bookable_item_id, SUM(quantity_total) AS given')->groupBy('bookable_item_id')->pluck('given', 'bookable_item_id');
 
         return response()->json(['success' => true, 'data' => ['rooms' => $units->map(function (BookableItem $u) use ($given) {
-            $capacity = max((int) $u->quantity, (int) $u->rooms()->count(), 1);
+            $capacity = $u->stockCount();
 
             return $this->allocations->card($u) + ['capacity_total' => $capacity, 'ungranted' => max($capacity - (int) ($given[$u->id] ?? 0), 0)];
         })->values()]]);

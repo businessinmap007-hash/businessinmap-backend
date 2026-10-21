@@ -29,7 +29,7 @@ class BookableAvailabilityService
      *     conflicts: \Illuminate\Support\Collection<int, BookableItemBlockedSlot>
      * }
      */
-    public function check(BookableItem $item, CarbonInterface|string $startsAt, CarbonInterface|string $endsAt): array
+    public function check(BookableItem $item, CarbonInterface|string $startsAt, CarbonInterface|string $endsAt, int $requested = 1, ?int $viaPartnerId = null, bool $honourHolds = false): array
     {
         $start = $this->normalizeDateTime($startsAt);
         $end   = $this->normalizeDateTime($endsAt);
@@ -86,10 +86,14 @@ class BookableAvailabilityService
         // Blocked slots are what the BUSINESS closed by hand. They said nothing
         // about what CUSTOMERS have already taken, so a room sold for these
         // nights still read as available and could be sold again.
-        $taken = $this->countLiveBookings($item, $start, $end);
-        $capacity = max((int) ($item->quantity ?? 1), 1);
+        $stay = $item->item_type === 'booking_stay';
+        $taken = $stay ? $this->takenRooms($item, $start, $end) : $this->countLiveBookings($item, $start, $end);
+        $capacity = $stay ? $item->stockCount() : max((int) ($item->quantity ?? 1), 1);
+        // rooms a hotel promised to a partner (a guaranteed allocation) are not for sale to anyone else; the partner's own
+        // booking does not count its own promise against itself
+        $held = $stay && $honourHolds ? $this->heldForPartners($item, $viaPartnerId) : 0;
 
-        if ($taken >= $capacity) {
+        if ($taken + $held + max($requested, 1) > $capacity) {
             return $this->result(
                 ok: true,
                 available: false,
@@ -195,6 +199,31 @@ class BookableAvailabilityService
      * `quantity` on the item is the number of identical units behind one row
      * («٣ غرف مزدوجة»), so the comparison is a count, not a boolean.
      */
+    /** How many rooms of the type live bookings take in the window: a stay of three rooms takes three, whoever sold it. */
+    public function takenRooms(BookableItem $item, CarbonInterface $start, CarbonInterface $end): int
+    {
+        return (int) Booking::query()
+            ->where('bookable_id', $item->id)
+            ->whereNotIn('status', [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED])
+            ->whereNotNull('starts_at')
+            ->whereNotNull('ends_at')
+            ->where('starts_at', '<', $end)
+            ->where('ends_at', '>', $start)
+            ->get(['quantity'])
+            ->sum(fn ($b) => max((int) $b->quantity, 1));
+    }
+
+    /** What the hotel still owes its partners on this type: the unsold part of every active guaranteed allocation but the asker's own. */
+    public function heldForPartners(BookableItem $item, ?int $exceptPartnerId = null): int
+    {
+        return (int) \App\Models\BookableAllocation::query()->active()
+            ->where('bookable_item_id', $item->id)
+            ->where('allocation_type', \App\Models\BookableAllocation::TYPE_GUARANTEED)
+            ->when($exceptPartnerId, fn ($q) => $q->where('partner_business_id', '!=', $exceptPartnerId))
+            ->get()
+            ->sum(fn ($a) => $a->availableQuantity());
+    }
+
     protected function countLiveBookings(BookableItem $item, CarbonInterface $start, CarbonInterface $end): int
     {
         return Booking::query()

@@ -55,7 +55,14 @@ class BookableItem extends Model
     // Units are inventory only. Price and deposit are single-source in
     // business_service_prices (per item type); the legacy price/deposit_*
     // columns were dropped from bookable_items. See services-blueprint.md.
+    /** Who a room type is sold to: everyone, Egyptians and residents only, or foreigners only. */
+    public const SCOPE_ALL = 'all';
+    public const SCOPE_LOCALS = 'locals';
+    public const SCOPE_FOREIGNERS = 'foreigners';
+    public const SCOPES = [self::SCOPE_ALL, self::SCOPE_LOCALS, self::SCOPE_FOREIGNERS];
+
     protected $fillable = [
+        'guest_scope',
         'business_id',
         'service_id',
         'item_type',
@@ -104,6 +111,27 @@ class BookableItem extends Model
     public function rooms(): HasMany
     {
         return $this->hasMany(BookableItemRoom::class, 'bookable_item_id');
+    }
+
+    /** May a guest who declared themselves `local` (an Egyptian or a resident) or `foreign` book this type? A scoped type needs a declaration. */
+    public function allowsOrigin(?string $origin): bool
+    {
+        return match ((string) ($this->guest_scope ?: self::SCOPE_ALL)) {
+            self::SCOPE_LOCALS => $origin === 'local',
+            self::SCOPE_FOREIGNERS => $origin === 'foreign',
+            default => true,
+        };
+    }
+
+    /**
+     * How many of this room TYPE the hotel can hand out at once: the rooms it listed by number (those not closed for maintenance),
+     * or — for a hotel that never listed any — the quantity written on the row. Never below one for an unlisted type.
+     */
+    public function stockCount(): int
+    {
+        // `quantity` is kept equal to the rooms available by BookingRoomService::syncQuantity, so a hotel with listed rooms reads 0 when
+        // every one is closed; a hotel with none keeps the old floor of one
+        return $this->rooms()->exists() ? max((int) $this->quantity, 0) : max((int) ($this->quantity ?? 1), 1);
     }
 
     public function lineOption(): BelongsTo

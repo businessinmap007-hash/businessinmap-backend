@@ -91,7 +91,10 @@ final class HotelRoomSearchController extends Controller
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'guest_origin' => ['nullable', 'in:local,foreign'],
         ]);
+
+        $origin = $data['guest_origin'] ?? null;
 
         $window = (! empty($data['starts_at']) && ! empty($data['ends_at']))
             ? [Carbon::parse($data['starts_at'])->startOfDay(), Carbon::parse($data['ends_at'])->startOfDay()]
@@ -110,7 +113,7 @@ final class HotelRoomSearchController extends Controller
             $hotels = $hotels->filter(fn ($h) => ($classOf[$h->id] ?? $unclassified) === $wanted);
         }
 
-        $rows = $this->roomRows($hotels, $classOf, $window);
+        $rows = $this->roomRows($hotels, $classOf, $window, $origin);
 
         if (isset($data['price_min'])) {
             $rows = $rows->filter(fn ($r) => $r['best_price'] !== null && $r['best_price'] >= (float) $data['price_min']);
@@ -181,7 +184,7 @@ final class HotelRoomSearchController extends Controller
      * @param  array{0:Carbon,1:Carbon}|null  $window  check-in and check-out
      * @return Collection<int,array<string,mixed>>
      */
-    private function roomRows(Collection $hotels, array $classOf, ?array $window = null)
+    private function roomRows(Collection $hotels, array $classOf, ?array $window = null, ?string $origin = null)
     {
         if ($hotels->isEmpty()) {
             return collect();
@@ -197,7 +200,9 @@ final class HotelRoomSearchController extends Controller
             ->with(['lineOption:id,name_ar,name_en', 'images', 'offeringOptions', 'service'])
             ->whereIn('business_id', $hotels->pluck('id'))->where('item_type', 'booking_stay')->where('is_active', 1)
             ->where('status', '!=', BookableItem::STATUS_MAINTENANCE)
-            ->orderBy('id')->get()->groupBy('business_id');
+            ->orderBy('id')->get()
+            ->filter(fn (BookableItem $u) => $origin === null || $u->allowsOrigin($origin))
+            ->groupBy('business_id');
 
         $nights = $window ? max((int) $window[0]->diffInDays($window[1]), 1) : null;
         $offers = $this->partnerOffers($units->flatten()->pluck('id')->all(), $nights);
@@ -258,6 +263,7 @@ final class HotelRoomSearchController extends Controller
                         'line_option_id' => $kindId ?: null,
                         'name' => $this->kindName($first),
                         'capacity' => $first->capacity !== null ? (int) $first->capacity : null,
+                        'guest_scope' => (string) ($first->guest_scope ?: 'all'),
                         'image' => $unit->imagePayload()[0] ?? null,
                     ],
                     'price' => $own,

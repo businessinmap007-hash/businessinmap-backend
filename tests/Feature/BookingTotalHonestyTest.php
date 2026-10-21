@@ -81,7 +81,7 @@ class BookingTotalHonestyTest extends TestCase
             'item_type' => self::ITEM_TYPE,
             'line_option_id' => self::TRIPLE,
             'code' => 'T301',
-            'quantity' => 1,
+            'quantity' => 3,
             'is_active' => 1,
         ]);
     }

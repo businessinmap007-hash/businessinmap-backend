@@ -784,6 +784,8 @@ final class DiscoveryController extends Controller
             ->where('cps.child_id', $childId)
             ->where('cps.is_active', 1)
             ->where('s.is_active', 1)
+            // «العروض والخصومات» is open to every business and shows as a tab on its own page — it is no longer a service to filter by
+            ->where('s.key', '!=', 'business_offers')
             ->orderBy('cps.sort_order')
             ->orderBy('s.id')
             ->get(['s.id', 's.key', 's.name_ar', 's.name_en', 's.supports_deposit', 'cps.sort_order']);

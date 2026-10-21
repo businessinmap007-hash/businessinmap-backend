@@ -78,6 +78,13 @@ final class BusinessPageController extends Controller
             ->where('s.key', \App\Models\PlatformService::KEY_BOOKING)
             ->exists();
 
+        // A tour company that sells a hotel's rooms (an allocation in an active partnership) has a «الحجز» tab too, though it has no price
+        // list of its own; and one that published a trip programme has a «البرامج» tab.
+        $hasPartnerRooms = \App\Models\BookableAllocation::query()->active()->where('partner_business_id', $business)
+            ->whereHas('partnership', fn ($q) => $q->where('status', \App\Models\BusinessPartnership::STATUS_ACTIVE))->exists();
+        $hasPrograms = \App\Models\TripProgram::query()->published()->where('business_id', $business)->exists();
+        $hasBooking = $hasBooking || $hasPartnerRooms;
+
         // A stay's own clock (hotels, vacation apartments, chalets — any
         // booking business) -- set once from the business's own booking
         // settings screen, shown here so a customer knows it before booking
@@ -177,6 +184,9 @@ final class BusinessPageController extends Controller
                     // «العروض والخصومات»: a tab beside the menu and the booking while something is running
                     'offers' => $hasOffers,
                     'booking' => $hasBooking,
+                    // the hotel's rooms this business sells, and the trip programmes it published
+                    'partner_rooms' => $hasPartnerRooms,
+                    'programs' => $hasPrograms,
                     // a specialty clinic that listed its services: the booking board offers them under the visit kind
                     'specialty_services' => $hasSpecialtyServices,
                 ],

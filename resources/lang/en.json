@@ -3327,5 +3327,12 @@
     "حُفظ سعر البيع.": "The selling price was saved.",
     "نفدت الكمية.": "Sold out.",
     "مدة الإقامة خارج ما تسمح به هذه الغرفة.": "The length of stay is outside what this room allows.",
-    "أُغلق الحجز على هذه الغرفة لقرب الموعد.": "Booking on this room closed as the date is near."
+    "أُغلق الحجز على هذه الغرفة لقرب الموعد.": "Booking on this room closed as the date is near.",
+    "أضف يومًا وبندًا واحدًا على الأقل قبل النشر.": "Add at least one day and one item before publishing.",
+    "الحد الأقصى :n يومًا.": "At most :n days.",
+    "الحد الأقصى :n بندًا لليوم.": "At most :n items a day.",
+    "هذه الغرفة ليست من الغرف الممنوحة لشركتك.": "This room is not one of the rooms given to your company.",
+    "اكتب نص البند.": "Write the item's text.",
+    "هذا البند ليس صورة.": "This item is not a photo.",
+    "حُذف البرنامج.": "The programme was deleted."
 }

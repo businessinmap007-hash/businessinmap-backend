@@ -269,6 +269,8 @@ Route::prefix('v2')->group(function () {
         Route::get('{business}/posts', [PostController::class, 'business'])->whereNumber('business');
         // The discounts running on a business — its page's offers tab.
         Route::get('{business}/promotions', [\App\Http\Controllers\Api\V2\PromotionController::class, 'forBusiness'])->whereNumber('business');
+        Route::get('{business}/trip-programs', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'published'])->whereNumber('business');
+        Route::get('{business}/trip-programs/{program}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'showPublished'])->whereNumber(['business', 'program']);
         // The business's own photo album, read-only — the info screen a
         // visitor opens for "who is this business" (2026-09-04).
         Route::get('{business}/albums', [AlbumController::class, 'forBusiness'])->whereNumber('business');
@@ -1722,6 +1724,26 @@ Route::prefix('v2')->group(function () {
         });
 
         // «العروض والخصومات»: a business writes the discounts its customers are priced by (open to every business; a delegate with `offers` too).
+        // «برنامج الرحلة»: a tour company writes a trip as days and items (text, photo, the card of a room a hotel gave it).
+        Route::prefix('business/trip-programs')->middleware('business.member:' . BusinessCapability::TRIP_PROGRAMS)->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'index']);
+            Route::get('room-cards', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'roomCards']);
+            Route::post('/', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'store']);
+            Route::get('{program}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'show'])->whereNumber('program');
+            Route::put('{program}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'update'])->whereNumber('program');
+            Route::delete('{program}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'destroy'])->whereNumber('program');
+            Route::post('{program}/{action}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'publish'])->whereNumber('program')->whereIn('action', ['publish', 'unpublish']);
+            Route::post('{program}/days', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'addDay'])->whereNumber('program');
+            Route::put('{program}/days/{day}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'renameDay'])->whereNumber(['program', 'day']);
+            Route::delete('{program}/days/{day}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'removeDay'])->whereNumber(['program', 'day']);
+            Route::post('{program}/days/{day}/move', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'moveDay'])->whereNumber(['program', 'day']);
+            Route::post('{program}/days/{day}/items', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'addItem'])->whereNumber(['program', 'day']);
+            Route::put('{program}/items/{item}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'updateItem'])->whereNumber(['program', 'item']);
+            Route::delete('{program}/items/{item}', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'removeItem'])->whereNumber(['program', 'item']);
+            Route::post('{program}/items/{item}/move', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'moveItem'])->whereNumber(['program', 'item']);
+            Route::post('{program}/items/{item}/image', [\App\Http\Controllers\Api\V2\TripProgramController::class, 'setImage'])->whereNumber(['program', 'item']);
+        });
+
         // «الشراكات والحصص»: the partnership core — a contract between TWO businesses of any trade. Everything in it is for the two
         // parties only (a stranger gets 404); the first contract kind is a room allocation a hotel gives a travel agency.
         Route::prefix('business/partnerships')->middleware('business.member:' . BusinessCapability::PARTNERSHIPS)->group(function () {

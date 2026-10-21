@@ -144,7 +144,32 @@ final class AllocationService
             'min_nights' => $a->min_nights,
             'max_nights' => $a->max_nights,
             'release_days_before' => (int) $a->release_days_before,
+            // in how many of the partner's trip programmes this room's card sits (the owner sees only that, never the programmes)
+            'programs_count' => (int) \App\Models\TripProgramItem::query()->join('trip_program_days as d', 'd.id', '=', 'trip_program_items.day_id')->where('trip_program_items.allocation_id', $a->id)->distinct()->count('d.program_id'),
             'room' => $unit ? $this->card($unit) : null,
+        ];
+    }
+
+    /**
+     * The room as a customer of the PARTNER reads it: the card, the partner's own price, who it comes from and what is left. The
+     * contract price, the markup and the quantities of the grant are never in it.
+     *
+     * @return array<string,mixed>
+     */
+    public function publicRoom(BookableAllocation $a): array
+    {
+        $unit = $a->bookableItem;
+
+        return $this->card($unit) + [
+            'allocation_id' => (int) $a->id,
+            'bookable_id' => (int) $unit->id,
+            'service_id' => (int) $unit->service_id,
+            'item_type' => (string) $unit->item_type,
+            'price' => round($a->finalPrice(), 2),
+            'currency' => (string) ($a->currency ?: 'EGP'),
+            'from' => $a->ownerBusiness ? ['id' => (int) $a->ownerBusiness->id, 'name' => (string) $a->ownerBusiness->name] : null,
+            'available_quantity' => $a->availableQuantity(),
+            'available' => $a->availableQuantity() > 0,
         ];
     }
 

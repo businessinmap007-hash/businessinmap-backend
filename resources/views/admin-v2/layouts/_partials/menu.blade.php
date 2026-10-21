@@ -89,7 +89,7 @@
         | عنوانها. وما يعبر الخدماتِ كلَّها — النزاعات، المحادثات — بقى فى
         | «العمليات»، لأنه ليس خدمةً بل ما يقع بين طرفَى أىِّ عملية.
         */
-        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.service-components.', 'admin.menu-shapes.', 'admin.catalog-model-values.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.fee-groups.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.bookable-allocations.', 'admin.menu-review.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.prescriptions.', 'admin.agenda.', 'admin.projects.'], 'children' => [
+        ['label' => 'الخدمات', 'route' => 'admin.child-workbench.index', 'icon' => 'settings', 'active' => ['admin.child-workbench.', 'admin.service-components.', 'admin.menu-shapes.', 'admin.catalog-model-values.', 'admin.categories.services-bulk.', 'admin.category-child-service-fees.', 'admin.platform-services.', 'admin.platform-service-item-types.', 'admin.platform-service-item-groups.', 'admin.service-branches.', 'admin.service-catalog-matrix.', 'admin.business_service_prices.', 'admin.fee-groups.', 'admin.platform-service-fee-promotions.', 'admin.bookings.', 'admin.bookable-items.', 'admin.menu-review.', 'admin.menu-items.', 'admin.business-tables.', 'admin.delivery.', 'admin.trip-schedules.', 'admin.training-plans.', 'admin.clinic-appointments.', 'admin.prescriptions.', 'admin.agenda.', 'admin.projects.'], 'children' => [
             ['label' => 'تعريف الخدمات', 'type' => 'section', 'children' => [
                 ['label' => 'خدمات المنصّة', 'route' => 'admin.platform-services.index', 'active' => 'admin.platform-services.'],
                 ['label' => 'أنواع عناصر الخدمات', 'route' => 'admin.platform-service-item-types.index', 'active' => 'admin.platform-service-item-types.'],
@@ -109,9 +109,6 @@
                 ['label' => 'إنشاء حجز', 'route' => 'admin.bookings.create', 'active_routes' => ['admin.bookings.create']],
                 ['label' => 'عناصر الحجز', 'route' => 'admin.bookable-items.index', 'active' => 'admin.bookable-items.'],
                 ['label' => 'عمليات الحجز الجماعية', 'route' => 'admin.bookable-items.bulk.index', 'active' => 'admin.bookable-items.bulk.'],
-                // مخصصاتُ الحجز حجزٌ قبل أن تكون شراكة: مقاعدُ يحجزها وسيطٌ
-                // لعملائه، فمكانُها مع ما تحجزه لا مع من يبيعها.
-                ['label' => 'مخصصات الحجز', 'route' => 'admin.bookable-allocations.index', 'active' => 'admin.bookable-allocations.'],
             ]],
             ['label' => 'المنيو والطاولات', 'type' => 'section', 'children' => [
                 ['label' => 'مراجعة المنيو', 'route' => 'admin.menu-review.index', 'active' => 'admin.menu-review.'],
@@ -144,10 +141,7 @@
         // Moved out of «الخدمات والتسعير»: selling BETWEEN businesses, and
         // promoting what they sell, is a different job from deciding what a
         // category child is allowed to offer at all.
-        ['label' => 'العروض والشراكات', 'route' => 'admin.business-partnerships.index', 'icon' => 'ticket', 'active' => ['admin.business-partnerships.', 'admin.bookable-allocations.', 'admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.business-offers-subscriptions.', 'admin.notification-center.'], 'children' => [
-            ['label' => 'الشراكات', 'type' => 'section', 'children' => [
-                ['label' => 'شراكات الأعمال', 'route' => 'admin.business-partnerships.index', 'active' => 'admin.business-partnerships.'],
-            ]],
+        ['label' => 'العروض والشراكات', 'route' => 'admin.notification-center.index', 'icon' => 'ticket', 'active' => ['admin.offer-performance.', 'admin.offer-boost-packages.', 'admin.offer-follows.', 'admin.business-offers-subscriptions.', 'admin.notification-center.'], 'children' => [
             ['label' => 'التسويق', 'type' => 'section', 'children' => [
                 ['label' => 'مركز الإشعارات', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],

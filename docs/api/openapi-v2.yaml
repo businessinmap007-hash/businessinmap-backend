@@ -126,6 +126,7 @@ tags:
   - name: Business Menu
   - name: Business Offers
   - name: Partnerships
+  - name: Trip Programs
   - name: Business Prices
   - name: Business Bookables
   - name: Business Retail
@@ -2965,6 +2966,38 @@ paths:
     post: { tags: [Partnerships], summary: "Owner only: stop or re-activate a grant (`action` = stop|activate).", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }, { name: allocation, in: path, required: true, schema: { type: integer } }, { name: action, in: path, required: true, schema: { type: string, enum: [stop, activate] } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/partnerships/{partnership}/allocations/{allocation}/pricing:
     put: { tags: [Partnerships], summary: "Partner only: price what it was given — `{markup_type: none|fixed|percent, markup_value}` on top of the contract price, never below it. The customer sees only the final price on the partner's page and in hotel-room search.", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }, { name: allocation, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  # ─────────────────────── Trip Programs ───────────────────────
+  /business/trip-programs:
+    get: { tags: [Trip Programs], summary: "«برنامج الرحلة»: my programmes (title, summary, status draft|published, days count). A tour company writes a trip as days and items.", responses: { '200': { description: OK } } }
+    post: { tags: [Trip Programs], summary: "Start a programme `{title, summary?}` (a draft). Returns the programme with its days.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/room-cards:
+    get: { tags: [Trip Programs], summary: "The rooms a hotel gave this company (active allocations in an active partnership) as cards — photos, what the room carries, the company's own price, the hotel they come from. Never the contract price or quantities.", responses: { '200': { description: OK } } }
+  /business/trip-programs/{program}:
+    get: { tags: [Trip Programs], summary: "One of my programmes with its days and items (a room item carries `allocation_id` and `room_available`).", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    put: { tags: [Trip Programs], summary: "Change the title or summary.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Trip Programs], summary: "Delete the programme with its days, items and photos.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/{program}/{action}:
+    post: { tags: [Trip Programs], summary: "Publish (needs at least one item) or unpublish (`action` = publish|unpublish). A published programme is readable on the company's page.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: action, in: path, required: true, schema: { type: string, enum: [publish, unpublish] } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/{program}/days:
+    post: { tags: [Trip Programs], summary: "Add a day `{title?}` at the end (up to 31).", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/{program}/days/{day}:
+    put: { tags: [Trip Programs], summary: "Rename a day.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: day, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Trip Programs], summary: "Remove a day with its items.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: day, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/{program}/days/{day}/move:
+    post: { tags: [Trip Programs], summary: "Move a day `{direction: up|down}`.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: day, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/{program}/days/{day}/items:
+    post: { tags: [Trip Programs], summary: "Add an item `{kind: text|room|image, body?, allocation_id?}` (up to 30 a day). A text item needs words; a room item needs `allocation_id` of a room this company was given; an image item gets its photo from the `image` call. Returns `item_id` and the programme.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: day, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/{program}/items/{item}:
+    put: { tags: [Trip Programs], summary: "Change an item's words `{body}`.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: item, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Trip Programs], summary: "Remove an item.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: item, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/{program}/items/{item}/move:
+    post: { tags: [Trip Programs], summary: "Move an item inside its day `{direction: up|down}`.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: item, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/trip-programs/{program}/items/{item}/image:
+    post: { tags: [Trip Programs], summary: "Set the photo of an image item (multipart `image`); a new one replaces the old.", parameters: [{ name: program, in: path, required: true, schema: { type: integer } }, { name: item, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /businesses/{business}/trip-programs:
+    get: { tags: [Trip Programs], summary: "The programmes a business published (title, summary, days count) — its page's «البرامج» tab. The page's `sections.programs` says whether the tab shows.", parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  /businesses/{business}/trip-programs/{program}:
+    get: { tags: [Trip Programs], summary: "A published programme: days → items. A room item carries the room card (photos, features), the company's price, the hotel it comes from, `bookable_id`/`service_id`/`item_type` to book it through this company, and `room_available` (false once the hotel stops the allocation; the item keeps its words). A draft is 404.", parameters: [{ name: business, in: path, required: true, schema: { type: integer } }, { name: program, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /delivery/register:
     post: { tags: [Delivery], summary: 'Register as a delivery driver (Shipping & Delivery business accounts only)', responses: { '201': { description: Registered }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /delivery/delivery-fee:

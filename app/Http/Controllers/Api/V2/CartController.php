@@ -200,6 +200,10 @@ final class CartController extends Controller
             ])->values()->all(),
             'price' => (float) $line->price,
             'total_price' => (float) $line->total_price,
+            // «العروض والخصومات»: what a running promotion took off this line (total_price is already net of it)
+            'discount' => round((float) $line->discount, 2),
+            'list_total' => round((float) $line->total_price + (float) $line->discount, 2),
+            'promotion_id' => $line->promotion_id !== null ? (int) $line->promotion_id : null,
         ])->values();
 
         // Menu (food) lines get the service fee + tax; retail lines are plain.
@@ -256,6 +260,7 @@ final class CartController extends Controller
                 'tax_included' => $bill['tax_included'],
                 'delivery_fee' => $deliveryFee,
                 'discount' => $discount,
+                'offers_discount' => round((float) $order->items->sum('discount'), 2),
             ],
             'total' => round($bill['menu_subtotal'] + $bill['retail_subtotal'], 2),
             'delivery_fee' => $deliveryFee,

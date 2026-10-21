@@ -66,6 +66,9 @@ class MenuOrderService
 
     public function recalc(Order $order): void
     {
+        // «العروض والخصومات»: a cart's lines are priced by the business's running promotions before they are summed
+        app(\App\Services\Promotions\PromotionPricing::class)->apply($order);
+
         // A line the business marked 'removed' (unavailable, no substitute)
         // no longer counts toward what the customer owes; a 'substituted'
         // line keeps its original price — the business absorbs any

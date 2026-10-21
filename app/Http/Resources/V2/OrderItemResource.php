@@ -26,6 +26,8 @@ class OrderItemResource extends JsonResource
             ])->values()->all(),
             'price' => (float) $this->price,
             'total_price' => (float) $this->total_price,
+            'discount' => round((float) $this->discount, 2),
+            'list_total' => round((float) $this->total_price + (float) $this->discount, 2),
             'addons' => $this->addons ?: [],
             // Set once a business marks this line unavailable — see
             // OrderController::businessMarkItemUnavailable. null/null/null

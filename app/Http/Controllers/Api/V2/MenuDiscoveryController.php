@@ -115,6 +115,14 @@ final class MenuDiscoveryController extends Controller
         // heading at the very top so the customer sees them before the raw
         // menu, same reuse-the-section-shape approach as everywhere else in
         // this response: one more "items" array, no new client-side widget.
+        // «العروض والخصومات»: the best running offer on each item, as a badge and — where it can be said — the price after it
+        $badges = app(\App\Services\Promotions\PromotionCatalog::class)->badgesFor((int) $business, 'menu_item', $items->pluck('id')->map(fn ($id) => (int) $id)->all(), $viewerId ?: null);
+        if ($badges !== []) {
+            foreach ($out as $k => $heading) {
+                $out[$k]['items'] = collect($heading['items'])->map(fn ($row) => is_array($row) && isset($badges[$row['id'] ?? 0]) ? $row + ['offer' => $badges[$row['id']]] : $row)->values();
+            }
+        }
+
         $bundles = MenuBundle::query()
             ->where('business_id', $business)
             ->where('is_active', true)

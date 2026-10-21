@@ -228,6 +228,8 @@ final class SharedCartController extends Controller
             'qty' => $line->qty,
             'price' => (float) $line->price,
             'total_price' => (float) $line->total_price,
+            'discount' => round((float) $line->discount, 2),
+            'list_total' => round((float) $line->total_price + (float) $line->discount, 2),
         ])->values();
 
         // Per-participant bill: their items + their share of the service fee +

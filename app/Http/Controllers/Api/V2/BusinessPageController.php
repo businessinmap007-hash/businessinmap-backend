@@ -57,6 +57,7 @@ final class BusinessPageController extends Controller
         // The old per-business "delivery" price row is not a service a customer
         // browses - delivery is a fee (users.delivery_fee_amount) or a Shipping &
         // Delivery account's own business - so it never earns a Services tab.
+        $hasOffers = \App\Models\Promotion::query()->where('business_id', $business)->running()->exists();
         $hasServices = DB::table('business_service_prices as p')
             ->join('platform_services as s', 's.id', '=', 'p.service_id')
             ->where('p.business_id', $business)
@@ -173,6 +174,8 @@ final class BusinessPageController extends Controller
                     'posts' => $postsCount > 0,
                     'menu' => $hasMenu,
                     'services' => $hasServices,
+                    // «العروض والخصومات»: a tab beside the menu and the booking while something is running
+                    'offers' => $hasOffers,
                     'booking' => $hasBooking,
                     // a specialty clinic that listed its services: the booking board offers them under the visit kind
                     'specialty_services' => $hasSpecialtyServices,

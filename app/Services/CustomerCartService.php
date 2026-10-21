@@ -830,6 +830,9 @@ class CustomerCartService
         $cart->out_of_stock_policy = $data['out_of_stock_policy'] ?? $cart->out_of_stock_policy;
         $cart->pickup_at = isset($data['pickup_at']) ? Carbon::parse($data['pickup_at']) : $cart->pickup_at;
         $cart->payment_method = (string) ($data['payment_method'] ?? $cart->payment_method ?: 'cash');
+        // the promotions as they stand NOW: one that ended since the last edit of the cart must not price the order
+        app(\App\Services\Promotions\PromotionPricing::class)->apply($cart);
+
         $cart->status = self::STATUS_PENDING;
         // The store's terms as they stand now — what the customer saw at checkout is what the order keeps.
         $cart->terms = app(\App\Services\Menu\StoreTerms::class)->forCustomer((int) $cart->business_id);
@@ -840,6 +843,7 @@ class CustomerCartService
 
         // total = raw food; then fold in the service fee + tax (+ retail, - discount).
         $this->orders->recalc($cart);
+        app(\App\Services\Promotions\PromotionPricing::class)->commitUsage($cart);
 
         $bill = $this->billing->orderBill($cart);
 

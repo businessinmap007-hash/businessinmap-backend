@@ -2932,6 +2932,18 @@ paths:
     post: { tags: [Notifications], summary: Archive every one of the signed-in user's notifications, responses: { '200': { description: OK } } }
 
   # ─────────────────────── Business Offers ───────────────────────
+  /business/promotions:
+    get: { tags: [Business Offers], summary: "«العروض والخصومات»: my promotions, each with its targets, usage and whether it is running now. Open to every business (the `offers` capability for a delegate).", responses: { '200': { description: OK } } }
+    post: { tags: [Business Offers], summary: "Write a promotion: `{title?, kind: percent|amount|n_for_price_of|spend_percent, params: {value} | {n, pay} | {min_total, value}, audience?: all|new_customers, starts_at?, ends_at?, max_uses?, targets: [{type: all|menu_section|menu_item|listing|listing_category, id?}]}`. A discount that REACHES THE PRICE: the cart prices each line by the best running rule that fits it (never two stacked), on the item's own price (extras are not discounted), and the fee/tax follow the discounted price. `n_for_price_of` is «اشترِ n وادفع ثمن أغلى pay» (n=3, pay=1) or «اشترِ ٢ والثالثة مجانًا» (n=3, pay=2). Needs an end: `ends_at` or `max_uses`. Targets must be the business's own; an `amount` may not reach the cheapest covered item's price. The answer lists `not_yet_discounted` items whose price rose in the last 30 days.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/promotions/catalog:
+    get: { tags: [Business Offers], summary: "My products by section to pick from: `menu` (sections of menu items) and `shop` (retail listings by product category); each group has `type`/`id` (null for «بدون قسم») and its `items` with price.", responses: { '200': { description: OK } } }
+  /business/promotions/{promotion}:
+    put: { tags: [Business Offers], summary: "Replace a promotion's rule, targets and dates (same body as create).", parameters: [{ name: promotion, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+    delete: { tags: [Business Offers], summary: "Delete a promotion. Orders already priced by it keep their discount.", parameters: [{ name: promotion, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/promotions/{promotion}/toggle:
+    post: { tags: [Business Offers], summary: "Pause or resume a promotion.", parameters: [{ name: promotion, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /businesses/{business}/promotions:
+    get: { tags: [Business Offers], summary: "The promotions running now on a business, for its page's offers tab (a first-order offer is hidden from a returning customer): each with its targets, remaining uses and up to 12 covered items with `price_after` where the rule can say it. The business page's `sections.offers` says whether the tab shows.", parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
   /business/offers:
     get: { tags: [Business Offers], summary: The business's offers, responses: { '200': { description: OK } } }
     post: { tags: [Business Offers], summary: Create an offer (matches followers), responses: { '201': { description: Created } } }

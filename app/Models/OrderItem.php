@@ -37,6 +37,7 @@ class OrderItem extends Model
         'addons' => 'array',
         'price' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'discount' => 'decimal:2',
         'unavailable_marked_at' => 'datetime',
     ];
 

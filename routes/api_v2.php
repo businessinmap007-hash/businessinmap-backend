@@ -285,6 +285,8 @@ Route::prefix('v2')->group(function () {
     Route::prefix('businesses')->group(function () {
         Route::get('{business}', [BusinessPageController::class, 'show'])->whereNumber('business');
         Route::get('{business}/posts', [PostController::class, 'business'])->whereNumber('business');
+        // The discounts running on a business — its page's offers tab.
+        Route::get('{business}/promotions', [\App\Http\Controllers\Api\V2\PromotionController::class, 'forBusiness'])->whereNumber('business');
         // The business's own photo album, read-only — the info screen a
         // visitor opens for "who is this business" (2026-09-04).
         Route::get('{business}/albums', [AlbumController::class, 'forBusiness'])->whereNumber('business');
@@ -1749,6 +1751,16 @@ Route::prefix('v2')->group(function () {
             Route::delete('{template}/exercises/{exercise}', [TrainingTemplateController::class, 'removeExercise'])->whereNumber('template')->whereNumber('exercise');
             Route::delete('{template}/meals/{meal}', [TrainingTemplateController::class, 'removeMeal'])->whereNumber('template')->whereNumber('meal');
             Route::post('{template}/apply', [TrainingTemplateController::class, 'apply'])->whereNumber('template');
+        });
+
+        // «العروض والخصومات»: a business writes the discounts its customers are priced by (open to every business; a delegate with `offers` too).
+        Route::prefix('business/promotions')->middleware('business.member:' . BusinessCapability::OFFERS)->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\V2\PromotionController::class, 'index']);
+            Route::get('catalog', [\App\Http\Controllers\Api\V2\PromotionController::class, 'catalog']);
+            Route::post('/', [\App\Http\Controllers\Api\V2\PromotionController::class, 'store']);
+            Route::put('{promotion}', [\App\Http\Controllers\Api\V2\PromotionController::class, 'update'])->whereNumber('promotion');
+            Route::post('{promotion}/toggle', [\App\Http\Controllers\Api\V2\PromotionController::class, 'toggle'])->whereNumber('promotion');
+            Route::delete('{promotion}', [\App\Http\Controllers\Api\V2\PromotionController::class, 'destroy'])->whereNumber('promotion');
         });
 
         Route::prefix('business/offers')->middleware('business.member:' . BusinessCapability::OFFERS)->group(function () {

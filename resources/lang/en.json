@@ -3294,5 +3294,17 @@
     "وافقت على نشر المرحلة.": "You agreed to show the stage.",
     "لن تُنشر المرحلة.": "The stage will not be shown.",
     "وافقت على نشر نتائج الشهر.": "You agreed to show the month's results.",
-    "لن تُنشر نتائج الشهر.": "The month's results will not be shown."
+    "لن تُنشر نتائج الشهر.": "The month's results will not be shown.",
+    "نسبة الخصم بين ١٪ و٩٠٪.": "The discount is between 1% and 90%.",
+    "اكتب مبلغ الخصم.": "Enter the discount amount.",
+    "اشترِ من ٢ إلى ١٠ قطع، وادفع ثمن قطعة أو أكثر لكن أقل من العدد.": "Buy 2 to 10 pieces and pay for one or more of them, but fewer than the count.",
+    "اكتب حدًّا أدنى للطلب ونسبة خصم بين ١٪ و٩٠٪.": "Enter a minimum order and a discount between 1% and 90%.",
+    "لكل عرض شرط انتهاء: تاريخ، أو عدد محدد من الطلبات.": "Every offer needs an end: a date, or a number of orders.",
+    "تاريخ الانتهاء قبل تاريخ البداية.": "The end date is before the start date.",
+    "مبلغ الخصم يساوي سعر أرخص صنف في العرض أو يزيد عليه.": "The discount amount equals or exceeds the price of the cheapest item in the offer.",
+    "اختر ما يشمله العرض.": "Choose what the offer covers.",
+    "هذا الاختيار ليس من منتجات نشاطك.": "This choice is not one of your business's products.",
+    "أُنشئ العرض.": "The offer was created.",
+    "حُفظ العرض.": "The offer was saved.",
+    "حُذف العرض.": "The offer was deleted."
 }

@@ -32,7 +32,7 @@ final class BookingPromotionPricing
      * @param  list<array{date:string,base_price:float}>  $periods  the nights, each at the room's own price that day
      * @return array{promotion_id:int,amount:float,kind:string}|null
      */
-    public function best(BookableItem $unit, ?BusinessServicePrice $price, array $periods, int $units, int $customerId): ?array
+    public function best(BookableItem $unit, ?BusinessServicePrice $price, array $periods, int $units, int $customerId, ?int $sellerId = null): ?array
     {
         if ($periods === [] || ($price && $this->pricing->eligibleFrom(BusinessServicePrice::class, (int) $price->id) !== null)) {
             return null;
@@ -40,7 +40,7 @@ final class BookingPromotionPricing
 
         $best = null;
 
-        foreach ($this->matching($unit, $customerId) as $promotion) {
+        foreach ($this->matching($unit, $customerId, $sellerId) as $promotion) {
             $nights = $this->nightsOf($promotion, $periods);
             $amount = round($this->discountOf($promotion, $nights) * max($units, 1), 2);
 
@@ -67,7 +67,7 @@ final class BookingPromotionPricing
      *
      * @return array{promotion_id:int,kind:string,params:array<string,mixed>,price_after:?float}|null
      */
-    public function badge(BookableItem $unit, ?BusinessServicePrice $price, float $nightPrice, int $customerId): ?array
+    public function badge(BookableItem $unit, ?BusinessServicePrice $price, float $nightPrice, int $customerId, ?int $sellerId = null): ?array
     {
         if ($nightPrice <= 0 || ($price && $this->pricing->eligibleFrom(BusinessServicePrice::class, (int) $price->id) !== null)) {
             return null;
@@ -75,7 +75,7 @@ final class BookingPromotionPricing
 
         $out = null;
 
-        foreach ($this->matching($unit, $customerId) as $promotion) {
+        foreach ($this->matching($unit, $customerId, $sellerId) as $promotion) {
             $after = $this->pricing->unitPriceAfter($promotion, $nightPrice);
             $saving = $after !== null ? $nightPrice - $after : 0.0;
 
@@ -88,14 +88,16 @@ final class BookingPromotionPricing
     }
 
     /** @return Collection<int,Promotion> the running promotions that name this room, its kind, or everything */
-    private function matching(BookableItem $unit, int $customerId): Collection
+    private function matching(BookableItem $unit, int $customerId, ?int $sellerId = null): Collection
     {
+        // a company selling a hotel's room through an allocation offers with ITS OWN promotions, not the hotel's
+        $owner = $sellerId ?: (int) $unit->business_id;
         $keys = ['all:0', 'bookable_item:' . $unit->id, 'bookable_kind:' . (int) ($unit->line_option_id ?? 0)];
 
-        return Promotion::query()->where('business_id', (int) $unit->business_id)->running()->with('targets')->orderBy('id')->get()
+        return Promotion::query()->where('business_id', $owner)->running()->with('targets')->orderBy('id')->get()
             ->filter(fn (Promotion $p) => $p->kind !== Promotion::SPEND_PERCENT)
             ->filter(fn (Promotion $p) => array_intersect($keys, $p->targets->map(fn ($t) => $t->target_type . ':' . ($t->target_id ?? 0))->all()) !== [])
-            ->filter(fn (Promotion $p) => $p->audience !== Promotion::AUDIENCE_NEW || $this->isNewCustomer((int) $unit->business_id, $customerId))
+            ->filter(fn (Promotion $p) => $p->audience !== Promotion::AUDIENCE_NEW || $this->isNewCustomer($owner, $customerId))
             ->values();
     }
 

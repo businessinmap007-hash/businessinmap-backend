@@ -84,6 +84,18 @@ final class PromotionCatalog
             ];
         }
 
+        // the hotel rooms this business was given to sell: offered at the company's own price, picked one by one
+        $sold = app(\App\Services\Partnerships\AllocationService::class)->soldBy($businessId);
+
+        foreach ($sold->groupBy('owner_business_id') as $hotelId => $allocations) {
+            $out[] = [
+                'type' => null,
+                'id' => null,
+                'name' => (string) optional($allocations->first()->ownerBusiness)->name,
+                'items' => $allocations->map(fn ($a) => ['type' => Promotion::TARGET_BOOKABLE_ITEM, 'id' => (int) $a->bookable_item_id, 'name' => (string) $a->bookableItem->displayLabel(), 'price' => round($a->finalPrice(), 2)])->values()->all(),
+            ];
+        }
+
         return $out;
     }
 

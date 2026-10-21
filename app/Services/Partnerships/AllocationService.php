@@ -7,6 +7,7 @@ use App\Models\BookableItem;
 use App\Models\BusinessPartnership;
 use App\Models\BusinessServicePrice;
 use App\Services\BusinessServicePriceResolver;
+use App\Services\Hotels\UnitChoices;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -150,6 +151,15 @@ final class AllocationService
         ];
     }
 
+    /** The active allocations a business sells through a partnership that is itself active. @return Collection<int,BookableAllocation> */
+    public function soldBy(int $partnerBusinessId): Collection
+    {
+        return BookableAllocation::query()->active()->where('partner_business_id', $partnerBusinessId)
+            ->whereHas('partnership', fn ($q) => $q->where('status', BusinessPartnership::STATUS_ACTIVE))
+            ->with(['bookableItem.lineOption:id,name_ar,name_en', 'ownerBusiness:id,name'])->orderBy('id')->get()
+            ->filter(fn ($a) => $a->bookableItem && $a->bookableItem->is_active)->values();
+    }
+
     /**
      * The room as a customer of the PARTNER reads it: the card, the partner's own price, who it comes from and what is left. The
      * contract price, the markup and the quantities of the grant are never in it.
@@ -166,12 +176,31 @@ final class AllocationService
             'service_id' => (int) $unit->service_id,
             'item_type' => (string) $unit->item_type,
             'guest_scope' => (string) ($unit->guest_scope ?: 'all'),
+            // the hotel's own add-ons (the meal plan) at the hotel's listed price, and the company's own offer on this room
+            'choices' => app(UnitChoices::class)->for($this->prices->resolveForBookableItem($unit), collect([$unit])),
+            'offer' => $this->offerOn($a, $unit),
             'price' => round($a->finalPrice(), 2),
             'currency' => (string) ($a->currency ?: 'EGP'),
             'from' => $a->ownerBusiness ? ['id' => (int) $a->ownerBusiness->id, 'name' => (string) $a->ownerBusiness->name] : null,
             'available_quantity' => $a->availableQuantity(),
             'available' => $a->availableQuantity() > 0,
         ];
+    }
+
+    /** The company's offer on this room, shown as the night after it — which never falls under the contract price. @return array<string,mixed>|null */
+    private function offerOn(BookableAllocation $a, BookableItem $unit): ?array
+    {
+        $badge = app(\App\Services\Promotions\BookingPromotionPricing::class)->badge($unit, null, round($a->finalPrice(), 2), (int) optional(request()->user('sanctum'))->id, (int) $a->partner_business_id);
+
+        if ($badge && $badge['price_after'] !== null) {
+            $badge['price_after'] = max((float) $badge['price_after'], round((float) $a->contract_price, 2));
+
+            if ($badge['price_after'] >= round($a->finalPrice(), 2)) {
+                return null;
+            }
+        }
+
+        return $badge;
     }
 
     /** The room card: the same thing the hotel shows its own guests, ready to be placed in a programme. @return array<string,mixed> */

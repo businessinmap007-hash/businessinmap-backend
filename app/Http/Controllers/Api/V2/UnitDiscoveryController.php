@@ -171,7 +171,12 @@ final class UnitDiscoveryController extends Controller
                 $reason = __('أُغلق الحجز على هذه الغرفة لقرب الموعد.');
             }
 
+            $public = $cards->publicRoom($a);
+
             return $cards->card($a->bookableItem) + [
+                'choices' => $public['choices'],
+                'offer' => $public['offer'],
+                'guest_scope' => $public['guest_scope'],
                 'allocation_id' => (int) $a->id,
                 'bookable_id' => (int) $a->bookable_item_id,
                 'service_id' => (int) $a->bookableItem->service_id,
@@ -552,66 +557,10 @@ final class UnitDiscoveryController extends Controller
         ];
     }
 
-    /**
-     * ما يُعرض على النزيل مع هذا النوع، وسعرُ كلٍّ منه.
-     *
-     * «غرفة فردى ٦٠٠» ثم «إفطار +٥٠» و«إقامة كاملة +١٥٠»، كما تُقرأ فى أىِّ
-     * موقع حجز. وهى مُوصِّفاتُ سطر السعر — إلا ما أعلنته الغرفةُ عن نفسها
-     * أصلًا: «إطلالة بحرية» محسوبةٌ فى سعرها المعروض، فعرضُها ثانيةً كخيارٍ
-     * يُحصِّل ثمنَها مرتين.
-     *
-     * @param  \Illuminate\Support\Collection<int,BookableItem>  $inKind
-     * @return array<int,array<string,mixed>>
-     */
+    /** The add-ons a guest may take with this kind (see UnitChoices). @return array<int,array<string,mixed>> */
     private function choicesOf(?BusinessServicePrice $price, $inKind): array
     {
-        if (! $price) {
-            return [];
-        }
-
-        $declared = $inKind->flatMap(
-            fn (BookableItem $unit) => $unit->relationLoaded('offeringOptions')
-                ? $unit->offeringOptions->where('role', OfferingOption::ROLE_MODIFIER)->pluck('option_id')
-                : $unit->modifierOptionIds()
-        )->map(fn ($id) => (int) $id)->unique();
-
-        /*
-         * من سطر السعر ومن النشاط معًا.
-         *
-         * نظامُ الوجبات يسكن النشاطَ نفسه — سعرٌ ثابت لا يتغيّر بنوع الغرفة —
-         * وما يخصّ نوعًا بعينه يبقى على سطره. والسطرُ يغلب عند التكرار.
-         */
-        $rows = OfferingOption::query()
-            ->where('role', OfferingOption::ROLE_MODIFIER)
-            // مُوصِّفٌ بقيمة صفر يوصِّف ولا يُسعِّر، فلا شأن لشاشة الاختيار به.
-            ->where('adjust_value', '!=', 0)
-            ->whereNotIn('option_id', $declared->all() ?: [0])
-            ->where(function ($query) use ($price) {
-                $query->where(function ($sub) use ($price) {
-                    $sub->where('offering_type', $price->getMorphClass())
-                        ->where('offering_id', (int) $price->id);
-                })->orWhere(function ($sub) use ($price) {
-                    $sub->where('offering_type', (new User)->getMorphClass())
-                        ->where('offering_id', (int) $price->business_id);
-                });
-            })
-            ->with('option:id,name_ar,name_en')
-            ->orderBy('sort_order')->orderBy('id')
-            ->get()
-            ->groupBy('option_id')
-            ->map(fn ($group) => $group->firstWhere('offering_type', $price->getMorphClass()) ?: $group->first())
-            ->values();
-
-        return $rows->map(fn (OfferingOption $row) => [
-            'option_id' => (int) $row->option_id,
-            'name' => $this->say($row->option),
-            'adjust_type' => (string) $row->adjust_type,
-            'adjust_value' => (float) $row->adjust_value,
-            // «لكل فرد» تُضرب فى عدد النزلاء وقت الحساب، فالمعروضُ هنا سعرُ
-            // الفرد الواحد ومعه العَلَم — والتطبيقُ يضربه فى عدد من يحجز.
-            'per_person' => (bool) $row->per_person,
-            'amount' => $row->appliedTo(round((float) $price->baseUnitPrice(), 2)),
-        ])->values()->all();
+        return app(\App\Services\Hotels\UnitChoices::class)->for($price, $inKind);
     }
 
     private function say(?object $option): ?string

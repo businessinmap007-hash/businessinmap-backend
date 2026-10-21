@@ -99,7 +99,14 @@ final class PromotionService
 
             // a room's price lives on its price row, which is what the «no fake discount» rule watches
             if ($class === BookableItem::class) {
-                $row = app(\App\Services\BusinessServicePriceResolver::class)->resolveForBookableItem(BookableItem::query()->find((int) $item['id']));
+                $unit = BookableItem::query()->find((int) $item['id']);
+
+                // a hotel's room sold through an allocation: its price history is the hotel's, not this company's
+                if (! $unit || (int) $unit->business_id !== (int) $promotion->business_id) {
+                    continue;
+                }
+
+                $row = app(\App\Services\BusinessServicePriceResolver::class)->resolveForBookableItem($unit);
                 $from = $row ? $this->pricing->eligibleFrom(\App\Models\BusinessServicePrice::class, (int) $row->id) : null;
 
                 if ($from) {
@@ -186,6 +193,8 @@ final class PromotionService
             throw ValidationException::withMessages(['targets' => __('اختر ما يشمله العرض.')]);
         }
 
+        $sold = app(\App\Services\Partnerships\AllocationService::class)->soldBy($businessId)->pluck('bookable_item_id')->all();
+
         foreach ($targets as $i => $t) {
             $type = (string) ($t['type'] ?? '');
             $id = (int) ($t['id'] ?? 0);
@@ -195,8 +204,9 @@ final class PromotionService
                 Promotion::TARGET_MENU_SECTION => MenuSection::query()->where('business_id', $businessId)->whereKey($id)->exists(),
                 Promotion::TARGET_MENU_ITEM => MenuItem::query()->where('business_id', $businessId)->whereKey($id)->exists(),
                 Promotion::TARGET_LISTING => BusinessCatalogListing::query()->where('business_id', $businessId)->whereKey($id)->exists(),
-                Promotion::TARGET_BOOKABLE_ITEM => BookableItem::query()->where('business_id', $businessId)->whereKey($id)->exists(),
-                Promotion::TARGET_BOOKABLE_KIND => BookableItem::query()->where('business_id', $businessId)->where('line_option_id', $id)->exists(),
+                // a hotel's rooms a company was given to sell are among ITS rooms for offers (the offer comes off the company's margin)
+                Promotion::TARGET_BOOKABLE_ITEM => BookableItem::query()->where(fn ($q) => $q->where('business_id', $businessId)->orWhereIn('id', $sold))->whereKey($id)->exists(),
+                Promotion::TARGET_BOOKABLE_KIND => BookableItem::query()->where(fn ($q) => $q->where('business_id', $businessId)->orWhereIn('id', $sold))->where('line_option_id', $id)->exists(),
                 Promotion::TARGET_LISTING_CATEGORY => DB::table('business_catalog_listings as l')->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
                     ->where('l.business_id', $businessId)->where('p.product_category_id', $id)->exists(),
                 default => false,

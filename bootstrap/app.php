@@ -11,6 +11,19 @@
 |
 */
 
+/*
+|--------------------------------------------------------------------------
+| One request's environment is its own
+|--------------------------------------------------------------------------
+|
+| The web server runs PHP threaded (Apache mpm_winnt, a ZTS build). `putenv()`/`getenv()` read and write the PROCESS environment, which every
+| thread shares, so two requests loading `.env` at the same moment could leave one of them with no DB_USERNAME or APP_ENV — «Access denied for
+| user 'forge'» and a 500 on roughly one request in thirty under load. With putenv off, `.env` is read into the request's own $_ENV/$_SERVER.
+|
+*/
+
+Illuminate\Support\Env::disablePutenv();
+
 $app = new Illuminate\Foundation\Application(
     $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
 );

@@ -152,6 +152,9 @@ Route::prefix('v2')->group(function () {
         // Scheduling/routes: carriers on a route + day, ranked by trust
         // (guarantee coverage + operation rating). Public discovery.
         Route::get('schedules', [TripScheduleController::class, 'search']);
+
+        // The search box: businesses by name, across every category. Public; names only.
+        Route::get('businesses', [\App\Http\Controllers\Api\V2\BusinessSearchController::class, 'index']);
     });
 
     // Vehicle/cargo classes for the scheduling service (picker + filter). Public.

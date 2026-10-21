@@ -858,7 +858,7 @@ class ServiceExecutionEngine
         }
 
         if ($allocation) {
-            return $this->resolveAllocationPriceBreakdown($allocation, $bookable, $quantity, $pricingDate, $until);
+            return $this->resolveAllocationPriceBreakdown($allocation, $bookable, $quantity, $pricingDate, $until, $optionIds, $partySize);
         }
 
         // Price authority is BusinessServicePrice (per item type). The bookable
@@ -1026,45 +1026,84 @@ class ServiceExecutionEngine
         ?BookableItem $bookable,
         int $quantity,
         mixed $pricingDate,
-        mixed $until
+        mixed $until,
+        array $optionIds = [],
+        int $partySize = 1
     ): array {
         $periods = $this->periodsBetween($pricingDate, $until, $this->granularityOf($bookable));
         $nightlyPrice = $allocation->finalPrice();
         $currency = (string) ($allocation->currency ?: 'EGP');
 
-        $periodLines = array_map(
-            fn (Carbon $period) => [
+        /*
+         * ما يختاره النزيل فوق الغرفة — «إفطار +٥٠» — يُسعَّر بسعر الفندق المعلن للإضافة، لا بهامش الشركة. وصفاتُ الغرفة نفسها
+         * («إطلالة بحرية») داخلةٌ فى سعر العقد فلا تُحسب ثانيةً.
+         */
+        $hotelRow = $bookable ? app(\App\Services\BusinessServicePriceResolver::class)->resolveForBookableItem($bookable) : null;
+        $unitOwn = $bookable ? $bookable->modifierOptionIds()->map(fn ($id) => (int) $id)->all() : [];
+        $guestIds = array_values(array_diff(array_map('intval', $optionIds), $unitOwn));
+        $modifierRows = ($hotelRow && $guestIds) ? $this->modifierRowsFor($hotelRow, $guestIds) : collect();
+
+        if ($hotelRow && $modifierRows->isNotEmpty()) {
+            $this->assertModifierSelectionsValid($modifierRows, $hotelRow);
+        }
+
+        $listBase = $hotelRow ? round((float) $hotelRow->baseUnitPrice(), 2) : $nightlyPrice;
+        $first = null;
+        $periodLines = [];
+
+        foreach ($periods as $period) {
+            $m = $this->applyModifiers($modifierRows, $listBase, $partySize);
+            $first ??= $m;
+            $periodLines[] = [
                 'date' => $period->toDateString(),
                 'base_price' => $nightlyPrice,
-                'modifiers_total' => 0.0,
-                'price' => $nightlyPrice,
+                'modifiers_total' => (float) $m['total'],
+                'price' => round($nightlyPrice + (float) $m['total'], 2),
                 'rule' => null,
-            ],
-            $periods
-        );
+            ];
+        }
 
         $units = max($quantity, 1);
         $unitPrice = (float) ($periodLines[0]['price'] ?? $nightlyPrice);
         $originalPrice = round(array_sum(array_column($periodLines, 'price')) * $units, 2);
+
+        /*
+         * «عروض الحجز» للشركة على غرف الفندق: عرضُ البائع نفسِه، من الليالى بسعرها، ولا ينزل بالليلة تحت سعر العقد — فالشركةُ تخفّض
+         * هامشها لا حصّة الفندق.
+         */
+        $offer = $bookable
+            ? app(\App\Services\Promotions\BookingPromotionPricing::class)->best(
+                $bookable,
+                null,
+                array_map(fn (array $l) => ['date' => $l['date'], 'base_price' => $l['base_price']], $periodLines),
+                $units,
+                (int) optional(request()->user('sanctum'))->id,
+                (int) $allocation->partner_business_id
+            )
+            : null;
+        $room = max(round(($nightlyPrice - (float) $allocation->contract_price) * count($periodLines) * $units, 2), 0.0);
+        $offerAmount = $offer ? min((float) $offer['amount'], $room, $originalPrice) : 0.0;
 
         return [
             'source' => 'allocation',
             'unit_price' => $unitPrice,
             'base_unit_price' => $nightlyPrice,
             'price_rule' => null,
-            'modifiers' => [],
-            'modifiers_total' => 0.0,
+            'modifiers' => $first['lines'] ?? [],
+            'modifiers_total' => (float) ($first['total'] ?? 0.0),
             'periods' => $periodLines,
             'periods_count' => count($periodLines),
             'period_unit' => $this->granularityOf($bookable)['unit'] ?? null,
             'units' => $units,
             'quantity' => $quantity,
             'original_price' => $originalPrice,
-            // سعرُ العقد نفسُه، لا تخفيضَ سعريًّا يملكه الشريك على مخزونٍ ليس له.
+            // the hotel's weekly/monthly discount is the hotel's own; the company's offer is its own margin
             'discount_enabled' => false,
             'discount_percent' => 0,
-            'discount_amount' => 0.00,
-            'final_price' => $originalPrice,
+            'discount_amount' => $offerAmount,
+            'offer_promotion_id' => $offerAmount > 0 ? ($offer['promotion_id'] ?? null) : null,
+            'offer_discount_amount' => $offerAmount,
+            'final_price' => max(round($originalPrice - $offerAmount, 2), 0),
             'currency' => $currency,
             'allocation_id' => (int) $allocation->id,
         ];

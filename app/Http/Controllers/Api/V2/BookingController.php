@@ -649,7 +649,7 @@ final class BookingController extends Controller
 
         $courseGroupId = ! empty($data['course_group_id']) ? (int) $data['course_group_id'] : null;
 
-        $booking = DB::transaction(function () use ($payload, $allocation, $quantity, $courseGroupId, $data, $providerId, $user) {
+        $booking = DB::transaction(function () use ($payload, $allocation, $quantity, $courseGroupId, $data, $providerId, $user, $calc) {
             if ($courseGroupId !== null) {
                 // the seat is taken under a lock on the group, so the last one is never sold twice
                 $group = \App\Models\CourseGroup::query()->whereKey($courseGroupId)->lockForUpdate()->first();
@@ -768,6 +768,10 @@ final class BookingController extends Controller
 
             return $booking;
         });
+
+        // a hotel's offer that priced this booking has been used once more
+        app(\App\Services\Promotions\BookingPromotionPricing::class)->commitUsage((array) data_get($calc, 'price_breakdown', []));
+
         if ($guest !== null) {
             return $this->finishGuestBooking($request, $booking, $user, $guest);
         }

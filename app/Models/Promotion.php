@@ -27,7 +27,11 @@ class Promotion extends Model
     public const TARGET_LISTING = 'listing';
     public const TARGET_LISTING_CATEGORY = 'listing_category';
 
-    public const TARGET_TYPES = [self::TARGET_ALL, self::TARGET_MENU_SECTION, self::TARGET_MENU_ITEM, self::TARGET_LISTING, self::TARGET_LISTING_CATEGORY];
+    // «عروض الحجز»: a room, or a whole kind of room («غرفة مزدوجة»)
+    public const TARGET_BOOKABLE_ITEM = 'bookable_item';
+    public const TARGET_BOOKABLE_KIND = 'bookable_kind';
+
+    public const TARGET_TYPES = [self::TARGET_ALL, self::TARGET_MENU_SECTION, self::TARGET_MENU_ITEM, self::TARGET_LISTING, self::TARGET_LISTING_CATEGORY, self::TARGET_BOOKABLE_ITEM, self::TARGET_BOOKABLE_KIND];
 
     protected $fillable = ['business_id', 'title', 'kind', 'params', 'audience', 'starts_at', 'ends_at', 'max_uses', 'used_count', 'is_active'];
 

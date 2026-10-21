@@ -3307,5 +3307,8 @@
     "أُنشئ العرض.": "The offer was created.",
     "حُفظ العرض.": "The offer was saved.",
     "حُذف العرض.": "The offer was deleted.",
-    "اشترِ عددًا، واحصل على عدد أكبر منه (حتى ٢٠ قطعة).": "Buy a number and get a larger number (up to 20 pieces)."
+    "اشترِ عددًا، واحصل على عدد أكبر منه (حتى ٢٠ قطعة).": "Buy a number and get a larger number (up to 20 pieces).",
+    "الحد الأدنى للطلب لا ينطبق على الحجز. اختر نسبة أو مبلغًا أو «اشترِ … واحصل على …».": "A minimum order does not apply to a booking. Choose a percentage, an amount or «Buy … get …».",
+    "تاريخ الإقامة غير صحيح.": "The stay date is not valid.",
+    "نهاية موسم الإقامة قبل بدايته.": "The end of the stay season is before its start."
 }

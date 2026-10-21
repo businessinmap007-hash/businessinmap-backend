@@ -108,6 +108,8 @@ class PromotionController extends Controller
             'params.n' => ['nullable', 'integer', 'min:2', 'max:20'],
             'params.pay' => ['nullable', 'integer', 'min:1', 'max:19'],
             'params.same_item' => ['nullable', 'boolean'],
+            'params.stay_from' => ['nullable', 'date'],
+            'params.stay_to' => ['nullable', 'date'],
             'params.max_groups' => ['nullable', 'integer', 'min:1', 'max:50'],
             'params.min_total' => ['nullable', 'numeric', 'min:0'],
             'audience' => ['nullable', Rule::in([Promotion::AUDIENCE_ALL, Promotion::AUDIENCE_NEW])],

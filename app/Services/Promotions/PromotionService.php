@@ -2,6 +2,7 @@
 
 namespace App\Services\Promotions;
 
+use App\Models\BookableItem;
 use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
@@ -90,7 +91,24 @@ final class PromotionService
         $out = [];
 
         foreach ($this->catalog->coveredItems($promotion, 500) as $item) {
-            $class = $item['type'] === Promotion::TARGET_MENU_ITEM ? MenuItem::class : BusinessCatalogListing::class;
+            $class = match ($item['type']) {
+                Promotion::TARGET_MENU_ITEM => MenuItem::class,
+                Promotion::TARGET_BOOKABLE_ITEM => BookableItem::class,
+                default => BusinessCatalogListing::class,
+            };
+
+            // a room's price lives on its price row, which is what the «no fake discount» rule watches
+            if ($class === BookableItem::class) {
+                $row = app(\App\Services\BusinessServicePriceResolver::class)->resolveForBookableItem(BookableItem::query()->find((int) $item['id']));
+                $from = $row ? $this->pricing->eligibleFrom(\App\Models\BusinessServicePrice::class, (int) $row->id) : null;
+
+                if ($from) {
+                    $out[] = ['name' => $item['name'], 'type' => $item['type'], 'id' => (int) $item['id'], 'eligible_from' => $from->toDateString()];
+                }
+
+                continue;
+            }
+
 
             $from = $this->pricing->eligibleFrom($class, (int) $item['id']);
 
@@ -133,6 +151,22 @@ final class PromotionService
 
         $this->checkTargets($businessId, $data['targets'] ?? []);
 
+        // a minimum order is a cart's idea; a night has no cart
+        $booking = collect($data['targets'])->contains(fn ($t) => in_array($t['type'], [Promotion::TARGET_BOOKABLE_ITEM, Promotion::TARGET_BOOKABLE_KIND], true));
+        if ($booking && $kind === Promotion::SPEND_PERCENT) {
+            $bad('kind', __('الحد الأدنى للطلب لا ينطبق على الحجز. اختر نسبة أو مبلغًا أو «اشترِ … واحصل على …».'));
+        }
+
+        // the season a booking offer covers
+        foreach (['stay_from', 'stay_to'] as $field) {
+            if (! empty($p[$field]) && strtotime((string) $p[$field]) === false) {
+                $bad("params.$field", __('تاريخ الإقامة غير صحيح.'));
+            }
+        }
+        if (! empty($p['stay_from']) && ! empty($p['stay_to']) && strtotime((string) $p['stay_to']) < strtotime((string) $p['stay_from'])) {
+            $bad('params.stay_to', __('نهاية موسم الإقامة قبل بدايته.'));
+        }
+
         // a fixed amount must leave every covered item with a price
         if ($kind === Promotion::AMOUNT) {
             $draft = new Promotion(['business_id' => $businessId, 'kind' => $kind, 'params' => $p]);
@@ -161,6 +195,8 @@ final class PromotionService
                 Promotion::TARGET_MENU_SECTION => MenuSection::query()->where('business_id', $businessId)->whereKey($id)->exists(),
                 Promotion::TARGET_MENU_ITEM => MenuItem::query()->where('business_id', $businessId)->whereKey($id)->exists(),
                 Promotion::TARGET_LISTING => BusinessCatalogListing::query()->where('business_id', $businessId)->whereKey($id)->exists(),
+                Promotion::TARGET_BOOKABLE_ITEM => BookableItem::query()->where('business_id', $businessId)->whereKey($id)->exists(),
+                Promotion::TARGET_BOOKABLE_KIND => BookableItem::query()->where('business_id', $businessId)->where('line_option_id', $id)->exists(),
                 Promotion::TARGET_LISTING_CATEGORY => DB::table('business_catalog_listings as l')->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')
                     ->where('l.business_id', $businessId)->where('p.product_category_id', $id)->exists(),
                 default => false,

@@ -964,7 +964,20 @@ class ServiceExecutionEngine
             : 0.0;
         $stayAmount = round($originalPrice * ($stayPercent / 100), 2);
 
-        $discountAmount = round($promoAmount + $stayAmount, 2);
+        // «عروض الحجز»: a hotel's own offer on this room, off the nights at the room's own price. It does not stack with the
+        // stay-length discount — the larger of the two applies.
+        $offer = $bookable
+            ? app(\App\Services\Promotions\BookingPromotionPricing::class)->best(
+                $bookable,
+                $businessPrice,
+                array_map(fn (array $l) => ['date' => $l['date'], 'base_price' => $l['base_price']], $periodLines),
+                $units,
+                (int) optional(request()->user('sanctum'))->id
+            )
+            : null;
+        $offerAmount = $offer ? min((float) $offer['amount'], $originalPrice) : 0.0;
+
+        $discountAmount = round($promoAmount + max($stayAmount, $offerAmount), 2);
 
         $finalPrice = max(round($originalPrice - $discountAmount, 2), 0);
 
@@ -992,6 +1005,9 @@ class ServiceExecutionEngine
             'discount_amount' => $discountAmount,
             'stay_discount_percent' => $stayPercent,
             'stay_discount_amount' => $stayAmount,
+            // the hotel's offer that priced this booking (null when none, or when the stay discount was the larger)
+            'offer_promotion_id' => $offerAmount > $stayAmount ? ($offer['promotion_id'] ?? null) : null,
+            'offer_discount_amount' => $offerAmount > $stayAmount ? $offerAmount : 0.0,
             'final_price' => $finalPrice,
             'currency' => (string) ($businessPrice->currency ?: 'EGP'),
         ];

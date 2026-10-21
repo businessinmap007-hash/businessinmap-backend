@@ -101,6 +101,8 @@ final class UnitDiscoveryController extends Controller
                 // The row the price came from, so a client can send it back as
                 // `offering_id` and be priced off exactly what it was shown.
                 'offering_id' => $price ? (int) $price->id : null,
+                // «عروض الحجز»: the hotel's offer on this kind of room — the night's price after it, or the words of the rule
+                'offer' => $price ? app(\App\Services\Promotions\BookingPromotionPricing::class)->badge($first, $price, (float) $price->baseUnitPrice(), (int) optional($request->user('sanctum'))->id) : null,
                 // ما يُعرض على النزيل ليقرّره: «إفطار +٥٠»، «إقامة كاملة
                 // +١٥٠». يُرسَل مع النوع لا مع الوحدة، لأنه سعرُ النوع.
                 'choices' => $this->choicesOf($price, $inKind),

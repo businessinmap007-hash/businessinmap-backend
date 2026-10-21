@@ -2,6 +2,7 @@
 
 namespace App\Services\Promotions;
 
+use App\Models\BookableItem;
 use App\Models\BusinessCatalogListing;
 use App\Models\MenuItem;
 use App\Models\MenuSection;
@@ -22,7 +23,7 @@ final class PromotionCatalog
     /**
      * The merchant's products by section: «اختيار القسم كله أو بعض منه».
      *
-     * @return array{menu: list<array<string,mixed>>, shop: list<array<string,mixed>>}
+     * @return array{menu: list<array<string,mixed>>, shop: list<array<string,mixed>>, booking: list<array<string,mixed>>}
      */
     public function pickerFor(int $businessId): array
     {
@@ -55,7 +56,35 @@ final class PromotionCatalog
             'items' => $group->map(fn ($r) => ['type' => Promotion::TARGET_LISTING, 'id' => (int) $r->id, 'name' => (string) ($r->name_ar ?: $r->name_en), 'price' => (float) $r->price])->values()->all(),
         ])->values()->all();
 
-        return ['menu' => $menu, 'shop' => $shop];
+        return ['menu' => $menu, 'shop' => $shop, 'booking' => $this->bookingGroups($businessId)];
+    }
+
+    /**
+     * The rooms (or pitches, halls…) by kind, each with the night's price: «اختر النوع كله أو بعض غرفه».
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function bookingGroups(int $businessId): array
+    {
+        $units = BookableItem::query()->with('lineOption:id,name_ar,name_en')->where('business_id', $businessId)->where('is_active', 1)->orderBy('line_option_id')->orderBy('code')->orderBy('id')->get();
+        $prices = app(\App\Services\BusinessServicePriceResolver::class);
+        $out = [];
+
+        foreach ($units->groupBy(fn (BookableItem $u) => (int) ($u->line_option_id ?? 0)) as $kindId => $inKind) {
+            $first = $inKind->first();
+            $option = $first->lineOption;
+            $price = $prices->resolveForBookableItem($first);
+            $night = $price ? round((float) $price->baseUnitPrice(), 2) : 0.0;
+
+            $out[] = [
+                'type' => $kindId ? Promotion::TARGET_BOOKABLE_KIND : null,
+                'id' => $kindId ?: null,
+                'name' => $option ? (string) ($option->name_ar ?: $option->name_en) : null,
+                'items' => $inKind->map(fn (BookableItem $u) => ['type' => Promotion::TARGET_BOOKABLE_ITEM, 'id' => (int) $u->id, 'name' => (string) $u->displayLabel(), 'price' => $night])->values()->all(),
+            ];
+        }
+
+        return $out;
     }
 
     /** Names for a promotion's targets, for lists. @return list<array{type:string,id:?int,name:string}> */
@@ -70,6 +99,8 @@ final class PromotionCatalog
                 Promotion::TARGET_MENU_ITEM => MenuItem::query()->find($t->target_id)?->loc('name'),
                 Promotion::TARGET_LISTING => DB::table('business_catalog_listings as l')->join('catalog_products as p', 'p.id', '=', 'l.catalog_product_id')->where('l.id', $t->target_id)->value('p.name_ar'),
                 Promotion::TARGET_LISTING_CATEGORY => DB::table('product_categories')->where('id', $t->target_id)->value('name_ar'),
+                Promotion::TARGET_BOOKABLE_ITEM => BookableItem::query()->find($t->target_id)?->displayLabel(),
+                Promotion::TARGET_BOOKABLE_KIND => BookableItem::query()->with('lineOption:id,name_ar,name_en')->where('business_id', $promotion->business_id)->where('line_option_id', $t->target_id)->first()?->lineOption?->name_ar,
                 default => null,
             };
 
@@ -92,7 +123,7 @@ final class PromotionCatalog
         $picker = $this->pickerFor((int) $promotion->business_id);
         $out = [];
 
-        foreach (['menu', 'shop'] as $surface) {
+        foreach (['menu', 'shop', 'booking'] as $surface) {
             foreach ($picker[$surface] as $group) {
                 $groupKey = $group['type'] ? $group['type'] . ':' . $group['id'] : null;
 

@@ -31,6 +31,7 @@ final class BusinessCapability
     public const CLINIC = 'clinic';
     public const DRIVERS = 'drivers';
     public const PROCEDURES = 'procedures';
+    public const PARTNERSHIPS = 'partnerships';
 
     /**
      * «الطبيب المعالج»: what the role carries on its own — the visit, the prescription, the test / radiology orders and
@@ -51,6 +52,7 @@ final class BusinessCapability
             self::MENU => ['المنيو', 'Menu'],
             self::BOOKINGS => ['الحجوزات', 'Bookings'],
             self::OFFERS => ['العروض', 'Offers'],
+            self::PARTNERSHIPS => ['الشراكات والحصص', 'Partnerships & allocations'],
             self::RETAIL => ['منتجات التجزئة', 'Retail products'],
             self::PRICES => ['الأسعار', 'Prices'],
             self::WORKING_HOURS => ['مواعيد العمل', 'Working hours'],

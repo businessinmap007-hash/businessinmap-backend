@@ -125,6 +125,7 @@ tags:
       camera-captured progress evidence per stage.
   - name: Business Menu
   - name: Business Offers
+  - name: Partnerships
   - name: Business Prices
   - name: Business Bookables
   - name: Business Retail
@@ -2942,6 +2943,28 @@ paths:
     post: { tags: [Business Offers], summary: "Pause or resume a promotion.", parameters: [{ name: promotion, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /businesses/{business}/promotions:
     get: { tags: [Business Offers], summary: "The promotions running now on a business, for its page's offers tab (a first-order offer is hidden from a returning customer): each with its targets, remaining uses and up to 12 covered items with `price_after` where the rule can say it. The business page's `sections.offers` says whether the tab shows.", parameters: [{ name: business, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK } } }
+  # ─────────────────────── Partnerships ───────────────────────
+  /business/partnerships:
+    get: { tags: [Partnerships], summary: "«الشراكات والحصص»: the partnerships I am a party to, as owner or as partner (`role`), each with the other side, the state and `awaiting_my_answer`. A contract between two businesses of any trade; ONLY the two parties can read it — everyone else gets 404, never 403.", responses: { '200': { description: OK } } }
+    post: { tags: [Partnerships], summary: "The owner invites another business: `{partner_business_id, type?: agency|reseller|supplier|corporate|hotel_allotment, terms?: {note}}`. The invitation waits for the other side; nobody else sees it.", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/partnerships/lookup:
+    get: { tags: [Partnerships], summary: "Businesses to invite, by name (`q`, 2+ letters).", parameters: [{ name: q, in: query, schema: { type: string } }], responses: { '200': { description: OK } } }
+  /business/partnerships/{partnership}:
+    get: { tags: [Partnerships], summary: "One partnership with its allocations (room card, contract price, quantities, the partner's markup and final price). 404 for anyone who is not one of the two parties.", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/partnerships/{partnership}/{answer}:
+    post: { tags: [Partnerships], summary: "The invited business accepts or declines (`answer` = accept|decline). The owner cannot answer its own invitation.", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }, { name: answer, in: path, required: true, schema: { type: string, enum: [accept, decline] } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/partnerships/{partnership}/{action}:
+    post: { tags: [Partnerships], summary: "Either party pauses, resumes or ends the partnership (`action` = pause|resume|end). Pausing or ending stops the allocations given inside it.", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }, { name: action, in: path, required: true, schema: { type: string, enum: [pause, resume, end] } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/partnerships/{partnership}/available-rooms:
+    get: { tags: [Partnerships], summary: "Owner only: its own rooms as cards (kind, photos, features) with `capacity_total` and `ungranted`, to pick from when granting.", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/partnerships/{partnership}/allocations:
+    post: { tags: [Partnerships], summary: "Owner only: grant a quantity of one of its rooms to the partner at a contract price: `{bookable_item_id, quantity_total, contract_price, allocation_type?, starts_at?, ends_at?, min_nights?, max_nights?, release_days_before?}`. The partnership must be active; the total granted of a room cannot exceed what the room has.", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/partnerships/{partnership}/allocations/{allocation}:
+    put: { tags: [Partnerships], summary: "Owner only: change a grant's quantity (never below what is sold or held), contract price, dates, nights or release days.", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }, { name: allocation, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/partnerships/{partnership}/allocations/{allocation}/{action}:
+    post: { tags: [Partnerships], summary: "Owner only: stop or re-activate a grant (`action` = stop|activate).", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }, { name: allocation, in: path, required: true, schema: { type: integer } }, { name: action, in: path, required: true, schema: { type: string, enum: [stop, activate] } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/partnerships/{partnership}/allocations/{allocation}/pricing:
+    put: { tags: [Partnerships], summary: "Partner only: price what it was given — `{markup_type: none|fixed|percent, markup_value}` on top of the contract price, never below it. The customer sees only the final price on the partner's page and in hotel-room search.", parameters: [{ name: partnership, in: path, required: true, schema: { type: integer } }, { name: allocation, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /delivery/register:
     post: { tags: [Delivery], summary: 'Register as a delivery driver (Shipping & Delivery business accounts only)', responses: { '201': { description: Registered }, '403': { $ref: '#/components/responses/Forbidden' } } }
   /delivery/delivery-fee:

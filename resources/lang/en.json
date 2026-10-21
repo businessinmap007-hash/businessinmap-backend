@@ -3310,5 +3310,22 @@
     "اشترِ عددًا، واحصل على عدد أكبر منه (حتى ٢٠ قطعة).": "Buy a number and get a larger number (up to 20 pieces).",
     "الحد الأدنى للطلب لا ينطبق على الحجز. اختر نسبة أو مبلغًا أو «اشترِ … واحصل على …».": "A minimum order does not apply to a booking. Choose a percentage, an amount or «Buy … get …».",
     "تاريخ الإقامة غير صحيح.": "The stay date is not valid.",
-    "نهاية موسم الإقامة قبل بدايته.": "The end of the stay season is before its start."
+    "نهاية موسم الإقامة قبل بدايته.": "The end of the stay season is before its start.",
+    "هذه الوحدة ليست من وحدات المالك.": "This unit does not belong to the owner.",
+    "الكمية تتجاوز ما تبقى من هذه الوحدة (:left).": "The quantity exceeds what is left of this unit (:left).",
+    "الكمية أقل مما بيع أو حُجز بالفعل.": "The quantity is below what is already sold or held.",
+    "الهامش لا يقل عن صفر، والنسبة حتى ٣٠٠٪.": "The markup is at least zero, and a percentage up to 300%.",
+    "الشراكة غير فعّالة.": "The partnership is not active.",
+    "اختر نشاطًا آخر.": "Choose another business.",
+    "بينكما شراكة قائمة أو دعوة معلّقة.": "You already have a partnership or a pending invitation.",
+    "لا توجد دعوة تنتظر ردك.": "There is no invitation waiting for your answer.",
+    "لا يمكن تنفيذ هذا الإجراء في حالة الشراكة الحالية.": "This action is not possible in the partnership's current state.",
+    "أُرسلت الدعوة.": "The invitation was sent.",
+    "قبلتَ الشراكة.": "You accepted the partnership.",
+    "رفضتَ الدعوة.": "You declined the invitation.",
+    "مُنحت الحصة.": "The allocation was granted.",
+    "حُفظ سعر البيع.": "The selling price was saved.",
+    "نفدت الكمية.": "Sold out.",
+    "مدة الإقامة خارج ما تسمح به هذه الغرفة.": "The length of stay is outside what this room allows.",
+    "أُغلق الحجز على هذه الغرفة لقرب الموعد.": "Booking on this room closed as the date is near."
 }

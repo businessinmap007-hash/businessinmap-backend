@@ -39,7 +39,6 @@ return [
     /** Present on every one of the four intact siblings. */
     'base_groups' => [
         'مرافق الإقامة',
-        'إطلالة الوحدة',
         'نظام الوجبات',
     ],
 
@@ -66,6 +65,10 @@ return [
     | quietly re-grants it.
     */
     'base_options' => [
+        // «إطلالة الوحدة» was a whole base group until 2026-10-21; it grew (جبلية، جانبية على البحر) and a base group hands the
+        // guest house and the boat everything it holds, so the two views every sibling has are named instead
+        'إطلالة بحرية',
+        'إطلالة على المسبح',
         'كاش',
         'تقسيط',
         'عائلي',

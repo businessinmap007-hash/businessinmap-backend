@@ -1722,6 +1722,22 @@ Route::prefix('v2')->group(function () {
         });
 
         // «العروض والخصومات»: a business writes the discounts its customers are priced by (open to every business; a delegate with `offers` too).
+        // «الشراكات والحصص»: the partnership core — a contract between TWO businesses of any trade. Everything in it is for the two
+        // parties only (a stranger gets 404); the first contract kind is a room allocation a hotel gives a travel agency.
+        Route::prefix('business/partnerships')->middleware('business.member:' . BusinessCapability::PARTNERSHIPS)->group(function () {
+            Route::get('/', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'index']);
+            Route::get('lookup', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'lookup']);
+            Route::post('/', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'store']);
+            Route::get('{partnership}', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'show'])->whereNumber('partnership');
+            Route::post('{partnership}/{answer}', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'respond'])->whereNumber('partnership')->whereIn('answer', ['accept', 'decline']);
+            Route::post('{partnership}/{action}', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'change'])->whereNumber('partnership')->whereIn('action', ['pause', 'resume', 'end']);
+            Route::get('{partnership}/available-rooms', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'grantable'])->whereNumber('partnership');
+            Route::post('{partnership}/allocations', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'grant'])->whereNumber('partnership');
+            Route::put('{partnership}/allocations/{allocation}', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'updateAllocation'])->whereNumber(['partnership', 'allocation']);
+            Route::post('{partnership}/allocations/{allocation}/{action}', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'allocationStatus'])->whereNumber(['partnership', 'allocation'])->whereIn('action', ['stop', 'activate']);
+            Route::put('{partnership}/allocations/{allocation}/pricing', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'priceAllocation'])->whereNumber(['partnership', 'allocation']);
+        });
+
         Route::prefix('business/promotions')->middleware('business.member:' . BusinessCapability::OFFERS)->group(function () {
             Route::get('/', [\App\Http\Controllers\Api\V2\PromotionController::class, 'index']);
             Route::get('catalog', [\App\Http\Controllers\Api\V2\PromotionController::class, 'catalog']);

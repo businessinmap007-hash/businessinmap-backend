@@ -127,6 +127,9 @@ final class UnitDiscoveryController extends Controller
                 'starts_at' => $window[0] ?? null,
                 'ends_at' => $window[1] ?? null,
                 'kinds' => $groups,
+                // «غرف الشركاء»: rooms another business (a hotel) gave this one to sell — at THIS business's own price. The contract
+                // price, the quantities and the terms are the two parties' alone and never appear here.
+                'partner_rooms' => $this->partnerRooms((int) $biz->id, $window),
                 // «بالموعد» or «بالدور»: how this business takes its appointments
                 'flow' => \App\Services\AppointmentQueue::flowOf((int) $biz->id),
                 // «أشكال الحجز»: how this trade page is drawn (sections or a flat list, what is shown, in what order).
@@ -134,6 +137,51 @@ final class UnitDiscoveryController extends Controller
                 'shape' => app(\App\Services\BookingShapes::class)->payload(app(\App\Services\BookingShapes::class)->forBusiness((int) $biz->id)),
             ],
         ]);
+    }
+
+    /**
+     * The rooms a business sells on behalf of another through an active allocation: the room card (what it is, photos, features),
+     * the price THIS business set, and what is left. `bookable_id` is the owner's unit, booked through this business.
+     *
+     * @param  array{0:string,1:string}|null  $window
+     * @return array<int,array<string,mixed>>
+     */
+    private function partnerRooms(int $businessId, ?array $window): array
+    {
+        $allocations = \App\Models\BookableAllocation::query()->active()->where('partner_business_id', $businessId)
+            ->whereHas('partnership', fn ($q) => $q->where('status', \App\Models\BusinessPartnership::STATUS_ACTIVE))
+            ->with(['bookableItem.lineOption:id,name_ar,name_en', 'ownerBusiness:id,name'])->orderBy('id')->get();
+
+        $cards = app(\App\Services\Partnerships\AllocationService::class);
+        $nights = $window ? max((int) \Illuminate\Support\Carbon::parse($window[0])->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($window[1])->startOfDay()), 1) : null;
+
+        return $allocations->filter(fn ($a) => $a->bookableItem && $a->bookableItem->is_active)->map(function ($a) use ($cards, $window, $nights) {
+            $left = $a->availableQuantity();
+            $reason = null;
+
+            if ($left <= 0) {
+                $reason = __('نفدت الكمية.');
+            } elseif ($nights !== null && (($a->min_nights && $nights < (int) $a->min_nights) || ($a->max_nights && $nights > (int) $a->max_nights))) {
+                $reason = __('مدة الإقامة خارج ما تسمح به هذه الغرفة.');
+            } elseif ($window && $a->isReleasedForDate($window[0])) {
+                $reason = __('أُغلق الحجز على هذه الغرفة لقرب الموعد.');
+            }
+
+            return $cards->card($a->bookableItem) + [
+                'allocation_id' => (int) $a->id,
+                'bookable_id' => (int) $a->bookable_item_id,
+                'service_id' => (int) $a->bookableItem->service_id,
+                'item_type' => (string) $a->bookableItem->item_type,
+                'price' => round((float) $a->finalPrice(), 2),
+                'currency' => (string) ($a->currency ?: 'EGP'),
+                'from' => $a->ownerBusiness ? ['id' => (int) $a->ownerBusiness->id, 'name' => (string) $a->ownerBusiness->name] : null,
+                'available_quantity' => $left,
+                'min_nights' => $a->min_nights,
+                'max_nights' => $a->max_nights,
+                'available' => $reason === null,
+                'reason' => $reason,
+            ];
+        })->values()->all();
     }
 
     /**

@@ -744,6 +744,8 @@ final class DiscoveryController extends Controller
         $services = PlatformService::query()
             ->where('is_active', 1)
             ->where('key', '!=', PlatformService::KEY_DELIVERY)
+            // offers are a tab on every business page now, not a service to browse by
+            ->where('key', '!=', 'business_offers')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get(['id', 'key', 'name_ar', 'name_en']);

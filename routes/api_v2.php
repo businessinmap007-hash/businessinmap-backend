@@ -500,6 +500,8 @@ Route::prefix('v2')->group(function () {
             Route::post('showcase/approve', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'approve']);
             Route::post('showcase/decline', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'decline']);
             Route::post('showcase/withdraw', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'customerWithdraw']);
+            Route::post('showcase/stages/{task}/approve', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'approveStage'])->whereNumber('task');
+            Route::post('showcase/stages/{task}/decline', [\App\Http\Controllers\Api\V2\ProjectShowcaseController::class, 'declineStage'])->whereNumber('task');
         });
 
         // Follow a project directly (public, shared, or as the contracted
@@ -621,6 +623,8 @@ Route::prefix('v2')->group(function () {
         Route::post('training-plans/{plan}/showcase/approve', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'approve'])->whereNumber('plan');
         Route::post('training-plans/{plan}/showcase/decline', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'decline'])->whereNumber('plan');
         Route::post('training-plans/{plan}/showcase/withdraw', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'clientWithdraw'])->whereNumber('plan');
+        Route::post('training-plans/{plan}/showcase/months/{month}/approve', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'approveMonth'])->whereNumber('plan')->where('month', '[0-9]{4}-[0-9]{2}');
+        Route::post('training-plans/{plan}/showcase/months/{month}/decline', [\App\Http\Controllers\Api\V2\PlanShowcaseController::class, 'declineMonth'])->whereNumber('plan')->where('month', '[0-9]{4}-[0-9]{2}');
 
         // Clinic appointments — the patient's side: request, read mine, cancel.
         Route::get('clinic-appointments', [ClinicAppointmentController::class, 'index']);

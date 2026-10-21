@@ -141,4 +141,50 @@ class PlanShowcaseTest extends TestCase
         Sanctum::actingAs($stranger);
         $this->postJson("/api/v2/training-plans/{$this->plan->id}/showcase/approve")->assertNotFound();
     }
+
+    public function test_month_by_month_mode_shows_only_the_months_the_client_approved_and_a_renewal_opens_the_next_question(): void
+    {
+        $this->report('2026-08-01', 95.0, 30.0);
+        $this->report('2026-09-01', 91.5, 26.5);
+
+        Sanctum::actingAs($this->trainer);
+        $this->postJson("/api/v2/business/training-plans/{$this->plan->id}/showcase", ['public_title' => 'Real results', 'consent_mode' => 'each'])->assertCreated()->assertJsonPath('data.showcase.consent_mode', 'each');
+
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/training-plans/{$this->plan->id}/showcase/approve")->assertOk();
+        $postId = (int) PlanShowcase::query()->where('training_plan_id', $this->plan->id)->value('post_id');
+        $fetch = fn () => collect($this->getJson("/api/v2/businesses/{$this->trainer->id}/posts")->json('data'))->firstWhere('id', $postId)['plan_showcase'];
+
+        // approved as a post, but no month is in it yet: each month is asked
+        $this->assertSame(0, $fetch()['confirmed_months']);
+        $units = $this->getJson("/api/v2/training-plans/{$this->plan->id}")->json('data.plan.showcase.units');
+        $this->assertSame([['key' => '2026-08', 'status' => 'pending'], ['key' => '2026-09', 'status' => 'pending']], $units);
+
+        $this->postJson("/api/v2/training-plans/{$this->plan->id}/showcase/months/2026-08/approve")->assertOk();
+        $this->postJson("/api/v2/training-plans/{$this->plan->id}/showcase/months/2026-09/approve")->assertOk();
+        $this->assertSame(1, $fetch()['confirmed_months']);
+        $this->assertEquals(-3.5, $fetch()['total_change']['weight_kg']);
+
+        // a month he declines never shows; a month nobody asked about cannot be answered
+        $this->report('2026-07-01', 98.0, 33.0);
+        $this->postJson("/api/v2/training-plans/{$this->plan->id}/showcase/months/2026-07/decline")->assertOk();
+        $this->assertSame(1, $fetch()['confirmed_months']);
+        $this->postJson("/api/v2/training-plans/{$this->plan->id}/showcase/months/2030-01/approve")->assertStatus(422);
+
+        // the renewal of the paid month opens that month's question
+        app(\App\Services\Training\PlanShowcaseService::class)->monthRenewed($this->plan->fresh());
+        $units = collect($this->getJson("/api/v2/training-plans/{$this->plan->id}")->json('data.plan.showcase.units'));
+        $this->assertSame('pending', $units->firstWhere('key', now()->format('Y-m'))['status']);
+    }
+
+    public function test_the_client_can_make_a_once_for_all_request_stricter_but_not_looser(): void
+    {
+        $this->report('2026-08-01', 95.0, 30.0);
+        $this->report('2026-09-01', 91.5, 26.5);
+        $this->ask()->assertCreated()->assertJsonPath('data.showcase.consent_mode', 'once');
+
+        Sanctum::actingAs($this->client);
+        $this->postJson("/api/v2/training-plans/{$this->plan->id}/showcase/approve", ['consent_mode' => 'each'])->assertOk()->assertJsonPath('data.showcase.consent_mode', 'each');
+        $this->postJson("/api/v2/training-plans/{$this->plan->id}/showcase/approve", ['consent_mode' => 'once'])->assertStatus(422);
+    }
 }

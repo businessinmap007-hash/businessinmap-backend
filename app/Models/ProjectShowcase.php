@@ -18,7 +18,7 @@ class ProjectShowcase extends Model
 
     protected $fillable = [
         'project_id', 'business_id', 'post_id', 'public_title', 'note', 'show_photos', 'status',
-        'requested_at', 'decided_at', 'decision_note', 'decided_by',
+        'requested_at', 'decided_at', 'decision_note', 'decided_by', 'consent_mode',
     ];
 
     protected $casts = [

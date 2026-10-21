@@ -172,4 +172,43 @@ class ProjectShowcaseTest extends TestCase
         Sanctum::actingAs($other);
         $this->postJson("/api/v2/business/projects/{$this->project->id}/showcase", ['public_title' => 'x'])->assertNotFound();
     }
+
+    public function test_stage_by_stage_mode_lists_and_counts_only_the_stages_the_customer_approved(): void
+    {
+        $this->agreed();
+        Sanctum::actingAs($this->office);
+        $this->postJson("/api/v2/business/projects/{$this->project->id}/showcase", ['public_title' => 'A villa', 'consent_mode' => 'each'])->assertCreated();
+
+        Sanctum::actingAs($this->client);
+        $this->postJson($this->op() . '/approve')->assertOk()->assertJsonPath('data.showcase.consent_mode', 'each');
+
+        $postId = (int) ProjectShowcase::query()->where('project_id', $this->project->id)->value('post_id');
+        $fetch = fn () => collect($this->getJson("/api/v2/businesses/{$this->office->id}/posts")->json('data'))->firstWhere('id', $postId)['showcase'];
+
+        // approved as a post, but the finished stage is still waiting for his word
+        $this->assertSame([], $fetch()['stages']);
+        $this->assertSame(0, $fetch()['progress']);
+        $units = $this->getJson("/api/v2/operations/booking/{$this->project->operation_id}/project")->json('data.showcase.units');
+        $this->assertSame([['key' => (string) $this->stage->id, 'title' => 'Frame', 'status' => 'pending']], $units);
+
+        $this->postJson($this->op() . "/stages/{$this->stage->id}/approve")->assertOk();
+        $this->assertCount(1, $fetch()['stages']);
+        $this->assertSame(50, $fetch()['progress']);
+
+        $this->postJson($this->op() . "/stages/{$this->stage->id}/decline")->assertOk();
+        $this->assertSame([], $fetch()['stages']);
+
+        // a stage that is not finished cannot be answered, and neither can a stranger's
+        $this->project->tasks()->where('parent_id', $this->stage->id)->first()->update(['status' => ProjectTask::STATUS_IN_PROGRESS]);
+        $this->postJson($this->op() . "/stages/{$this->stage->id}/approve")->assertStatus(422);
+    }
+
+    public function test_the_customer_may_turn_a_once_for_all_request_into_stage_by_stage(): void
+    {
+        $this->agreed();
+        $this->ask()->assertCreated()->assertJsonPath('data.showcase.consent_mode', 'once');
+
+        Sanctum::actingAs($this->client);
+        $this->postJson($this->op() . '/approve', ['consent_mode' => 'each'])->assertOk()->assertJsonPath('data.showcase.consent_mode', 'each');
+    }
 }

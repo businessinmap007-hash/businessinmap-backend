@@ -36,10 +36,11 @@ class ProjectShowcaseController extends Controller
             'public_title' => ['required', 'string', 'max:191'],
             'note' => ['nullable', 'string', 'max:500'],
             'show_photos' => ['nullable', 'boolean'],
+            'consent_mode' => ['nullable', 'in:once,each'],
         ]);
         $row = $this->owned($request, $project);
 
-        $this->showcases->request($row, $request->user(), $data['public_title'], $data['note'] ?? null, (bool) ($data['show_photos'] ?? false));
+        $this->showcases->request($row, $request->user(), $data['public_title'], $data['note'] ?? null, (bool) ($data['show_photos'] ?? false), $data['consent_mode'] ?? 'once');
 
         return response()->json(['success' => true, 'message' => __('أُرسل طلب النشر إلى العميل.'), 'data' => ['showcase' => $this->showcases->block($row)]], 201);
     }
@@ -55,8 +56,9 @@ class ProjectShowcaseController extends Controller
 
     public function approve(Request $request, string $type, int $id)
     {
+        $data = $request->validate(['consent_mode' => ['nullable', 'in:each']]);
         $project = $this->forCustomer($request, $type, $id);
-        $this->showcases->decide($project, $request->user(), true);
+        $this->showcases->decide($project, $request->user(), true, null, $data['consent_mode'] ?? null);
 
         return $this->customerReply($project, __('وافقت على عرض المشروع.'));
     }
@@ -68,6 +70,23 @@ class ProjectShowcaseController extends Controller
         $this->showcases->decide($project, $request->user(), false, $data['note'] ?? null);
 
         return $this->customerReply($project, __('رفضت عرض المشروع.'));
+    }
+
+    /** POST …/showcase/stages/{task}/approve|decline — «انشر هذه المرحلة؟» in the stage-by-stage mode. */
+    public function approveStage(Request $request, string $type, int $id, int $task)
+    {
+        $project = $this->forCustomer($request, $type, $id);
+        $this->showcases->decideStage($project, $request->user(), $task, true);
+
+        return $this->customerReply($project, __('وافقت على نشر المرحلة.'));
+    }
+
+    public function declineStage(Request $request, string $type, int $id, int $task)
+    {
+        $project = $this->forCustomer($request, $type, $id);
+        $this->showcases->decideStage($project, $request->user(), $task, false);
+
+        return $this->customerReply($project, __('لن تُنشر المرحلة.'));
     }
 
     public function customerWithdraw(Request $request, string $type, int $id)

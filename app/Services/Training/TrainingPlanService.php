@@ -183,12 +183,17 @@ class TrainingPlanService
             throw ValidationException::withMessages(['status' => __('لا يمكن تجديد خطة منتهية.')]);
         }
 
-        return DB::transaction(function () use ($plan, $extra) {
+        $renewed = DB::transaction(function () use ($plan, $extra) {
             $plan->update(['renewals' => (int) $plan->renewals + 1, 'paid_until' => $this->periodEnd()]);
             $this->settle($plan, $extra);
 
             return $plan->refresh();
         });
+
+        // a plan shown month by month asks its client about the new month
+        app(PlanShowcaseService::class)->monthRenewed($renewed);
+
+        return $renewed;
     }
 
     /**

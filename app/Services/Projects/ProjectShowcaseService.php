@@ -7,6 +7,7 @@ use App\Models\Image;
 use App\Models\Project;
 use App\Models\ProjectShowcase;
 use App\Models\ProjectTask;
+use App\Models\ShowcaseApproval;
 use App\Models\User;
 use App\Services\Notifications\NotificationDispatcherService;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ final class ProjectShowcaseService
     }
 
     /** The business asks the customer to let the project be shown. */
-    public function request(Project $project, User $business, string $publicTitle, ?string $note, bool $showPhotos): ProjectShowcase
+    public function request(Project $project, User $business, string $publicTitle, ?string $note, bool $showPhotos, string $mode = 'once'): ProjectShowcase
     {
         $customerId = $this->projects->contractedCustomerId($project);
 
@@ -57,12 +58,14 @@ final class ProjectShowcaseService
             'public_title' => mb_substr(trim($publicTitle), 0, 191),
             'note' => $note !== null && trim($note) !== '' ? mb_substr(trim($note), 0, 500) : null,
             'show_photos' => $showPhotos,
+            'consent_mode' => $mode === 'each' ? 'each' : 'once',
             'status' => ProjectShowcase::REQUESTED,
             'requested_at' => now(),
             'decided_at' => null,
             'decision_note' => null,
             'decided_by' => null,
         ]);
+        ShowcaseApproval::query()->where('kind', ShowcaseApproval::PROJECT_STAGE)->where('showcase_id', $showcase->id)->delete();
 
         $this->tell(
             $customerId, $project,
@@ -75,7 +78,7 @@ final class ProjectShowcaseService
     }
 
     /** The customer's answer. Approving makes (or switches back on) the post. */
-    public function decide(Project $project, User $customer, bool $approve, ?string $note = null): ProjectShowcase
+    public function decide(Project $project, User $customer, bool $approve, ?string $note = null, ?string $mode = null): ProjectShowcase
     {
         $this->assertCustomer($project, $customer);
 
@@ -85,7 +88,11 @@ final class ProjectShowcaseService
             throw ValidationException::withMessages(['project' => __('لا يوجد طلب نشر ينتظر ردك.')]);
         }
 
-        DB::transaction(function () use ($showcase, $customer, $approve, $note, $project) {
+        DB::transaction(function () use ($showcase, $customer, $approve, $note, $project, $mode) {
+            // he may only make it STRICTER than asked: approve once-for-all as «stage by stage»
+            if ($approve && $mode === 'each') {
+                $showcase->consent_mode = 'each';
+            }
             $showcase->forceFill([
                 'status' => $approve ? ProjectShowcase::APPROVED : ProjectShowcase::DECLINED,
                 'decided_at' => now(),
@@ -106,6 +113,57 @@ final class ProjectShowcaseService
         );
 
         return $showcase->fresh();
+    }
+
+    /**
+     * `each` mode: the customer answers for ONE main stage that is done — «انشر هذه المرحلة؟». Until he approves it the stage and
+     * its works are not in the post, and its share counts as nothing in the percentage.
+     */
+    public function decideStage(Project $project, User $customer, int $taskId, bool $approve): array
+    {
+        $this->assertCustomer($project, $customer);
+        $showcase = $this->forProject($project);
+
+        if (! $showcase || ! $showcase->isLive() || $showcase->consent_mode !== 'each') {
+            throw ValidationException::withMessages(['project' => __('هذا المنشور لا يطلب موافقة على كل مرحلة.')]);
+        }
+
+        $unit = collect($this->units($project, $showcase))->firstWhere('key', (string) $taskId);
+
+        if (! $unit) {
+            throw ValidationException::withMessages(['project' => __('هذه المرحلة لا تنتظر موافقتك على النشر.')]);
+        }
+
+        ShowcaseApproval::decide(ShowcaseApproval::PROJECT_STAGE, (int) $showcase->id, (string) $taskId, $approve);
+
+        return $this->block($project);
+    }
+
+    /**
+     * Stages the customer is asked about in `each` mode: the done main stages, each pending / approved / declined.
+     *
+     * @return array<int,array{key:string,title:string,status:string}>
+     */
+    public function units(Project $project, ProjectShowcase $showcase): array
+    {
+        if ($showcase->consent_mode !== 'each') {
+            return [];
+        }
+
+        $tasks = $project->tasks()->get();
+        $byParent = $tasks->groupBy(fn (ProjectTask $t) => (int) ($t->parent_id ?? 0));
+        $answers = ShowcaseApproval::statuses(ShowcaseApproval::PROJECT_STAGE, (int) $showcase->id);
+        $units = [];
+
+        foreach ($byParent->get(0, collect()) as $root) {
+            $leaves = $this->leavesUnder($root, $byParent);
+
+            if ($leaves->every(fn (ProjectTask $l) => $l->status === ProjectTask::STATUS_DONE)) {
+                $units[] = ['key' => (string) $root->id, 'title' => (string) $root->title, 'status' => $answers[(string) $root->id] ?? ShowcaseApproval::PENDING];
+            }
+        }
+
+        return $units;
     }
 
     /** Either side takes it down: the post goes off and stays off until the business asks again and the customer agrees again. */
@@ -184,11 +242,19 @@ final class ProjectShowcaseService
 
         $stages = [];
         $allLeaves = collect();
+        $shownLeaves = collect();
+        $answers = $showcase->consent_mode === 'each' ? ShowcaseApproval::statuses(ShowcaseApproval::PROJECT_STAGE, (int) $showcase->id) : null;
 
         foreach ($byParent->get(0, collect()) as $root) {
             $leaves = $this->leavesUnder($root, $byParent);
             $allLeaves = $allLeaves->merge($leaves);
 
+            // stage by stage: a stage the customer did not approve is neither listed nor counted
+            if ($answers !== null && ($answers[(string) $root->id] ?? null) !== ShowcaseApproval::APPROVED) {
+                continue;
+            }
+
+            $shownLeaves = $shownLeaves->merge($leaves);
             $stages[] = [
                 'title' => (string) $root->title,
                 'progress' => $this->confirmed($leaves),
@@ -201,7 +267,7 @@ final class ProjectShowcaseService
         $photos = [];
 
         if ($showcase->show_photos) {
-            foreach ($allLeaves->filter(fn (ProjectTask $l) => $this->isConfirmedDone($l) && $l->requires_approval) as $leaf) {
+            foreach ($shownLeaves->filter(fn (ProjectTask $l) => $this->isConfirmedDone($l) && $l->requires_approval) as $leaf) {
                 foreach ($leaf->photos as $img) {
                     /** @var Image $img */
                     if ($img->isCamera()) {
@@ -213,11 +279,11 @@ final class ProjectShowcaseService
 
         return [
             'id' => (int) $showcase->id,
-            'progress' => $this->confirmed($allLeaves),
+            'progress' => $this->confirmed($allLeaves, $shownLeaves),
             'stages' => $stages,
             'photos' => array_slice($photos, 0, 8),
             'started_on' => optional($project->starts_on)->toDateString(),
-            'updated_on' => optional($allLeaves->filter(fn (ProjectTask $l) => $l->approval_at)->max('approval_at'))->toDateString(),
+            'updated_on' => optional($shownLeaves->filter(fn (ProjectTask $l) => $l->approval_at)->max('approval_at'))->toDateString(),
             'verified' => true,
         ];
     }
@@ -233,6 +299,8 @@ final class ProjectShowcaseService
             'public_title' => $s->public_title,
             'note' => $s->note,
             'show_photos' => (bool) $s->show_photos,
+            'consent_mode' => $s->consent_mode ?? 'once',
+            'units' => $s->isLive() ? $this->units($project, $s) : [],
             'post_id' => $s->post_id ? (int) $s->post_id : null,
             'requested_at' => optional($s->requested_at)->toIso8601String(),
             'decided_at' => optional($s->decided_at)->toIso8601String(),
@@ -262,7 +330,7 @@ final class ProjectShowcaseService
     }
 
     /** Weighted percentage of the works, counting a done-but-unconfirmed work as nothing. */
-    private function confirmed($leaves): int
+    private function confirmed($leaves, $counted = null): int
     {
         $total = (int) $leaves->sum(fn (ProjectTask $l) => max(1, (int) $l->weight));
 
@@ -270,7 +338,7 @@ final class ProjectShowcaseService
             return 0;
         }
 
-        $got = $leaves->sum(function (ProjectTask $l) {
+        $got = ($counted ?? $leaves)->sum(function (ProjectTask $l) {
             $w = max(1, (int) $l->weight);
 
             if ($l->status === ProjectTask::STATUS_DONE) {

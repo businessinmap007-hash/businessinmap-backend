@@ -3286,5 +3286,13 @@
     "وافقت على عرض النتائج.": "You agreed to have the results shown.",
     "رفضت عرض النتائج.": "You declined to have the results shown.",
     "تم تأكيد نتيجة الشهر.": "The month's result was confirmed.",
-    "حُفظت موافقتك.": "Your consent was saved."
+    "حُفظت موافقتك.": "Your consent was saved.",
+    "هذا المنشور لا يطلب موافقة على كل مرحلة.": "This post does not ask for approval stage by stage.",
+    "هذه المرحلة لا تنتظر موافقتك على النشر.": "This stage is not waiting for your approval to be shown.",
+    "هذا المنشور لا يطلب موافقة كل شهر.": "This post does not ask for approval month by month.",
+    "هذا الشهر لا ينتظر موافقتك على النشر.": "This month is not waiting for your approval to be shown.",
+    "وافقت على نشر المرحلة.": "You agreed to show the stage.",
+    "لن تُنشر المرحلة.": "The stage will not be shown.",
+    "وافقت على نشر نتائج الشهر.": "You agreed to show the month's results.",
+    "لن تُنشر نتائج الشهر.": "The month's results will not be shown."
 }

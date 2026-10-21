@@ -29,10 +29,10 @@ class PlanShowcaseController extends Controller
     /** POST business/training-plans/{plan}/showcase {public_title, note?} */
     public function request(Request $request, int $plan)
     {
-        $data = $request->validate(['public_title' => ['required', 'string', 'max:191'], 'note' => ['nullable', 'string', 'max:500']]);
+        $data = $request->validate(['public_title' => ['required', 'string', 'max:191'], 'note' => ['nullable', 'string', 'max:500'], 'consent_mode' => ['nullable', 'in:once,each']]);
         $row = $this->owned($request, $plan);
 
-        $this->showcases->request($row, $data['public_title'], $data['note'] ?? null);
+        $this->showcases->request($row, $data['public_title'], $data['note'] ?? null, $data['consent_mode'] ?? 'once');
 
         return response()->json(['success' => true, 'message' => __('أُرسل طلب النشر إلى العميل.'), 'data' => ['showcase' => $this->showcases->block($row)]], 201);
     }
@@ -49,8 +49,9 @@ class PlanShowcaseController extends Controller
 
     public function approve(Request $request, int $plan)
     {
+        $data = $request->validate(['consent_mode' => ['nullable', 'in:each']]);
         $row = $this->mine($request, $plan);
-        $this->showcases->decide($row, $request->user(), true);
+        $this->showcases->decide($row, $request->user(), true, null, $data['consent_mode'] ?? null);
 
         return $this->clientReply($row, __('وافقت على عرض النتائج.'));
     }
@@ -62,6 +63,23 @@ class PlanShowcaseController extends Controller
         $this->showcases->decide($row, $request->user(), false, $data['note'] ?? null);
 
         return $this->clientReply($row, __('رفضت عرض النتائج.'));
+    }
+
+    /** POST training-plans/{plan}/showcase/months/{month}/approve|decline — «انشر نتائج هذا الشهر؟» in the month-by-month mode. */
+    public function approveMonth(Request $request, int $plan, string $month)
+    {
+        $row = $this->mine($request, $plan);
+        $this->showcases->decideMonth($row, $request->user(), $month, true);
+
+        return $this->clientReply($row, __('وافقت على نشر نتائج الشهر.'));
+    }
+
+    public function declineMonth(Request $request, int $plan, string $month)
+    {
+        $row = $this->mine($request, $plan);
+        $this->showcases->decideMonth($row, $request->user(), $month, false);
+
+        return $this->clientReply($row, __('لن تُنشر نتائج الشهر.'));
     }
 
     public function clientWithdraw(Request $request, int $plan)

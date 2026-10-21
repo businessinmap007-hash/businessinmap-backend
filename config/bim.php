@@ -154,6 +154,14 @@ return [
         'rise_tolerance_percent' => (float) env('BIM_PROMO_RISE_TOLERANCE', 5),
     ],
 
+    /*
+    | «تحت التعامل»: how long a room stays held for someone who has opened its booking. Short enough that a room is not locked away by
+    | a guest who walked off, long enough to fill in the form.
+    */
+    'booking_holds' => [
+        'minutes' => (int) env('BIM_BOOKING_HOLD_MINUTES', 10),
+    ],
+
     'projects' => [
         'count_customer_wait' => false,
     ],

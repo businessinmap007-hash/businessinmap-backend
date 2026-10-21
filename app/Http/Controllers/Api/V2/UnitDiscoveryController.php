@@ -505,6 +505,8 @@ final class UnitDiscoveryController extends Controller
 
         $payload['available'] = (bool) $check['available'];
         $payload['reason'] = $check['reason'];
+        // «تحت التعامل»: someone else is filling in a booking for it right now — it frees itself if they walk away
+        $payload['held'] = ($check['code'] ?? '') === 'held_by_other';
 
         return $payload;
     }

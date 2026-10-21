@@ -29,7 +29,7 @@ class BookableAvailabilityService
      *     conflicts: \Illuminate\Support\Collection<int, BookableItemBlockedSlot>
      * }
      */
-    public function check(BookableItem $item, CarbonInterface|string $startsAt, CarbonInterface|string $endsAt, int $requested = 1, ?int $viaPartnerId = null, bool $honourHolds = false): array
+    public function check(BookableItem $item, CarbonInterface|string $startsAt, CarbonInterface|string $endsAt, int $requested = 1, ?int $viaPartnerId = null, bool $honourHolds = false, ?int $viewerId = null): array
     {
         $start = $this->normalizeDateTime($startsAt);
         $end   = $this->normalizeDateTime($endsAt);
@@ -93,12 +93,19 @@ class BookableAvailabilityService
         // booking does not count its own promise against itself
         $held = $stay && $honourHolds ? $this->heldForPartners($item, $viaPartnerId) : 0;
 
-        if ($taken + $held + max($requested, 1) > $capacity) {
+        // «تحت التعامل»: someone else is filling in a booking for this room right now. Their hold counts against everyone but them, so
+        // the hotel's guest and a travel company's guest are never both offered the last room.
+        $viewer = $viewerId ?? (int) optional(request()->user('sanctum'))->id;
+        $soft = app(BookingHolds::class)->heldRooms($item, $start, $end, $viewer ?: null);
+
+        if ($taken + $held + $soft + max($requested, 1) > $capacity) {
+            $byOthers = $soft > 0 && $taken + $held + max($requested, 1) <= $capacity;
+
             return $this->result(
                 ok: true,
                 available: false,
-                reason: __('هذه الوحدة محجوزة بالفعل في هذه الفترة'),
-                code: 'booking_conflict',
+                reason: $byOthers ? __('تحت التعامل من طرف آخر الآن، جرّب بعد دقائق.') : __('هذه الوحدة محجوزة بالفعل في هذه الفترة'),
+                code: $byOthers ? 'held_by_other' : 'booking_conflict',
                 item: $item,
                 start: $start,
                 end: $end,

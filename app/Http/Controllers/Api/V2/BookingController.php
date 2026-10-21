@@ -659,7 +659,23 @@ final class BookingController extends Controller
 
         $courseGroupId = ! empty($data['course_group_id']) ? (int) $data['course_group_id'] : null;
 
-        $booking = DB::transaction(function () use ($payload, $allocation, $quantity, $courseGroupId, $data, $providerId, $user, $calc) {
+        $booking = DB::transaction(function () use ($payload, $allocation, $quantity, $courseGroupId, $data, $providerId, $user, $calc, $bookable) {
+            // A room is judged AGAIN under a lock on it, as the first thing in the transaction: the check above ran before anyone had
+            // finished, and two bookings for the last room can both pass it. Whoever takes the lock second reads what the first one
+            // wrote, and is refused. The lock must come before any other read here — a read taken earlier would not see the first
+            // booking at all.
+            if ($bookable && ! empty($payload['bookable_id']) && ! empty($payload['starts_at']) && ! empty($payload['ends_at'])) {
+                \App\Models\BookableItem::query()->whereKey((int) $payload['bookable_id'])->lockForUpdate()->first(['id']);
+
+                $this->serviceExecutionEngine->assertBookableAvailable(
+                    $bookable,
+                    $payload['starts_at'],
+                    $payload['ends_at'],
+                    $quantity,
+                    $allocation ? (int) $allocation->partner_business_id : null
+                );
+            }
+
             if ($courseGroupId !== null) {
                 // the seat is taken under a lock on the group, so the last one is never sold twice
                 $group = \App\Models\CourseGroup::query()->whereKey($courseGroupId)->lockForUpdate()->first();
@@ -764,6 +780,11 @@ final class BookingController extends Controller
             }
 
             $booking = Booking::query()->create($payload);
+
+            // the hold this guest had on the room has become the booking
+            if (! empty($payload['bookable_id'])) {
+                app(\App\Services\BookingHolds::class)->consume((int) $user->id, (int) $payload['bookable_id']);
+            }
 
             // the customer's choice becomes the assignment — he is told, like any hand-over
             if ($providerId !== null) {

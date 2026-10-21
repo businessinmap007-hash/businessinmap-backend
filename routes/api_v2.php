@@ -1295,6 +1295,9 @@ Route::prefix('v2')->group(function () {
             Route::get('form/{business}', [BookingController::class, 'form'])->whereNumber('business');
             // Same price math as store(), no row created — see the method's own doc.
             Route::post('preview', [BookingController::class, 'preview']);
+            // «تحت التعامل»: the room is held for the guest while they fill the booking in; nobody else is offered it meanwhile
+            Route::post('holds', [\App\Http\Controllers\Api\V2\BookingHoldController::class, 'store']);
+            Route::delete('holds/{hold}', [\App\Http\Controllers\Api\V2\BookingHoldController::class, 'destroy'])->whereNumber('hold');
             Route::get('pending-settlements', [BookingController::class, 'pendingSettlements']);
             // Owe a ruling, start no new business until it is met.
             Route::post('/', [BookingController::class, 'store'])->middleware('dispute.settled');

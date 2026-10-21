@@ -38,16 +38,19 @@ final class OccupancyBoard
             ->where('starts_at', '<', $end)->where('ends_at', '>', $first)
             ->orderBy('starts_at')->get()->groupBy('bookable_id');
 
+        $dealing = \App\Models\BookingHold::query()->live()->whereIn('bookable_item_id', $units->pluck('id'))
+            ->where('starts_at', '<', $end)->where('ends_at', '>', $first)->with(['seller:id,name', 'user:id,name'])->orderBy('starts_at')->get()->groupBy('bookable_item_id');
+
         $held = BookableAllocation::query()->active()->where('allocation_type', BookableAllocation::TYPE_GUARANTEED)
             ->whereIn('bookable_item_id', $units->pluck('id'))->with('partnerBusiness:id,name')->get()->groupBy('bookable_item_id');
 
-        $kinds = $units->groupBy(fn (BookableItem $u) => (int) ($u->line_option_id ?? 0))->map(function (Collection $inKind, $kindId) use ($first, $days, $bookings, $held) {
+        $kinds = $units->groupBy(fn (BookableItem $u) => (int) ($u->line_option_id ?? 0))->map(function (Collection $inKind, $kindId) use ($first, $days, $bookings, $held, $dealing) {
             $head = $inKind->first();
 
             return [
                 'line_option_id' => $kindId ?: null,
                 'name' => (string) (optional($head->lineOption)->name_ar ?: optional($head->lineOption)->name_en ?: $head->displayLabel()),
-                'units' => $inKind->map(fn (BookableItem $u) => $this->unit($u, $bookings->get($u->id, collect()), $held->get($u->id, collect()), $first, $days))->values()->all(),
+                'units' => $inKind->map(fn (BookableItem $u) => $this->unit($u, $bookings->get($u->id, collect()), $held->get($u->id, collect()), $dealing->get($u->id, collect()), $first, $days))->values()->all(),
             ];
         })->values()->all();
 
@@ -55,7 +58,7 @@ final class OccupancyBoard
     }
 
     /** @return array<string,mixed> */
-    private function unit(BookableItem $u, Collection $bookings, Collection $held, CarbonImmutable $first, int $days): array
+    private function unit(BookableItem $u, Collection $bookings, Collection $held, Collection $dealing, CarbonImmutable $first, int $days): array
     {
         $stock = $u->stockCount();
         $booked = array_fill(0, $days, 0);
@@ -81,6 +84,18 @@ final class OccupancyBoard
             }
         }
 
+        // «تحت التعامل»: rooms someone is filling in a booking for right now
+        $dealingPerDay = array_fill(0, $days, 0);
+
+        foreach ($dealing as $h) {
+            $from = max(0, (int) $first->diffInDays(CarbonImmutable::parse($h->starts_at)->startOfDay(), false));
+            $to = min($days, max((int) $first->diffInDays(CarbonImmutable::parse($h->ends_at)->startOfDay(), false), $from + 1));
+
+            for ($d = $from; $d < $to; $d++) {
+                $dealingPerDay[$d] += (int) $h->quantity;
+            }
+        }
+
         $heldNow = (int) $held->sum(fn ($a) => $a->availableQuantity());
 
         return [
@@ -92,6 +107,15 @@ final class OccupancyBoard
             'rooms' => $u->rooms->map(fn ($r) => ['id' => (int) $r->id, 'number' => (string) $r->number, 'status' => (string) $r->status])->values()->all(),
             'booked' => $booked,
             'via_partner' => $viaPartner,
+            'dealing' => $dealingPerDay,
+            'dealing_now' => $dealing->map(fn ($h) => [
+                'starts_at' => $h->starts_at->format('Y-m-d H:i:s'),
+                'ends_at' => $h->ends_at->format('Y-m-d H:i:s'),
+                'quantity' => (int) $h->quantity,
+                'minutes_left' => max((int) now()->diffInMinutes($h->expires_at, false), 0),
+                // through whom: the hotel's own booking screen (null) or a company that was given the room
+                'seller' => $h->seller_business_id && (int) $h->seller_business_id !== (int) $u->business_id ? optional($h->seller)->name : null,
+            ])->values()->all(),
             'bookings' => $bookings->map(fn (Booking $b) => [
                 'id' => (int) $b->id,
                 'status' => (string) $b->status,

@@ -152,6 +152,12 @@ class RoomNumberFeaturesTest extends TestCase
         $this->assertNotContains(self::POOL_VIEW, $choices);
         $this->assertNotContains($this->seaView, $choices);
         $this->assertContains(self::BREAKFAST, $choices);
+
+        // nor on the booking form: the extras left there are the meal plan and the add-ons
+        $form = collect($this->getJson("/api/v2/bookings/form/{$this->hotel->id}")->assertOk()->json('data.modifiers'))->pluck('option_id')->map(fn ($i) => (int) $i)->all();
+        $this->assertNotContains(self::POOL_VIEW, $form);
+        $this->assertNotContains($this->seaView, $form);
+        $this->assertContains(self::BREAKFAST, $form);
     }
 
     public function test_booking_a_card_costs_exactly_what_the_card_said_and_a_meal_plan_is_added_per_night(): void

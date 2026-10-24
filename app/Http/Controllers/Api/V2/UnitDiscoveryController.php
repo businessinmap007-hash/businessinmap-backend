@@ -576,7 +576,8 @@ final class UnitDiscoveryController extends Controller
         }
 
         $names = \App\Models\Option::query()->whereIn('id', $sets->flatten()->unique()->all() ?: [0])->get(['id', 'name_ar', 'name_en'])->keyBy('id');
-        $say = fn (int $id) => app()->getLocale() === 'en' ? ($names[$id]->name_en ?: $names[$id]->name_ar) : ($names[$id]->name_ar ?: $names[$id]->name_en);
+        // the card's title is built the way the type's own label is (Arabic first), so one title never mixes two languages
+        $say = fn (int $id) => $names[$id]->name_ar ?: $names[$id]->name_en;
         $out = [];
 
         foreach ($sets as $set) {

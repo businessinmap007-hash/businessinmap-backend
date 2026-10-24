@@ -251,6 +251,13 @@ final class BookingController extends Controller
 
         $rows = $lineScoped->concat($businessWide);
 
+        // a hotel that lists its numbered rooms sells a view as a CARD of the room type (غرفة فردية · إطلالة بحر — 1300), never as a tick on
+        // the form: what stays here is the meal plan and the extras
+        if (\App\Models\BookableItemRoom::query()->where('business_id', $business->id)->exists()) {
+            $featureIds = app(\App\Services\BookingRoomService::class)->featureVocabularyIds((int) $business->id);
+            $rows = $rows->reject(fn ($r) => in_array((int) $r->option_id, $featureIds, true))->values();
+        }
+
         $groupIds = $rows->pluck('group_id')->filter()->unique()->values();
         $groupNames = $groupIds->isEmpty()
             ? collect()

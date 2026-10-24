@@ -82,7 +82,10 @@ final class AllocationService
         if (isset($data['quantity_total'])) {
             $quantity = (int) $data['quantity_total'];
 
-            if ($quantity < (int) $a->quantity_sold + (int) $a->quantity_reserved) {
+            // never below the busiest night already sold
+            $peak = collect($a->usedPerNight(\Illuminate\Support\Carbon::today(), \Illuminate\Support\Carbon::today()->addDays(366)))->max() ?? 0;
+
+            if ($quantity < (int) $peak + (int) $a->quantity_released) {
                 throw ValidationException::withMessages(['quantity_total' => __('الكمية أقل مما بيع أو حُجز بالفعل.')]);
             }
 
@@ -97,6 +100,10 @@ final class AllocationService
     public function setStatus(BookableAllocation $a, string $status): BookableAllocation
     {
         $a->update(['status' => $status]);
+
+        if ($status !== BookableAllocation::STATUS_ACTIVE) {
+            $this->tellWhatRemains($a, $status === BookableAllocation::STATUS_STOPPED ? 'أُوقفت' : 'توقفت', $status === BookableAllocation::STATUS_STOPPED ? 'was stopped' : 'was paused');
+        }
 
         return $a->fresh('bookableItem.lineOption:id,name_ar,name_en');
     }
@@ -145,6 +152,9 @@ final class AllocationService
             'min_nights' => $a->min_nights,
             'max_nights' => $a->max_nights,
             'release_days_before' => (int) $a->release_days_before,
+            // bookings still standing on it: they are NOT taken back when it ends or is stopped, so both sides read them here
+            'upcoming_bookings' => $this->standing($a)->count(),
+            'pending_bookings' => $this->standing($a)->where('status', \App\Models\Booking::STATUS_PENDING)->count(),
             // in how many of the partner's trip programmes this room's card sits (the owner sees only that, never the programmes)
             'programs_count' => (int) \App\Models\TripProgramItem::query()->join('trip_program_days as d', 'd.id', '=', 'trip_program_items.day_id')->where('trip_program_items.allocation_id', $a->id)->distinct()->count('d.program_id'),
             'room' => $unit ? $this->card($unit) : null,
@@ -166,9 +176,11 @@ final class AllocationService
      *
      * @return array<string,mixed>
      */
-    public function publicRoom(BookableAllocation $a): array
+    public function publicRoom(BookableAllocation $a, ?array $window = null): array
     {
         $unit = $a->bookableItem;
+        // rooms per night: with a stay, what its busiest night leaves; without one, what is left ahead
+        $left = $window ? $a->availableFor(\Illuminate\Support\Carbon::parse($window[0]), \Illuminate\Support\Carbon::parse($window[1])) : $a->availableQuantity();
 
         return $this->card($unit) + [
             'allocation_id' => (int) $a->id,
@@ -179,11 +191,12 @@ final class AllocationService
             // the hotel's own add-ons (the meal plan) at the hotel's listed price, and the company's own offer on this room
             'choices' => app(UnitChoices::class)->for($this->prices->resolveForBookableItem($unit), collect([$unit])),
             'offer' => $this->offerOn($a, $unit),
+            'my_hold' => app(\App\Services\BookingHolds::class)->mine((int) optional(request()->user('sanctum'))->id, [(int) $unit->id])[(int) $unit->id] ?? null,
             'price' => round($a->finalPrice(), 2),
             'currency' => (string) ($a->currency ?: 'EGP'),
             'from' => $a->ownerBusiness ? ['id' => (int) $a->ownerBusiness->id, 'name' => (string) $a->ownerBusiness->name] : null,
-            'available_quantity' => $a->availableQuantity(),
-            'available' => $a->availableQuantity() > 0,
+            'available_quantity' => $left,
+            'available' => $left > 0,
         ];
     }
 
@@ -217,6 +230,58 @@ final class AllocationService
             'images' => $unit->imagePayload(),
             'features' => $unit->offeringOptions()->where('role', '!=', 'line')->with('option:id,name_ar,name_en')->get()->map(fn ($o) => $o->option ? (string) ($o->option->name_ar ?: $o->option->name_en) : null)->filter()->values()->all(),
         ];
+    }
+
+    /** Bookings sold from this allocation whose stay is still ahead (cancelled and rejected ones are gone). */
+    public function standing(BookableAllocation $a)
+    {
+        return \App\Models\Booking::query()->where('allocation_id', $a->id)
+            ->whereNotIn('status', [\App\Models\Booking::STATUS_CANCELLED, \App\Models\Booking::STATUS_REJECTED, \App\Models\Booking::STATUS_COMPLETED])
+            ->where('ends_at', '>', now());
+    }
+
+    /**
+     * An allocation ended, was stopped or was paused. What was already sold from it STANDS — the way allotments work, only the unsold
+     * rooms go back to the hotel, a confirmed or requested stay is not taken back — so nothing is cancelled. Both sides are told how many
+     * stays are still standing and how many wait for the hotel's answer, so none of them is forgotten.
+     */
+    public function tellWhatRemains(BookableAllocation $a, string $verbAr, string $verbEn): void
+    {
+        $standing = $this->standing($a)->count();
+
+        if ($standing === 0) {
+            return;
+        }
+
+        $pending = $this->standing($a)->where('status', \App\Models\Booking::STATUS_PENDING)->count();
+        $label = $a->bookableItem ? $a->bookableItem->displayLabel() : '#' . $a->id;
+
+        foreach (array_unique([(int) $a->owner_business_id, (int) $a->partner_business_id]) as $userId) {
+            try {
+                app(\App\Services\Notifications\NotificationDispatcherService::class)->dispatch('partnership_update', $userId, [
+                    'title_ar' => 'حصة ' . $verbAr . ' وبقيت حجوزات قائمة', 'title_en' => 'An allocation ' . $verbEn . ' and bookings are still standing',
+                    'body_ar' => $label . ': ' . $standing . ' حجز قائم' . ($pending > 0 ? "، منها {$pending} بانتظار رد الفندق" : '') . '. تبقى سارية ولا يُلغى منها شيء.',
+                    'body_en' => $label . ': ' . $standing . ' booking(s) stand' . ($pending > 0 ? ", {$pending} waiting for the hotel's answer" : '') . '. They remain valid; nothing is cancelled.',
+                    'notifiable_type' => BookableAllocation::class, 'notifiable_id' => (int) $a->id,
+                    'source_type' => BookableAllocation::class, 'source_id' => (int) $a->id,
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
+    /** Allocations whose last night has passed are over: mark them, and tell both sides what still stands on them. */
+    public function expireEnded(): int
+    {
+        $ended = BookableAllocation::query()->where('status', BookableAllocation::STATUS_ACTIVE)->whereNotNull('ends_at')->where('ends_at', '<', now()->startOfDay())->with('bookableItem')->get();
+
+        foreach ($ended as $a) {
+            $a->update(['status' => BookableAllocation::STATUS_EXPIRED]);
+            $this->tellWhatRemains($a, 'انتهت', 'ended');
+        }
+
+        return $ended->count();
     }
 
     private function assertActive(BusinessPartnership $p): void

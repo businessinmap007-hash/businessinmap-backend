@@ -35,6 +35,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('agenda:send-reminders --limit=300')
             ->everyFiveMinutes()
             ->withoutOverlapping();
+        // an allocation whose last night has passed is over: marked, and both sides told what still stands on it
+        $schedule->call(fn () => app(\App\Services\Partnerships\AllocationService::class)->expireEnded())->dailyAt('04:10')->name('allocations-expire')->withoutOverlapping();
+        // «تحت التعامل»: holds nobody finished stop counting when their minutes end; this only clears the old rows
+        $schedule->call(fn () => app(\App\Services\BookingHolds::class)->prune())->dailyAt('04:00')->name('booking-holds-prune')->withoutOverlapping();
         // Once a day, mid-morning: a trainer told a client has missed their
         // scheduled training days (once per lapse, not every day).
         $schedule->command('training:alert-lapses')->dailyAt('10:00')->withoutOverlapping();

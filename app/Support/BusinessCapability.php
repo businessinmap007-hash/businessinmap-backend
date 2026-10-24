@@ -128,6 +128,11 @@ final class BusinessCapability
 
     private const HEALTH_ROOT_SLUG = 'health';
 
+    /** «برامج الرحلات» belong to tourism and hotels alone (owner, 2026-10-24): read by the root's slug, like health. */
+    private const NEEDS_TOURISM_ROOT = [self::TRIP_PROGRAMS];
+
+    private const TOURISM_ROOT_SLUG = 'tourist-hotels';
+
     /**
      * «التغذية والتمارين العلاجية … ستحتاجها بعض التخصصات ونقوم بربطها» — المالك، 2026-10-08.
      *
@@ -164,13 +169,14 @@ final class BusinessCapability
 
         $services = BusinessPanelNav::servicesOf($business);
         $isHealth = self::standsUnderHealth($business);
+        $isTourism = self::standsUnderTourism($business);
         $trainsPatients = $isHealth && self::tickedTrainingSpecialty($business);
         $onlyReceivesTests = $isHealth
             && in_array((int) ($business->category_child_id ?? 0), InvestigationOrder::RECEIVE_ONLY_CHILDREN, true);
 
         return array_filter(
             self::registry(),
-            function (string $key) use ($services, $isHealth, $trainsPatients, $onlyReceivesTests) {
+            function (string $key) use ($services, $isHealth, $isTourism, $trainsPatients, $onlyReceivesTests) {
                 // a lab or a radiology centre only receives orders: no clinic, no prescriptions to issue or fill
                 if ($onlyReceivesTests && in_array($key, [self::CLINIC, self::PRESCRIPTIONS, self::PROCEDURES], true)) {
                     return false;
@@ -190,6 +196,10 @@ final class BusinessCapability
 
                 if (in_array($key, self::NEEDS_HEALTH_ROOT, true)) {
                     return $isHealth;
+                }
+
+                if (in_array($key, self::NEEDS_TOURISM_ROOT, true)) {
+                    return $isTourism;
                 }
 
                 if ($key === self::PRICES) {
@@ -235,6 +245,13 @@ final class BusinessCapability
         }
 
         return (string) DB::table('categories')->where('id', $rootId)->value('slug') === self::HEALTH_ROOT_SLUG;
+    }
+
+    public static function standsUnderTourism(User $business): bool
+    {
+        $rootId = (int) ($business->category_id ?? 0);
+
+        return $rootId > 0 && (string) DB::table('categories')->where('id', $rootId)->value('slug') === self::TOURISM_ROOT_SLUG;
     }
 
     /** السجلّ لنشاطٍ بعينه، بالشكل الذى تنتظره الواجهة البرمجية. */

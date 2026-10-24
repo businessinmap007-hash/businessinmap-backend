@@ -39,14 +39,28 @@ final class BookingHolds
      *
      * @throws ValidationException when the room is not free for the asker
      */
-    public function place(int $userId, BookableItem $item, CarbonInterface $start, CarbonInterface $end, int $quantity = 1, ?int $sellerBusinessId = null, ?int $viaPartnerId = null): BookingHold
+    public function place(int $userId, BookableItem $item, CarbonInterface $start, CarbonInterface $end, int $quantity = 1, ?int $sellerBusinessId = null, ?int $viaPartnerId = null, ?string $guestOrigin = null): BookingHold
     {
+        // a room sold to Egyptians and residents only (or to foreigners only) is not held for the other kind of guest
+        if (! $item->allowsOrigin($guestOrigin)) {
+            throw ValidationException::withMessages(['guest_origin' => $item->guest_scope === BookableItem::SCOPE_LOCALS
+                ? __('هذه الغرفة للمصريين والمقيمين في مصر فقط.')
+                : __('هذه الغرفة للأجانب فقط.')]);
+        }
+
         return DB::transaction(function () use ($userId, $item, $start, $end, $quantity, $sellerBusinessId, $viaPartnerId) {
             // the lock comes first: everything read after it is read after whoever held it before us has finished
             BookableItem::query()->whereKey($item->id)->lockForUpdate()->first(['id']);
 
             BookingHold::query()->where('bookable_item_id', $item->id)->where('user_id', $userId)->delete();
             BookingHold::query()->where('bookable_item_id', $item->id)->where('expires_at', '<=', now())->delete();
+
+            // a guest holds a few rooms at a time, not the whole hotel
+            $others = BookingHold::query()->live()->where('user_id', $userId)->where('bookable_item_id', '!=', $item->id)->count();
+
+            if ($others >= max((int) config('bim.booking_holds.max_per_guest', 3), 1)) {
+                throw ValidationException::withMessages(['bookable_id' => __('لديك حجوزات مؤقتة كثيرة. أكمل حجزًا منها أو انتظر انتهاءها.')]);
+            }
 
             $answer = app(BookableAvailabilityService::class)->check($item, $start, $end, $quantity, $viaPartnerId, true, $userId);
 
@@ -64,6 +78,37 @@ final class BookingHolds
     public function release(int $userId, int $holdId): void
     {
         BookingHold::query()->whereKey($holdId)->where('user_id', $userId)->delete();
+    }
+
+    /**
+     * Rows are cleared once the stay they were for is over: after its departure. They stopped counting the moment their minutes ran
+     * out, so this is housekeeping only — until then a row is the record of who was dealing with the room, and for what dates.
+     */
+    public function prune(): int
+    {
+        return BookingHold::query()->where('expires_at', '<', now())->where('ends_at', '<', now())->delete();
+    }
+
+    /**
+     * The holds THIS guest still has on these rooms, so a screen can show «محجوزة لك» when they come back to it.
+     *
+     * @param  array<int,int>  $itemIds
+     * @return array<int,array{id:int,starts_at:string,ends_at:string,quantity:int,seconds_left:int}> keyed by unit
+     */
+    public function mine(int $userId, array $itemIds): array
+    {
+        if ($userId <= 0 || $itemIds === []) {
+            return [];
+        }
+
+        return BookingHold::query()->live()->where('user_id', $userId)->whereIn('bookable_item_id', $itemIds)->get()
+            ->mapWithKeys(fn (BookingHold $h) => [(int) $h->bookable_item_id => [
+                'id' => (int) $h->id,
+                'starts_at' => $h->starts_at->format('Y-m-d H:i:s'),
+                'ends_at' => $h->ends_at->format('Y-m-d H:i:s'),
+                'quantity' => (int) $h->quantity,
+                'seconds_left' => max((int) now()->diffInSeconds($h->expires_at, false), 0),
+            ]])->all();
     }
 
     /** The booking was made: the hold has done its job. */

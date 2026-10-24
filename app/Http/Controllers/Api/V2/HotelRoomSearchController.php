@@ -205,7 +205,7 @@ final class HotelRoomSearchController extends Controller
             ->groupBy('business_id');
 
         $nights = $window ? max((int) $window[0]->diffInDays($window[1]), 1) : null;
-        $offers = $this->partnerOffers($units->flatten()->pluck('id')->all(), $nights);
+        $offers = $this->partnerOffers($units->flatten()->pluck('id')->all(), $nights, $window);
         $rows = collect();
 
         foreach ($hotels as $hotel) {
@@ -289,7 +289,7 @@ final class HotelRoomSearchController extends Controller
      * @param  list<int>  $unitIds
      * @return array<int,list<array<string,mixed>>> unit id → offers
      */
-    private function partnerOffers(array $unitIds, ?int $nights = null): array
+    private function partnerOffers(array $unitIds, ?int $nights = null, ?array $window = null): array
     {
         if ($unitIds === []) {
             return [];
@@ -300,7 +300,8 @@ final class HotelRoomSearchController extends Controller
         $out = [];
 
         foreach ($allocations as $allocation) {
-            $left = $allocation->availableQuantity();
+            // rooms per night: with a stay, what its busiest night leaves
+            $left = $window ? $allocation->availableFor($window[0], $window[1]) : $allocation->availableQuantity();
 
             if ($left <= 0) {
                 continue;

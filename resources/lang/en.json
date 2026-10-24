@@ -3338,5 +3338,13 @@
     "هذه الغرفة للمصريين والمقيمين في مصر فقط.": "This room is for Egyptians and residents of Egypt only.",
     "هذه الغرفة للأجانب فقط.": "This room is for foreigners only.",
     "تحت التعامل من طرف آخر الآن، جرّب بعد دقائق.": "Someone else is booking this room right now. Try again in a few minutes.",
-    "هذه الوحدة غير متاحة الآن.": "This unit is not available right now."
+    "هذه الوحدة غير متاحة الآن.": "This unit is not available right now.",
+    "لديك حجوزات مؤقتة كثيرة. أكمل حجزًا منها أو انتظر انتهاءها.": "You hold too many rooms at once. Finish one of those bookings or wait for them to expire.",
+    "هذه الغرفة محجوزة لشريك للفندق. يمكنك طلب تحريرها منه.": "This room is held for one of the hotel's partners. You can ask for it to be released.",
+    "الغرفة متاحة الآن، لا حاجة لطلب تحرير.": "The room is available now; there is no need to ask for a release.",
+    "لا يوجد شريك يمكنه تحرير هذه الغرفة.": "No partner can release this room.",
+    "انتهى هذا الطلب أو أُجيب عليه.": "This request has expired or has been answered.",
+    "لا تملك غرفة غير مباعة من هذا النوع لتحريرها.": "You have no unsold room of this type to release.",
+    "برامج الرحلات لأنشطة السياحة والفنادق.": "Trip programmes are for tourism and hotel businesses.",
+    "هذه الإقامة خارج الفترة التي تغطيها الحصة.": "This stay is outside the dates the allocation covers."
 }

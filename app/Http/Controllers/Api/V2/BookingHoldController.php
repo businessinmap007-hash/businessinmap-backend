@@ -28,6 +28,8 @@ class BookingHoldController extends Controller
             'starts_at' => ['required', 'date'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
             'quantity' => ['nullable', 'integer', 'min:1', 'max:50'],
+            // «مصري/مقيم» أم «أجنبي»: required for a room sold to one of them only
+            'guest_origin' => ['nullable', 'in:local,foreign'],
         ]);
 
         $unit = BookableItem::query()->where('is_active', 1)->find((int) $data['bookable_id']);
@@ -37,6 +39,15 @@ class BookingHoldController extends Controller
         $allocation = $unit && (int) $unit->business_id !== $businessId ? $this->allocations->findActiveAllocation($businessId, (int) $unit->id) : null;
         abort_unless($unit && ((int) $unit->business_id === $businessId || $allocation), 404);
 
+        // a partner's promise stands in the way: not an error of the guest's, but a thing they can ask the partner to undo
+        if ($unit && ! $allocation) {
+            $probe = app(\App\Services\BookableAvailabilityService::class)->check($unit, Carbon::parse($data['starts_at']), Carbon::parse($data['ends_at']), max((int) ($data['quantity'] ?? 1), 1), null, true, (int) $request->user()->id);
+
+            if (($probe['code'] ?? '') === 'held_for_partner') {
+                return response()->json(['success' => false, 'code' => 'held_for_partner', 'can_request_release' => true, 'message' => $probe['reason']], 409);
+            }
+        }
+
         $hold = $this->holds->place(
             (int) $request->user()->id,
             $unit,
@@ -44,7 +55,8 @@ class BookingHoldController extends Controller
             Carbon::parse($data['ends_at']),
             max((int) ($data['quantity'] ?? 1), 1),
             $businessId,
-            $allocation ? (int) $allocation->partner_business_id : null
+            $allocation ? (int) $allocation->partner_business_id : null,
+            $data['guest_origin'] ?? null
         );
 
         return response()->json(['success' => true, 'data' => ['hold' => [

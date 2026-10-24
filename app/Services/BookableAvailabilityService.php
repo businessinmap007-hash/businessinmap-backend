@@ -91,7 +91,7 @@ class BookableAvailabilityService
         $capacity = $stay ? $item->stockCount() : max((int) ($item->quantity ?? 1), 1);
         // rooms a hotel promised to a partner (a guaranteed allocation) are not for sale to anyone else; the partner's own
         // booking does not count its own promise against itself
-        $held = $stay && $honourHolds ? $this->heldForPartners($item, $viaPartnerId) : 0;
+        $held = $stay && $honourHolds ? $this->heldForPartners($item, $viaPartnerId, $start, $end) : 0;
 
         // «تحت التعامل»: someone else is filling in a booking for this room right now. Their hold counts against everyone but them, so
         // the hotel's guest and a travel company's guest are never both offered the last room.
@@ -99,13 +99,18 @@ class BookableAvailabilityService
         $soft = app(BookingHolds::class)->heldRooms($item, $start, $end, $viewer ?: null);
 
         if ($taken + $held + $soft + max($requested, 1) > $capacity) {
-            $byOthers = $soft > 0 && $taken + $held + max($requested, 1) <= $capacity;
+            // what stands in the way: only a partner's promise (it can be asked to give the room back), only someone's open booking
+            // screen (it frees itself), or the room is simply taken
+            $byPartner = $held > 0 && $taken + $soft + max($requested, 1) <= $capacity;
+            $byOthers = ! $byPartner && $soft > 0 && $taken + $held + max($requested, 1) <= $capacity;
 
             return $this->result(
                 ok: true,
                 available: false,
-                reason: $byOthers ? __('تحت التعامل من طرف آخر الآن، جرّب بعد دقائق.') : __('هذه الوحدة محجوزة بالفعل في هذه الفترة'),
-                code: $byOthers ? 'held_by_other' : 'booking_conflict',
+                reason: $byPartner
+                    ? __('هذه الغرفة محجوزة لشريك للفندق. يمكنك طلب تحريرها منه.')
+                    : ($byOthers ? __('تحت التعامل من طرف آخر الآن، جرّب بعد دقائق.') : __('هذه الوحدة محجوزة بالفعل في هذه الفترة')),
+                code: $byPartner ? 'held_for_partner' : ($byOthers ? 'held_by_other' : 'booking_conflict'),
                 item: $item,
                 start: $start,
                 end: $end,
@@ -221,14 +226,14 @@ class BookableAvailabilityService
     }
 
     /** What the hotel still owes its partners on this type: the unsold part of every active guaranteed allocation but the asker's own. */
-    public function heldForPartners(BookableItem $item, ?int $exceptPartnerId = null): int
+    public function heldForPartners(BookableItem $item, ?int $exceptPartnerId = null, ?CarbonInterface $start = null, ?CarbonInterface $end = null): int
     {
         return (int) \App\Models\BookableAllocation::query()->active()
             ->where('bookable_item_id', $item->id)
             ->where('allocation_type', \App\Models\BookableAllocation::TYPE_GUARANTEED)
             ->when($exceptPartnerId, fn ($q) => $q->where('partner_business_id', '!=', $exceptPartnerId))
             ->get()
-            ->sum(fn ($a) => $a->availableQuantity());
+            ->sum(fn ($a) => $start && $end ? $a->availableFor($start, $end) : $a->availableQuantity());
     }
 
     protected function countLiveBookings(BookableItem $item, CarbonInterface $start, CarbonInterface $end): int

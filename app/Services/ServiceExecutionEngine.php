@@ -120,9 +120,19 @@ class ServiceExecutionEngine
         $this->assertBookableItemChosen($service, $categoryId, $childId, $bookable, $businessId);
 
         if ($allocation) {
-            if ($allocation->availableQuantity() < $quantity) {
+            // rooms per night: what the busiest night of THIS stay leaves, or — with no stay chosen yet — what is left ahead
+            $left = ($pricingDate && $until) ? $allocation->availableFor(\Illuminate\Support\Carbon::parse($pricingDate), \Illuminate\Support\Carbon::parse($until)) : $allocation->availableQuantity();
+
+            if ($left < $quantity) {
                 throw ValidationException::withMessages([
                     'bookable_id' => __('الكمية المتاحة من هذا التخصيص غير كافية.'),
+                ]);
+            }
+
+            // the allocation's dates are the dates of the stay: every night of it must lie inside them
+            if ($pricingDate && $until && ! $allocation->coversStay(\Illuminate\Support\Carbon::parse($pricingDate), \Illuminate\Support\Carbon::parse($until))) {
+                throw ValidationException::withMessages([
+                    'ends_at' => __('هذه الإقامة خارج الفترة التي تغطيها الحصة.'),
                 ]);
             }
 

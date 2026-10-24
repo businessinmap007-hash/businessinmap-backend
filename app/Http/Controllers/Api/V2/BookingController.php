@@ -793,7 +793,12 @@ final class BookingController extends Controller
 
             if ($allocation) {
                 // مقفولٌ داخل هذه المعاملة نفسها — لا يفوز طلبان بآخر وحدة معًا.
-                $this->allocationConsumption->reserve($allocation, $quantity);
+                $this->allocationConsumption->reserve(
+                    $allocation,
+                    $quantity,
+                    ! empty($payload['starts_at']) ? Carbon::parse($payload['starts_at']) : null,
+                    ! empty($payload['ends_at']) ? Carbon::parse($payload['ends_at']) : null
+                );
                 $this->allocationConsumption->tagBooking($booking, $allocation, $quantity);
             }
 

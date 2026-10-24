@@ -1297,6 +1297,9 @@ Route::prefix('v2')->group(function () {
             Route::post('preview', [BookingController::class, 'preview']);
             // «تحت التعامل»: the room is held for the guest while they fill the booking in; nobody else is offered it meanwhile
             Route::post('holds', [\App\Http\Controllers\Api\V2\BookingHoldController::class, 'store']);
+            // «طلب تحرير غرفة»: a room promised to a partner is asked back; the partner answers
+            Route::post('release-requests', [\App\Http\Controllers\Api\V2\ReleaseRequestController::class, 'store']);
+            Route::get('release-requests/{id}', [\App\Http\Controllers\Api\V2\ReleaseRequestController::class, 'show'])->whereNumber('id');
             Route::delete('holds/{hold}', [\App\Http\Controllers\Api\V2\BookingHoldController::class, 'destroy'])->whereNumber('hold');
             Route::get('pending-settlements', [BookingController::class, 'pendingSettlements']);
             // Owe a ruling, start no new business until it is met.
@@ -1758,6 +1761,9 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/partnerships')->middleware('business.member:' . BusinessCapability::PARTNERSHIPS)->group(function () {
             Route::get('/', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'index']);
             Route::get('lookup', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'lookup']);
+            // what this partner is asked to give back, and its answer
+            Route::get('release-requests', [\App\Http\Controllers\Api\V2\ReleaseRequestController::class, 'pending']);
+            Route::post('release-requests/{id}/{answer}', [\App\Http\Controllers\Api\V2\ReleaseRequestController::class, 'answer'])->whereNumber('id')->whereIn('answer', ['approve', 'decline']);
             Route::post('/', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'store']);
             Route::get('{partnership}', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'show'])->whereNumber('partnership');
             Route::post('{partnership}/{answer}', [\App\Http\Controllers\Api\V2\PartnershipController::class, 'respond'])->whereNumber('partnership')->whereIn('answer', ['accept', 'decline']);

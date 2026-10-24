@@ -26,6 +26,7 @@ class TripProgramController extends Controller
     /** GET business/trip-programs */
     public function index(Request $request)
     {
+        $this->tourismOnly($request);
         $rows = $this->programs->mine(BusinessContext::id($request));
 
         return response()->json(['success' => true, 'data' => ['programs' => $rows->map(fn (TripProgram $p) => [
@@ -36,12 +37,14 @@ class TripProgramController extends Controller
     /** GET business/trip-programs/room-cards — the rooms it may drop into a programme, at the price it set. */
     public function roomCards(Request $request)
     {
+        $this->tourismOnly($request);
         return response()->json(['success' => true, 'data' => ['rooms' => $this->programs->roomCards(BusinessContext::id($request))]]);
     }
 
     /** POST business/trip-programs {title, summary?} */
     public function store(Request $request)
     {
+        $this->tourismOnly($request);
         $data = $request->validate(['title' => ['required', 'string', 'max:140'], 'summary' => ['nullable', 'string', 'max:2000']]);
         $program = $this->programs->create(BusinessContext::id($request), $data);
 
@@ -189,6 +192,14 @@ class TripProgramController extends Controller
     }
 
     // ---- helpers --------------------------------------------------------------------------------------------------------
+
+    /** Trip programmes are for tourism and hotels; a restaurant's owner reaches the route (the owner always passes the door) but not the feature. */
+    private function tourismOnly(Request $request): void
+    {
+        $business = BusinessContext::business($request);
+
+        abort_unless($business && array_key_exists(\App\Support\BusinessCapability::TRIP_PROGRAMS, \App\Support\BusinessCapability::forBusiness($business)), 403, __('برامج الرحلات لأنشطة السياحة والفنادق.'));
+    }
 
     private function own(Request $request, int $id): TripProgram
     {

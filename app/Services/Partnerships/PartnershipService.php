@@ -124,10 +124,14 @@ final class PartnershipService
 
         $p->update(['status' => $next]);
 
-        // what was granted inside it stops with it
+        // what was granted inside it stops being SOLD with it; what was already sold stands, and both sides are told how much
         if ($next !== BusinessPartnership::STATUS_ACTIVE) {
-            \App\Models\BookableAllocation::query()->where('partnership_id', $p->id)->where('status', \App\Models\BookableAllocation::STATUS_ACTIVE)
-                ->update(['status' => $next === BusinessPartnership::STATUS_PAUSED ? \App\Models\BookableAllocation::STATUS_PAUSED : \App\Models\BookableAllocation::STATUS_STOPPED]);
+            $stopped = $next === BusinessPartnership::STATUS_PAUSED ? \App\Models\BookableAllocation::STATUS_PAUSED : \App\Models\BookableAllocation::STATUS_STOPPED;
+
+            foreach (\App\Models\BookableAllocation::query()->where('partnership_id', $p->id)->where('status', \App\Models\BookableAllocation::STATUS_ACTIVE)->with('bookableItem')->get() as $a) {
+                $a->update(['status' => $stopped]);
+                app(AllocationService::class)->tellWhatRemains($a, $next === BusinessPartnership::STATUS_PAUSED ? 'توقفت' : 'أُوقفت', $next === BusinessPartnership::STATUS_PAUSED ? 'was paused' : 'was stopped');
+            }
         }
 
         return $p->fresh(['ownerBusiness:id,name,logo', 'partnerBusiness:id,name,logo']);
@@ -160,7 +164,7 @@ final class PartnershipService
     private function tell(int $userId, BusinessPartnership $p, string $titleAr, string $titleEn, string $bodyAr, string $bodyEn): void
     {
         try {
-            $this->notifications->dispatch('project_stage_completed', $userId, [
+            $this->notifications->dispatch('partnership_update', $userId, [
                 'title_ar' => $titleAr, 'title_en' => $titleEn, 'body_ar' => $bodyAr, 'body_en' => $bodyEn,
                 'notifiable_type' => BusinessPartnership::class, 'notifiable_id' => (int) $p->id,
                 'source_type' => BusinessPartnership::class, 'source_id' => (int) $p->id,

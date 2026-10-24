@@ -35,12 +35,15 @@ class AllocationConsumptionService
      * تحجز الكمّيةَ من التخصيص — مقفولةً بصفٍّ لمنع بيع آخر وحدةٍ مرّتين فى
      * سباقٍ بين طلبين متزامنين. تُستدعى داخل نفس معاملة إنشاء الحجز.
      */
-    public function reserve(BookableAllocation $allocation, int $quantity): void
+    public function reserve(BookableAllocation $allocation, int $quantity, ?\Carbon\CarbonInterface $start = null, ?\Carbon\CarbonInterface $end = null): void
     {
-        DB::transaction(function () use ($allocation, $quantity) {
+        DB::transaction(function () use ($allocation, $quantity, $start, $end) {
             $locked = BookableAllocation::query()->lockForUpdate()->find($allocation->id);
 
-            if (! $locked || $locked->availableQuantity() < $quantity) {
+            // rooms PER NIGHT: judged on the nights of this stay when it is known, on what is left ahead when it is not
+            $left = $locked ? ($start && $end ? $locked->availableFor($start, $end) : $locked->availableQuantity()) : 0;
+
+            if (! $locked || $left < $quantity) {
                 throw ValidationException::withMessages([
                     'bookable_id' => __('الكمية المتاحة من هذا التخصيص غير كافية.'),
                 ]);
@@ -60,6 +63,8 @@ class AllocationConsumptionService
             'phase' => 'reserved',
         ];
         $booking->meta = $meta;
+        // the column the nights are counted from
+        $booking->allocation_id = (int) $allocation->id;
         $booking->save();
     }
 

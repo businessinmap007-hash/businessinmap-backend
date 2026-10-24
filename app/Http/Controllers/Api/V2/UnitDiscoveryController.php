@@ -86,13 +86,15 @@ final class UnitDiscoveryController extends Controller
             : null;
 
         $groups = [];
+        // the holds this guest still has: they come back to the screen and find the room as they left it
+        $mine = app(\App\Services\BookingHolds::class)->mine((int) optional($request->user('sanctum'))->id, $units->pluck('id')->all());
 
         foreach ($units->groupBy(fn (BookableItem $unit) => (int) ($unit->line_option_id ?? 0)) as $kindId => $inKind) {
             /** @var \App\Models\BookableItem $first */
             $first = $inKind->first();
             $price = $this->prices->resolveForBookableItem($first);
 
-            $rows = $inKind->map(fn (BookableItem $unit) => $this->unitPayload($unit, $window, $price));
+            $rows = $inKind->map(fn (BookableItem $unit) => $this->unitPayload($unit, $window, $price) + ['my_hold' => $mine[$unit->id] ?? null]);
 
             $groups[] = [
                 'line_option_id' => $kindId ?: null,
@@ -160,7 +162,7 @@ final class UnitDiscoveryController extends Controller
         $nights = $window ? max((int) \Illuminate\Support\Carbon::parse($window[0])->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($window[1])->startOfDay()), 1) : null;
 
         return $allocations->filter(fn ($a) => $a->bookableItem && $a->bookableItem->is_active)->map(function ($a) use ($cards, $window, $nights) {
-            $left = $a->availableQuantity();
+            $left = $window ? $a->availableFor(\Illuminate\Support\Carbon::parse($window[0]), \Illuminate\Support\Carbon::parse($window[1])) : $a->availableQuantity();
             $reason = null;
 
             if ($left <= 0) {
@@ -171,10 +173,11 @@ final class UnitDiscoveryController extends Controller
                 $reason = __('أُغلق الحجز على هذه الغرفة لقرب الموعد.');
             }
 
-            $public = $cards->publicRoom($a);
+            $public = $cards->publicRoom($a, $window);
 
             return $cards->card($a->bookableItem) + [
                 'choices' => $public['choices'],
+                'my_hold' => $public['my_hold'],
                 'offer' => $public['offer'],
                 'guest_scope' => $public['guest_scope'],
                 'allocation_id' => (int) $a->id,
@@ -501,12 +504,14 @@ final class UnitDiscoveryController extends Controller
 
         // Reuses the service the engine itself checks with, so a unit shown as
         // free here cannot be refused at booking for a reason this never saw.
-        $check = $this->availability->check($unit, $window[0], $window[1]);
+        $check = $this->availability->check($unit, $window[0], $window[1], 1, null, true);
 
         $payload['available'] = (bool) $check['available'];
         $payload['reason'] = $check['reason'];
         // «تحت التعامل»: someone else is filling in a booking for it right now — it frees itself if they walk away
         $payload['held'] = ($check['code'] ?? '') === 'held_by_other';
+        // promised to a partner of the hotel: the guest may ask for it to be released
+        $payload['held_for_partner'] = ($check['code'] ?? '') === 'held_for_partner';
 
         return $payload;
     }

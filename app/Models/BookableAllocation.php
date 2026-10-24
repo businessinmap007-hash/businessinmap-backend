@@ -105,24 +105,123 @@ class BookableAllocation extends Model
 
     public function scopeActive(Builder $query): Builder
     {
+        // The dates of an allotment are the dates of the STAY («٥ غرف كل ليلة من ١ ديسمبر إلى ٣١»), not of the selling: it is on sale as
+        // soon as it is agreed, for stays that start in its window, until the release cut-off of each night. It stops being on sale when
+        // it has no nights left ahead.
         return $query->where('status', self::STATUS_ACTIVE)
             ->where(function (Builder $q) {
-                $q->whereNull('starts_at')->orWhere('starts_at', '<=', now());
-            })
-            ->where(function (Builder $q) {
-                $q->whereNull('ends_at')->orWhere('ends_at', '>=', now());
+                $q->whereNull('ends_at')->orWhere('ends_at', '>=', now()->startOfDay());
             });
     }
 
+    /**
+     * An allotment is ROOMS PER NIGHT, the way the trade writes it: «٥ غرف كل ليلة من ١ ديسمبر إلى ٣١». `quantity_total` is how many of the
+     * room the partner may have on any one night; a room it sold for the 10th and 11th is free again for the 12th.
+     *
+     * What is left for a stay is what the BUSIEST night of it leaves: the total, less what the partner has already sold on that night,
+     * less the rooms it gave back for it. (The `quantity_sold` / `quantity_reserved` counters are only a running tally of bookings; they no
+     * longer decide anything, which is why a long-ago stay does not eat a room of next month.)
+     */
+    public function availableFor(\Carbon\CarbonInterface $start, \Carbon\CarbonInterface $end): int
+    {
+        $peak = 0;
+
+        foreach ($this->usedPerNight($start, $end) as $used) {
+            $peak = max($peak, $used);
+        }
+
+        return max((int) $this->quantity_total - (int) $this->quantity_released - $peak, 0);
+    }
+
+    /**
+     * What is left across the rest of the allocation's life — the busiest night still ahead — for screens that have no stay in hand.
+     */
     public function availableQuantity(): int
     {
-        return max(
-            (int) $this->quantity_total
-            - (int) $this->quantity_sold
-            - (int) $this->quantity_reserved
-            - (int) $this->quantity_released,
-            0
-        );
+        $from = \Illuminate\Support\Carbon::today();
+
+        if ($this->starts_at && $this->starts_at->isAfter($from)) {
+            $from = $this->starts_at->copy()->startOfDay();
+        }
+
+        $to = $this->ends_at ? $this->ends_at->copy()->startOfDay()->addDay() : $from->copy()->addDays(365);
+
+        if ($to->isBefore($from) || $to->equalTo($from)) {
+            $to = $from->copy()->addDay();
+        }
+
+        // a year is the longest look: the loop below is by night
+        if ($from->diffInDays($to) > 366) {
+            $to = $from->copy()->addDays(366);
+        }
+
+        return $this->availableFor($from, $to);
+    }
+
+    /**
+     * Rooms of this allocation in use on each night of the window: the bookings sold from it (cancelled and rejected ones do not count)
+     * and the rooms a partner agreed to give back for those nights.
+     *
+     * @return array<string,int> night (Y-m-d) => rooms
+     */
+    public function usedPerNight(\Carbon\CarbonInterface $start, \Carbon\CarbonInterface $end): array
+    {
+        $from = \Illuminate\Support\Carbon::parse($start)->startOfDay();
+        $to = \Illuminate\Support\Carbon::parse($end)->startOfDay();
+
+        if (! $to->isAfter($from)) {
+            $to = $from->copy()->addDay(); // a stay inside one day holds that day
+        }
+
+        $nights = [];
+
+        for ($d = $from->copy(); $d->isBefore($to) && count($nights) < 400; $d->addDay()) {
+            $nights[$d->toDateString()] = 0;
+        }
+
+        $sources = [];
+
+        foreach (\App\Models\Booking::query()->where('allocation_id', $this->id)
+            ->whereNotIn('status', [\App\Models\Booking::STATUS_CANCELLED, \App\Models\Booking::STATUS_REJECTED])
+            ->whereNotNull('starts_at')->whereNotNull('ends_at')->where('starts_at', '<', $to)->where('ends_at', '>', $from)
+            ->get(['starts_at', 'ends_at', 'quantity']) as $b) {
+            $sources[] = [$b->starts_at, $b->ends_at, max((int) $b->quantity, 1)];
+        }
+
+        foreach (\App\Models\AllocationReleaseRequest::query()->where('allocation_id', $this->id)->where('status', \App\Models\AllocationReleaseRequest::APPROVED)
+            ->where('starts_at', '<', $to)->where('ends_at', '>', $from)->get(['starts_at', 'ends_at', 'quantity']) as $r) {
+            $sources[] = [$r->starts_at, $r->ends_at, (int) $r->quantity];
+        }
+
+        foreach ($sources as [$sFrom, $sTo, $qty]) {
+            $first = \Illuminate\Support\Carbon::parse($sFrom)->startOfDay();
+            $last = \Illuminate\Support\Carbon::parse($sTo)->startOfDay();
+
+            if (! $last->isAfter($first)) {
+                $last = $first->copy()->addDay();
+            }
+
+            for ($d = $first->copy(); $d->isBefore($last); $d->addDay()) {
+                $key = $d->toDateString();
+
+                if (isset($nights[$key])) {
+                    $nights[$key] += $qty;
+                }
+            }
+        }
+
+        return $nights;
+    }
+
+    /** Does a stay (check-in, check-out) sit inside the dates this allocation covers — every night of it? */
+    public function coversStay(\Carbon\CarbonInterface $checkIn, \Carbon\CarbonInterface $checkOut): bool
+    {
+        $first = \Illuminate\Support\Carbon::parse($checkIn)->startOfDay();
+        $last = \Illuminate\Support\Carbon::parse($checkOut)->startOfDay();
+        $lastNight = $last->isAfter($first) ? $last->copy()->subDay() : $first;
+
+        return (! $this->starts_at || ! $first->lt($this->starts_at->copy()->startOfDay()))
+            && (! $this->ends_at || ! $lastNight->gt($this->ends_at->copy()->startOfDay()));
     }
 
     public function isReleasedForDate($date): bool

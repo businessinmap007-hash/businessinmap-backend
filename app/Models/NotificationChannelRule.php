@@ -162,6 +162,11 @@ class NotificationChannelRule extends Model
             // A project stage was completed — the contracted customer and any
             // approved followers are told progress advanced. Reaches them with
             // the app closed (Firebase), so they can check the new milestone.
+            // A partnership between two businesses: an invitation, its answer. Only the two parties are ever told.
+            // the answer to a guest's request to have a partner give a promised room back
+            'room_release_update' => ['تحديث على طلب تحرير غرفة', 'An update on a room release request', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            'partnership_update' => ['تحديث على الشراكة', 'A partnership update', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+
             'project_stage_completed' => ['اكتمال مرحلة في المشروع', 'A project stage was completed', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
 
             // Medical prescriptions: the doctor issues one (→ patient), the

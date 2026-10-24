@@ -73,7 +73,7 @@ class TripProgramTest extends TestCase
         return User::create([
             'name' => 'Zz ' . uniqid(), 'email' => 'zz-' . uniqid() . '@test.local', 'phone' => '01' . random_int(100000000, 999999999),
             'password' => Hash::make('Passw0rdTest'), 'type' => $type, 'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
-            'category_id' => $hotel ? self::ROOT : null, 'category_child_id' => $hotel ? self::CHILD : null,
+            'category_id' => $type === User::TYPE_BUSINESS ? self::ROOT : null, 'category_child_id' => $hotel ? self::CHILD : null,
         ]);
     }
 
@@ -247,5 +247,25 @@ class TripProgramTest extends TestCase
         $this->assertSame(1, $alloc['programs_count']);
         $this->assertStringNotContainsString('الجلالة', json_encode($alloc), 'the programme itself is the company\'s');
         $this->assertSame(1, TripProgram::query()->where('business_id', $this->agency->id)->count());
+    }
+
+    public function test_trip_programmes_belong_to_tourism_and_hotels_alone(): void
+    {
+        // a restaurant's owner reaches the route (the owner always passes the door) but not the feature
+        $shop = User::create([
+            'name' => 'Zz shop ' . uniqid(), 'email' => 'zz-' . uniqid() . '@test.local', 'phone' => '01' . random_int(100000000, 999999999),
+            'password' => Hash::make('Passw0rdTest'), 'type' => User::TYPE_BUSINESS, 'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
+            'category_id' => (int) \DB::table('categories')->where('slug', '!=', 'tourist-hotels')->value('id'), 'category_child_id' => null,
+        ]);
+
+        Sanctum::actingAs($shop);
+        $this->postJson('/api/v2/business/trip-programs', ['title' => 'x'])->assertForbidden();
+        $this->getJson('/api/v2/business/trip-programs')->assertForbidden();
+        $this->getJson('/api/v2/business/trip-programs/room-cards')->assertForbidden();
+
+        // and the capability list the app builds its tiles from leaves it out
+        $keys = array_keys(\App\Support\BusinessCapability::forBusiness($shop));
+        $this->assertNotContains('trip_programs', $keys);
+        $this->assertContains('trip_programs', array_keys(\App\Support\BusinessCapability::forBusiness($this->agency)));
     }
 }

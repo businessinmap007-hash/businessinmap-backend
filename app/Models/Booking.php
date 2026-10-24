@@ -48,6 +48,7 @@ class Booking extends Model
         'party_size',
         'bookable_type',
         'bookable_id',
+        'allocation_id',
         'course_group_id',
         'queue_turn',
         'chair_id',

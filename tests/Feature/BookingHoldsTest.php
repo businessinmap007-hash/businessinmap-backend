@@ -109,7 +109,7 @@ class BookingHoldsTest extends TestCase
     public function test_the_first_guest_to_open_the_booking_holds_the_room_and_the_second_is_told_so(): void
     {
         $res = $this->hold($this->first, $this->hotel)->assertCreated();
-        $this->assertGreaterThan(500, $res->json('data.hold.seconds_left'));
+        $this->assertGreaterThan(240, $res->json('data.hold.seconds_left'));
 
         $mine = $this->availability($this->first, $this->hotel);
         $this->assertTrue($mine['available'], 'the hold is the holder\'s own: it does not block them');
@@ -150,8 +150,8 @@ class BookingHoldsTest extends TestCase
         $this->hold($this->first, $this->hotel)->assertCreated();
         $this->assertFalse($this->availability($this->second, $this->hotel)['available']);
 
-        Carbon::setTestNow(now()->addMinutes(11));
-        $this->assertTrue($this->availability($this->second, $this->hotel)['available'], 'ten minutes on, the room is free again');
+        Carbon::setTestNow(now()->addMinutes(6));
+        $this->assertTrue($this->availability($this->second, $this->hotel)['available'], 'five minutes on, the room is free again');
         Carbon::setTestNow();
 
         $id = (int) $this->hold($this->first, $this->hotel)->json('data.hold.id');
@@ -198,5 +198,72 @@ class BookingHoldsTest extends TestCase
         Sanctum::actingAs($this->second);
         $this->postJson('/api/v2/bookings', $this->body($this->hotel))->assertStatus(422);
         $this->assertSame(1, Booking::query()->where('bookable_id', $this->unit->id)->count());
+    }
+
+    public function test_a_guest_cannot_hold_more_than_a_few_rooms_at_once_and_old_holds_are_pruned(): void
+    {
+        $limit = (int) config('bim.booking_holds.max_per_guest');
+
+        // the limit's worth of OTHER rooms, held by the same guest
+        for ($i = 0; $i < $limit; $i++) {
+            $other = BookableItem::create(['business_id' => $this->hotel->id, 'service_id' => $this->serviceId, 'item_type' => 'booking_stay', 'line_option_id' => self::SINGLE_ROOM, 'code' => 'H-' . $i . uniqid(), 'quantity' => 1, 'is_active' => 1]);
+            BookingHold::create(['bookable_item_id' => $other->id, 'user_id' => $this->first->id, 'seller_business_id' => $this->hotel->id, 'starts_at' => $this->start, 'ends_at' => $this->start->copy()->addDays(2), 'quantity' => 1, 'expires_at' => now()->addMinutes(5)]);
+        }
+
+        $this->hold($this->first, $this->hotel)->assertStatus(422)->assertJsonValidationErrors(['bookable_id']);
+        // someone else is not limited by it
+        $this->hold($this->second, $this->hotel)->assertCreated();
+
+        // a row is cleared once the stay it was for is over: expired but its stay still ahead stays, expired and departed goes
+        $ahead = BookingHold::create(['bookable_item_id' => $this->unit->id, 'user_id' => $this->second->id, 'seller_business_id' => $this->hotel->id, 'starts_at' => $this->start, 'ends_at' => $this->start->copy()->addDay(), 'quantity' => 1, 'expires_at' => now()->subDays(2)]);
+        $over = BookingHold::create(['bookable_item_id' => $this->unit->id, 'user_id' => $this->second->id, 'seller_business_id' => $this->hotel->id, 'starts_at' => now()->subDays(5), 'ends_at' => now()->subDays(3), 'quantity' => 1, 'expires_at' => now()->subDays(5)]);
+        $live = BookingHold::query()->live()->count();
+
+        $this->assertSame(1, app(\App\Services\BookingHolds::class)->prune());
+        $this->assertNotNull(BookingHold::find($ahead->id), 'its stay has not happened yet');
+        $this->assertNull(BookingHold::find($over->id), 'its stay is over');
+        $this->assertSame($live, BookingHold::query()->live()->count());
+    }
+
+    public function test_a_partnership_invitation_has_its_own_notification_event(): void
+    {
+        $invited = $this->user(User::TYPE_BUSINESS);
+        app(\App\Services\Partnerships\PartnershipService::class)->invite($this->hotel, (int) $invited->id, ['type' => 'agency']);
+
+        $this->assertDatabaseHas('app_notifications', ['user_id' => $invited->id, 'notifiable_type' => \App\Models\BusinessPartnership::class]);
+        $this->assertNotNull(\App\Models\NotificationChannelRule::query()->where('event_key', 'partnership_update')->first(), 'its own rule, which an admin can tune without silencing project stages');
+    }
+
+    public function test_a_room_sold_to_one_kind_of_guest_is_held_only_for_that_kind(): void
+    {
+        $this->unit->update(['guest_scope' => 'locals']);
+
+        Sanctum::actingAs($this->first);
+        $body = ['business_id' => $this->hotel->id, 'bookable_id' => $this->unit->id, 'quantity' => 1, 'starts_at' => $this->start->toDateTimeString(), 'ends_at' => $this->start->copy()->addDays(2)->toDateTimeString()];
+
+        $this->postJson('/api/v2/bookings/holds', $body)->assertStatus(422)->assertJsonValidationErrors(['guest_origin']);
+        $this->postJson('/api/v2/bookings/holds', $body + ['guest_origin' => 'foreign'])->assertStatus(422)->assertJsonValidationErrors(['guest_origin']);
+        $this->postJson('/api/v2/bookings/holds', $body + ['guest_origin' => 'local'])->assertCreated();
+    }
+
+    public function test_the_guest_who_comes_back_finds_the_room_held_for_them_and_others_do_not(): void
+    {
+        $this->hold($this->first, $this->hotel)->assertCreated();
+        $url = "/api/v2/discovery/units/{$this->hotel->id}?starts_at=" . urlencode($this->start->toDateTimeString()) . '&ends_at=' . urlencode($this->start->copy()->addDays(2)->toDateTimeString());
+
+        Sanctum::actingAs($this->first);
+        $mine = $this->getJson($url)->assertOk()->json('data.kinds.0.units.0');
+        $this->assertNotNull($mine['my_hold']);
+        $this->assertSame($this->start->toDateTimeString(), $mine['my_hold']['starts_at'], 'the dates they chose, to reopen the booking on');
+        $this->assertGreaterThan(0, $mine['my_hold']['seconds_left']);
+        $this->assertTrue($mine['available'], 'it is theirs');
+
+        Sanctum::actingAs($this->second);
+        $theirs = $this->getJson($url)->assertOk()->json('data.kinds.0.units.0');
+        $this->assertNull($theirs['my_hold']);
+        $this->assertTrue($theirs['held'], 'for everyone else it is being dealt with');
+
+        // the company page shows the same to its guest
+        $this->hold($this->second, $this->agency)->assertStatus(422);
     }
 }

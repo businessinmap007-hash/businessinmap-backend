@@ -159,7 +159,11 @@ return [
     | a guest who walked off, long enough to fill in the form.
     */
     'booking_holds' => [
-        'minutes' => (int) env('BIM_BOOKING_HOLD_MINUTES', 10),
+        'minutes' => (int) env('BIM_BOOKING_HOLD_MINUTES', 5),
+        // rooms one guest may hold at once: a screen left open on a dozen rooms must not lock a hotel away
+        'max_per_guest' => (int) env('BIM_BOOKING_HOLD_MAX', 3),
+        // how long a partner has to answer a request to give back a room it was promised
+        'release_request_minutes' => (int) env('BIM_RELEASE_REQUEST_MINUTES', 10),
     ],
 
     'projects' => [

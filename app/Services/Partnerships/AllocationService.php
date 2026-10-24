@@ -147,8 +147,9 @@ final class AllocationService
             'markup_value' => round((float) $a->markup_value, 2),
             'final_price' => round($a->finalPrice(), 2),
             'currency' => (string) ($a->currency ?: 'EGP'),
-            'starts_at' => optional($a->starts_at)->toIso8601String(),
-            'ends_at' => optional($a->ends_at)->toIso8601String(),
+            // wall-clock nights of the stay, as the hotel wrote them: an ISO string with an offset was read back a day early in the app
+            'starts_at' => optional($a->starts_at)->format('Y-m-d H:i:s'),
+            'ends_at' => optional($a->ends_at)->format('Y-m-d H:i:s'),
             'min_nights' => $a->min_nights,
             'max_nights' => $a->max_nights,
             'release_days_before' => (int) $a->release_days_before,

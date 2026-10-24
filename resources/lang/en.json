@@ -3346,5 +3346,6 @@
     "انتهى هذا الطلب أو أُجيب عليه.": "This request has expired or has been answered.",
     "لا تملك غرفة غير مباعة من هذا النوع لتحريرها.": "You have no unsold room of this type to release.",
     "برامج الرحلات لأنشطة السياحة والفنادق.": "Trip programmes are for tourism and hotel businesses.",
-    "هذه الإقامة خارج الفترة التي تغطيها الحصة.": "This stay is outside the dates the allocation covers."
+    "هذه الإقامة خارج الفترة التي تغطيها الحصة.": "This stay is outside the dates the allocation covers.",
+    "لديك طلبات تحرير كثيرة بانتظار الرد. انتظر ردها أولًا.": "You have several release requests waiting for an answer. Wait for them first."
 }

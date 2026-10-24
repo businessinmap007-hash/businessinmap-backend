@@ -206,4 +206,17 @@ class ReleaseRequestsTest extends TestCase
         $this->allocation->update(['quantity_released' => 2]);
         $this->ask($this->user(User::TYPE_CLIENT))->assertStatus(422);
     }
+
+    public function test_a_guest_cannot_flood_partners_with_requests_for_many_rooms(): void
+    {
+        $this->takeTheFreeRoom();
+
+        // three requests open on other rooms of the hotel
+        foreach (range(1, 3) as $i) {
+            $other = BookableItem::create(['business_id' => $this->hotel->id, 'service_id' => $this->serviceId, 'item_type' => 'booking_stay', 'line_option_id' => self::SINGLE_ROOM, 'code' => 'F-' . $i . uniqid(), 'quantity' => 1, 'is_active' => 1]);
+            AllocationReleaseRequest::create(['bookable_item_id' => $other->id, 'requester_id' => $this->second->id, 'seller_business_id' => $this->hotel->id, 'starts_at' => $this->start, 'ends_at' => $this->start->copy()->addDays(2), 'quantity' => 1, 'status' => 'pending', 'expires_at' => now()->addMinutes(5)]);
+        }
+
+        $this->ask($this->second)->assertStatus(422)->assertJsonValidationErrors(['bookable_id']);
+    }
 }

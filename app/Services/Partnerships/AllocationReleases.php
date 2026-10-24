@@ -60,6 +60,13 @@ final class AllocationReleases
 
         $partners = $this->candidates($unit, $start, $end);
 
+        // a guest asks about a few rooms at a time, not every promised room of the hotel (each ask is a notification to a partner)
+        $open = AllocationReleaseRequest::query()->where('requester_id', $guest->id)->where('status', AllocationReleaseRequest::PENDING)->where('expires_at', '>', now())->where('bookable_item_id', '!=', $unit->id)->count();
+
+        if ($open >= 3) {
+            throw ValidationException::withMessages(['bookable_id' => __('لديك طلبات تحرير كثيرة بانتظار الرد. انتظر ردها أولًا.')]);
+        }
+
         if ($partners->isEmpty()) {
             throw ValidationException::withMessages(['bookable_id' => __('لا يوجد شريك يمكنه تحرير هذه الغرفة.')]);
         }

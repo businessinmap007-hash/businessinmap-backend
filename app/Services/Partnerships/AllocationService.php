@@ -139,8 +139,6 @@ final class AllocationService
             'status' => (string) $a->status,
             'allocation_type' => (string) $a->allocation_type,
             'quantity_total' => (int) $a->quantity_total,
-            'quantity_sold' => (int) $a->quantity_sold,
-            'quantity_reserved' => (int) $a->quantity_reserved,
             'quantity_available' => $a->availableQuantity(),
             'contract_price' => round((float) $a->contract_price, 2),
             'markup_type' => (string) ($a->markup_type ?: 'none'),

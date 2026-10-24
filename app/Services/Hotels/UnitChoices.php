@@ -21,7 +21,7 @@ final class UnitChoices
      * @param  \Illuminate\Support\Collection<int,BookableItem>  $inKind
      * @return array<int,array<string,mixed>>
      */
-    public function for(?BusinessServicePrice $price, $inKind): array
+    public function for(?BusinessServicePrice $price, $inKind, bool $featuresAsVariants = false): array
     {
         if (! $price) {
             return [];
@@ -47,7 +47,7 @@ final class UnitChoices
             ->pluck('option_id')->map(fn ($id) => (int) $id)->unique()->all());
         $features = $carried === null ? [] : $rooms->featureVocabularyIds((int) $price->business_id);
 
-        $rows = \App\Support\RequestMemo::remember('offering-options', (int) $price->id . '|' . $declared->sort()->implode(',') . '|' . $listed->implode(','), fn () => OfferingOption::query()
+        $rows = \App\Support\RequestMemo::remember('offering-options', (int) $price->id . '|' . $declared->sort()->implode(',') . '|' . $listed->implode(',') . '|' . (int) $featuresAsVariants, fn () => OfferingOption::query()
             ->where('role', OfferingOption::ROLE_MODIFIER)
             // مُوصِّفٌ بقيمة صفر يوصِّف ولا يُسعِّر، فلا شأن لشاشة الاختيار به.
             ->where('adjust_value', '!=', 0)
@@ -69,7 +69,9 @@ final class UnitChoices
             ->values());
 
         if ($carried !== null) {
-            $rows = $rows->reject(fn (OfferingOption $row) => in_array((int) $row->option_id, $features, true) && ! in_array((int) $row->option_id, $carried, true))->values();
+            // the rooms' views either come as cards of their own (the hotel page) or are ticked by the guest (a partner's room), and are
+            // offered only when some room carries them
+            $rows = $rows->reject(fn (OfferingOption $row) => in_array((int) $row->option_id, $features, true) && ($featuresAsVariants || ! in_array((int) $row->option_id, $carried, true)))->values();
         }
 
         return $rows->map(fn (OfferingOption $row) => [

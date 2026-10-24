@@ -99,13 +99,6 @@ class RoomNumberFeaturesTest extends TestCase
         ]);
     }
 
-    private function choices(): array
-    {
-        Sanctum::actingAs($this->guest);
-
-        return collect($this->getJson("/api/v2/discovery/units/{$this->hotel->id}")->assertOk()->json('data.kinds.0.choices'))->pluck('option_id')->map(fn ($i) => (int) $i)->all();
-    }
-
     private function start(Booking $b): string
     {
         return app(BookingRoomService::class)->assignOnStart(Booking::query()->find($b->id))->number;
@@ -128,16 +121,78 @@ class RoomNumberFeaturesTest extends TestCase
         $this->assertSame([], collect($this->getJson("/api/v2/business/bookable-items/{$this->unit->id}/rooms")->json('data.rooms'))->firstWhere('number', '102')['feature_ids']);
     }
 
-    public function test_a_guest_is_offered_a_view_only_when_some_room_carries_it(): void
+    /** @return array<int,array<string,mixed>> the cards the guest sees for the room type, at the hotel's page */
+    private function cards(?string $window = null): array
     {
-        $this->assertNotContains(self::POOL_VIEW, $this->choices(), 'no room has the pool view yet');
-        $this->assertNotContains($this->seaView, $this->choices());
-        $this->assertContains(self::BREAKFAST, $this->choices(), 'a meal plan is not a room feature');
+        Sanctum::actingAs($this->guest);
+
+        return $this->getJson("/api/v2/discovery/units/{$this->hotel->id}" . ($window ? "?{$window}" : ''))->assertOk()->json('data.kinds.0.units');
+    }
+
+    public function test_a_view_is_a_card_of_its_own_at_its_all_in_price_and_never_a_tick(): void
+    {
+        // no room has a view yet: one plain card
+        $cards = $this->cards();
+        $this->assertCount(1, $cards);
+        $this->assertEquals(800, $cards[0]['price']);
+        $this->assertArrayNotHasKey('option_ids', $cards[0]);
 
         $this->tick('102', [self::POOL_VIEW])->assertOk();
+        $this->tick('103', [$this->seaView])->assertOk();
 
-        $this->assertContains(self::POOL_VIEW, $this->choices());
-        $this->assertNotContains($this->seaView, $this->choices());
+        $cards = collect($this->cards())->sortBy('price')->values();
+        $this->assertCount(3, $cards, 'plain, pool view and sea view');
+        $this->assertEquals([800, 950, 1000], $cards->pluck('price')->map(fn ($p) => (float) $p)->all(), 'the type price + what that kind of room carries: 800 + 150, 800 + 200');
+        $this->assertSame([[], [self::POOL_VIEW], [$this->seaView]], $cards->map(fn ($c) => $c['option_ids'] ?? [])->all());
+        $this->assertStringContainsString('·', $cards[1]['label'], 'the label says which view');
+
+        // the view is not also offered as a tick; the meal plan still is
+        Sanctum::actingAs($this->guest);
+        $choices = collect($this->getJson("/api/v2/discovery/units/{$this->hotel->id}")->json('data.kinds.0.choices'))->pluck('option_id')->map(fn ($i) => (int) $i)->all();
+        $this->assertNotContains(self::POOL_VIEW, $choices);
+        $this->assertNotContains($this->seaView, $choices);
+        $this->assertContains(self::BREAKFAST, $choices);
+    }
+
+    public function test_booking_a_card_costs_exactly_what_the_card_said_and_a_meal_plan_is_added_per_night(): void
+    {
+        $this->tick('102', [self::POOL_VIEW])->assertOk();
+        $pool = collect($this->cards())->firstWhere('option_ids', [self::POOL_VIEW]);
+
+        $start = $this->start->toDateString();
+        $window = 'starts_at=' . $start . '&ends_at=' . $this->start->copy()->addDays(3)->toDateString();
+        $pool = collect($this->cards($window))->firstWhere('option_ids', [self::POOL_VIEW]);
+        $this->assertEquals(950 * 3, $pool['total']);
+
+        $res = $this->book($this->guest, $pool['option_ids'], 3)->assertCreated();
+        $this->assertEquals(950 * 3, (float) Booking::find($res->json('data.booking.id'))->price);
+
+        // «نصف إقامة» added to the same card: the night's price + the plan, per night
+        $withPlan = $this->book($this->guest2, array_merge($pool['option_ids'], [self::BREAKFAST]), 3, $this->start->copy()->addDays(10))->assertCreated();
+        $this->assertEquals((950 + 50) * 3, (float) Booking::find($withPlan->json('data.booking.id'))->price);
+    }
+
+    public function test_the_hotel_sees_the_price_a_room_comes_to_beside_its_features(): void
+    {
+        Sanctum::actingAs($this->hotel);
+        $data = $this->getJson("/api/v2/business/bookable-items/{$this->unit->id}/rooms/{$this->rooms['102']->id}/features")->assertOk()->json('data');
+
+        $this->assertEquals(800, $data['base_price'], 'the night price of the room type, as the hotel wrote it');
+        $pool = collect($data['features'])->flatMap(fn ($g) => $g['options'])->firstWhere('id', self::POOL_VIEW);
+        $this->assertEquals(150, $pool['price']);
+    }
+
+    public function test_a_card_whose_view_is_taken_on_the_dates_says_so(): void
+    {
+        $this->tick('102', [self::POOL_VIEW])->assertOk();
+        $this->book($this->guest, [self::POOL_VIEW])->assertCreated();
+
+        $window = 'starts_at=' . $this->start->toDateString() . '&ends_at=' . $this->start->copy()->addDays(2)->toDateString();
+        $pool = collect($this->cards($window))->firstWhere('option_ids', [self::POOL_VIEW]);
+        $plain = collect($this->cards($window))->first(fn ($c) => ! isset($c['option_ids']) || $c['option_ids'] === []);
+
+        $this->assertFalse($pool['available'], 'the only room with the pool view is taken those nights');
+        $this->assertTrue($plain['available'], 'plain rooms are free');
     }
 
     public function test_a_view_no_room_can_give_is_refused_at_booking(): void

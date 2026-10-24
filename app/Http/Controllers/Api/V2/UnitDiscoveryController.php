@@ -100,7 +100,9 @@ final class UnitDiscoveryController extends Controller
             $first = $inKind->first();
             $price = $this->prices->resolveForBookableItem($first);
 
-            $rows = $inKind->map(fn (BookableItem $unit) => $this->unitPayload($unit, $window, $price) + ['my_hold' => $mine[$unit->id] ?? null]);
+            // a room type whose numbered rooms differ («إطلالة بحر»، «إطلالة مسبح») is shown as one card per kind of room, each at its own
+            // all-in price: the view is part of what the room IS, not something the guest ticks
+            $rows = $inKind->flatMap(fn (BookableItem $unit) => $this->variantsOf($unit, $price, $window, $this->unitPayload($unit, $window, $price) + ['my_hold' => $mine[$unit->id] ?? null]));
 
             $groups[] = [
                 'line_option_id' => $kindId ?: null,
@@ -117,7 +119,7 @@ final class UnitDiscoveryController extends Controller
                 'offer' => $price ? app(\App\Services\Promotions\BookingPromotionPricing::class)->badge($first, $price, (float) $price->baseUnitPrice(), (int) optional($request->user('sanctum'))->id) : null,
                 // ما يُعرض على النزيل ليقرّره: «إفطار +٥٠»، «إقامة كاملة
                 // +١٥٠». يُرسَل مع النوع لا مع الوحدة، لأنه سعرُ النوع.
-                'choices' => $this->choicesOf($price, $inKind),
+                'choices' => $this->choicesOf($price, $inKind, true),
                 'units' => $rows->values(),
             ];
         }
@@ -548,6 +550,61 @@ final class UnitDiscoveryController extends Controller
     }
 
     /**
+     * One card per KIND OF ROOM behind a room type. The numbered rooms of «غرفة فردية» may differ (some face the sea, some the pool); the
+     * guest sees «غرفة فردية · إطلالة بحر — 1300 لليلة» and «غرفة فردية · إطلالة مسبح — 1150», each priced as the type's price plus what that
+     * kind of room carries, and books the card. The card names the features it was priced with (`option_ids`); when the stay starts the
+     * hotel gives a number that carries them.
+     *
+     * @param  array<string,mixed>  $row  the type's own row
+     * @param  array{0:string,1:string}|null  $window
+     * @return array<int,array<string,mixed>>
+     */
+    private function variantsOf(BookableItem $unit, ?BusinessServicePrice $price, ?array $window, array $row): array
+    {
+        if ($unit->item_type !== 'booking_stay' || ! $unit->hasListedRooms()) {
+            return [$row];
+        }
+
+        $rooms = app(\App\Services\BookingRoomService::class);
+        $open = $unit->rooms()->where('status', \App\Models\BookableItemRoom::STATUS_AVAILABLE)->get();
+        $carried = $rooms->featuresOf($open);
+        $sets = $open->map(fn ($r) => collect($carried[(int) $r->id] ?? [])->sort()->values()->all())
+            ->unique(fn ($ids) => implode(',', $ids))->values();
+
+        if ($sets->every(fn ($ids) => $ids === [])) {
+            return [$row];
+        }
+
+        $names = \App\Models\Option::query()->whereIn('id', $sets->flatten()->unique()->all() ?: [0])->get(['id', 'name_ar', 'name_en'])->keyBy('id');
+        $say = fn (int $id) => app()->getLocale() === 'en' ? ($names[$id]->name_en ?: $names[$id]->name_ar) : ($names[$id]->name_ar ?: $names[$id]->name_en);
+        $out = [];
+
+        foreach ($sets as $set) {
+            $variant = $row;
+            $words = array_values(array_filter(array_map(fn ($id) => isset($names[$id]) ? $say((int) $id) : null, $set)));
+            $variant['label'] = $words === [] ? $row['label'] : ($row['label'] . ' · ' . implode('، ', $words));
+            $variant['option_ids'] = array_map('intval', $set);
+            $variant = array_merge($variant, $this->pricingOf($unit, $price, $window, array_map('intval', $set)));
+
+            // a view is sold only as long as some room carrying it is free on every night of the stay
+            if ($window && ($variant['available'] ?? false) && $set !== []) {
+                try {
+                    $rooms->assertFeaturesAvailable($unit, $window[0], $window[1], 1, $set);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    $variant['available'] = false;
+                    $variant['reason'] = collect($e->errors())->flatten()->first();
+                }
+            }
+
+            $out[] = $variant;
+        }
+
+        usort($out, fn ($a, $b) => [$a['price'] ?? PHP_INT_MAX] <=> [$b['price'] ?? PHP_INT_MAX]);
+
+        return $out;
+    }
+
+    /**
      * ما تعلنه الوحدةُ عن نفسها، وما يكلّفه.
      *
      * المُوصِّفاتُ المسعَّرة تُقرأ بنفس الحساب الذى يحسب به المحرّك الفاتورة
@@ -559,7 +616,7 @@ final class UnitDiscoveryController extends Controller
      *
      * @return array<string,mixed>
      */
-    private function pricingOf(BookableItem $unit, ?BusinessServicePrice $price, ?array $window = null): array
+    private function pricingOf(BookableItem $unit, ?BusinessServicePrice $price, ?array $window = null, array $extraOptionIds = []): array
     {
         if (! $price) {
             return ['price' => null, 'total' => null, 'periods' => null, 'period_unit' => null, 'modifiers' => []];
@@ -577,7 +634,7 @@ final class UnitDiscoveryController extends Controller
             // بالنافذة حين تُعطى: قاعدةُ «الجمعة أغلى» تُقرأ فى القائمة كما
             // ستُقرأ فى الفاتورة، وليلةً ليلة كما ستُحاسَب.
             pricingDate: $window[0] ?? null,
-            optionIds: array_map('intval', $ownOptions),
+            optionIds: array_values(array_unique(array_merge(array_map('intval', $ownOptions), $extraOptionIds))),
             until: $window[1] ?? null
         );
 
@@ -596,9 +653,9 @@ final class UnitDiscoveryController extends Controller
     }
 
     /** The add-ons a guest may take with this kind (see UnitChoices). @return array<int,array<string,mixed>> */
-    private function choicesOf(?BusinessServicePrice $price, $inKind): array
+    private function choicesOf(?BusinessServicePrice $price, $inKind, bool $featuresAsVariants = false): array
     {
-        return app(\App\Services\Hotels\UnitChoices::class)->for($price, $inKind);
+        return app(\App\Services\Hotels\UnitChoices::class)->for($price, $inKind, $featuresAsVariants);
     }
 
     private function say(?object $option): ?string

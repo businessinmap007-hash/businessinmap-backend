@@ -127,7 +127,16 @@ final class BusinessBookableRoomController extends Controller
         $selected = BookableItemRoomFeature::query()->where('room_id', $room->id)->pluck('option_id')->map(fn ($id) => (int) $id)->all();
         $prices = $business->currentOfferingAdjustments();
 
-        return ['room' => ['id' => (int) $room->id, 'number' => $room->number], 'features' => app(\App\Services\BookingAddOnsService::class)->featureVocabulary($business)->map(fn ($options, $group) => [
+        // the night's price of the room type: the number shown beside the room's own features («1000 + 150 = 1150»)
+        $item = BookableItem::query()->find((int) $room->bookable_item_id);
+        $base = null;
+
+        if ($item) {
+            $row = app(\App\Services\BusinessServicePriceResolver::class)->resolveForBookableItem($item);
+            $base = $row ? round((float) $row->baseUnitPrice(), 2) : null;
+        }
+
+        return ['room' => ['id' => (int) $room->id, 'number' => $room->number], 'base_price' => $base, 'features' => app(\App\Services\BookingAddOnsService::class)->featureVocabulary($business)->map(fn ($options, $group) => [
             'group' => $group,
             'options' => collect($options)->map(fn ($o) => [
                 'id' => (int) $o->id,

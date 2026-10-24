@@ -34,3 +34,6 @@ yarn-error.log
 /public/files/uploads/*_bedroom-*.png
 /public/__preview/
 /tmp_screens/
+
+# files the app uploads while it is being tried: <time>_<random>_<name>
+/public/files/uploads/[0-9]*_*_*

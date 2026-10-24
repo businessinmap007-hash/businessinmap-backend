@@ -292,16 +292,25 @@ class BookablePricingService
         ?CarbonInterface $date,
         int $quantity = 1
     ): Collection {
-        $query = BookableItemPriceRule::query()
-            ->forBookableItem((int) $item->id)
-            ->active();
+        // the item's active rules are read ONCE and judged in memory: a thirty-night stay used to run thirty
+        // identical queries, one per night
+        $day = $date ? $date->format('Y-m-d') : null;
+        $weekday = $date ? (int) $date->dayOfWeek : null;
 
-        if ($date) {
-            $query->forDate($date);
-            $query->forWeekday((int) $date->dayOfWeek);
-        }
+        $rules = $this->activeRulesOf((int) $item->id)->filter(function (BookableItemPriceRule $rule) use ($day, $weekday) {
+            if ($day !== null) {
+                $from = $rule->start_date?->format('Y-m-d');
+                $to = $rule->end_date?->format('Y-m-d');
+                $dated = $from !== null && $to !== null && $from <= $day && $to >= $day;
+                $always = $from === null && $to === null;
 
-        $rules = $query->ordered()->get();
+                if (! $dated && ! $always) {
+                    return false;
+                }
+            }
+
+            return $weekday === null || $rule->weekday === null || (int) $rule->weekday === $weekday;
+        });
 
         return $rules->filter(function (BookableItemPriceRule $rule) use ($quantity) {
             $min = $rule->min_quantity !== null ? (int) $rule->min_quantity : null;
@@ -317,6 +326,17 @@ class BookablePricingService
 
             return true;
         })->values();
+    }
+
+    /** @var array<string,\Illuminate\Support\Collection> */
+    protected array $rulesCache = [];
+
+    /** Every active rule of an item in the order they apply; dropped whenever any rule is saved or deleted. */
+    protected function activeRulesOf(int $itemId): Collection
+    {
+        $key = BookableItemPriceRule::$revision . ':' . $itemId;
+
+        return $this->rulesCache[$key] ??= BookableItemPriceRule::query()->forBookableItem($itemId)->active()->ordered()->get();
     }
 
     protected function applyRule(float $basePrice, string $priceType, float $priceValue): float

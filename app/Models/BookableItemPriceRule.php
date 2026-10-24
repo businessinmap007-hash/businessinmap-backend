@@ -43,6 +43,15 @@ class BookableItemPriceRule extends Model
         'meta' => 'array',
     ];
 
+    /** Bumped on every save/delete so a service holding the item's rules in memory knows they changed. */
+    public static int $revision = 0;
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => self::$revision++);
+        static::deleted(fn () => self::$revision++);
+    }
+
     public const RULE_DEFAULT = 'default';
     public const RULE_WEEKDAY = 'weekday';
     public const RULE_DATE_RANGE = 'date_range';

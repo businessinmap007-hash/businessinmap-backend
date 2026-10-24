@@ -26,3 +26,11 @@ yarn-error.log
 
 # Device catalog photos are downloaded by `php artisan catalog:import-device-images`
 /public/files/uploads/catalog-devices/
+
+# Pictures the test suite uploads (first/second/room/bedroom photos) and local preview scratch
+/public/files/uploads/*_first.png
+/public/files/uploads/*_second.png
+/public/files/uploads/*_room.png
+/public/files/uploads/*_bedroom-*.png
+/public/__preview/
+/tmp_screens/

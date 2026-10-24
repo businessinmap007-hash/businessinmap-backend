@@ -39,7 +39,7 @@ final class UnitChoices
          * نظامُ الوجبات يسكن النشاطَ نفسه — سعرٌ ثابت لا يتغيّر بنوع الغرفة —
          * وما يخصّ نوعًا بعينه يبقى على سطره. والسطرُ يغلب عند التكرار.
          */
-        $rows = OfferingOption::query()
+        $rows = \App\Support\RequestMemo::remember('offering-options', (int) $price->id . '|' . $declared->sort()->implode(','), fn () => OfferingOption::query()
             ->where('role', OfferingOption::ROLE_MODIFIER)
             // مُوصِّفٌ بقيمة صفر يوصِّف ولا يُسعِّر، فلا شأن لشاشة الاختيار به.
             ->where('adjust_value', '!=', 0)
@@ -58,7 +58,7 @@ final class UnitChoices
             ->get()
             ->groupBy('option_id')
             ->map(fn ($group) => $group->firstWhere('offering_type', $price->getMorphClass()) ?: $group->first())
-            ->values();
+            ->values());
 
         return $rows->map(fn (OfferingOption $row) => [
             'option_id' => (int) $row->option_id,

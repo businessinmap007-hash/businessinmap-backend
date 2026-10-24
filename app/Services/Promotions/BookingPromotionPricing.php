@@ -59,6 +59,7 @@ final class BookingPromotionPricing
 
         if ($id > 0 && (float) ($breakdown['offer_discount_amount'] ?? 0) > 0) {
             Promotion::query()->whereKey($id)->increment('used_count');
+            \App\Support\RequestMemo::bump('promotions');
         }
     }
 
@@ -94,7 +95,9 @@ final class BookingPromotionPricing
         $owner = $sellerId ?: (int) $unit->business_id;
         $keys = ['all:0', 'bookable_item:' . $unit->id, 'bookable_kind:' . (int) ($unit->line_option_id ?? 0)];
 
-        return Promotion::query()->where('business_id', $owner)->running()->with('targets')->orderBy('id')->get()
+        $running = \App\Support\RequestMemo::remember('promotions', 'running:' . $owner, fn () => Promotion::query()->where('business_id', $owner)->running()->with('targets')->orderBy('id')->get());
+
+        return $running
             ->filter(fn (Promotion $p) => $p->kind !== Promotion::SPEND_PERCENT)
             ->filter(fn (Promotion $p) => array_intersect($keys, $p->targets->map(fn ($t) => $t->target_type . ':' . ($t->target_id ?? 0))->all()) !== [])
             ->filter(fn (Promotion $p) => $p->audience !== Promotion::AUDIENCE_NEW || $this->isNewCustomer($owner, $customerId))

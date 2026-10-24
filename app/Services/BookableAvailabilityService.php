@@ -13,6 +13,75 @@ use InvalidArgumentException;
 class BookableAvailabilityService
 {
     /**
+     * What was read for a whole list of rooms in a handful of queries (see preload), so judging each room in turn asks the database nothing.
+     *
+     * @var array<string,mixed>|null
+     */
+    protected ?array $frame = null;
+
+    /**
+     * Read, for MANY units and ONE window, everything `check` would otherwise ask the database per unit: the hours of each business, the
+     * blocked slots, the rooms taken, the rooms promised to partners and the rooms other people are dealing with. A page of forty room
+     * types used to cost about two hundred queries; it costs six, and the answers are the very same ones.
+     *
+     * @param  iterable<BookableItem>  $items
+     */
+    public function preload(iterable $items, CarbonInterface|string $startsAt, CarbonInterface|string $endsAt, ?int $viewerId = null): void
+    {
+        $start = $this->normalizeDateTime($startsAt);
+        $end = $this->normalizeDateTime($endsAt);
+        $items = collect($items)->filter(fn ($i) => $i instanceof BookableItem)->values();
+        $viewer = $viewerId ?? (int) optional(request()->user('sanctum'))->id;
+
+        $this->frame = null;
+
+        if ($items->isEmpty() || $end->lessThanOrEqualTo($start)) {
+            return;
+        }
+
+        $ids = $items->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $live = [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED, Booking::STATUS_COMPLETED];
+
+        $taken = Booking::query()->whereIn('bookable_id', $ids)->whereNotIn('status', $live)
+            ->whereNotNull('starts_at')->whereNotNull('ends_at')->where('starts_at', '<', $end)->where('ends_at', '>', $start)
+            ->selectRaw('bookable_id, COUNT(*) as bookings, COALESCE(SUM(GREATEST(COALESCE(quantity, 0), 1)), 0) as rooms')
+            ->groupBy('bookable_id')->get()->keyBy('bookable_id');
+
+        $guaranteed = \App\Models\BookableAllocation::query()->active()->whereIn('bookable_item_id', $ids)
+            ->where('allocation_type', \App\Models\BookableAllocation::TYPE_GUARANTEED)->get();
+        $left = \App\Models\BookableAllocation::availableForMany($guaranteed, $start, $end);
+
+        $this->frame = [
+            'key' => $this->frameKey($start, $end, $viewer),
+            'ids' => array_flip($ids),
+            'open' => [],
+            'blocked' => BookableItemBlockedSlot::query()->whereIn('bookable_item_id', $ids)->active()->overlapping($start, $end)->ordered()->get()->groupBy('bookable_item_id'),
+            'taken' => $taken,
+            'guaranteed' => $guaranteed->map(fn ($a) => ['item' => (int) $a->bookable_item_id, 'partner' => (int) $a->partner_business_id, 'left' => $left[(int) $a->id] ?? 0])->groupBy('item'),
+            'soft' => app(BookingHolds::class)->heldRoomsMany($ids, $start, $end, $viewer ?: null),
+        ];
+    }
+
+    /** Forget a preload: what follows asks the database again. */
+    public function forget(): void
+    {
+        $this->frame = null;
+    }
+
+    protected function frameKey(CarbonInterface $start, CarbonInterface $end, int $viewer): string
+    {
+        return $start->toDateTimeString() . '|' . $end->toDateTimeString() . '|' . $viewer;
+    }
+
+    /** The preload that answers for this unit and window, or null (ask the database). */
+    protected function frameFor(BookableItem $item, CarbonInterface $start, CarbonInterface $end, int $viewer): ?array
+    {
+        return $this->frame && isset($this->frame['ids'][(int) $item->id]) && $this->frame['key'] === $this->frameKey($start, $end, $viewer)
+            ? $this->frame
+            : null;
+    }
+
+    /**
      * Check availability for a specific bookable item within a date/time range.
      *
      * @param  BookableItem  $item
@@ -54,8 +123,12 @@ class BookableAvailabilityService
         // long, and a shop shut on Friday took Friday bookings all day. Only
         // same-day windows are judged — a four-night stay is not a question
         // about opening hours. See BusinessHoursService::isOpenThroughout.
-        if ($item->business_id && ! app(BusinessHoursService::class)
-            ->isOpenThroughout((int) $item->business_id, $start, $end)) {
+        $viewer = $viewerId ?? (int) optional(request()->user('sanctum'))->id;
+        $frame = $this->frameFor($item, $start, $end, $viewer);
+
+        if ($item->business_id && ! ($frame
+            ? ($this->frame['open'][(int) $item->business_id] ??= app(BusinessHoursService::class)->isOpenThroughout((int) $item->business_id, $start, $end))
+            : app(BusinessHoursService::class)->isOpenThroughout((int) $item->business_id, $start, $end))) {
             return $this->result(
                 ok: true,
                 available: false,
@@ -68,7 +141,7 @@ class BookableAvailabilityService
             );
         }
 
-        $conflicts = $this->findBlockingSlots($item, $start, $end);
+        $conflicts = $frame ? ($frame['blocked']->get((int) $item->id) ?? collect()) : $this->findBlockingSlots($item, $start, $end);
 
         if ($conflicts->isNotEmpty()) {
             return $this->result(
@@ -87,16 +160,44 @@ class BookableAvailabilityService
         // about what CUSTOMERS have already taken, so a room sold for these
         // nights still read as available and could be sold again.
         $stay = $item->item_type === 'booking_stay';
-        $taken = $stay ? $this->takenRooms($item, $start, $end) : $this->countLiveBookings($item, $start, $end);
+        if ($frame) {
+            $row = $frame['taken']->get((int) $item->id);
+            $taken = (int) ($stay ? ($row->rooms ?? 0) : ($row->bookings ?? 0));
+        } else {
+            $taken = $stay ? $this->takenRooms($item, $start, $end) : $this->countLiveBookings($item, $start, $end);
+        }
+
         $capacity = $stay ? $item->stockCount() : max((int) ($item->quantity ?? 1), 1);
         // rooms a hotel promised to a partner (a guaranteed allocation) are not for sale to anyone else; the partner's own
         // booking does not count its own promise against itself
-        $held = $stay && $honourHolds ? $this->heldForPartners($item, $viaPartnerId, $start, $end) : 0;
+        $held = 0;
+
+        if ($stay && $honourHolds) {
+            $held = $frame
+                ? (int) collect($frame['guaranteed']->get((int) $item->id, []))->filter(fn ($g) => ! $viaPartnerId || $g['partner'] !== (int) $viaPartnerId)->sum('left')
+                : $this->heldForPartners($item, $viaPartnerId, $start, $end);
+        }
 
         // «تحت التعامل»: someone else is filling in a booking for this room right now. Their hold counts against everyone but them, so
         // the hotel's guest and a travel company's guest are never both offered the last room.
-        $viewer = $viewerId ?? (int) optional(request()->user('sanctum'))->id;
-        $soft = app(BookingHolds::class)->heldRooms($item, $start, $end, $viewer ?: null);
+        $soft = $frame ? (int) ($frame['soft'][(int) $item->id] ?? 0) : app(BookingHolds::class)->heldRooms($item, $start, $end, $viewer ?: null);
+
+        // the hotel keeps a few rooms of the type back for its own guests in peak: a partner (selling through an allocation) can
+        // take the type only up to its stock less that reserve, while the hotel's own guests can take every room
+        $reserve = $stay && $viaPartnerId ? min(max((int) ($item->reserve_rooms ?? 0), 0), $capacity) : 0;
+
+        if ($reserve > 0 && $taken + $held + $soft + max($requested, 1) > $capacity - $reserve && $taken + $held + $soft + max($requested, 1) <= $capacity) {
+            return $this->result(
+                ok: true,
+                available: false,
+                reason: __('هذه الغرف محجوزة احتياطيًا لنزلاء الفندق.'),
+                code: 'reserved_for_hotel',
+                item: $item,
+                start: $start,
+                end: $end,
+                conflicts: collect()
+            );
+        }
 
         if ($taken + $held + $soft + max($requested, 1) > $capacity) {
             // what stands in the way: only a partner's promise (it can be asked to give the room back), only someone's open booking
@@ -221,8 +322,7 @@ class BookableAvailabilityService
             ->whereNotNull('ends_at')
             ->where('starts_at', '<', $end)
             ->where('ends_at', '>', $start)
-            ->get(['quantity'])
-            ->sum(fn ($b) => max((int) $b->quantity, 1));
+            ->sum(\DB::raw('GREATEST(COALESCE(quantity, 0), 1)'));
     }
 
     /** What the hotel still owes its partners on this type: the unsold part of every active guaranteed allocation but the asker's own. */
@@ -233,7 +333,13 @@ class BookableAvailabilityService
             ->where('allocation_type', \App\Models\BookableAllocation::TYPE_GUARANTEED)
             ->when($exceptPartnerId, fn ($q) => $q->where('partner_business_id', '!=', $exceptPartnerId))
             ->get()
-            ->sum(fn ($a) => $start && $end ? $a->availableFor($start, $end) : $a->availableQuantity());
+            ->pipe(function ($allocations) use ($start, $end) {
+                if ($start && $end) {
+                    return array_sum(\App\Models\BookableAllocation::availableForMany($allocations, $start, $end));
+                }
+
+                return $allocations->sum(fn ($a) => $a->availableQuantity());
+            });
     }
 
     protected function countLiveBookings(BookableItem $item, CarbonInterface $start, CarbonInterface $end): int

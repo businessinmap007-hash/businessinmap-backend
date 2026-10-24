@@ -189,7 +189,7 @@ class PartnershipController extends Controller
     {
         return [
             'partnership' => $this->partnerships->present($p, $me),
-            'allocations' => $this->allocations->of($p)->map(fn (BookableAllocation $a) => $this->allocations->present($a))->values(),
+            'allocations' => array_values($this->allocations->presentMany($this->allocations->of($p))),
         ];
     }
 

@@ -53,6 +53,15 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
 
+        // what one request reads many times is remembered for that request (see RequestMemo); a write drops it
+        \App\Support\RequestMemo::watch(\App\Models\Promotion::class, 'promotions');
+        \App\Support\RequestMemo::watch(\App\Models\PromotionTarget::class, 'promotions');
+        \App\Support\RequestMemo::watch(\App\Models\OfferingPriceChange::class, 'price-history');
+        \App\Support\RequestMemo::watch(\App\Models\PlatformServiceItemType::class, 'item-types');
+        \App\Support\RequestMemo::watch(\App\Models\BusinessServicePrice::class, 'prices');
+        \App\Support\RequestMemo::watch(\App\Models\User::class, 'prices');
+        \App\Support\RequestMemo::watch(\App\Models\OfferingOption::class, 'offering-options');
+
         Carbon::setLocale('ar');
 
         // Every panel (admin-v2 + business) and the customer views use the a2

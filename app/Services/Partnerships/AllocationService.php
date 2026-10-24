@@ -58,7 +58,7 @@ final class AllocationService
             'partner_business_id' => (int) $p->partner_business_id,
             'bookable_item_id' => (int) $unit->id,
             'platform_service_id' => (int) $unit->service_id,
-            'allocation_type' => (string) ($data['allocation_type'] ?? BookableAllocation::TYPE_GUARANTEED),
+            'allocation_type' => (string) ($data['allocation_type'] ?? BookableAllocation::TYPE_NON_GUARANTEED),
             'starts_at' => $data['starts_at'] ?? null,
             'ends_at' => $data['ends_at'] ?? null,
             'quantity_total' => $quantity,
@@ -129,7 +129,7 @@ final class AllocationService
      *
      * @return array<string,mixed>
      */
-    public function present(BookableAllocation $a): array
+    public function present(BookableAllocation $a, ?array $facts = null): array
     {
         $unit = $a->bookableItem;
 
@@ -139,7 +139,7 @@ final class AllocationService
             'status' => (string) $a->status,
             'allocation_type' => (string) $a->allocation_type,
             'quantity_total' => (int) $a->quantity_total,
-            'quantity_available' => $a->availableQuantity(),
+            'quantity_available' => $facts['left'][(int) $a->id] ?? $a->availableQuantity(),
             'contract_price' => round((float) $a->contract_price, 2),
             'markup_type' => (string) ($a->markup_type ?: 'none'),
             'markup_value' => round((float) $a->markup_value, 2),
@@ -152,12 +152,49 @@ final class AllocationService
             'max_nights' => $a->max_nights,
             'release_days_before' => (int) $a->release_days_before,
             // bookings still standing on it: they are NOT taken back when it ends or is stopped, so both sides read them here
-            'upcoming_bookings' => $this->standing($a)->count(),
-            'pending_bookings' => $this->standing($a)->where('status', \App\Models\Booking::STATUS_PENDING)->count(),
+            'upcoming_bookings' => $facts['standing'][(int) $a->id]['upcoming'] ?? $this->standing($a)->count(),
+            'pending_bookings' => $facts['standing'][(int) $a->id]['pending'] ?? $this->standing($a)->where('status', \App\Models\Booking::STATUS_PENDING)->count(),
             // in how many of the partner's trip programmes this room's card sits (the owner sees only that, never the programmes)
-            'programs_count' => (int) \App\Models\TripProgramItem::query()->join('trip_program_days as d', 'd.id', '=', 'trip_program_items.day_id')->where('trip_program_items.allocation_id', $a->id)->distinct()->count('d.program_id'),
+            'programs_count' => (int) ($facts['programs'][(int) $a->id] ?? \App\Models\TripProgramItem::query()->join('trip_program_days as d', 'd.id', '=', 'trip_program_items.day_id')->where('trip_program_items.allocation_id', $a->id)->distinct()->count('d.program_id')),
             'room' => $unit ? $this->card($unit) : null,
         ];
+    }
+
+    /**
+     * A whole list of allocations as their parties read them: what is left, the stays standing on each and the programmes they sit in
+     * are counted for all of them together (a partnership with fifty rooms used to cost four hundred queries).
+     *
+     * @param  iterable<BookableAllocation>  $allocations
+     * @return array<int,array<string,mixed>>
+     */
+    public function presentMany(iterable $allocations): array
+    {
+        $list = collect($allocations)->values();
+
+        if ($list->isEmpty()) {
+            return [];
+        }
+
+        $ids = $list->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $dead = [\App\Models\Booking::STATUS_CANCELLED, \App\Models\Booking::STATUS_REJECTED, \App\Models\Booking::STATUS_COMPLETED];
+
+        $standing = \App\Models\Booking::query()->whereIn('allocation_id', $ids)->whereNotIn('status', $dead)->where('ends_at', '>', now())
+            ->selectRaw('allocation_id, COUNT(*) as upcoming, SUM(status = ?) as pending', [\App\Models\Booking::STATUS_PENDING])->groupBy('allocation_id')->get()
+            ->mapWithKeys(fn ($r) => [(int) $r->allocation_id => ['upcoming' => (int) $r->upcoming, 'pending' => (int) $r->pending]])->all();
+
+        $programs = \App\Models\TripProgramItem::query()->join('trip_program_days as d', 'd.id', '=', 'trip_program_items.day_id')->whereIn('trip_program_items.allocation_id', $ids)
+            ->selectRaw('trip_program_items.allocation_id as allocation_id, COUNT(DISTINCT d.program_id) as n')->groupBy('trip_program_items.allocation_id')->pluck('n', 'allocation_id')
+            ->map(fn ($n) => (int) $n)->all();
+
+        $facts = [
+            'left' => BookableAllocation::availableQuantityMany($list),
+            'standing' => $standing + array_fill_keys($ids, ['upcoming' => 0, 'pending' => 0]),
+            'programs' => $programs + array_fill_keys($ids, 0),
+        ];
+
+        (new \Illuminate\Database\Eloquent\Collection($list->all()))->loadMissing(['bookableItem.images', 'bookableItem.offeringOptions.option:id,name_ar,name_en']);
+
+        return $list->map(fn (BookableAllocation $a) => $this->present($a, $facts))->all();
     }
 
     /** The active allocations a business sells through a partnership that is itself active. @return Collection<int,BookableAllocation> */
@@ -175,11 +212,11 @@ final class AllocationService
      *
      * @return array<string,mixed>
      */
-    public function publicRoom(BookableAllocation $a, ?array $window = null): array
+    public function publicRoom(BookableAllocation $a, ?array $window = null, ?int $known = null, ?array $holds = null): array
     {
         $unit = $a->bookableItem;
-        // rooms per night: with a stay, what its busiest night leaves; without one, what is left ahead
-        $left = $window ? $a->availableFor(\Illuminate\Support\Carbon::parse($window[0]), \Illuminate\Support\Carbon::parse($window[1])) : $a->availableQuantity();
+        // rooms per night: with a stay, what its busiest night leaves; without one, what is left ahead ($known: a list already counted them all at once)
+        $left = $known ?? ($window ? $a->availableFor(\Illuminate\Support\Carbon::parse($window[0]), \Illuminate\Support\Carbon::parse($window[1])) : $a->availableQuantity());
 
         return $this->card($unit) + [
             'allocation_id' => (int) $a->id,
@@ -190,7 +227,7 @@ final class AllocationService
             // the hotel's own add-ons (the meal plan) at the hotel's listed price, and the company's own offer on this room
             'choices' => app(UnitChoices::class)->for($this->prices->resolveForBookableItem($unit), collect([$unit])),
             'offer' => $this->offerOn($a, $unit),
-            'my_hold' => app(\App\Services\BookingHolds::class)->mine((int) optional(request()->user('sanctum'))->id, [(int) $unit->id])[(int) $unit->id] ?? null,
+            'my_hold' => ($holds ?? app(\App\Services\BookingHolds::class)->mine((int) optional(request()->user('sanctum'))->id, [(int) $unit->id]))[(int) $unit->id] ?? null,
             'price' => round($a->finalPrice(), 2),
             'currency' => (string) ($a->currency ?: 'EGP'),
             'from' => $a->ownerBusiness ? ['id' => (int) $a->ownerBusiness->id, 'name' => (string) $a->ownerBusiness->name] : null,
@@ -227,7 +264,9 @@ final class AllocationService
             'description' => $unit->description,
             'capacity' => $unit->capacity !== null ? (int) $unit->capacity : null,
             'images' => $unit->imagePayload(),
-            'features' => $unit->offeringOptions()->where('role', '!=', 'line')->with('option:id,name_ar,name_en')->get()->map(fn ($o) => $o->option ? (string) ($o->option->name_ar ?: $o->option->name_en) : null)->filter()->values()->all(),
+            'features' => ($unit->relationLoaded('offeringOptions') && $unit->offeringOptions->every(fn ($o) => $o->relationLoaded('option'))
+                ? $unit->offeringOptions->where('role', '!=', 'line')
+                : $unit->offeringOptions()->where('role', '!=', 'line')->with('option:id,name_ar,name_en')->get())->map(fn ($o) => $o->option ? (string) ($o->option->name_ar ?: $o->option->name_en) : null)->filter()->values()->all(),
         ];
     }
 

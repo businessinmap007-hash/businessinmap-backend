@@ -176,6 +176,12 @@ class BusinessServicePriceResolver
      */
     public function resolveForBookableItem(BookableItem $item): ?BusinessServicePrice
     {
+        // a page of rooms of one kind asks for the same price row for each: read once, dropped when any price row or business is saved
+        return \App\Support\RequestMemo::remember('prices', implode(':', [(int) $item->business_id, (int) $item->service_id, trim((string) ($item->item_type ?? '')), (int) ($item->line_option_id ?? 0)]), fn () => $this->readForBookableItem($item));
+    }
+
+    private function readForBookableItem(BookableItem $item): ?BusinessServicePrice
+    {
         $childId = (int) (User::query()
             ->where('id', (int) $item->business_id)
             ->value('category_child_id') ?? 0);

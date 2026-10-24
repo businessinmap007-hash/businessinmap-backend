@@ -67,6 +67,7 @@ final class UnitDiscoveryController extends Controller
             // الصورُ والمُوصِّفات محمَّلةٌ مقدَّمًا: عشرون غرفةً كانت عشرين
             // استعلامًا لكلٍّ منهما.
             ->with(['lineOption:id,name_ar,name_en', 'images', 'offeringOptions', 'service'])
+            ->withCount('rooms')
             ->where('business_id', $biz->id)
             ->where('is_active', 1)
             ->when($serviceId > 0, fn ($query) => $query->where('service_id', $serviceId))
@@ -84,6 +85,11 @@ final class UnitDiscoveryController extends Controller
         $window = (! empty($data['starts_at']) && ! empty($data['ends_at']))
             ? [$data['starts_at'], $data['ends_at']]
             : null;
+
+        // everything the availability answer needs for ALL the types is read here, once, not per type
+        if ($window) {
+            $this->availability->preload($units, $window[0], $window[1], (int) optional($request->user('sanctum'))->id);
+        }
 
         $groups = [];
         // the holds this guest still has: they come back to the screen and find the room as they left it
@@ -122,6 +128,8 @@ final class UnitDiscoveryController extends Controller
             return [$a['price'] === null, $a['price'] ?? 0] <=> [$b['price'] === null, $b['price'] ?? 0];
         });
 
+        $this->availability->forget();
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -156,13 +164,24 @@ final class UnitDiscoveryController extends Controller
     {
         $allocations = \App\Models\BookableAllocation::query()->active()->where('partner_business_id', $businessId)
             ->whereHas('partnership', fn ($q) => $q->where('status', \App\Models\BusinessPartnership::STATUS_ACTIVE))
-            ->with(['bookableItem.lineOption:id,name_ar,name_en', 'ownerBusiness:id,name'])->orderBy('id')->get();
+            ->with(['bookableItem' => fn ($q) => $q->withCount('rooms'), 'bookableItem.lineOption:id,name_ar,name_en', 'bookableItem.images', 'bookableItem.offeringOptions.option:id,name_ar,name_en', 'bookableItem.service', 'ownerBusiness:id,name'])->orderBy('id')->get();
 
         $cards = app(\App\Services\Partnerships\AllocationService::class);
         $nights = $window ? max((int) \Illuminate\Support\Carbon::parse($window[0])->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($window[1])->startOfDay()), 1) : null;
 
-        return $allocations->filter(fn ($a) => $a->bookableItem && $a->bookableItem->is_active)->map(function ($a) use ($cards, $window, $nights) {
-            $left = $window ? $a->availableFor(\Illuminate\Support\Carbon::parse($window[0]), \Illuminate\Support\Carbon::parse($window[1])) : $a->availableQuantity();
+        $allocations = $allocations->filter(fn ($a) => $a->bookableItem && $a->bookableItem->is_active);
+        // every card's nights are counted in two queries, not two per card
+        $lefts = $window ? \App\Models\BookableAllocation::availableForMany($allocations, \Illuminate\Support\Carbon::parse($window[0]), \Illuminate\Support\Carbon::parse($window[1])) : [];
+
+        // the free-or-not answer of every room, read once: it also knows the rooms the hotel keeps back for itself in peak
+        if ($window) {
+            $this->availability->preload($allocations->pluck('bookableItem'), $window[0], $window[1], (int) optional(request()->user('sanctum'))->id);
+        }
+
+        $holds = app(\App\Services\BookingHolds::class)->mine((int) optional(request()->user('sanctum'))->id, $allocations->pluck('bookable_item_id')->map(fn ($id) => (int) $id)->unique()->all());
+
+        $rooms = $allocations->map(function ($a) use ($cards, $window, $nights, $lefts, $holds) {
+            $left = $window ? ($lefts[(int) $a->id] ?? 0) : $a->availableQuantity();
             $reason = null;
 
             if ($left <= 0) {
@@ -173,7 +192,15 @@ final class UnitDiscoveryController extends Controller
                 $reason = __('أُغلق الحجز على هذه الغرفة لقرب الموعد.');
             }
 
-            $public = $cards->publicRoom($a, $window);
+            if ($reason === null && $window) {
+                $answer = $this->availability->check($a->bookableItem, $window[0], $window[1], 1, (int) $a->partner_business_id, true);
+
+                if (! ($answer['available'] ?? true)) {
+                    $reason = $answer['reason'];
+                }
+            }
+
+            $public = $cards->publicRoom($a, $window, $window ? ($lefts[(int) $a->id] ?? 0) : null, $holds);
 
             return $cards->card($a->bookableItem) + [
                 'choices' => $public['choices'],
@@ -194,6 +221,10 @@ final class UnitDiscoveryController extends Controller
                 'reason' => $reason,
             ];
         })->values()->all();
+
+        $this->availability->forget();
+
+        return $rooms;
     }
 
     /**
@@ -481,7 +512,7 @@ final class UnitDiscoveryController extends Controller
     private function unitPayload(BookableItem $unit, ?array $window, ?BusinessServicePrice $price = null): array
     {
         // «العدد والرقم لكل غرفة لدى الفندق فقط»: a room TYPE with listed rooms is shown by what it is, never by a number.
-        $byType = $unit->item_type === 'booking_stay' && $unit->rooms()->exists();
+        $byType = $unit->item_type === 'booking_stay' && $unit->hasListedRooms();
 
         $payload = [
             'id' => (int) $unit->id,

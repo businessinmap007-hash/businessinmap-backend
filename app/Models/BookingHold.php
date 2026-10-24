@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** A room held for someone who is filling in a booking. See the create_booking_holds migration and {@see \App\Services\BookingHolds}. */
 class BookingHold extends Model
 {
-    protected $fillable = ['bookable_item_id', 'user_id', 'seller_business_id', 'starts_at', 'ends_at', 'quantity', 'expires_at'];
+    protected $fillable = ['bookable_item_id', 'room_id', 'user_id', 'seller_business_id', 'starts_at', 'ends_at', 'quantity', 'expires_at'];
 
     protected $casts = ['starts_at' => 'datetime', 'ends_at' => 'datetime', 'expires_at' => 'datetime'];
 

@@ -138,6 +138,44 @@ class BookableAllocation extends Model
      */
     public function availableQuantity(): int
     {
+        [$from, $to] = $this->lifeWindow();
+
+        return $this->availableFor($from, $to);
+    }
+
+    /**
+     * What is left ahead on MANY allocations at once (two queries, not two each). Each is judged over its own remaining life.
+     *
+     * @param  iterable<BookableAllocation>  $allocations
+     * @return array<int,int> allocation id => rooms left
+     */
+    public static function availableQuantityMany(iterable $allocations): array
+    {
+        $list = collect($allocations)->values();
+
+        if ($list->isEmpty()) {
+            return [];
+        }
+
+        $windows = $list->mapWithKeys(fn ($a) => [(int) $a->id => $a->lifeWindow()]);
+        $from = $windows->min(fn ($w) => $w[0]->timestamp);
+        $to = $windows->max(fn ($w) => $w[1]->timestamp);
+        $sources = self::sourcesOf($list->pluck('id')->map(fn ($id) => (int) $id)->all(), \Illuminate\Support\Carbon::createFromTimestamp($from), \Illuminate\Support\Carbon::createFromTimestamp($to));
+        $left = [];
+
+        foreach ($list as $a) {
+            [$f, $t] = $windows[(int) $a->id];
+            [$f, $t] = self::windowOf($f, $t);
+            $peak = max([0, ...array_values(self::spread($sources[(int) $a->id] ?? [], $f, $t))]);
+            $left[(int) $a->id] = max((int) $a->quantity_total - (int) $a->quantity_released - $peak, 0);
+        }
+
+        return $left;
+    }
+
+    /** The nights still ahead of this allocation, as the look of `availableQuantity`. @return array{0:\Illuminate\Support\Carbon,1:\Illuminate\Support\Carbon} */
+    protected function lifeWindow(): array
+    {
         $from = \Illuminate\Support\Carbon::today();
 
         if ($this->starts_at && $this->starts_at->isAfter($from)) {
@@ -155,7 +193,7 @@ class BookableAllocation extends Model
             $to = $from->copy()->addDays(366);
         }
 
-        return $this->availableFor($from, $to);
+        return [$from, $to];
     }
 
     /**
@@ -166,6 +204,40 @@ class BookableAllocation extends Model
      */
     public function usedPerNight(\Carbon\CarbonInterface $start, \Carbon\CarbonInterface $end): array
     {
+        [$from, $to] = self::windowOf($start, $end);
+
+        return self::spread(self::sourcesOf([(int) $this->id], $from, $to)[(int) $this->id] ?? [], $from, $to);
+    }
+
+    /**
+     * What is left for a stay on MANY allocations at once, in two queries however many there are (a list of rooms used to ask two per row).
+     *
+     * @param  iterable<BookableAllocation>  $allocations
+     * @return array<int,int> allocation id => rooms left
+     */
+    public static function availableForMany(iterable $allocations, \Carbon\CarbonInterface $start, \Carbon\CarbonInterface $end): array
+    {
+        $list = collect($allocations)->values();
+
+        if ($list->isEmpty()) {
+            return [];
+        }
+
+        [$from, $to] = self::windowOf($start, $end);
+        $sources = self::sourcesOf($list->pluck('id')->map(fn ($id) => (int) $id)->all(), $from, $to);
+        $left = [];
+
+        foreach ($list as $a) {
+            $peak = max([0, ...array_values(self::spread($sources[(int) $a->id] ?? [], $from, $to))]);
+            $left[(int) $a->id] = max((int) $a->quantity_total - (int) $a->quantity_released - $peak, 0);
+        }
+
+        return $left;
+    }
+
+    /** @return array{0:\Illuminate\Support\Carbon,1:\Illuminate\Support\Carbon} */
+    private static function windowOf(\Carbon\CarbonInterface $start, \Carbon\CarbonInterface $end): array
+    {
         $from = \Illuminate\Support\Carbon::parse($start)->startOfDay();
         $to = \Illuminate\Support\Carbon::parse($end)->startOfDay();
 
@@ -173,24 +245,44 @@ class BookableAllocation extends Model
             $to = $from->copy()->addDay(); // a stay inside one day holds that day
         }
 
-        $nights = [];
+        return [$from, $to];
+    }
 
-        for ($d = $from->copy(); $d->isBefore($to) && count($nights) < 400; $d->addDay()) {
-            $nights[$d->toDateString()] = 0;
-        }
-
+    /**
+     * The stays and the approved give-backs of these allocations that touch the window, grouped by allocation.
+     *
+     * @param  array<int,int>  $ids
+     * @return array<int,array<int,array{0:mixed,1:mixed,2:int}>>
+     */
+    private static function sourcesOf(array $ids, \Carbon\CarbonInterface $from, \Carbon\CarbonInterface $to): array
+    {
         $sources = [];
 
-        foreach (\App\Models\Booking::query()->where('allocation_id', $this->id)
+        foreach (\App\Models\Booking::query()->whereIn('allocation_id', $ids)
             ->whereNotIn('status', [\App\Models\Booking::STATUS_CANCELLED, \App\Models\Booking::STATUS_REJECTED])
             ->whereNotNull('starts_at')->whereNotNull('ends_at')->where('starts_at', '<', $to)->where('ends_at', '>', $from)
-            ->get(['starts_at', 'ends_at', 'quantity']) as $b) {
-            $sources[] = [$b->starts_at, $b->ends_at, max((int) $b->quantity, 1)];
+            ->get(['allocation_id', 'starts_at', 'ends_at', 'quantity']) as $b) {
+            $sources[(int) $b->allocation_id][] = [$b->starts_at, $b->ends_at, max((int) $b->quantity, 1)];
         }
 
-        foreach (\App\Models\AllocationReleaseRequest::query()->where('allocation_id', $this->id)->where('status', \App\Models\AllocationReleaseRequest::APPROVED)
-            ->where('starts_at', '<', $to)->where('ends_at', '>', $from)->get(['starts_at', 'ends_at', 'quantity']) as $r) {
-            $sources[] = [$r->starts_at, $r->ends_at, (int) $r->quantity];
+        foreach (\App\Models\AllocationReleaseRequest::query()->whereIn('allocation_id', $ids)->where('status', \App\Models\AllocationReleaseRequest::APPROVED)
+            ->where('starts_at', '<', $to)->where('ends_at', '>', $from)->get(['allocation_id', 'starts_at', 'ends_at', 'quantity']) as $r) {
+            $sources[(int) $r->allocation_id][] = [$r->starts_at, $r->ends_at, (int) $r->quantity];
+        }
+
+        return $sources;
+    }
+
+    /**
+     * @param  array<int,array{0:mixed,1:mixed,2:int}>  $sources
+     * @return array<string,int> night => rooms in use
+     */
+    private static function spread(array $sources, \Carbon\CarbonInterface $from, \Carbon\CarbonInterface $to): array
+    {
+        $nights = [];
+
+        for ($d = \Illuminate\Support\Carbon::parse($from); $d->isBefore($to) && count($nights) < 400; $d->addDay()) {
+            $nights[$d->toDateString()] = 0;
         }
 
         foreach ($sources as [$sFrom, $sTo, $qty]) {

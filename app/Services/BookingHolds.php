@@ -34,6 +34,26 @@ final class BookingHolds
     }
 
     /**
+     * The same count for many units at once.
+     *
+     * @param  array<int,int>  $itemIds
+     * @return array<int,int> unit id => rooms held by others
+     */
+    public function heldRoomsMany(array $itemIds, CarbonInterface $start, CarbonInterface $end, ?int $exceptUserId = null): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+
+        return BookingHold::query()->live()
+            ->whereIn('bookable_item_id', $itemIds)
+            ->when($exceptUserId, fn ($q) => $q->where('user_id', '!=', $exceptUserId))
+            ->where('starts_at', '<', $end)->where('ends_at', '>', $start)
+            ->selectRaw('bookable_item_id, SUM(quantity) as rooms')->groupBy('bookable_item_id')
+            ->pluck('rooms', 'bookable_item_id')->map(fn ($n) => (int) $n)->all();
+    }
+
+    /**
      * Hold the room for this user, replacing the hold they already had on it (a new date range moves the hold, it does not add one).
      * The answer is judged under a lock on the room, so two people pressing at the same moment get one hold and one refusal.
      *
@@ -68,8 +88,11 @@ final class BookingHolds
                 throw ValidationException::withMessages(['bookable_id' => $answer['reason'] ?: __('هذه الوحدة غير متاحة الآن.')]);
             }
 
+            // the numbered room this hold is on, when the hotel has listed its rooms: «تحت التعامل: غرفة ١٠٠١»
+            $roomId = app(BookingRoomService::class)->roomForHold($item, $start, $end, $userId);
+
             return BookingHold::query()->create([
-                'bookable_item_id' => (int) $item->id, 'user_id' => $userId, 'seller_business_id' => $sellerBusinessId,
+                'bookable_item_id' => (int) $item->id, 'room_id' => $roomId, 'user_id' => $userId, 'seller_business_id' => $sellerBusinessId,
                 'starts_at' => $start, 'ends_at' => $end, 'quantity' => max($quantity, 1), 'expires_at' => now()->addMinutes($this->minutes()),
             ]);
         });

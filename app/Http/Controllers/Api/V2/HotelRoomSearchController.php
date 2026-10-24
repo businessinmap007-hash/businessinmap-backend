@@ -198,6 +198,7 @@ final class HotelRoomSearchController extends Controller
 
         $units = BookableItem::query()
             ->with(['lineOption:id,name_ar,name_en', 'images', 'offeringOptions', 'service'])
+            ->withCount('rooms')
             ->whereIn('business_id', $hotels->pluck('id'))->where('item_type', 'booking_stay')->where('is_active', 1)
             ->where('status', '!=', BookableItem::STATUS_MAINTENANCE)
             ->orderBy('id')->get()
@@ -205,6 +206,12 @@ final class HotelRoomSearchController extends Controller
             ->groupBy('business_id');
 
         $nights = $window ? max((int) $window[0]->diffInDays($window[1]), 1) : null;
+
+        // the free-or-not question for every type of every hotel is read here once, not once per type
+        if ($window) {
+            $this->availability->preload($units->flatten(), $window[0], $window[1]);
+        }
+
         $offers = $this->partnerOffers($units->flatten()->pluck('id')->all(), $nights, $window);
         $rows = collect();
 
@@ -278,6 +285,8 @@ final class HotelRoomSearchController extends Controller
             }
         }
 
+        $this->availability->forget();
+
         return $rows;
     }
 
@@ -298,10 +307,11 @@ final class HotelRoomSearchController extends Controller
         $allocations = BookableAllocation::query()->active()->whereIn('bookable_item_id', $unitIds)->get();
         $sellers = User::query()->whereIn('id', $allocations->pluck('partner_business_id')->filter())->get(['id', 'name'])->keyBy('id');
         $out = [];
+        $lefts = $window ? BookableAllocation::availableForMany($allocations, \Illuminate\Support\Carbon::parse($window[0]), \Illuminate\Support\Carbon::parse($window[1])) : [];
 
         foreach ($allocations as $allocation) {
             // rooms per night: with a stay, what its busiest night leaves
-            $left = $window ? $allocation->availableFor($window[0], $window[1]) : $allocation->availableQuantity();
+            $left = $window ? ($lefts[(int) $allocation->id] ?? 0) : $allocation->availableQuantity();
 
             if ($left <= 0) {
                 continue;

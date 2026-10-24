@@ -1175,10 +1175,10 @@ class ServiceExecutionEngine
             return null;
         }
 
-        return \App\Models\PlatformServiceItemType::query()
+        return \App\Support\RequestMemo::remember('item-types', (int) $bookable->service_id . ':' . $itemType, fn () => \App\Models\PlatformServiceItemType::query()
             ->where('platform_service_id', (int) $bookable->service_id)
             ->where('key', $itemType)
-            ->first()?->granularity();
+            ->first()?->granularity());
     }
 
     /**

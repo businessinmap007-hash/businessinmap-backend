@@ -346,6 +346,7 @@ class PromotionsTest extends TestCase
 
         // fifteen days after the rise the big one may be discounted
         \App\Models\OfferingPriceChange::query()->where('priceable_id', $big->id)->update(['changed_at' => now()->subDays(16)]);
+        \App\Support\RequestMemo::bump('price-history'); // a bulk update fires no model event
         $cart = $this->cart();
         $this->assertEquals(12.0, $this->line($cart, $big)['discount']);
     }

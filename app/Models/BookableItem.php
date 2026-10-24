@@ -79,6 +79,8 @@ class BookableItem extends Model
         'code',
         'capacity',
         'quantity',
+        // rooms of the type the hotel keeps back for its own guests in peak: a partner sells the type only up to the stock less this
+        'reserve_rooms',
 
         'is_active',
         'status',
@@ -92,6 +94,7 @@ class BookableItem extends Model
         'line_option_id' => 'integer',
         'capacity' => 'integer',
         'quantity' => 'integer',
+        'reserve_rooms' => 'integer',
 
         'is_active' => 'boolean',
         'meta' => 'array',
@@ -131,7 +134,17 @@ class BookableItem extends Model
     {
         // `quantity` is kept equal to the rooms available by BookingRoomService::syncQuantity, so a hotel with listed rooms reads 0 when
         // every one is closed; a hotel with none keeps the old floor of one
-        return $this->rooms()->exists() ? max((int) $this->quantity, 0) : max((int) ($this->quantity ?? 1), 1);
+        return $this->hasListedRooms() ? max((int) $this->quantity, 0) : max((int) ($this->quantity ?? 1), 1);
+    }
+
+    /** Has the hotel listed numbered rooms behind this type? Read from the count or the relation when a list loaded them, so a page of types asks once. */
+    public function hasListedRooms(): bool
+    {
+        if (array_key_exists('rooms_count', $this->attributes)) {
+            return (int) $this->attributes['rooms_count'] > 0;
+        }
+
+        return $this->relationLoaded('rooms') ? $this->rooms->isNotEmpty() : $this->rooms()->exists();
     }
 
     public function lineOption(): BelongsTo

@@ -112,6 +112,8 @@ final class OccupancyBoard
                 'starts_at' => $h->starts_at->format('Y-m-d H:i:s'),
                 'ends_at' => $h->ends_at->format('Y-m-d H:i:s'),
                 'quantity' => (int) $h->quantity,
+                // the room NUMBER being dealt with (the hotel's eyes only): the clash between two sellers is always over one number
+                'room' => $h->room_id ? (string) optional($u->rooms->firstWhere('id', (int) $h->room_id))->number : null,
                 'minutes_left' => max((int) now()->diffInMinutes($h->expires_at, false), 0),
                 // through whom: the hotel's own booking screen (null) or a company that was given the room
                 'seller' => $h->seller_business_id && (int) $h->seller_business_id !== (int) $u->business_id ? optional($h->seller)->name : null,

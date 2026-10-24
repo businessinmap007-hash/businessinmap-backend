@@ -178,6 +178,12 @@ final class PromotionPricing
     /** The day the item may be discounted again, or null if it may be now. */
     public function eligibleFrom(string $type, int $id): ?Carbon
     {
+        // asked once per room and per card of the same price row in one page: read once
+        return \App\Support\RequestMemo::remember('price-history', $type . ':' . $id, fn () => $this->readEligibleFrom($type, $id));
+    }
+
+    private function readEligibleFrom(string $type, int $id): ?Carbon
+    {
         $model = $type::query()->find($id);
 
         if (! $model) {

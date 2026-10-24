@@ -141,6 +141,7 @@ class HotelOffersTest extends TestCase
         $this->assertEquals(0.0, $this->breakdown(2)['offer_discount_amount']);
 
         \App\Models\OfferingPriceChange::query()->where('priceable_id', $this->price->id)->update(['changed_at' => now()->subDays(16)]);
+        \App\Support\RequestMemo::bump('price-history'); // a bulk update fires no model event
         $this->assertEquals(520.0, $this->breakdown(2)['offer_discount_amount']);
     }
 

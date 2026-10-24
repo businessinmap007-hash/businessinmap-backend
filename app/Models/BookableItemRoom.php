@@ -24,6 +24,12 @@ class BookableItemRoom extends Model
         'business_id' => 'integer',
     ];
 
+    /** The options (views, beds…) this very room carries, from the hotel's feature vocabulary. */
+    public function features(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Option::class, 'bookable_item_room_features', 'room_id', 'option_id')->withTimestamps();
+    }
+
     public function item(): BelongsTo
     {
         return $this->belongsTo(BookableItem::class, 'bookable_item_id');

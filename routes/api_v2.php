@@ -1129,6 +1129,8 @@ Route::prefix('v2')->group(function () {
         Route::prefix('business/bookable-items/{item}/rooms')->middleware('business.member:' . BusinessCapability::BOOKINGS)->whereNumber('item')->group(function () {
             Route::get('/', [BusinessBookableRoomController::class, 'index']);
             Route::post('/', [BusinessBookableRoomController::class, 'store']);
+            Route::get('{room}/features', [BusinessBookableRoomController::class, 'features'])->whereNumber('room');
+            Route::put('{room}/features', [BusinessBookableRoomController::class, 'updateFeatures'])->whereNumber('room');
             Route::patch('{room}', [BusinessBookableRoomController::class, 'update'])->whereNumber('room');
             Route::delete('{room}', [BusinessBookableRoomController::class, 'destroy'])->whereNumber('room');
         });

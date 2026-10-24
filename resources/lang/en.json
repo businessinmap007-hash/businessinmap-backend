@@ -3342,6 +3342,8 @@
     "لديك حجوزات مؤقتة كثيرة. أكمل حجزًا منها أو انتظر انتهاءها.": "You hold too many rooms at once. Finish one of those bookings or wait for them to expire.",
     "هذه الغرفة محجوزة لشريك للفندق. يمكنك طلب تحريرها منه.": "This room is held for one of the hotel's partners. You can ask for it to be released.",
     "هذه الغرف محجوزة احتياطيًا لنزلاء الفندق.": "These rooms are kept in reserve for the hotel's own guests.",
+    "لا توجد غرفة متاحة بالمواصفات المطلوبة (:names) في هذه الليالي.": "No room with the requested features (:names) is available on these nights.",
+    "لا توجد غرفة حرة بالمواصفات المطلوبة (:names). اختر غرفة بنفسك.": "No free room carries the requested features (:names). Choose a room yourself.",
     "الغرفة متاحة الآن، لا حاجة لطلب تحرير.": "The room is available now; there is no need to ask for a release.",
     "لا يوجد شريك يمكنه تحرير هذه الغرفة.": "No partner can release this room.",
     "انتهى هذا الطلب أو أُجيب عليه.": "This request has expired or has been answered.",

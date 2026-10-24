@@ -39,7 +39,15 @@ final class UnitChoices
          * نظامُ الوجبات يسكن النشاطَ نفسه — سعرٌ ثابت لا يتغيّر بنوع الغرفة —
          * وما يخصّ نوعًا بعينه يبقى على سطره. والسطرُ يغلب عند التكرار.
          */
-        $rows = \App\Support\RequestMemo::remember('offering-options', (int) $price->id . '|' . $declared->sort()->implode(','), fn () => OfferingOption::query()
+        // a hotel that lists numbered rooms can sell a feature (a view) only if some open room carries it
+        $rooms = app(\App\Services\BookingRoomService::class);
+        $listed = $inKind->filter(fn (BookableItem $u) => $u->hasListedRooms())->pluck('id')->map(fn ($id) => (int) $id)->sort()->values();
+        $carried = $listed->isEmpty() ? null : \App\Support\RequestMemo::remember('offering-options', 'carried:' . $listed->implode(','), fn () => \App\Models\BookableItemRoomFeature::query()
+            ->whereIn('room_id', \App\Models\BookableItemRoom::query()->whereIn('bookable_item_id', $listed->all())->where('status', \App\Models\BookableItemRoom::STATUS_AVAILABLE)->select('id'))
+            ->pluck('option_id')->map(fn ($id) => (int) $id)->unique()->all());
+        $features = $carried === null ? [] : $rooms->featureVocabularyIds((int) $price->business_id);
+
+        $rows = \App\Support\RequestMemo::remember('offering-options', (int) $price->id . '|' . $declared->sort()->implode(',') . '|' . $listed->implode(','), fn () => OfferingOption::query()
             ->where('role', OfferingOption::ROLE_MODIFIER)
             // مُوصِّفٌ بقيمة صفر يوصِّف ولا يُسعِّر، فلا شأن لشاشة الاختيار به.
             ->where('adjust_value', '!=', 0)
@@ -59,6 +67,10 @@ final class UnitChoices
             ->groupBy('option_id')
             ->map(fn ($group) => $group->firstWhere('offering_type', $price->getMorphClass()) ?: $group->first())
             ->values());
+
+        if ($carried !== null) {
+            $rows = $rows->reject(fn (OfferingOption $row) => in_array((int) $row->option_id, $features, true) && ! in_array((int) $row->option_id, $carried, true))->values();
+        }
 
         return $rows->map(fn (OfferingOption $row) => [
             'option_id' => (int) $row->option_id,

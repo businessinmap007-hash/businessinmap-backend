@@ -578,6 +578,7 @@ final class BookingController extends Controller
             max((int) ($data['quantity'] ?? 1), 1),
             ($calc['allocation'] ?? null) ? (int) $calc['allocation']->partner_business_id : null
         );
+        app(\App\Services\BookingRoomService::class)->assertFeaturesAvailable($bookable, $data['starts_at'] ?? null, $data['ends_at'] ?? null, max((int) ($data['quantity'] ?? 1), 1), (array) ($data['option_ids'] ?? []));
 
         if ($bookable && ! $bookable->allowsOrigin($data['guest_origin'] ?? null)) {
             throw ValidationException::withMessages(['guest_origin' => $bookable->guest_scope === \App\Models\BookableItem::SCOPE_LOCALS
@@ -674,6 +675,7 @@ final class BookingController extends Controller
                     $quantity,
                     $allocation ? (int) $allocation->partner_business_id : null
                 );
+                app(\App\Services\BookingRoomService::class)->assertFeaturesAvailable($bookable, $payload['starts_at'], $payload['ends_at'], $quantity, (array) ($data['option_ids'] ?? []));
             }
 
             if ($courseGroupId !== null) {

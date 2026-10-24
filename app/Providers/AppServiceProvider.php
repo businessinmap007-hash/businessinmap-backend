@@ -61,6 +61,8 @@ class AppServiceProvider extends ServiceProvider
         \App\Support\RequestMemo::watch(\App\Models\BusinessServicePrice::class, 'prices');
         \App\Support\RequestMemo::watch(\App\Models\User::class, 'prices');
         \App\Support\RequestMemo::watch(\App\Models\OfferingOption::class, 'offering-options');
+        \App\Support\RequestMemo::watch(\App\Models\BookableItemRoomFeature::class, 'offering-options');
+        \App\Support\RequestMemo::watch(\App\Models\BookableItemRoom::class, 'offering-options');
 
         Carbon::setLocale('ar');
 

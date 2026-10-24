@@ -146,7 +146,7 @@ class SharedPoolAndRoomNumbersTest extends TestCase
         }
 
         $blocked = $this->book($this->guests[3], $this->agency)->assertStatus(422);
-        $this->assertStringContainsString('احتياطيًا', (string) $blocked->json('errors.bookable_id.0'));
+        $this->assertSame(__('هذه الغرف محجوزة احتياطيًا لنزلاء الفندق.'), (string) $blocked->json('errors.bookable_id.0'));
 
         // the same two rooms are still on sale to the hotel's own guests
         $this->book($this->guests[3], $this->hotel)->assertCreated();

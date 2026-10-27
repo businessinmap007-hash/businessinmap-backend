@@ -294,6 +294,10 @@ class RoomNumberFeaturesTest extends TestCase
         $this->assertSame([[], [self::POOL_VIEW], [$this->seaView]], $rooms->map(fn ($r) => $r['option_ids'] ?? [])->all());
         $choices = collect($rooms[0]['choices'])->pluck('option_id')->map(fn ($i) => (int) $i)->all();
         $this->assertNotContains(self::POOL_VIEW, $choices, 'a view is a card, not a tick');
+        $plan = collect($rooms[0]['choices'])->firstWhere('option_id', self::BREAKFAST);
+        $this->assertTrue($plan['single'], 'the meal plan is one choice — a radio');
+        $this->assertNotEmpty($plan['group']);
+        $this->assertContains('إطلالة على المسبح', $rooms[1]['features'], 'the card names its view, so the total shows one room line');
 
         // booked through the partner with the card's features, it is paid at the card's price per night
         $res = $this->postJson('/api/v2/bookings', [

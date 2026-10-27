@@ -61,7 +61,7 @@ final class UnitChoices
                         ->where('offering_id', (int) $price->business_id);
                 });
             })
-            ->with('option:id,name_ar,name_en')
+            ->with('option:id,name_ar,name_en,group_id', 'option.group:id,name_ar,name_en')
             ->orderBy('sort_order')->orderBy('id')
             ->get()
             ->groupBy('option_id')
@@ -74,7 +74,14 @@ final class UnitChoices
             $rows = $rows->reject(fn (OfferingOption $row) => in_array((int) $row->option_id, $features, true) && ($featuresAsVariants || ! in_array((int) $row->option_id, $carried, true)))->values();
         }
 
+        // «نظام الوجبات» is one choice (a radio) unless the hotel said otherwise — the same setting the hotel's own form reads
+        $selection = \App\Models\OfferingOptionGroupSetting::forOwnOffering((new User)->getMorphClass(), (int) $price->business_id);
+
         return $rows->map(fn (OfferingOption $row) => [
+            'group_id' => (int) ($row->option->group_id ?? 0) ?: null,
+            'group' => $this->say($row->option?->group),
+            'single' => ($gid = (int) ($row->option->group_id ?? 0)) > 0
+                && ($selection[$gid] ?? \App\Models\OfferingOptionGroupSetting::defaultFor($gid)) === \App\Models\OfferingOptionGroupSetting::SELECTION_SINGLE,
             'option_id' => (int) $row->option_id,
             'name' => $this->say($row->option),
             'adjust_type' => (string) $row->adjust_type,

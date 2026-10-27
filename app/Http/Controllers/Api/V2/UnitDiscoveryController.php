@@ -266,6 +266,7 @@ final class UnitDiscoveryController extends Controller
             }
 
             $variant['label'] = $words === [] ? ($room['label'] ?? '') : (($room['label'] ?? '') . ' · ' . implode('، ', $words));
+            $variant['features'] = array_values(array_unique(array_merge($room['features'] ?? [], $words)));
             $variant['price'] = round((float) $room['price'] + $extra, 2);
             $variant['option_ids'] = array_map('intval', $set);
 

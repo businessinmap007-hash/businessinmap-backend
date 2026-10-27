@@ -257,9 +257,13 @@ final class AllocationService
     {
         $unit->loadMissing('lineOption:id,name_ar,name_en');
 
+        // a room type whose rooms the hotel numbered is shown by what it is («غرفة فردية»), never by the hotel's own code — the same rule
+        // as the hotel's page (UnitDiscoveryController::unitPayload)
+        $byType = $unit->item_type === 'booking_stay' && $unit->hasListedRooms() && $unit->lineOption;
+
         return [
             'unit_id' => (int) $unit->id,
-            'label' => (string) $unit->displayLabel(),
+            'label' => $byType ? (string) ($unit->lineOption->name_ar ?: $unit->lineOption->name_en) : (string) $unit->displayLabel(),
             'kind' => $unit->lineOption ? (string) ($unit->lineOption->name_ar ?: $unit->lineOption->name_en) : null,
             'description' => $unit->description,
             'capacity' => $unit->capacity !== null ? (int) $unit->capacity : null,

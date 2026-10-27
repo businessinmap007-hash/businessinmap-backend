@@ -265,6 +265,32 @@ class RoomNumberFeaturesTest extends TestCase
         $this->assertSame('103', app(BookingRoomService::class)->assign(Booking::find($withView->id), $this->rooms['103']->id)->number);
     }
 
+    public function test_a_room_takes_the_guests_its_capacity_says(): void
+    {
+        $this->unit->update(['capacity' => 1]);
+
+        // a single room, one guest: more is refused with the number it takes
+        Sanctum::actingAs($this->guest);
+        $body = [
+            'business_id' => $this->hotel->id, 'service_id' => $this->serviceId, 'bookable_id' => $this->unit->id, 'quantity' => 1,
+            'starts_at' => $this->start->toDateTimeString(), 'ends_at' => $this->start->copy()->addDays(2)->toDateTimeString(),
+        ];
+        $this->postJson('/api/v2/bookings', $body + ['party_size' => 2])->assertStatus(422)->assertJsonValidationErrors(['party_size']);
+        $this->postJson('/api/v2/bookings/preview', $body + ['party_size' => 2])->assertStatus(422)->assertJsonValidationErrors(['party_size']);
+        $this->assertSame(0, Booking::query()->where('bookable_id', $this->unit->id)->count());
+
+        $this->postJson('/api/v2/bookings', $body + ['party_size' => 1])->assertCreated();
+
+        // two rooms of a double take four; a type that states no capacity limits nothing
+        $this->unit->update(['capacity' => 2]);
+        Sanctum::actingAs($this->guest2);
+        $later = ['starts_at' => $this->start->copy()->addDays(10)->toDateTimeString(), 'ends_at' => $this->start->copy()->addDays(12)->toDateTimeString()] + $body;
+        $this->postJson('/api/v2/bookings', ['quantity' => 2, 'party_size' => 5] + $later)->assertStatus(422)->assertJsonValidationErrors(['party_size']);
+        $this->postJson('/api/v2/bookings', ['quantity' => 2, 'party_size' => 4] + $later)->assertCreated();
+        $this->unit->update(['capacity' => null]);
+        $this->assertNull($this->unit->fresh()->guestLimit(3));
+    }
+
     public function test_the_hotel_sees_what_the_guest_asked_for_and_which_free_rooms_match(): void
     {
         $this->tick('102', [self::POOL_VIEW])->assertOk();

@@ -177,6 +177,8 @@ final class BookingController extends Controller
             dayUse: ! empty($data['day_use']),
         );
 
+        $this->assertGuestsFit($calc['bookable'] ?? null, $data);
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -185,6 +187,22 @@ final class BookingController extends Controller
                 'availability' => $calc['availability'],
             ],
         ]);
+    }
+
+    /**
+     * «Number of guests»: a room takes the guests its capacity says — one in a single, two in a double — times the rooms booked. More is
+     * refused, with the number the room can take (children are the hotel's own rule and are not counted here).
+     *
+     * @param  array<string,mixed>  $data
+     */
+    private function assertGuestsFit(?\App\Models\BookableItem $bookable, array $data): void
+    {
+        $limit = $bookable?->guestLimit(max((int) ($data['quantity'] ?? 1), 1));
+        $party = max((int) ($data['party_size'] ?? 1), 1);
+
+        if ($limit !== null && $party > $limit) {
+            throw ValidationException::withMessages(['party_size' => __('عدد النزلاء أكبر مما تتسع له الغرفة (:max).', ['max' => $limit])]);
+        }
     }
 
     /**
@@ -586,6 +604,7 @@ final class BookingController extends Controller
             ($calc['allocation'] ?? null) ? (int) $calc['allocation']->partner_business_id : null
         );
         app(\App\Services\BookingRoomService::class)->assertFeaturesAvailable($bookable, $data['starts_at'] ?? null, $data['ends_at'] ?? null, max((int) ($data['quantity'] ?? 1), 1), (array) ($data['option_ids'] ?? []));
+        $this->assertGuestsFit($bookable, $data);
 
         if ($bookable && ! $bookable->allowsOrigin($data['guest_origin'] ?? null)) {
             throw ValidationException::withMessages(['guest_origin' => $bookable->guest_scope === \App\Models\BookableItem::SCOPE_LOCALS

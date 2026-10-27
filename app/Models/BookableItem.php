@@ -137,6 +137,15 @@ class BookableItem extends Model
         return $this->hasListedRooms() ? max((int) $this->quantity, 0) : max((int) ($this->quantity ?? 1), 1);
     }
 
+    /**
+     * How many guests this room type can take for a stay of $rooms rooms: its capacity («فردية ١، زوجية ٢، ثلاثية ٣») times the rooms
+     * booked. Null when the type states no capacity, or is not a stay — nothing then limits the party.
+     */
+    public function guestLimit(int $rooms = 1): ?int
+    {
+        return $this->item_type === 'booking_stay' && (int) $this->capacity > 0 ? (int) $this->capacity * max($rooms, 1) : null;
+    }
+
     /** Has the hotel listed numbered rooms behind this type? Read from the count or the relation when a list loaded them, so a page of types asks once. */
     public function hasListedRooms(): bool
     {

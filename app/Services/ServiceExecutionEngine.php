@@ -76,7 +76,9 @@ class ServiceExecutionEngine
         int $partySize = 1,
         // «Day use»: the room type is sold for a window of one day at the flat price its hotel named — see
         // BookingDayUseService. The window itself arrives as [$pricingDate, $until].
-        bool $dayUse = false
+        bool $dayUse = false,
+        // «سياسة الأطفال»: the ages of the children of a stay, priced by the hotel's age bands (ChildPricing)
+        array $childrenAges = []
     ): array {
         $quantity = max($quantity, 1);
 
@@ -261,6 +263,11 @@ class ServiceExecutionEngine
          * لا وديعةَ فى حجزٍ عبر تخصيص — شروطُه بين الشريكين فى عقد الشراكة،
          * لا مبلغًا يُجمَّد من محفظة العميل النهائى.
          */
+        // the children of a stay, by the hotel's age bands: a share of every night and of the meal plan (ChildPricing)
+        if (! $dayUse && $childrenAges !== []) {
+            $priceBreakdown = app(\App\Services\Hotels\ChildPricing::class)->apply($priceBreakdown, $bookable, $childrenAges);
+        }
+
         $depositPolicy = $allocation ? [
             'service_supports_deposit' => (bool) ($service->supports_deposit ?? false),
             'required' => false,
@@ -323,7 +330,8 @@ class ServiceExecutionEngine
         // service/item combo with more than one price row could preview a
         // different row than the one `store()` ultimately books.
         ?int $offeringId = null,
-        bool $dayUse = false
+        bool $dayUse = false,
+        array $childrenAges = []
     ): array {
         $calc = $this->prepare(
             businessId: $businessId,
@@ -337,7 +345,8 @@ class ServiceExecutionEngine
             optionIds: $optionIds,
             until: $endsAt,
             partySize: $partySize,
-            dayUse: $dayUse
+            dayUse: $dayUse,
+            childrenAges: $childrenAges
         );
 
         $availability = null;

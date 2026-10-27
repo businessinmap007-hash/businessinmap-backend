@@ -1138,6 +1138,9 @@ Route::prefix('v2')->group(function () {
         // whole business; and which features a given room carries.
         Route::middleware('business.member:' . BusinessCapability::BOOKINGS)->group(function () {
             Route::get('business/booking-add-ons', [BusinessBookingAddOnsController::class, 'show']);
+            // «سياسة الأطفال»: age bands and the share of the night a child pays
+            Route::get('business/child-policy', [\App\Http\Controllers\Api\V2\BusinessChildPolicyController::class, 'show']);
+            Route::put('business/child-policy', [\App\Http\Controllers\Api\V2\BusinessChildPolicyController::class, 'update']);
             Route::put('business/booking-add-ons', [BusinessBookingAddOnsController::class, 'update']);
             Route::get('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'show'])->whereNumber('item');
             Route::put('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'update'])->whereNumber('item');

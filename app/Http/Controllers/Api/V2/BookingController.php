@@ -140,6 +140,8 @@ final class BookingController extends Controller
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'quantity' => ['nullable', 'integer', 'min:1'],
             'party_size' => ['nullable', 'integer', 'min:1'],
+            'children_ages' => ['nullable', 'array', 'max:10'],
+            'children_ages.*' => ['integer', 'min:0', 'max:17'],
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer'],
             'day_use' => ['nullable', 'boolean'],
@@ -175,6 +177,7 @@ final class BookingController extends Controller
             partySize: max((int) ($data['party_size'] ?? 1), 1),
             offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null,
             dayUse: ! empty($data['day_use']),
+            childrenAges: (array) ($data['children_ages'] ?? []),
         );
 
         $this->assertGuestsFit($calc['bookable'] ?? null, $data);
@@ -191,7 +194,7 @@ final class BookingController extends Controller
 
     /**
      * «Number of guests»: a room takes the guests its capacity says — one in a single, two in a double — times the rooms booked. More is
-     * refused, with the number the room can take (children are the hotel's own rule and are not counted here).
+     * refused, with the number the room can take. A child counts from the age the hotel's «سياسة الأطفال» names.
      *
      * @param  array<string,mixed>  $data
      */
@@ -199,6 +202,13 @@ final class BookingController extends Controller
     {
         $limit = $bookable?->guestLimit(max((int) ($data['quantity'] ?? 1), 1));
         $party = max((int) ($data['party_size'] ?? 1), 1);
+
+        // «الأطفال يُحسبون من السعة من عمر محدد»: by the hotel's policy; a hotel with none counts no child
+        $policy = $bookable && $limit !== null ? \App\Models\ChildPolicy::forBusiness((int) $bookable->business_id) : null;
+
+        if ($policy) {
+            $party += count(array_filter(array_map('intval', (array) ($data['children_ages'] ?? [])), fn ($age) => $policy->counts($age)));
+        }
 
         if ($limit !== null && $party > $limit) {
             throw ValidationException::withMessages(['party_size' => __('عدد النزلاء أكبر مما تتسع له الغرفة (:max).', ['max' => $limit])]);
@@ -590,7 +600,9 @@ final class BookingController extends Controller
             until: $data['ends_at'] ?? null,
             // وعددُ النزلاء، لأن «إفطار لكل فرد» يُضرب فيه.
             partySize: max((int) ($data['party_size'] ?? 1), 1),
-            dayUse: $dayUse
+            dayUse: $dayUse,
+            // and the children's ages, priced by the hotel's «سياسة الأطفال»
+            childrenAges: (array) ($data['children_ages'] ?? []),
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -675,6 +687,8 @@ final class BookingController extends Controller
                 'created_by_user_id' => (int) $user->id,
                 // what the customer ticked: a reschedule prices the new window with the same choices
                 'requested_option_ids' => array_values(array_map('intval', $data['option_ids'] ?? [])),
+                // the children's ages: priced by the hotel's policy, kept so a new window is priced the same way
+                'children_ages' => array_values(array_map('intval', $data['children_ages'] ?? [])),
                 // what the guest declared for a scoped room; the hotel asks for the papers on arrival
                 'guest_origin' => ($bookable && $bookable->guest_scope !== \App\Models\BookableItem::SCOPE_ALL) ? ($data['guest_origin'] ?? null) : null,
             ]),
@@ -1245,6 +1259,7 @@ final class BookingController extends Controller
                     until: $end,
                     partySize: max((int) ($booking->party_size ?: 1), 1),
                     dayUse: (bool) ($meta['day_use'] ?? false),
+                    childrenAges: (array) ($meta['children_ages'] ?? []),
                 );
 
                 $update['price'] = (float) data_get($calc, 'price_breakdown.final_price', $booking->price);
@@ -1960,6 +1975,8 @@ final class BookingController extends Controller
             'time' => ['nullable', 'date_format:H:i'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'children_ages' => ['nullable', 'array', 'max:10'],
+            'children_ages.*' => ['integer', 'min:0', 'max:17'],
             'duration_value' => ['nullable', 'integer', 'min:1'],
             'duration_unit' => ['nullable', Rule::in(['minute', 'hour', 'day', 'night'])],
             'all_day' => ['nullable', 'boolean'],

@@ -1,0 +1,70 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * A hotel's «سياسة الأطفال»: age bands with the percentage of the night's price a child pays (0 = free), the age from which a child
+ * takes a place in the room's capacity, the age from which a guest is an adult, and whether a child's meals follow the same percentage.
+ */
+class ChildPolicy extends Model
+{
+    protected $fillable = ['business_id', 'adult_from_age', 'counts_from_age', 'meals_follow', 'bands'];
+
+    protected $casts = [
+        'business_id' => 'integer',
+        'adult_from_age' => 'integer',
+        'counts_from_age' => 'integer',
+        'meals_follow' => 'boolean',
+        'bands' => 'array',
+    ];
+
+    public static function forBusiness(int $businessId): ?self
+    {
+        return $businessId > 0 ? static::query()->where('business_id', $businessId)->first() : null;
+    }
+
+    /** Is a guest of this age an adult (inside the room's own price, counted like any guest)? */
+    public function isAdult(int $age): bool
+    {
+        return $age >= (int) $this->adult_from_age;
+    }
+
+    /** Does a child of this age take a place in the room's capacity? */
+    public function counts(int $age): bool
+    {
+        return $age >= (int) $this->counts_from_age;
+    }
+
+    /** The percentage of the night's price a child of this age pays; an age no band covers pays nothing. */
+    public function percentFor(int $age): float
+    {
+        if ($this->isAdult($age)) {
+            return 0.0; // an adult is inside the room's own price
+        }
+
+        foreach ((array) $this->bands as $band) {
+            if ($age >= (int) ($band['from'] ?? 0) && $age <= (int) ($band['to'] ?? -1)) {
+                return max(min((float) ($band['percent'] ?? 0), 100), 0);
+            }
+        }
+
+        return 0.0;
+    }
+
+    /** @return array<string,mixed> the policy as the app reads it */
+    public function payload(): array
+    {
+        return [
+            'adult_from_age' => (int) $this->adult_from_age,
+            'counts_from_age' => (int) $this->counts_from_age,
+            'meals_follow' => (bool) $this->meals_follow,
+            'bands' => array_values(array_map(fn ($b) => [
+                'from' => (int) ($b['from'] ?? 0),
+                'to' => (int) ($b['to'] ?? 0),
+                'percent' => (float) ($b['percent'] ?? 0),
+            ], (array) $this->bands)),
+        ];
+    }
+}

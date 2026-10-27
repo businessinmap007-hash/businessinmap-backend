@@ -146,6 +146,8 @@ final class UnitDiscoveryController extends Controller
                 // «غرف الشركاء»: rooms another business (a hotel) gave this one to sell — at THIS business's own price. The contract
                 // price, the quantities and the terms are the two parties' alone and never appear here.
                 'partner_rooms' => $this->partnerRooms((int) $biz->id, $window),
+                // «سياسة الأطفال» of this hotel: the app asks each child's age and says what it pays
+                'child_policy' => \App\Models\ChildPolicy::forBusiness((int) $biz->id)?->payload(),
                 // «بالموعد» or «بالدور»: how this business takes its appointments
                 'flow' => \App\Services\AppointmentQueue::flowOf((int) $biz->id),
                 // «أشكال الحجز»: how this trade page is drawn (sections or a flat list, what is shown, in what order).
@@ -205,6 +207,8 @@ final class UnitDiscoveryController extends Controller
             $public = $cards->publicRoom($a, $window, $window ? ($lefts[(int) $a->id] ?? 0) : null, $holds, true);
 
             $room = $cards->card($a->bookableItem) + [
+                // the hotel's «سياسة الأطفال» goes with its room, whoever sells it
+                'child_policy' => \App\Models\ChildPolicy::forBusiness((int) $a->owner_business_id)?->payload(),
                 'choices' => $public['choices'],
                 'my_hold' => $public['my_hold'],
                 'offer' => $public['offer'],

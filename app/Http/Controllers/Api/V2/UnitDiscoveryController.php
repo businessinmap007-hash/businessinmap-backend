@@ -202,9 +202,9 @@ final class UnitDiscoveryController extends Controller
                 }
             }
 
-            $public = $cards->publicRoom($a, $window, $window ? ($lefts[(int) $a->id] ?? 0) : null, $holds);
+            $public = $cards->publicRoom($a, $window, $window ? ($lefts[(int) $a->id] ?? 0) : null, $holds, true);
 
-            return $cards->card($a->bookableItem) + [
+            $room = $cards->card($a->bookableItem) + [
                 'choices' => $public['choices'],
                 'my_hold' => $public['my_hold'],
                 'offer' => $public['offer'],
@@ -222,11 +222,69 @@ final class UnitDiscoveryController extends Controller
                 'available' => $reason === null,
                 'reason' => $reason,
             ];
-        })->values()->all();
+
+            return $this->partnerKinds($a, $room, $window);
+        })->flatten(1)->values()->all();
 
         $this->availability->forget();
 
         return $rooms;
+    }
+
+    /**
+     * A room a partner sells whose numbered rooms differ («إطلالة بحر»، «إطلالة مسبح») is shown as one card per kind, each at the partner's
+     * price plus what that kind carries (the hotel's listed price of the view): «غرفة فردية · إطلالة بحرية — 1400». The card names the features
+     * it was priced with (`option_ids`) and the booking carries them, so the hotel gives a number that has them when the stay starts.
+     *
+     * @param  array<string,mixed>  $room
+     * @param  array{0:string,1:string}|null  $window
+     * @return array<int,array<string,mixed>>
+     */
+    private function partnerKinds(\App\Models\BookableAllocation $a, array $room, ?array $window): array
+    {
+        $unit = $a->bookableItem;
+        $rooms = app(\App\Services\BookingRoomService::class);
+        $kinds = $rooms->roomKinds($unit);
+
+        if (! $unit->hasListedRooms() || collect($kinds)->every(fn ($ids) => $ids === [])) {
+            return [$room];
+        }
+
+        $hotel = \App\Models\User::query()->find((int) $a->owner_business_id);
+        $prices = $hotel ? $hotel->currentOfferingAdjustments() : [];
+        $names = \App\Models\Option::query()->whereIn('id', collect($kinds)->flatten()->unique()->all() ?: [0])->get(['id', 'name_ar', 'name_en'])->keyBy('id');
+        $out = [];
+
+        foreach ($kinds as $set) {
+            $variant = $room;
+            $words = array_values(array_filter(array_map(fn ($id) => isset($names[$id]) ? ($names[$id]->name_ar ?: $names[$id]->name_en) : null, $set)));
+            $extra = 0.0;
+
+            foreach ($set as $id) {
+                $row = $prices[$id] ?? null;
+                $extra += $row ? (($row['type'] ?? 'amount') === 'percent' ? $room['price'] * (float) $row['value'] / 100 : (float) $row['value']) : 0.0;
+            }
+
+            $variant['label'] = $words === [] ? ($room['label'] ?? '') : (($room['label'] ?? '') . ' · ' . implode('، ', $words));
+            $variant['price'] = round((float) $room['price'] + $extra, 2);
+            $variant['option_ids'] = array_map('intval', $set);
+
+            // a view is sold only while some room that carries it is free on every night of the stay
+            if ($window && ($variant['available'] ?? false) && $set !== []) {
+                try {
+                    $rooms->assertFeaturesAvailable($unit, $window[0], $window[1], 1, $set);
+                } catch (\Illuminate\Validation\ValidationException $e) {
+                    $variant['available'] = false;
+                    $variant['reason'] = collect($e->errors())->flatten()->first();
+                }
+            }
+
+            $out[] = $variant;
+        }
+
+        usort($out, fn ($x, $y) => $x['price'] <=> $y['price']);
+
+        return $out;
     }
 
     /**
@@ -566,10 +624,7 @@ final class UnitDiscoveryController extends Controller
         }
 
         $rooms = app(\App\Services\BookingRoomService::class);
-        $open = $unit->rooms()->where('status', \App\Models\BookableItemRoom::STATUS_AVAILABLE)->get();
-        $carried = $rooms->featuresOf($open);
-        $sets = $open->map(fn ($r) => collect($carried[(int) $r->id] ?? [])->sort()->values()->all())
-            ->unique(fn ($ids) => implode(',', $ids))->values();
+        $sets = collect($rooms->roomKinds($unit));
 
         if ($sets->every(fn ($ids) => $ids === [])) {
             return [$row];

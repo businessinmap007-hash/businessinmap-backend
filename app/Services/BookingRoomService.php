@@ -174,6 +174,25 @@ class BookingRoomService
         ])->values();
     }
 
+    /**
+     * The kinds of room behind a type: the distinct sets of features its open numbered rooms carry («بدون»، «مسبح»، «بحر»، «بحر + مسبح»).
+     * A single plain set means the rooms do not differ.
+     *
+     * @return list<list<int>> each set sorted; the plain set is []
+     */
+    public function roomKinds(BookableItem $unit): array
+    {
+        if (! $unit->hasListedRooms()) {
+            return [[]];
+        }
+
+        $open = $unit->rooms()->where('status', BookableItemRoom::STATUS_AVAILABLE)->get();
+        $carried = $this->featuresOf($open);
+
+        return $open->map(fn ($r) => collect($carried[(int) $r->id] ?? [])->map(fn ($id) => (int) $id)->sort()->values()->all())
+            ->unique(fn ($ids) => implode(',', $ids))->values()->all() ?: [[]];
+    }
+
     /** The names of features, in the app's language, for a message. @param list<int> $ids */
     public function namesOf(array $ids): string
     {

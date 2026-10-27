@@ -265,6 +265,44 @@ class RoomNumberFeaturesTest extends TestCase
         $this->assertSame('103', app(BookingRoomService::class)->assign(Booking::find($withView->id), $this->rooms['103']->id)->number);
     }
 
+    public function test_a_partners_room_is_also_one_card_per_view_at_the_partners_price_plus_the_view(): void
+    {
+        $agency = User::create([
+            'name' => 'Zz Agency ' . uniqid(), 'email' => 'zz-agency-' . uniqid() . '@test.local', 'phone' => '01' . random_int(100000000, 999999999),
+            'password' => Hash::make('Passw0rdTest'), 'type' => User::TYPE_BUSINESS, 'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
+            'category_id' => self::ROOT, 'category_child_id' => self::CHILD,
+        ]);
+        $p = \App\Models\BusinessPartnership::create(['owner_business_id' => $this->hotel->id, 'partner_business_id' => $agency->id, 'relationship_type' => 'agency', 'status' => 'active', 'approval_required' => true, 'created_by' => $this->hotel->id]);
+        \App\Models\BookableAllocation::create([
+            'partnership_id' => $p->id, 'owner_business_id' => $this->hotel->id, 'partner_business_id' => $agency->id, 'bookable_item_id' => $this->unit->id,
+            'platform_service_id' => $this->serviceId, 'allocation_type' => 'non_guaranteed', 'quantity_total' => 2, 'quantity_sold' => 0, 'quantity_reserved' => 0,
+            'quantity_released' => 0, 'release_days_before' => 0, 'contract_price' => 700, 'currency' => 'EGP', 'markup_type' => 'none', 'status' => 'active',
+        ]);
+
+        // no room differs yet: one card at the partner's price
+        Sanctum::actingAs($this->guest);
+        $this->assertCount(1, $this->getJson("/api/v2/discovery/units/{$agency->id}")->assertOk()->json('data.partner_rooms'));
+
+        $this->tick('102', [self::POOL_VIEW])->assertOk();
+        $this->tick('103', [$this->seaView])->assertOk();
+
+        Sanctum::actingAs($this->guest);
+        $rooms = collect($this->getJson("/api/v2/discovery/units/{$agency->id}")->assertOk()->json('data.partner_rooms'))->sortBy('price')->values();
+
+        $this->assertCount(3, $rooms);
+        $this->assertEquals([700, 850, 900], $rooms->pluck('price')->map(fn ($x) => (float) $x)->all(), 'the partner price + the view the hotel priced');
+        $this->assertSame([[], [self::POOL_VIEW], [$this->seaView]], $rooms->map(fn ($r) => $r['option_ids'] ?? [])->all());
+        $choices = collect($rooms[0]['choices'])->pluck('option_id')->map(fn ($i) => (int) $i)->all();
+        $this->assertNotContains(self::POOL_VIEW, $choices, 'a view is a card, not a tick');
+
+        // booked through the partner with the card's features, it is paid at the card's price per night
+        $res = $this->postJson('/api/v2/bookings', [
+            'business_id' => $agency->id, 'service_id' => $this->serviceId, 'bookable_id' => $this->unit->id, 'quantity' => 1, 'option_ids' => [self::POOL_VIEW],
+            'starts_at' => $this->start->toDateTimeString(), 'ends_at' => $this->start->copy()->addDays(2)->toDateTimeString(),
+        ])->assertCreated();
+        $this->assertEquals(850 * 2, (float) Booking::find($res->json('data.booking.id'))->price);
+    }
+
     public function test_a_room_takes_the_guests_its_capacity_says(): void
     {
         $this->unit->update(['capacity' => 1]);

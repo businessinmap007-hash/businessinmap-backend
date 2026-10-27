@@ -212,7 +212,7 @@ final class AllocationService
      *
      * @return array<string,mixed>
      */
-    public function publicRoom(BookableAllocation $a, ?array $window = null, ?int $known = null, ?array $holds = null): array
+    public function publicRoom(BookableAllocation $a, ?array $window = null, ?int $known = null, ?array $holds = null, bool $featuresAsVariants = false): array
     {
         $unit = $a->bookableItem;
         // rooms per night: with a stay, what its busiest night leaves; without one, what is left ahead ($known: a list already counted them all at once)
@@ -225,7 +225,7 @@ final class AllocationService
             'item_type' => (string) $unit->item_type,
             'guest_scope' => (string) ($unit->guest_scope ?: 'all'),
             // the hotel's own add-ons (the meal plan) at the hotel's listed price, and the company's own offer on this room
-            'choices' => app(UnitChoices::class)->for($this->prices->resolveForBookableItem($unit), collect([$unit])),
+            'choices' => app(UnitChoices::class)->for($this->prices->resolveForBookableItem($unit), collect([$unit]), $featuresAsVariants),
             'offer' => $this->offerOn($a, $unit),
             'my_hold' => ($holds ?? app(\App\Services\BookingHolds::class)->mine((int) optional(request()->user('sanctum'))->id, [(int) $unit->id]))[(int) $unit->id] ?? null,
             'price' => round($a->finalPrice(), 2),

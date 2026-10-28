@@ -24,6 +24,43 @@ final class StayTerms
     /** Under this age a child is a baby: it does not share the room, and a cot is for it. */
     private const BABY_UNDER = 2;
 
+    /**
+     * What a stay is made of, kept on the booking («تفاصيل الإقامة»): the children and what each pays, the extra beds, the single
+     * rate, the cots, the meal plan, the gala nights and the non-refundable rate — read by the hotel and the guest on the booking.
+     *
+     * @param  array<string,mixed>  $breakdown
+     * @return array<string,mixed>|null null for anything that is not a hotel night
+     */
+    public function snapshot(array $breakdown, ?BookableItem $bookable): ?array
+    {
+        if (! $bookable || $bookable->item_type !== 'booking_stay' || ($breakdown['source'] ?? null) === 'day_use') {
+            return null;
+        }
+
+        $plans = array_keys(app(MealPlans::class)->plans());
+
+        return [
+            'children' => array_values(array_map(fn ($c) => [
+                'age' => (int) ($c['age'] ?? 0),
+                'percent' => (float) ($c['percent'] ?? 0),
+                'single_parent' => (bool) ($c['single_parent'] ?? false),
+                'total' => (float) ($c['total'] ?? 0),
+            ], (array) ($breakdown['children'] ?? []))),
+            'extra_beds' => (int) data_get($breakdown, 'extra_beds.count', 0),
+            'single_occupancy_percent' => data_get($breakdown, 'single_occupancy.percent'),
+            'cots' => (int) data_get($breakdown, 'cots.count', 0),
+            'meal_plans' => array_values(array_map(
+                fn ($l) => (string) ($l['name'] ?? ''),
+                array_filter((array) ($breakdown['modifiers'] ?? []), fn ($l) => in_array((int) ($l['option_id'] ?? 0), $plans, true))
+            )),
+            'gala_dinners' => array_values(array_map(
+                fn ($g) => ['date' => (string) ($g['date'] ?? ''), 'name' => (string) ($g['name'] ?? ''), 'total' => (float) ($g['total'] ?? 0)],
+                (array) ($breakdown['gala_dinners'] ?? [])
+            )),
+            'rate_plan' => (string) ($breakdown['rate_plan'] ?? self::FLEXIBLE),
+        ];
+    }
+
     /** The hotel's non-refundable discount, or null when it sells only the flexible rate. */
     public function nonRefundablePercent(int $businessId): ?float
     {

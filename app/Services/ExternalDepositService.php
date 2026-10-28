@@ -18,6 +18,10 @@ use Illuminate\Validation\ValidationException;
  *   waived  → the business accepts the booking without the deposit
  *
  * Starting the booking asks for received / waived (ServiceExecutionEngine::moveBookingToInProgress).
+ *
+ * «غير قابل للاسترداد» (owner, 2026-10-28): a stay at the hotel's non-refundable rate owes the WHOLE price in advance — the same
+ * record, `kind` = prepayment, amount = the booking's price. The hotel confirms it arrived (cash / transfer) or waives it, and the
+ * guest is not checked in before that. Nothing in the wallet moves or is confiscated.
  */
 class ExternalDepositService
 {
@@ -30,9 +34,19 @@ class ExternalDepositService
     ) {
     }
 
-    /** Does this booking owe a deposit outside the platform right now (by its business's current terms)? */
+    /** A stay at the non-refundable rate: its whole price is paid to the hotel in advance. */
+    public function isPrepayment(Booking $booking): bool
+    {
+        return data_get($booking->meta, 'rate_plan') === \App\Services\Hotels\StayTerms::NON_REFUNDABLE;
+    }
+
+    /** Does this booking owe a deposit (or, at the non-refundable rate, its whole price) outside the platform right now? */
     public function required(Booking $booking): bool
     {
+        if ($this->isPrepayment($booking)) {
+            return true;
+        }
+
         try {
             $policy = $this->engine->depositPolicy($booking);
         } catch (\Throwable) {
@@ -42,7 +56,7 @@ class ExternalDepositService
         return (bool) ($policy['required'] ?? false) && (bool) ($policy['external_deposit_required'] ?? false);
     }
 
-    /** @return array{required:bool,status:?string,amount:float,method:?string,reference:?string} */
+    /** @return array{required:bool,kind:string,status:?string,amount:float,method:?string,reference:?string} */
     public function state(Booking $booking): array
     {
         $meta = (array) (($booking->meta ?? [])[self::META_KEY] ?? []);
@@ -54,7 +68,9 @@ class ExternalDepositService
         }
 
         $amount = 0.0;
-        if ($required) {
+        if ($required && $this->isPrepayment($booking)) {
+            $amount = round((float) $booking->price, 2);
+        } elseif ($required) {
             try {
                 $amount = round((float) ($this->engine->depositPolicy($booking)['external_deposit_amount'] ?? 0), 2);
             } catch (\Throwable) {
@@ -63,6 +79,8 @@ class ExternalDepositService
 
         return [
             'required' => $required,
+            // `prepayment`: the whole price of a non-refundable stay; `deposit`: the business's own deposit terms
+            'kind' => $this->isPrepayment($booking) ? 'prepayment' : 'deposit',
             'status' => $required ? $status : null,
             'amount' => $amount,
             'method' => $meta['method'] ?? null,
@@ -89,10 +107,15 @@ class ExternalDepositService
 
         $this->record($booking, ['status' => 'received', 'method' => $method, 'reference' => $reference ?: null]);
 
-        $this->tell($booking, 'booking.external_deposit_received',
-            'استلم النشاط العربون', 'The deposit was received',
-            'أكّد النشاط أنه استلم العربون. حجزك جاهز للتنفيذ.',
-            'The business confirmed it received the deposit. Your booking is ready.');
+        $this->isPrepayment($booking)
+            ? $this->tell($booking, 'booking.external_deposit_received',
+                'استلم الفندق المبلغ المقدم', 'The hotel received the prepayment',
+                'أكّد الفندق أنه استلم المبلغ كاملًا. حجزك جاهز.',
+                'The hotel confirmed it received the full amount. Your booking is ready.')
+            : $this->tell($booking, 'booking.external_deposit_received',
+                'استلم النشاط العربون', 'The deposit was received',
+                'أكّد النشاط أنه استلم العربون. حجزك جاهز للتنفيذ.',
+                'The business confirmed it received the deposit. Your booking is ready.');
 
         return $this->state($booking->fresh());
     }
@@ -104,10 +127,15 @@ class ExternalDepositService
 
         $this->record($booking, ['status' => 'waived', 'method' => null, 'reference' => null]);
 
-        $this->tell($booking, 'booking.external_deposit_waived',
-            'قبل النشاط حجزك بلا عربون', 'Booking accepted without a deposit',
-            'قبل النشاط حجزك دون دفع عربون.',
-            'The business accepted your booking without a deposit.');
+        $this->isPrepayment($booking)
+            ? $this->tell($booking, 'booking.external_deposit_waived',
+                'تنازل الفندق عن الدفع المقدم', 'The hotel waived the prepayment',
+                'قبل الفندق حجزك دون دفع المبلغ مقدمًا.',
+                'The hotel accepted your booking without the payment in advance.')
+            : $this->tell($booking, 'booking.external_deposit_waived',
+                'قبل النشاط حجزك بلا عربون', 'Booking accepted without a deposit',
+                'قبل النشاط حجزك دون دفع عربون.',
+                'The business accepted your booking without a deposit.');
 
         return $this->state($booking->fresh());
     }

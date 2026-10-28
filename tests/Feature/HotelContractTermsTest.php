@@ -198,6 +198,64 @@ class HotelContractTermsTest extends TestCase
         $this->assertEquals(2000, $this->price(0, 2, ['party_size' => 2]));
     }
 
+    public function test_a_non_refundable_stay_owes_its_whole_price_in_advance_before_check_in(): void
+    {
+        Sanctum::actingAs($this->hotel);
+        $this->putJson('/api/v2/business/booking-settings/rate-plans', ['non_refundable_percent' => 10])->assertOk();
+
+        Sanctum::actingAs($this->guest);
+        $id = $this->postJson('/api/v2/bookings', $this->body(0, 2, ['party_size' => 2, 'rate_plan' => 'non_refundable']))->assertCreated()->json('data.booking.id');
+
+        // the hotel accepts it: the whole 1800 is owed outside the app, as a prepayment
+        $booking = Booking::find($id);
+        $meta = (array) $booking->meta;
+        $meta['_start_confirm'] = ['client' => true, 'business' => true];
+        $booking->forceFill(['status' => Booking::STATUS_ACCEPTED, 'meta' => $meta])->save();
+
+        Sanctum::actingAs($this->guest);
+        $this->getJson("/api/v2/bookings/{$id}")->assertOk()
+            ->assertJsonPath('data.booking.external_deposit.kind', 'prepayment')
+            ->assertJsonPath('data.booking.external_deposit.status', 'pending')
+            ->assertJsonPath('data.booking.external_deposit.amount', 1800);
+
+        // no check-in before it arrived
+        try {
+            app(\App\Services\ServiceExecutionEngine::class)->moveBookingToInProgress($booking->fresh());
+            $this->fail('checked in with the prepayment outstanding');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertArrayHasKey('external_deposit', $e->errors());
+        }
+
+        Sanctum::actingAs($this->hotel);
+        $this->postJson("/api/v2/business/bookings/{$id}/deposit/confirm-received", ['method' => 'cash'])->assertOk()
+            ->assertJsonPath('data.booking.external_deposit.status', 'received');
+
+        try {
+            app(\App\Services\ServiceExecutionEngine::class)->moveBookingToInProgress($booking->fresh());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertArrayNotHasKey('external_deposit', $e->errors(), 'the prepayment no longer stands in the way');
+        }
+    }
+
+    public function test_the_booking_tells_both_sides_what_the_stay_is_made_of(): void
+    {
+        $this->policy(['cots_max' => 1, 'cot_price' => 0])->assertOk();
+        $this->unit->update(['single_occupancy_percent' => 80]);
+
+        Sanctum::actingAs($this->guest);
+        $id = $this->postJson('/api/v2/bookings', $this->body(0, 2, ['party_size' => 1, 'children_ages' => [1], 'cots' => 1, 'option_ids' => [self::BREAKFAST]]))
+            ->assertCreated()->json('data.booking.id');
+
+        Sanctum::actingAs($this->hotel);
+        $details = $this->getJson("/api/v2/bookings/{$id}")->assertOk()->json('data.stay_details');
+        $this->assertSame(1, $details['adults']);
+        $this->assertSame(1, $details['children'][0]['age']);
+        $this->assertSame(1, $details['cots']);
+        $this->assertEquals(80, $details['single_occupancy_percent']);
+        $this->assertCount(1, $details['meal_plans']);
+        $this->assertSame('flexible', $details['rate_plan']);
+    }
+
     public function test_a_baby_cot_on_request_at_the_hotels_price(): void
     {
         $this->preview(0, 2, ['party_size' => 2, 'cots' => 1])->assertStatus(422)->assertJsonValidationErrors(['cots']);

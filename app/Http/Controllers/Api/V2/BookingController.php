@@ -961,6 +961,10 @@ final class BookingController extends Controller
                     'rate_plan' => (string) (data_get($booking->meta, 'rate_plan') ?: \App\Services\Hotels\StayTerms::FLEXIBLE),
                     'cots' => (int) data_get($booking->meta, 'cots', 0),
                 ],
+                // «تفاصيل الإقامة»: the adults, the children and what each pays, the beds, the meal plan, the gala nights
+                'stay_details' => is_array(data_get($booking->meta, 'stay'))
+                    ? ['adults' => max((int) ($booking->party_size ?: 1), 1)] + (array) data_get($booking->meta, 'stay')
+                    : null,
                 'financial_preview' => $this->partyPreview(request(), $booking),
                 // «قبول الديبوزت كدفعة»: may it be asked, was it, was it accepted
                 'deposit_as_payment' => app(\App\Services\BookingDepositPaymentService::class)->state($booking),

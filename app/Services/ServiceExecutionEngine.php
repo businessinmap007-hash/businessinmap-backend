@@ -632,6 +632,13 @@ class ServiceExecutionEngine
         $meta['service_fees_snapshot'] = $feeSnapshot;
         $meta['deposit_policy'] = $depositPolicy;
 
+        // «تفاصيل الإقامة»: what a hotel stay is made of, as it was priced
+        $stay = app(\App\Services\Hotels\StayTerms::class)->snapshot($priceBreakdown, $bookable);
+
+        if ($stay !== null) {
+            $meta['stay'] = $stay;
+        }
+
         if ($bookable) {
             $meta['bookable_item'] = [
                 'id' => (int) $bookable->id,
@@ -703,6 +710,15 @@ class ServiceExecutionEngine
             if (! $clientConfirmed || ! $businessConfirmed) {
                 throw ValidationException::withMessages([
                     'status' => __('يجب تأكيد الطرفين قبل بدء التنفيذ.'),
+                ]);
+            }
+
+            // «غير قابل للاسترداد»: the hotel confirms the whole price arrived (or waives it) before the guest checks in
+            $outside = app(ExternalDepositService::class);
+
+            if ($outside->isPrepayment($booking) && ! $outside->isSettled($booking)) {
+                throw ValidationException::withMessages([
+                    'external_deposit' => __('أكّد استلام المبلغ المقدم قبل تسجيل الوصول.'),
                 ]);
             }
 

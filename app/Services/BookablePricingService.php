@@ -185,10 +185,13 @@ class BookablePricingService
         CarbonInterface|string|null $date = null,
         int $quantity = 1
     ): array {
-        $rule = $this->findMatchingRules($item, $this->normalizeDate($date), max($quantity, 1))->first();
+        $day = $this->normalizeDate($date);
+        $rule = $this->findMatchingRules($item, $day, max($quantity, 1))->first();
 
         if (! $rule) {
-            return ['price' => round($basePrice, 2), 'rule' => null];
+            // «المواسم»: no rule of the room type's own — the hotel's season of the night prices it
+            return ($day ? app(\App\Services\Hotels\HotelSeasons::class)->priceNight($item, $basePrice, $day->toDateString()) : null)
+                ?? ['price' => round($basePrice, 2), 'rule' => null];
         }
 
         return [
@@ -218,6 +221,12 @@ class BookablePricingService
         $matchedRule = $rules->first();
         $unitPrice = $basePrice;
         $pricingSource = 'base_price';
+        $season = ! $matchedRule && $date ? app(\App\Services\Hotels\HotelSeasons::class)->priceNight($item, $basePrice, $date->format('Y-m-d')) : null;
+
+        if ($season) {
+            $unitPrice = $season['price'];
+            $pricingSource = 'season';
+        }
 
         $breakdown = [
             [

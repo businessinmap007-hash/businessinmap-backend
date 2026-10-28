@@ -37,6 +37,31 @@ final class MealPlans
         });
     }
 
+    /**
+     * The meal plans THIS hotel sells, at its own price (a season may price them otherwise).
+     *
+     * @return list<array{option_id:int,name:?string,price:float,per_person:bool}>
+     */
+    public function offered(int $businessId): array
+    {
+        $ids = array_keys($this->plans());
+
+        if ($ids === [] || $businessId <= 0) {
+            return [];
+        }
+
+        return \App\Models\OfferingOption::query()->with('option:id,name_ar,name_en')
+            ->where('offering_type', (new \App\Models\User)->getMorphClass())->where('offering_id', $businessId)
+            ->where('role', \App\Models\OfferingOption::ROLE_MODIFIER)->whereIn('option_id', $ids)
+            ->orderBy('sort_order')->orderBy('id')->get()
+            ->map(fn ($r) => [
+                'option_id' => (int) $r->option_id,
+                'name' => app()->getLocale() === 'en' ? ($r->option?->name_en ?: $r->option?->name_ar) : ($r->option?->name_ar ?: $r->option?->name_en),
+                'price' => (float) $r->adjust_value,
+                'per_person' => (bool) $r->per_person,
+            ])->values()->all();
+    }
+
     /** @return array<string,array{from:?string,to:?string}>|null the hotel's meal times, null until written */
     public function times(int $businessId): ?array
     {

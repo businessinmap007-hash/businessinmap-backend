@@ -1120,6 +1120,9 @@ Route::prefix('v2')->group(function () {
             // «بالموعد أم بالدور»
             Route::get('flow', [\App\Http\Controllers\Api\V2\BusinessBookingFlowController::class, 'show']);
             Route::put('flow', [\App\Http\Controllers\Api\V2\BusinessBookingFlowController::class, 'update']);
+            // «خطط الأسعار»: the cheaper non-refundable rate beside the flexible one
+            Route::get('rate-plans', [\App\Http\Controllers\Api\V2\BusinessRatePlanController::class, 'show']);
+            Route::put('rate-plans', [\App\Http\Controllers\Api\V2\BusinessRatePlanController::class, 'update']);
         });
 
         // «شاشة الغرف»: the month board of a hotel's room types, taken and free night by night.
@@ -1149,6 +1152,11 @@ Route::prefix('v2')->group(function () {
             Route::post('business/gala-dinners', [\App\Http\Controllers\Api\V2\BusinessGalaDinnerController::class, 'store']);
             Route::put('business/gala-dinners/{id}', [\App\Http\Controllers\Api\V2\BusinessGalaDinnerController::class, 'update'])->whereNumber('id');
             Route::delete('business/gala-dinners/{id}', [\App\Http\Controllers\Api\V2\BusinessGalaDinnerController::class, 'destroy'])->whereNumber('id');
+            // «المواسم»: the rooms' and meal plans' price in a season, and its shortest stay
+            Route::get('business/seasons', [\App\Http\Controllers\Api\V2\BusinessHotelSeasonController::class, 'index']);
+            Route::post('business/seasons', [\App\Http\Controllers\Api\V2\BusinessHotelSeasonController::class, 'store']);
+            Route::put('business/seasons/{id}', [\App\Http\Controllers\Api\V2\BusinessHotelSeasonController::class, 'update'])->whereNumber('id');
+            Route::delete('business/seasons/{id}', [\App\Http\Controllers\Api\V2\BusinessHotelSeasonController::class, 'destroy'])->whereNumber('id');
             Route::put('business/booking-add-ons', [BusinessBookingAddOnsController::class, 'update']);
             Route::get('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'show'])->whereNumber('item');
             Route::put('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'update'])->whereNumber('item');

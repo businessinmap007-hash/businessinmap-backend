@@ -210,6 +210,8 @@ final class BusinessBookableItemController extends Controller
             'guest_scope' => ['nullable', 'in:' . implode(',', BookableItem::SCOPES)],
             // rooms of the type kept back for the hotel's own guests in peak (a partner cannot sell into them)
             'reserve_rooms' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            // «إقامة فردية»: one adult alone pays this % of the night (empty = the whole room)
+            'single_occupancy_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
         ]);
 
         $serviceId = (int) $data['service_id'];
@@ -236,7 +238,10 @@ final class BusinessBookableItemController extends Controller
             'status' => $data['status'] ?? BookableItem::STATUS_AVAILABLE,
             // written only when sent, so an edit that does not know the field never resets a hotel's local or foreign rate
         ] + (isset($data['guest_scope']) ? ['guest_scope' => $data['guest_scope']] : [])
-          + (isset($data['reserve_rooms']) ? ['reserve_rooms' => (int) $data['reserve_rooms']] : []);
+          + (isset($data['reserve_rooms']) ? ['reserve_rooms' => (int) $data['reserve_rooms']] : [])
+          + ($request->exists('single_occupancy_percent')
+              ? ['single_occupancy_percent' => isset($data['single_occupancy_percent']) ? round((float) $data['single_occupancy_percent'], 2) : null]
+              : []);
     }
 
     private function localizeService($service): ?string

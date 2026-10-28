@@ -35,6 +35,11 @@ final class BusinessChildPolicyController extends Controller
             // «بالغ واحد مع طفل»: a room with one adult — the child in the second adult's place pays this % of one person's night
             // (0 = free); empty = its normal age-band share
             'single_parent_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            // «تخفيض الشخص الثالث»: an adult in an extra bed pays one person's night less this % — instead of the fixed bed price
+            'third_adult_reduction' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            // «سرير أطفال»: cots a room takes (0 = none) and the price of one a night (0 = free)
+            'cots_max' => ['nullable', 'integer', 'min:0', 'max:3'],
+            'cot_price' => ['nullable', 'numeric', 'min:0'],
             'bands' => ['present', 'array', 'max:6'],
             'bands.*.from' => ['required', 'integer', 'min:0', 'max:17'],
             'bands.*.to' => ['required', 'integer', 'min:0', 'max:17'],
@@ -65,6 +70,9 @@ final class BusinessChildPolicyController extends Controller
             'extra_bed_price' => isset($data['extra_bed_price']) ? round((float) $data['extra_bed_price'], 2) : null,
             'extra_beds_max' => (int) ($data['extra_beds_max'] ?? 1),
             'single_parent_percent' => isset($data['single_parent_percent']) ? round((float) $data['single_parent_percent'], 2) : null,
+            'third_adult_reduction' => isset($data['third_adult_reduction']) ? round((float) $data['third_adult_reduction'], 2) : null,
+            'cots_max' => (int) ($data['cots_max'] ?? 0),
+            'cot_price' => round((float) ($data['cot_price'] ?? 0), 2),
             'bands' => $bands->all(),
         ]);
 

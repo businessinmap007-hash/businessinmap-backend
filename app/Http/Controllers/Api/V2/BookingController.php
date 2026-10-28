@@ -142,6 +142,9 @@ final class BookingController extends Controller
             'party_size' => ['nullable', 'integer', 'min:1'],
             'children_ages' => ['nullable', 'array', 'max:10'],
             'children_ages.*' => ['integer', 'min:0', 'max:17'],
+            // «سرير أطفال» asked for, and the rate: flexible or the cheaper non-refundable one (StayTerms)
+            'cots' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'rate_plan' => ['nullable', Rule::in([\App\Services\Hotels\StayTerms::FLEXIBLE, \App\Services\Hotels\StayTerms::NON_REFUNDABLE])],
             'option_ids' => ['nullable', 'array'],
             'option_ids.*' => ['integer'],
             'day_use' => ['nullable', 'boolean'],
@@ -178,6 +181,7 @@ final class BookingController extends Controller
             offeringId: $offering instanceof \App\Models\BusinessServicePrice ? (int) $offering->id : null,
             dayUse: ! empty($data['day_use']),
             childrenAges: (array) ($data['children_ages'] ?? []),
+            stay: $this->stayTerms($data),
         );
 
         $this->assertGuestsFit($calc['bookable'] ?? null, $data);
@@ -190,6 +194,12 @@ final class BookingController extends Controller
                 'availability' => $calc['availability'],
             ],
         ]);
+    }
+
+    /** @return array{cots:int,rate_plan:string} the rest of the rate sheet a guest chose */
+    private function stayTerms(array $data): array
+    {
+        return ['cots' => (int) ($data['cots'] ?? 0), 'rate_plan' => (string) ($data['rate_plan'] ?? \App\Services\Hotels\StayTerms::FLEXIBLE)];
     }
 
     /**
@@ -606,6 +616,7 @@ final class BookingController extends Controller
             dayUse: $dayUse,
             // and the children's ages, priced by the hotel's «سياسة الأطفال»
             childrenAges: (array) ($data['children_ages'] ?? []),
+            stay: $this->stayTerms($data),
         );
 
         $bookable = $calc['bookable'] ?? null;
@@ -692,6 +703,9 @@ final class BookingController extends Controller
                 'requested_option_ids' => array_values(array_map('intval', $data['option_ids'] ?? [])),
                 // the children's ages: priced by the hotel's policy, kept so a new window is priced the same way
                 'children_ages' => array_values(array_map('intval', $data['children_ages'] ?? [])),
+                // the cots and the rate the guest took — a non-refundable stay cannot move its dates
+                'cots' => (int) ($data['cots'] ?? 0),
+                'rate_plan' => data_get($calc, 'price_breakdown.rate_plan', \App\Services\Hotels\StayTerms::FLEXIBLE),
                 // what the guest declared for a scoped room; the hotel asks for the papers on arrival
                 'guest_origin' => ($bookable && $bookable->guest_scope !== \App\Models\BookableItem::SCOPE_ALL) ? ($data['guest_origin'] ?? null) : null,
             ]),
@@ -942,6 +956,11 @@ final class BookingController extends Controller
                 'booking' => $this->titled($booking),
                 // the meals the stay's plan gives, at the hotel's times («الإفطار 7:00–10:30 · العشاء 19:00–22:00»)
                 'meal_times' => app(\App\Services\Hotels\MealPlans::class)->forBooking($booking),
+                // the rate («غير قابل للاسترداد») and the cots, read on the booking by both sides
+                'stay_terms' => [
+                    'rate_plan' => (string) (data_get($booking->meta, 'rate_plan') ?: \App\Services\Hotels\StayTerms::FLEXIBLE),
+                    'cots' => (int) data_get($booking->meta, 'cots', 0),
+                ],
                 'financial_preview' => $this->partyPreview(request(), $booking),
                 // «قبول الديبوزت كدفعة»: may it be asked, was it, was it accepted
                 'deposit_as_payment' => app(\App\Services\BookingDepositPaymentService::class)->state($booking),
@@ -1204,6 +1223,11 @@ final class BookingController extends Controller
             throw ValidationException::withMessages(['starts_at' => __('هذا الحجز بلا موعد محدد لتغييره.')]);
         }
 
+        // «غير قابل للاسترداد»: the guest took the cheaper rate on these dates
+        if (data_get($booking->meta, 'rate_plan') === \App\Services\Hotels\StayTerms::NON_REFUNDABLE) {
+            throw ValidationException::withMessages(['starts_at' => __('هذا الحجز بسعر غير قابل للاسترداد ولا يمكن تغيير موعده.')]);
+        }
+
         $oldStart = Carbon::parse($booking->starts_at);
         $oldEnd = $booking->ends_at ? Carbon::parse($booking->ends_at) : null;
         $start = Carbon::parse($data['starts_at']);
@@ -1265,6 +1289,7 @@ final class BookingController extends Controller
                     partySize: max((int) ($booking->party_size ?: 1), 1),
                     dayUse: (bool) ($meta['day_use'] ?? false),
                     childrenAges: (array) ($meta['children_ages'] ?? []),
+                    stay: ['cots' => (int) ($meta['cots'] ?? 0), 'rate_plan' => (string) ($meta['rate_plan'] ?? \App\Services\Hotels\StayTerms::FLEXIBLE)],
                 );
 
                 $update['price'] = (float) data_get($calc, 'price_breakdown.final_price', $booking->price);
@@ -1982,6 +2007,9 @@ final class BookingController extends Controller
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'children_ages' => ['nullable', 'array', 'max:10'],
             'children_ages.*' => ['integer', 'min:0', 'max:17'],
+            // «سرير أطفال» asked for, and the rate: flexible or the cheaper non-refundable one (StayTerms)
+            'cots' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'rate_plan' => ['nullable', Rule::in([\App\Services\Hotels\StayTerms::FLEXIBLE, \App\Services\Hotels\StayTerms::NON_REFUNDABLE])],
             'duration_value' => ['nullable', 'integer', 'min:1'],
             'duration_unit' => ['nullable', Rule::in(['minute', 'hour', 'day', 'night'])],
             'all_day' => ['nullable', 'boolean'],

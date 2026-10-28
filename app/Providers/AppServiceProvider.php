@@ -63,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
         \App\Support\RequestMemo::watch(\App\Models\OfferingOption::class, 'offering-options');
         \App\Support\RequestMemo::watch(\App\Models\BookableItemRoomFeature::class, 'offering-options');
         \App\Support\RequestMemo::watch(\App\Models\BookableItemRoom::class, 'offering-options');
+        \App\Support\RequestMemo::watch(\App\Models\HotelSeason::class, 'seasons');
 
         Carbon::setLocale('ar');
 

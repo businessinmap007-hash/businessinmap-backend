@@ -78,7 +78,9 @@ class ServiceExecutionEngine
         // BookingDayUseService. The window itself arrives as [$pricingDate, $until].
         bool $dayUse = false,
         // «سياسة الأطفال»: the ages of the children of a stay, priced by the hotel's age bands (ChildPricing)
-        array $childrenAges = []
+        array $childrenAges = [],
+        // the rest of the rate sheet the guest chooses: {cots, rate_plan} (StayTerms)
+        array $stay = []
     ): array {
         $quantity = max($quantity, 1);
 
@@ -159,6 +161,15 @@ class ServiceExecutionEngine
                     'ends_at' => __('أقصى إقامة لهذا التخصيص :n ليلة.', ['n' => $allocation->max_nights]),
                 ]);
             }
+        }
+
+        // «أقل إقامة في الموسم»: the hotel's shortest stay for an arrival in a season — whoever sells the room
+        if (! $dayUse && $bookable && $pricingDate && $until) {
+            app(\App\Services\Hotels\HotelSeasons::class)->assertMinStay(
+                $bookable,
+                $pricingDate,
+                count($this->periodsBetween($pricingDate, $until, $this->granularityOf($bookable)))
+            );
         }
 
         $itemType = $bookable
@@ -267,6 +278,8 @@ class ServiceExecutionEngine
         // …and the guests over the room's capacity, in the hotel's extra beds
         if (! $dayUse && $bookable && $bookable->item_type === 'booking_stay') {
             $priceBreakdown = app(\App\Services\Hotels\ChildPricing::class)->apply($priceBreakdown, $bookable, $childrenAges, $partySize);
+            // …one adult alone in a room for two, the cots asked for, and the non-refundable rate
+            $priceBreakdown = app(\App\Services\Hotels\StayTerms::class)->apply($priceBreakdown, $bookable, $childrenAges, $partySize, $stay, $allocation !== null);
             // …and the hotel's compulsory gala dinners on the nights of the stay
             $priceBreakdown = app(\App\Services\Hotels\GalaDinners::class)->apply($priceBreakdown, $bookable, $childrenAges, $partySize);
         }
@@ -334,7 +347,8 @@ class ServiceExecutionEngine
         // different row than the one `store()` ultimately books.
         ?int $offeringId = null,
         bool $dayUse = false,
-        array $childrenAges = []
+        array $childrenAges = [],
+        array $stay = []
     ): array {
         $calc = $this->prepare(
             businessId: $businessId,
@@ -349,7 +363,8 @@ class ServiceExecutionEngine
             until: $endsAt,
             partySize: $partySize,
             dayUse: $dayUse,
-            childrenAges: $childrenAges
+            childrenAges: $childrenAges,
+            stay: $stay
         );
 
         $availability = null;
@@ -953,7 +968,12 @@ class ServiceExecutionEngine
                 $rule = $ruled['rule'];
             }
 
-            $periodModifiers = $this->applyModifiers($modifierRows, $periodBase, $partySize);
+            // «سعر الوجبات في الموسم»: the night's meal plan at its season's price
+            $periodModifiers = $this->applyModifiers(
+                app(\App\Services\Hotels\HotelSeasons::class)->mealRows($modifierRows, $bookable, $period->toDateString()),
+                $periodBase,
+                $partySize
+            );
             $periodPrice = max(round($periodBase + $periodModifiers['total'], 2), 0);
 
             if ($index === 0) {
@@ -965,6 +985,7 @@ class ServiceExecutionEngine
                 'date' => $period->toDateString(),
                 'base_price' => round($periodBase, 2),
                 'modifiers_total' => $periodModifiers['total'],
+                'modifiers' => $periodModifiers['lines'],
                 'price' => $periodPrice,
                 'rule' => $rule,
             ];
@@ -1074,12 +1095,17 @@ class ServiceExecutionEngine
         $periodLines = [];
 
         foreach ($periods as $period) {
-            $m = $this->applyModifiers($modifierRows, $listBase, $partySize);
+            $m = $this->applyModifiers(
+                app(\App\Services\Hotels\HotelSeasons::class)->mealRows($modifierRows, $bookable, $period->toDateString()),
+                $listBase,
+                $partySize
+            );
             $first ??= $m;
             $periodLines[] = [
                 'date' => $period->toDateString(),
                 'base_price' => $nightlyPrice,
                 'modifiers_total' => (float) $m['total'],
+                'modifiers' => $m['lines'],
                 'price' => round($nightlyPrice + (float) $m['total'], 2),
                 'rule' => null,
             ];

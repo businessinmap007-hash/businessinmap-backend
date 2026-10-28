@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ChildPolicy extends Model
 {
-    protected $fillable = ['business_id', 'adult_from_age', 'counts_from_age', 'meals_follow', 'extra_bed_price', 'extra_beds_max', 'single_parent_percent', 'bands'];
+    protected $fillable = ['business_id', 'adult_from_age', 'counts_from_age', 'meals_follow', 'extra_bed_price', 'extra_beds_max', 'third_adult_reduction', 'single_parent_percent', 'cots_max', 'cot_price', 'bands'];
 
     protected $casts = [
         'business_id' => 'integer',
@@ -20,13 +20,22 @@ class ChildPolicy extends Model
         'extra_bed_price' => 'decimal:2',
         'extra_beds_max' => 'integer',
         'single_parent_percent' => 'decimal:2',
+        'third_adult_reduction' => 'decimal:2',
+        'cots_max' => 'integer',
+        'cot_price' => 'decimal:2',
         'bands' => 'array',
     ];
 
-    /** How many extra beds a stay of $rooms rooms may take — none when the hotel wrote no extra-bed price. */
+    /** Does the hotel sell extra beds — at a fixed price, or at one person's night less the third adult's reduction? */
+    public function sellsExtraBeds(): bool
+    {
+        return $this->extra_bed_price !== null || $this->third_adult_reduction !== null;
+    }
+
+    /** How many extra beds a stay of $rooms rooms may take — none when the hotel sells none. */
     public function extraBedsAllowed(int $rooms = 1): int
     {
-        return $this->extra_bed_price === null ? 0 : max((int) $this->extra_beds_max, 0) * max($rooms, 1);
+        return ! $this->sellsExtraBeds() ? 0 : max((int) $this->extra_beds_max, 0) * max($rooms, 1);
     }
 
     public static function forBusiness(int $businessId): ?self
@@ -78,6 +87,11 @@ class ChildPolicy extends Model
             'extra_beds_max' => (int) $this->extra_beds_max,
             // «بالغ واحد مع طفل»: what the child in the second adult's place pays of one person's night (null = its normal share)
             'single_parent_percent' => $this->single_parent_percent === null ? null : (float) $this->single_parent_percent,
+            // «تخفيض الشخص الثالث»: an adult in an extra bed pays one person's night less this % (null = the fixed bed price)
+            'third_adult_reduction' => $this->third_adult_reduction === null ? null : (float) $this->third_adult_reduction,
+            // «سرير أطفال»: how many a room takes (0 = none) and its price a night (0 = free)
+            'cots_max' => (int) $this->cots_max,
+            'cot_price' => (float) $this->cot_price,
             'bands' => array_values(array_map(fn ($b) => [
                 'from' => (int) ($b['from'] ?? 0),
                 'to' => (int) ($b['to'] ?? 0),

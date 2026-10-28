@@ -152,6 +152,8 @@ final class UnitDiscoveryController extends Controller
                 'meal_times' => app(\App\Services\Hotels\MealPlans::class)->times((int) $biz->id),
                 // «العشاء الإلزامي»: the gala nights a stay over them pays
                 'gala_dinners' => app(\App\Services\Hotels\GalaDinners::class)->upcoming((int) $biz->id),
+                // «غير قابل للاسترداد»: the hotel's discount for it (null = flexible only) — sold by the hotel itself
+                'non_refundable_percent' => app(\App\Services\Hotels\StayTerms::class)->nonRefundablePercent((int) $biz->id),
                 // «بالموعد» or «بالدور»: how this business takes its appointments
                 'flow' => \App\Services\AppointmentQueue::flowOf((int) $biz->id),
                 // «أشكال الحجز»: how this trade page is drawn (sections or a flat list, what is shown, in what order).

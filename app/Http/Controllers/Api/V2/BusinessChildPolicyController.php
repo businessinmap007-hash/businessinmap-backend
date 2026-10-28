@@ -29,14 +29,19 @@ final class BusinessChildPolicyController extends Controller
             'adult_from_age' => ['required', 'integer', 'min:1', 'max:18'],
             'counts_from_age' => ['required', 'integer', 'min:0', 'max:18'],
             'meals_follow' => ['nullable', 'boolean'],
+            // «سرير إضافي»: its price a night (empty = no extra bed: a stay over the room's capacity is refused) and how many a room takes
+            'extra_bed_price' => ['nullable', 'numeric', 'min:0'],
+            'extra_beds_max' => ['nullable', 'integer', 'min:0', 'max:4'],
             'bands' => ['present', 'array', 'max:6'],
             'bands.*.from' => ['required', 'integer', 'min:0', 'max:17'],
             'bands.*.to' => ['required', 'integer', 'min:0', 'max:17'],
             'bands.*.percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            // what each FURTHER child of the band pays (the first child pays `percent`); the same as the first when not given
+            'bands.*.second_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $adult = (int) $data['adult_from_age'];
-        $bands = collect($data['bands'])->map(fn ($b) => ['from' => (int) $b['from'], 'to' => (int) $b['to'], 'percent' => round((float) $b['percent'], 2)])
+        $bands = collect($data['bands'])->map(fn ($b) => ['from' => (int) $b['from'], 'to' => (int) $b['to'], 'percent' => round((float) $b['percent'], 2), 'second_percent' => round((float) ($b['second_percent'] ?? $b['percent']), 2)])
             ->sortBy('from')->values();
 
         // the bands are ages of children: each in order, none overlapping another, all under the adult age
@@ -54,6 +59,8 @@ final class BusinessChildPolicyController extends Controller
             'adult_from_age' => $adult,
             'counts_from_age' => min((int) $data['counts_from_age'], $adult),
             'meals_follow' => (bool) ($data['meals_follow'] ?? true),
+            'extra_bed_price' => isset($data['extra_bed_price']) ? round((float) $data['extra_bed_price'], 2) : null,
+            'extra_beds_max' => (int) ($data['extra_beds_max'] ?? 1),
             'bands' => $bands->all(),
         ]);
 

@@ -264,8 +264,9 @@ class ServiceExecutionEngine
          * لا مبلغًا يُجمَّد من محفظة العميل النهائى.
          */
         // the children of a stay, by the hotel's age bands: a share of every night and of the meal plan (ChildPricing)
-        if (! $dayUse && $childrenAges !== []) {
-            $priceBreakdown = app(\App\Services\Hotels\ChildPricing::class)->apply($priceBreakdown, $bookable, $childrenAges);
+        // …and the guests over the room's capacity, in the hotel's extra beds
+        if (! $dayUse && $bookable && $bookable->item_type === 'booking_stay') {
+            $priceBreakdown = app(\App\Services\Hotels\ChildPricing::class)->apply($priceBreakdown, $bookable, $childrenAges, $partySize);
         }
 
         $depositPolicy = $allocation ? [

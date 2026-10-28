@@ -100,24 +100,23 @@ class ChildPolicyTest extends TestCase
     public function test_a_child_pays_its_share_of_every_night_and_of_the_meals(): void
     {
         $this->policy()->assertOk();
-        $this->unit->update(['capacity' => 3]); // two adults and the child of 8, who counts
 
-        // two adults with breakfast, a child of 4 (free) and a child of 8 (half), two nights
-        $res = $this->stay(['party_size' => 2, 'children_ages' => [4, 8], 'option_ids' => [self::BREAKFAST]])->assertCreated();
+        // a double (1000 a night = 500 a person): one adult with breakfast, a child of 4 (free) and a child of 8 (half), two nights
+        $res = $this->stay(['party_size' => 1, 'children_ages' => [4, 8], 'option_ids' => [self::BREAKFAST]])->assertCreated();
         $booking = Booking::find($res->json('data.booking.id'));
 
-        // a night: room 1000 + breakfast 2 × 100 = 1200; the child of 8: half the room's 1000 + half one breakfast = 550
-        $this->assertEquals((1200 + 550) * 2, (float) $booking->price);
+        // a night: room 1000 + one breakfast 100 = 1100; the child of 8: half of one person's 500 + half one breakfast = 300
+        $this->assertEquals((1100 + 300) * 2, (float) $booking->price);
         $this->assertSame([4, 8], $booking->meta['children_ages']);
 
         Sanctum::actingAs($this->guest);
         $preview = $this->postJson('/api/v2/bookings/preview', [
             'business_id' => $this->hotel->id, 'service_id' => $this->serviceId, 'bookable_id' => $this->unit->id, 'quantity' => 1,
             'starts_at' => $this->start->copy()->addDays(10)->toDateTimeString(), 'ends_at' => $this->start->copy()->addDays(12)->toDateTimeString(),
-            'party_size' => 2, 'children_ages' => [8], 'option_ids' => [self::BREAKFAST],
+            'party_size' => 1, 'children_ages' => [8], 'option_ids' => [self::BREAKFAST],
         ])->assertOk();
-        $this->assertEquals(1100, $preview->json('data.price_breakdown.children_total'));
-        $this->assertEquals(550, $preview->json('data.price_breakdown.children.0.per_night'));
+        $this->assertEquals(600, $preview->json('data.price_breakdown.children_total'));
+        $this->assertEquals(300, $preview->json('data.price_breakdown.children.0.per_night'));
     }
 
     public function test_children_count_in_the_room_from_the_age_the_hotel_names(): void
@@ -127,6 +126,66 @@ class ChildPolicyTest extends TestCase
         // a double: two adults and a child of 8 is three — too many; with a child of 4 instead it fits
         $this->stay(['party_size' => 2, 'children_ages' => [8]])->assertStatus(422)->assertJsonValidationErrors(['party_size']);
         $this->stay(['party_size' => 2, 'children_ages' => [4]])->assertCreated();
+    }
+
+    public function test_over_the_capacity_a_guest_gets_an_extra_bed_at_its_price_instead_of_a_refusal(): void
+    {
+        // the hotel sells one extra bed a room at 200 a night
+        $this->policy(['extra_bed_price' => 200, 'extra_beds_max' => 1])->assertOk()->assertJsonPath('data.policy.extra_bed_price', 200);
+
+        // a double: two adults and a child of 8 — the child is in the extra bed and pays only its share: 1000 + 250 a night
+        $res = $this->stay(['party_size' => 2, 'children_ages' => [8]])->assertCreated();
+        $this->assertEquals((1000 + 250) * 2, (float) Booking::find($res->json('data.booking.id'))->price, 'a child is never charged its share AND the bed');
+
+        // a third ADULT pays the extra bed: 1000 + 200 a night
+        Sanctum::actingAs($this->guest);
+        $body = [
+            'business_id' => $this->hotel->id, 'service_id' => $this->serviceId, 'bookable_id' => $this->unit->id, 'quantity' => 1,
+            'starts_at' => $this->start->copy()->addDays(10)->toDateTimeString(), 'ends_at' => $this->start->copy()->addDays(12)->toDateTimeString(),
+        ];
+        $res = $this->postJson('/api/v2/bookings', $body + ['party_size' => 3])->assertCreated();
+        $this->assertEquals((1000 + 200) * 2, (float) Booking::find($res->json('data.booking.id'))->price);
+
+        // a fourth guest needs a second extra bed, which the room does not take
+        $this->postJson('/api/v2/bookings', ['starts_at' => $this->start->copy()->addDays(20)->toDateTimeString(), 'ends_at' => $this->start->copy()->addDays(22)->toDateTimeString()] + $body + ['party_size' => 3, 'children_ages' => [8]])
+            ->assertStatus(422)->assertJsonValidationErrors(['party_size']);
+    }
+
+    public function test_one_child_free_per_room_and_the_next_one_pays_its_share(): void
+    {
+        // «طفل واحد مجانًا لكل غرفة»: under 6 the first child is free, a second pays half; 6–11 half for each
+        $this->policy(['bands' => [['from' => 0, 'to' => 5, 'percent' => 0, 'second_percent' => 50], ['from' => 6, 'to' => 11, 'percent' => 50]]])->assertOk()
+            ->assertJsonPath('data.policy.bands.0.second_percent', 50);
+
+        // one adult with two small children in a double (500 a person): one is free, the other pays half = 250 a night
+        $res = $this->stay(['party_size' => 1, 'children_ages' => [2, 4]])->assertCreated();
+        $this->assertEquals((1000 + 250) * 2, (float) Booking::find($res->json('data.booking.id'))->price);
+    }
+
+    public function test_the_guest_reads_the_meal_times_of_the_plan_he_chose(): void
+    {
+        Sanctum::actingAs($this->hotel);
+        $this->putJson('/api/v2/business/meal-times', [
+            'breakfast' => ['from' => '07:00', 'to' => '10:30'], 'lunch' => ['from' => '13:00', 'to' => '15:30'], 'dinner' => ['from' => '19:00', 'to' => '22:00'],
+        ])->assertOk()->assertJsonPath('data.times.dinner.from', '19:00');
+        $this->putJson('/api/v2/business/meal-times', ['breakfast' => ['from' => '7am']])->assertStatus(422);
+
+        // half board: half board = breakfast + dinner
+        $halfBoard = (int) \App\Models\Option::query()->where('name_en', 'Half Board')->value('id');
+        OfferingOption::create([
+            'offering_type' => (new User)->getMorphClass(), 'offering_id' => $this->hotel->id, 'option_id' => $halfBoard,
+            'role' => OfferingOption::ROLE_MODIFIER, 'adjust_type' => OfferingOption::ADJUST_AMOUNT, 'adjust_value' => 150, 'per_person' => true, 'sort_order' => 2,
+        ]);
+        $id = $this->stay(['party_size' => 1, 'option_ids' => [$halfBoard]])->assertCreated()->json('data.booking.id');
+
+        Sanctum::actingAs($this->guest);
+        $meals = collect($this->getJson("/api/v2/bookings/{$id}")->assertOk()->json('data.meal_times'));
+        $this->assertSame(['breakfast', 'dinner'], $meals->pluck('meal')->all());
+        $this->assertSame('07:00', $meals->firstWhere('meal', 'breakfast')['from']);
+        $this->assertSame('22:00', $meals->firstWhere('meal', 'dinner')['to']);
+
+        // all inclusive is a plan of its own and gives all three meals
+        $this->assertNotNull(\App\Models\Option::query()->where('name_en', 'All Inclusive')->value('id'));
     }
 
     public function test_a_hotel_with_no_policy_keeps_children_free_and_uncounted(): void

@@ -210,8 +210,11 @@ final class BookingController extends Controller
             $party += count(array_filter(array_map('intval', (array) ($data['children_ages'] ?? [])), fn ($age) => $policy->counts($age)));
         }
 
-        if ($limit !== null && $party > $limit) {
-            throw ValidationException::withMessages(['party_size' => __('عدد النزلاء أكبر مما تتسع له الغرفة (:max).', ['max' => $limit])]);
+        // «سرير إضافي بسعره بدل الرفض»: the guests over the room's capacity sleep in extra beds, up to what the hotel allows
+        $extraBeds = $policy ? $policy->extraBedsAllowed(max((int) ($data['quantity'] ?? 1), 1)) : 0;
+
+        if ($limit !== null && $party > $limit + $extraBeds) {
+            throw ValidationException::withMessages(['party_size' => __('عدد النزلاء أكبر مما تتسع له الغرفة (:max).', ['max' => $limit + $extraBeds])]);
         }
     }
 
@@ -937,6 +940,8 @@ final class BookingController extends Controller
             'success' => true,
             'data' => [
                 'booking' => $this->titled($booking),
+                // the meals the stay's plan gives, at the hotel's times («الإفطار 7:00–10:30 · العشاء 19:00–22:00»)
+                'meal_times' => app(\App\Services\Hotels\MealPlans::class)->forBooking($booking),
                 'financial_preview' => $this->partyPreview(request(), $booking),
                 // «قبول الديبوزت كدفعة»: may it be asked, was it, was it accepted
                 'deposit_as_payment' => app(\App\Services\BookingDepositPaymentService::class)->state($booking),

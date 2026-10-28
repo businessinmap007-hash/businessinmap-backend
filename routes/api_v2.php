@@ -1141,6 +1141,9 @@ Route::prefix('v2')->group(function () {
             // «سياسة الأطفال»: age bands and the share of the night a child pays
             Route::get('business/child-policy', [\App\Http\Controllers\Api\V2\BusinessChildPolicyController::class, 'show']);
             Route::put('business/child-policy', [\App\Http\Controllers\Api\V2\BusinessChildPolicyController::class, 'update']);
+            // «مواعيد الوجبات»: breakfast, lunch and dinner, from … to …
+            Route::get('business/meal-times', [\App\Http\Controllers\Api\V2\BusinessMealTimesController::class, 'show']);
+            Route::put('business/meal-times', [\App\Http\Controllers\Api\V2\BusinessMealTimesController::class, 'update']);
             Route::put('business/booking-add-ons', [BusinessBookingAddOnsController::class, 'update']);
             Route::get('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'show'])->whereNumber('item');
             Route::put('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'update'])->whereNumber('item');

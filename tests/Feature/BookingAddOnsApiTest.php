@@ -82,7 +82,9 @@ class BookingAddOnsApiTest extends TestCase
         $this->assertNotNull($meals, 'the meal plans are an add-on');
         $this->assertSame('single', $meals['selection_type'], 'one choice by default — a radio button');
         $this->assertSame('night', $meals['applies_to'], 'a meal plan is added to each night');
-        $this->assertEqualsCanonicalizing([self::BREAKFAST, self::HALF_BOARD, self::FULL_BOARD], array_column($meals['options'], 'id'));
+        // the plans Egyptian hotels sell: breakfast, half board, full board and all inclusive
+        $allInclusive = (int) \App\Models\Option::query()->where('name_en', 'All Inclusive')->value('id');
+        $this->assertEqualsCanonicalizing([self::BREAKFAST, self::HALF_BOARD, self::FULL_BOARD, $allInclusive], array_column($meals['options'], 'id'));
 
         $views = collect($data['features'])->firstWhere('group', 'إطلالة الوحدة');
         $this->assertNotNull($views, 'a view belongs to one room');

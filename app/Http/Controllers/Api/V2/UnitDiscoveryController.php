@@ -148,6 +148,8 @@ final class UnitDiscoveryController extends Controller
                 'partner_rooms' => $this->partnerRooms((int) $biz->id, $window),
                 // «سياسة الأطفال» of this hotel: the app asks each child's age and says what it pays
                 'child_policy' => \App\Models\ChildPolicy::forBusiness((int) $biz->id)?->payload(),
+                // the hotel's meal times, shown beside the meal plans
+                'meal_times' => app(\App\Services\Hotels\MealPlans::class)->times((int) $biz->id),
                 // «بالموعد» or «بالدور»: how this business takes its appointments
                 'flow' => \App\Services\AppointmentQueue::flowOf((int) $biz->id),
                 // «أشكال الحجز»: how this trade page is drawn (sections or a flat list, what is shown, in what order).

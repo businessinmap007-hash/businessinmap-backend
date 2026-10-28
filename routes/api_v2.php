@@ -301,6 +301,9 @@ Route::prefix('v2')->group(function () {
     // ever handed one (see App\Support\PlanPhotoUrl).
     Route::get('plan-photos/{image}', [PlanPhotoController::class, 'show'])
         ->whereNumber('image')->middleware('signed')->name('plan-photos.show');
+    // what a guest recorded as paid to a hotel outside the app, his proof — the same signed link, handed to the two parties only
+    Route::get('stay-payment-proofs/{payment}', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'proof'])
+        ->whereNumber('payment')->middleware('signed')->name('stay-payment-proofs.show');
     Route::get('trainer-photos/{photo}', [TrainerPhotoController::class, 'show'])
         ->whereNumber('photo')->middleware('signed')->name('trainer-photos.show');
     // A file of an investigation order (a request photo or a result), from private storage — the same signed link.
@@ -439,6 +442,8 @@ Route::prefix('v2')->group(function () {
         // What a ruling decided I owe (and am owed), plus pay-to-unblock. NOT
         // behind the block middleware: a blocked user must reach these to clear it.
         Route::get('me/dispute-obligations', [DisputeObligationController::class, 'index']);
+        // «يرجى التسوية لفك العربون»: the open settlements of a non-refundable stay, for the badge beside the notifications
+        Route::get('me/stay-settlements', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'mine']);
         Route::post('me/dispute-obligations/settle', [DisputeObligationController::class, 'settle']);
 
         // Platform fines (fraud/abuse) the user can see and contest. Levy,
@@ -1337,6 +1342,13 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/reject', [BookingController::class, 'reject'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             Route::post('{booking}/reschedule', [BookingController::class, 'reschedule'])->whereNumber('booking');
             Route::post('{booking}/cancel', [BookingController::class, 'cancel'])->whereNumber('booking');
+            // «التسوية» of a non-refundable stay: both sides' «تمت التسوية», the guest's recorded payments, arbitration after 3 days
+            Route::get('{booking}/stay-settlement', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'show'])->whereNumber('booking');
+            Route::post('{booking}/stay-settlement/confirm', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'confirm'])->whereNumber('booking');
+            Route::delete('{booking}/stay-settlement/confirm', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'withdraw'])->whereNumber('booking');
+            Route::post('{booking}/stay-settlement/payments', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'recordPayment'])->whereNumber('booking');
+            Route::post('{booking}/stay-settlement/payments/{payment}/answer', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'answerPayment'])->whereNumber(['booking', 'payment']);
+            Route::post('{booking}/stay-settlement/arbitration', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'arbitration'])->whereNumber('booking');
             Route::post('{booking}/client-confirm', [BookingController::class, 'clientConfirm'])->whereNumber('booking');
             Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             // «جاء عميل بدون حجز»: the business books a customer who is standing there (an account, or a named guest)

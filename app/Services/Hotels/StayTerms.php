@@ -140,7 +140,14 @@ final class StayTerms
             }
 
             $nr = round(max((float) ($breakdown['final_price'] ?? 0) + $base, 0) * $off / 100, 2);
-            $breakdown['non_refundable'] = ['percent' => $off, 'amount' => $nr];
+            $deposit = app(StaySettlement::class)->percentFor((int) $bookable->business_id);
+            $breakdown['non_refundable'] = [
+                'percent' => $off,
+                'amount' => $nr,
+                // «عربون الجدية»: frozen from the guest — and as much from the hotel — when the hotel accepts; guarantee first
+                'deposit_percent' => $deposit,
+                'deposit' => round(max((float) ($breakdown['final_price'] ?? 0) + $base - $nr, 0) * $deposit / 100, 2),
+            ];
         }
 
         $breakdown['rate_plan'] = $plan === self::NON_REFUNDABLE ? self::NON_REFUNDABLE : self::FLEXIBLE;

@@ -621,6 +621,11 @@ final class BookingController extends Controller
 
         $bookable = $calc['bookable'] ?? null;
 
+        // «غير قابل للاسترداد»: the guest's guarantee and wallet must stand its «عربون الجدية» before he books it
+        if (data_get($calc, 'price_breakdown.rate_plan') === \App\Services\Hotels\StayTerms::NON_REFUNDABLE && (int) $customerId === (int) $user->id) {
+            app(\App\Services\Hotels\StaySettlement::class)->assertGuestCanSecure($user, (int) $data['business_id'], (float) data_get($calc, 'price_breakdown.final_price', 0));
+        }
+
         // A room already taken for these nights must not be sold twice.
         $this->serviceExecutionEngine->assertBookableAvailable(
             $bookable,
@@ -961,6 +966,8 @@ final class BookingController extends Controller
                     'rate_plan' => (string) (data_get($booking->meta, 'rate_plan') ?: \App\Services\Hotels\StayTerms::FLEXIBLE),
                     'cots' => (int) data_get($booking->meta, 'cots', 0),
                 ],
+                // «التسوية» of a non-refundable stay: the holds, both sides' confirmations, the recorded payments
+                'stay_settlement' => app(\App\Services\Hotels\StaySettlement::class)->payload($booking, (int) request()->user()->id),
                 // «تفاصيل الإقامة»: the adults, the children and what each pays, the beds, the meal plan, the gala nights
                 'stay_details' => is_array(data_get($booking->meta, 'stay'))
                     ? ['adults' => max((int) ($booking->party_size ?: 1), 1)] + (array) data_get($booking->meta, 'stay')
@@ -1496,8 +1503,20 @@ final class BookingController extends Controller
             $booking->update(['status' => $status]);
             $this->allocationConsumption->onStatusChanged($booking, $status);
 
+            // «غير قابل للاسترداد»: accepting freezes both sides' «عربون الجدية» (guarantee first) — refused with the reason when
+            // either side cannot stand it, and the acceptance with it
+            if ($status === Booking::STATUS_ACCEPTED) {
+                app(\App\Services\Hotels\StaySettlement::class)->secure($booking);
+            }
+
             return $booking->refresh();
         });
+
+        // …and a cancellation by either side keeps it frozen until both say «تمت التسوية»
+        if (in_array($status, [Booking::STATUS_CANCELLED, Booking::STATUS_REJECTED], true)) {
+            app(\App\Services\Hotels\StaySettlement::class)->open($booking, (int) $request->user()->id);
+            $booking->refresh();
+        }
 
         $this->serviceEventDispatcher->{$dispatcher}(
             booking: $booking,

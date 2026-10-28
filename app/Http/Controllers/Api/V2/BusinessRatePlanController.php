@@ -20,17 +20,23 @@ final class BusinessRatePlanController extends Controller
     {
         return response()->json(['success' => true, 'data' => [
             'non_refundable_percent' => app(\App\Services\Hotels\StayTerms::class)->nonRefundablePercent($this->businessId()),
+            // «عربون الجدية» of the non-refundable rate: frozen from the guest, and as much from the hotel, on acceptance
+            'deposit_percent' => app(\App\Services\Hotels\StaySettlement::class)->percentFor($this->businessId()),
         ]]);
     }
 
     /** PUT /api/v2/business/booking-settings/rate-plans — `{non_refundable_percent}` (null = only the flexible rate) */
     public function update(Request $request)
     {
-        $data = $request->validate(['non_refundable_percent' => ['nullable', 'numeric', 'min:1', 'max:50']]);
+        $data = $request->validate([
+            'non_refundable_percent' => ['nullable', 'numeric', 'min:1', 'max:50'],
+            'deposit_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
+        ]);
 
         BusinessBookingSetting::query()->updateOrCreate(
             ['business_id' => $this->businessId()],
             ['non_refundable_percent' => isset($data['non_refundable_percent']) ? round((float) $data['non_refundable_percent'], 2) : null]
+                + (isset($data['deposit_percent']) ? ['non_refundable_deposit_percent' => round((float) $data['deposit_percent'], 2)] : [])
         );
 
         return $this->show();

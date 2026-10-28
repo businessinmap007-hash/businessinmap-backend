@@ -57,6 +57,10 @@ class HotelContractTermsTest extends TestCase
         ]);
         $this->unit->syncOfferingOptions(self::SINGLE_ROOM, []);
 
+        // a guest whose wallet stands a non-refundable stay's «عربون الجدية» (StaySettlementTest covers the rest)
+        app(\App\Services\WalletService::class)->getOrCreateWallet($this->guest->id)
+            ->update(['status' => \App\Models\Wallet::STATUS_ACTIVE, 'balance' => 5000, 'locked_balance' => 0]);
+
         OfferingOption::create([
             'offering_type' => (new User)->getMorphClass(), 'offering_id' => $this->hotel->id, 'option_id' => self::BREAKFAST,
             'role' => OfferingOption::ROLE_MODIFIER, 'adjust_type' => OfferingOption::ADJUST_AMOUNT, 'adjust_value' => 100, 'per_person' => true, 'sort_order' => 1,

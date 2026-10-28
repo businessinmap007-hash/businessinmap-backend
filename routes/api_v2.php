@@ -1144,6 +1144,11 @@ Route::prefix('v2')->group(function () {
             // «مواعيد الوجبات»: breakfast, lunch and dinner, from … to …
             Route::get('business/meal-times', [\App\Http\Controllers\Api\V2\BusinessMealTimesController::class, 'show']);
             Route::put('business/meal-times', [\App\Http\Controllers\Api\V2\BusinessMealTimesController::class, 'update']);
+            // «العشاء الإلزامي»: the hotel's gala nights, added to every stay over them
+            Route::get('business/gala-dinners', [\App\Http\Controllers\Api\V2\BusinessGalaDinnerController::class, 'index']);
+            Route::post('business/gala-dinners', [\App\Http\Controllers\Api\V2\BusinessGalaDinnerController::class, 'store']);
+            Route::put('business/gala-dinners/{id}', [\App\Http\Controllers\Api\V2\BusinessGalaDinnerController::class, 'update'])->whereNumber('id');
+            Route::delete('business/gala-dinners/{id}', [\App\Http\Controllers\Api\V2\BusinessGalaDinnerController::class, 'destroy'])->whereNumber('id');
             Route::put('business/booking-add-ons', [BusinessBookingAddOnsController::class, 'update']);
             Route::get('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'show'])->whereNumber('item');
             Route::put('business/bookable-items/{item}/features', [BusinessBookableFeatureController::class, 'update'])->whereNumber('item');

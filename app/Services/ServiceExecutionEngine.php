@@ -267,6 +267,8 @@ class ServiceExecutionEngine
         // …and the guests over the room's capacity, in the hotel's extra beds
         if (! $dayUse && $bookable && $bookable->item_type === 'booking_stay') {
             $priceBreakdown = app(\App\Services\Hotels\ChildPricing::class)->apply($priceBreakdown, $bookable, $childrenAges, $partySize);
+            // …and the hotel's compulsory gala dinners on the nights of the stay
+            $priceBreakdown = app(\App\Services\Hotels\GalaDinners::class)->apply($priceBreakdown, $bookable, $childrenAges, $partySize);
         }
 
         $depositPolicy = $allocation ? [

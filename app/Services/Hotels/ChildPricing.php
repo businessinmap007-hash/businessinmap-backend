@@ -43,17 +43,28 @@ final class ChildPricing
         $children = [];
         $total = 0.0;
 
-        // «طفل واحد مجانًا لكل غرفة»: each room has ONE first child; the slot goes to the child it saves the most for
         $rooms = max((int) ($breakdown['units'] ?? 1), 1);
-        $order = array_keys($ages);
+        $kids = array_values(array_filter(array_keys($ages), fn ($i) => ! $policy->isAdult($ages[$i])));
+
+        // «بالغ واحد مع طفل»: a room with ONE adult has the second adult's place paid for in the room's price; the hotel's single-parent
+        // percentage goes to the child in it — the oldest, the one who would pay the most
+        $grown = max($adults, 1);
+        $singleRooms = $policy->single_parent_percent === null || $occupancy < 2 ? 0 : max(min($rooms * 2 - $grown, $rooms, $grown), 0);
+        $byShare = $kids;
+        usort($byShare, fn ($a, $b) => ($policy->percentFor($ages[$b], true) <=> $policy->percentFor($ages[$a], true)) ?: ($ages[$b] <=> $ages[$a]));
+        $singles = array_flip(array_slice($byShare, 0, $singleRooms));
+
+        // «طفل واحد مجانًا لكل غرفة»: each room has ONE first child; the slot goes to the child it saves the most for
+        $order = array_values(array_filter($kids, fn ($i) => ! isset($singles[$i])));
         usort($order, fn ($a, $b) => ($policy->percentFor($ages[$b], false) - $policy->percentFor($ages[$b], true))
             <=> ($policy->percentFor($ages[$a], false) - $policy->percentFor($ages[$a], true)));
-        $firsts = array_flip(array_slice(array_values(array_filter($order, fn ($i) => ! $policy->isAdult($ages[$i]))), 0, $rooms));
+        $firsts = array_flip(array_slice($order, 0, $rooms));
 
         foreach ($ages as $i => $age) {
-            $first = isset($firsts[$i]);
-            $percent = $policy->percentFor($age, $first);
-            $line = ['age' => $age, 'percent' => $percent, 'first' => $first, 'adult' => $policy->isAdult($age), 'per_night' => 0.0, 'total' => 0.0];
+            $single = isset($singles[$i]);
+            $first = ! $single && isset($firsts[$i]);
+            $percent = $single ? max(min((float) $policy->single_parent_percent, 100), 0) : $policy->percentFor($age, $first);
+            $line = ['age' => $age, 'percent' => $percent, 'first' => $first, 'single_parent' => $single, 'adult' => $policy->isAdult($age), 'per_night' => 0.0, 'total' => 0.0];
 
             if ($percent > 0) {
                 foreach ($periods as $p) {

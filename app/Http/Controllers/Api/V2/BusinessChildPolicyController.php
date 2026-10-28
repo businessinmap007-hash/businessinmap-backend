@@ -32,6 +32,9 @@ final class BusinessChildPolicyController extends Controller
             // «سرير إضافي»: its price a night (empty = no extra bed: a stay over the room's capacity is refused) and how many a room takes
             'extra_bed_price' => ['nullable', 'numeric', 'min:0'],
             'extra_beds_max' => ['nullable', 'integer', 'min:0', 'max:4'],
+            // «بالغ واحد مع طفل»: a room with one adult — the child in the second adult's place pays this % of one person's night
+            // (0 = free); empty = its normal age-band share
+            'single_parent_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'bands' => ['present', 'array', 'max:6'],
             'bands.*.from' => ['required', 'integer', 'min:0', 'max:17'],
             'bands.*.to' => ['required', 'integer', 'min:0', 'max:17'],
@@ -61,6 +64,7 @@ final class BusinessChildPolicyController extends Controller
             'meals_follow' => (bool) ($data['meals_follow'] ?? true),
             'extra_bed_price' => isset($data['extra_bed_price']) ? round((float) $data['extra_bed_price'], 2) : null,
             'extra_beds_max' => (int) ($data['extra_beds_max'] ?? 1),
+            'single_parent_percent' => isset($data['single_parent_percent']) ? round((float) $data['single_parent_percent'], 2) : null,
             'bands' => $bands->all(),
         ]);
 

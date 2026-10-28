@@ -188,6 +188,77 @@ class ChildPolicyTest extends TestCase
         $this->assertNotNull(\App\Models\Option::query()->where('name_en', 'All Inclusive')->value('id'));
     }
 
+    public function test_one_adult_with_a_child_gives_the_child_the_second_adults_place(): void
+    {
+        // «بالغ واحد مع طفل»: the hotel lets the child in the empty adult place stay free
+        $this->policy(['single_parent_percent' => 0])->assertOk()->assertJsonPath('data.policy.single_parent_percent', 0);
+
+        // a double (500 a person): one adult and a child of 8 — the child is in the paid second place: just the room
+        $res = $this->stay(['party_size' => 1, 'children_ages' => [8]])->assertCreated();
+        $this->assertEquals(1000 * 2, (float) Booking::find($res->json('data.booking.id'))->price);
+
+        // two adults: no empty place, the child of 8 pays its half share (250 a night)
+        Sanctum::actingAs($this->guest);
+        $body = [
+            'business_id' => $this->hotel->id, 'service_id' => $this->serviceId, 'bookable_id' => $this->unit->id, 'quantity' => 1,
+            'starts_at' => $this->start->copy()->addDays(10)->toDateTimeString(), 'ends_at' => $this->start->copy()->addDays(12)->toDateTimeString(),
+        ];
+        $preview = $this->postJson('/api/v2/bookings/preview', $body + ['party_size' => 2, 'children_ages' => [4]])->assertOk();
+        $this->assertFalse($preview->json('data.price_breakdown.children.0.single_parent'));
+
+        // a hotel whose under-6s pay half: one adult with children of 4 and 9 — the 9-year-old takes the adult place free, the 4-year-old
+        // is the room's first child at half (250 a night)
+        $this->policy(['single_parent_percent' => 0, 'bands' => [['from' => 0, 'to' => 5, 'percent' => 50], ['from' => 6, 'to' => 11, 'percent' => 50]]])->assertOk();
+        Sanctum::actingAs($this->guest);
+        $preview = $this->postJson('/api/v2/bookings/preview', $body + ['party_size' => 1, 'children_ages' => [4, 9]])->assertOk();
+        $this->assertEquals(250 * 2, $preview->json('data.price_breakdown.children_total'));
+        $this->assertTrue($preview->json('data.price_breakdown.children.1.single_parent'));
+
+        // a hotel that charges the child in the adult place 30% of a person: 150 a night
+        $this->policy(['single_parent_percent' => 30])->assertOk();
+        Sanctum::actingAs($this->guest);
+        $preview = $this->postJson('/api/v2/bookings/preview', $body + ['party_size' => 1, 'children_ages' => [8]])->assertOk();
+        $this->assertEquals(150 * 2, $preview->json('data.price_breakdown.children_total'));
+
+        // left empty: the child pays its normal band share again
+        $this->policy()->assertOk()->assertJsonPath('data.policy.single_parent_percent', null);
+    }
+
+    public function test_a_stay_over_a_gala_night_pays_its_compulsory_dinner(): void
+    {
+        Sanctum::actingAs($this->hotel);
+        $gala = $this->start->copy()->addDay()->toDateString(); // the stay's SECOND night
+        $id = $this->postJson('/api/v2/business/gala-dinners', [
+            'date' => $gala, 'name' => 'عشاء رأس السنة', 'adult_price' => 500, 'child_percent' => 50, 'child_free_under' => 6,
+        ])->assertCreated()->assertJsonPath('data.gala_dinner.adult_price', 500)->json('data.gala_dinner.id');
+
+        // one dinner a night; a past date is refused
+        $this->postJson('/api/v2/business/gala-dinners', ['date' => $gala, 'name' => 'x', 'adult_price' => 1])->assertStatus(422)->assertJsonValidationErrors(['date']);
+        $this->postJson('/api/v2/business/gala-dinners', ['date' => now()->subDay()->toDateString(), 'name' => 'x', 'adult_price' => 1])->assertStatus(422);
+
+        // two adults, a child of 8 (half the dinner) and one of 3 (free): 2 × 1000 + 2 × 500 + 250
+        $res = $this->stay(['party_size' => 2, 'children_ages' => [8, 3]])->assertCreated();
+        $this->assertEquals(2000 + 1000 + 250, (float) Booking::find($res->json('data.booking.id'))->price);
+
+        // the guest sees the gala nights with the rooms, and a stay over other nights does not pay it
+        $this->getJson("/api/v2/discovery/units/{$this->hotel->id}")->assertOk()->assertJsonPath('data.gala_dinners.0.date', $gala);
+        $preview = $this->postJson('/api/v2/bookings/preview', [
+            'business_id' => $this->hotel->id, 'service_id' => $this->serviceId, 'bookable_id' => $this->unit->id, 'quantity' => 1,
+            'starts_at' => $this->start->copy()->subDay()->toDateTimeString(), 'ends_at' => $this->start->copy()->addDay()->toDateTimeString(), 'party_size' => 2,
+        ])->assertOk();
+        $this->assertNull($preview->json('data.price_breakdown.gala_dinners'), 'the check-out day is not a night of the stay');
+
+        // the hotel edits and removes it
+        Sanctum::actingAs($this->hotel);
+        $this->putJson("/api/v2/business/gala-dinners/{$id}", ['date' => $gala, 'name' => 'Gala', 'adult_price' => 600])->assertOk()->assertJsonPath('data.gala_dinner.adult_price', 600);
+        $this->deleteJson("/api/v2/business/gala-dinners/{$id}")->assertOk();
+        $this->getJson('/api/v2/business/gala-dinners')->assertOk()->assertJsonCount(0, 'data.gala_dinners');
+
+        // another hotel cannot touch it
+        Sanctum::actingAs($this->guest);
+        $this->deleteJson("/api/v2/business/gala-dinners/{$id}")->assertStatus(403);
+    }
+
     public function test_a_hotel_with_no_policy_keeps_children_free_and_uncounted(): void
     {
         $res = $this->stay(['party_size' => 2, 'children_ages' => [8]])->assertCreated();

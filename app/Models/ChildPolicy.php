@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ChildPolicy extends Model
 {
-    protected $fillable = ['business_id', 'adult_from_age', 'counts_from_age', 'meals_follow', 'extra_bed_price', 'extra_beds_max', 'bands'];
+    protected $fillable = ['business_id', 'adult_from_age', 'counts_from_age', 'meals_follow', 'extra_bed_price', 'extra_beds_max', 'single_parent_percent', 'bands'];
 
     protected $casts = [
         'business_id' => 'integer',
@@ -19,6 +19,7 @@ class ChildPolicy extends Model
         'meals_follow' => 'boolean',
         'extra_bed_price' => 'decimal:2',
         'extra_beds_max' => 'integer',
+        'single_parent_percent' => 'decimal:2',
         'bands' => 'array',
     ];
 
@@ -75,6 +76,8 @@ class ChildPolicy extends Model
             'meals_follow' => (bool) $this->meals_follow,
             'extra_bed_price' => $this->extra_bed_price === null ? null : (float) $this->extra_bed_price,
             'extra_beds_max' => (int) $this->extra_beds_max,
+            // «بالغ واحد مع طفل»: what the child in the second adult's place pays of one person's night (null = its normal share)
+            'single_parent_percent' => $this->single_parent_percent === null ? null : (float) $this->single_parent_percent,
             'bands' => array_values(array_map(fn ($b) => [
                 'from' => (int) ($b['from'] ?? 0),
                 'to' => (int) ($b['to'] ?? 0),

@@ -272,6 +272,64 @@ class StaySettlementTest extends TestCase
             ->assertJsonPath('data.settlement.status', 'settled')->assertJsonPath('data.settlement.settled_by', 'stay_started');
     }
 
+    public function test_a_staff_member_with_bookings_settles_for_the_hotel(): void
+    {
+        $this->wallet($this->guest, 1000);
+        $this->wallet($this->hotel, 1000);
+        $id = $this->book();
+        $this->accept($id)->assertOk();
+        Sanctum::actingAs($this->guest);
+        $this->postJson("/api/v2/bookings/{$id}/cancel")->assertOk();
+
+        $make = fn () => User::create([
+            'name' => 'Zz Staff ' . uniqid(), 'email' => 'zz-staff-' . uniqid() . '@test.local', 'phone' => '01' . random_int(100000000, 999999999),
+            'password' => Hash::make('Passw0rdTest'), 'type' => User::TYPE_CLIENT, 'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
+        ]);
+        $desk = $make();
+        $kitchen = $make();
+        foreach ([[$desk, ['bookings']], [$kitchen, ['menu']]] as [$u, $caps]) {
+            \App\Models\BusinessStaff::create([
+                'business_id' => $this->hotel->id, 'user_id' => $u->id, 'title' => 'موظف', 'capabilities' => $caps,
+                'is_active' => true, 'status' => \App\Models\BusinessStaff::STATUS_ACCEPTED,
+            ]);
+        }
+
+        // a colleague without «الحجوزات» learns nothing
+        Sanctum::actingAs($kitchen);
+        $this->getJson("/api/v2/bookings/{$id}/stay-settlement")->assertNotFound();
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/confirm")->assertNotFound();
+        $this->getJson('/api/v2/me/stay-settlements')->assertOk()->assertJsonPath('data.count', 0);
+
+        // the front desk sees the hotel's settlement, for whom, and acts as the hotel
+        Sanctum::actingAs($desk);
+        $this->getJson('/api/v2/me/stay-settlements')->assertOk()->assertJsonPath('data.count', 1)
+            ->assertJsonPath('data.settlements.0.my_side', 'business')
+            ->assertJsonPath('data.settlements.0.for_business', $this->hotel->name);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer", ['amount' => 100])->assertOk()
+            ->assertJsonPath('data.settlement.wallet_offer.by', 'business');
+        $this->deleteJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer")->assertOk();
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/confirm")->assertOk()
+            ->assertJsonPath('data.settlement.business_confirmed_by', $desk->name);
+
+        // the guest's confirmation completes it
+        Sanctum::actingAs($this->guest);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/confirm")->assertOk()->assertJsonPath('data.settlement.status', 'settled');
+        $this->assertEquals(0, $this->locked($this->hotel));
+
+        // a staff member of ANOTHER hotel learns nothing
+        $elsewhere = $make();
+        $other = User::create([
+            'name' => 'Zz Other ' . uniqid(), 'email' => 'zz-other-' . uniqid() . '@test.local', 'phone' => '01' . random_int(100000000, 999999999),
+            'password' => Hash::make('Passw0rdTest'), 'type' => User::TYPE_BUSINESS, 'api_token' => 'zz' . uniqid() . bin2hex(random_bytes(8)),
+        ]);
+        \App\Models\BusinessStaff::create([
+            'business_id' => $other->id, 'user_id' => $elsewhere->id, 'title' => 'موظف', 'capabilities' => ['bookings'],
+            'is_active' => true, 'status' => \App\Models\BusinessStaff::STATUS_ACCEPTED,
+        ]);
+        Sanctum::actingAs($elsewhere);
+        $this->getJson("/api/v2/bookings/{$id}/stay-settlement")->assertNotFound();
+    }
+
     public function test_a_guarantee_stands_instead_of_the_wallet(): void
     {
         $levelId = (int) DB::table('guarantee_levels')->value('id');

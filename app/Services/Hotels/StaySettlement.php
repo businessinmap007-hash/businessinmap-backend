@@ -162,11 +162,13 @@ final class StaySettlement
     }
 
     /** One side says «تمت التسوية»; the second confirmation unwinds every hold. */
-    public function confirm(Booking $booking, int $userId): array
+    public function confirm(Booking $booking, int $userId, ?int $actorId = null): array
     {
         $side = $this->sideOf($booking, $userId);
         $state = $this->assertOpen($booking);
         $state[$side . '_confirmed_at'] = $state[$side . '_confirmed_at'] ?? now()->toDateTimeString();
+        // the person who pressed it — the owner, or the staff member acting for the hotel
+        $state[$side . '_confirmed_by'] = $state[$side . '_confirmed_by'] ?? ($actorId ?: $userId);
         $this->write($booking, $state, true);
 
         if (! empty($state['client_confirmed_at']) && ! empty($state['business_confirmed_at'])) {
@@ -188,6 +190,7 @@ final class StaySettlement
         $side = $this->sideOf($booking, $userId);
         $state = $this->assertOpen($booking);
         $state[$side . '_confirmed_at'] = null;
+        $state[$side . '_confirmed_by'] = null;
         $this->write($booking, $state, true);
 
         return $this->state($booking->fresh());
@@ -228,7 +231,7 @@ final class StaySettlement
     }
 
     /** The hotel — the payee, and only it — says the recorded payment arrived, or did not. */
-    public function answerPayment(Booking $booking, StaySettlementPayment $payment, int $businessId, bool $received, ?string $note = null): StaySettlementPayment
+    public function answerPayment(Booking $booking, StaySettlementPayment $payment, int $businessId, bool $received, ?string $note = null, ?int $actorId = null): StaySettlementPayment
     {
         if ($businessId !== (int) $booking->business_id || (int) $payment->booking_id !== (int) $booking->id) {
             throw ValidationException::withMessages(['payment' => __('هذه الدفعة ليست لحجز في نشاطك.')]);
@@ -242,7 +245,7 @@ final class StaySettlement
             'status' => $received ? StaySettlementPayment::RECEIVED : StaySettlementPayment::REFUSED,
             'answer_note' => $note,
             'answered_at' => now(),
-            'answered_by' => $businessId,
+            'answered_by' => $actorId ?: $businessId, // the person: the owner, or the staff member acting for the hotel
         ]);
 
         $status = $this->state($booking)['status'] ?? null;
@@ -269,7 +272,7 @@ final class StaySettlement
      * offers to pay it, or the hotel asks for it — and it is taken only when the OTHER side accepts. One proposal at a time; the
      * proposer may withdraw it until it is answered.
      */
-    public function offerWallet(Booking $booking, int $userId, ?float $amount = null): array
+    public function offerWallet(Booking $booking, int $userId, ?float $amount = null, ?int $actorId = null): array
     {
         $side = $this->sideOf($booking, $userId);
         $state = $this->assertOpen($booking);
@@ -284,7 +287,7 @@ final class StaySettlement
             throw ValidationException::withMessages(['settlement' => __('يوجد عرض تسوية من المحفظة بانتظار الرد.')]);
         }
 
-        $state['wallet_offer'] = ['by' => $side, 'amount' => $amount, 'at' => now()->toDateTimeString()];
+        $state['wallet_offer'] = ['by' => $side, 'amount' => $amount, 'at' => now()->toDateTimeString(), 'by_user' => $actorId ?: $userId];
         $this->write($booking, $state, true);
 
         $other = $side === 'client' ? (int) $booking->business_id : (int) $booking->user_id;
@@ -318,7 +321,7 @@ final class StaySettlement
     }
 
     /** The OTHER side answers the proposal: accepted, the amount is taken and it is settled; declined, the proposal is gone. */
-    public function answerWalletOffer(Booking $booking, int $userId, bool $accept): array
+    public function answerWalletOffer(Booking $booking, int $userId, bool $accept, ?int $actorId = null): array
     {
         $side = $this->sideOf($booking, $userId);
         $state = $this->assertOpen($booking);
@@ -339,7 +342,7 @@ final class StaySettlement
             return $this->state($booking->fresh());
         }
 
-        $this->collect($booking, (float) $offer['amount'], $offer['by']);
+        $this->collect($booking, (float) $offer['amount'], $offer['by'], $actorId ?: $userId);
 
         return $this->state($booking->fresh());
     }
@@ -354,13 +357,13 @@ final class StaySettlement
      * Take [amount] from the guest's hold for the hotel — the guest's wallet hold first, then his guarantee (which takes his free
      * balance before the guarantee itself) — and unwind everything else. Only ever after both sides agreed (answerWalletOffer).
      */
-    private function collect(Booking $booking, float $amount, string $proposedBy): void
+    private function collect(Booking $booking, float $amount, string $proposedBy, ?int $acceptedBy = null): void
     {
         $state = $this->assertOpen($booking);
         $wallet = round((float) data_get($state, 'client.wallet', 0), 2);
         $amount = round($amount, 2);
 
-        DB::transaction(function () use ($booking, $amount, $wallet, $state, $proposedBy) {
+        DB::transaction(function () use ($booking, $amount, $wallet, $state, $proposedBy, $acceptedBy) {
             $fromHold = round(min($amount, $wallet), 2);
             $deposit = $this->deposits->latestDeposit($booking);
 
@@ -403,6 +406,7 @@ final class StaySettlement
             $state['settled_by'] = 'wallet_collection';
             $state['collected'] = $amount;
             $state['collection_proposed_by'] = $proposedBy;
+            $state['collection_accepted_by'] = $acceptedBy;
             $this->write($booking, $state, true);
         });
 
@@ -469,10 +473,11 @@ final class StaySettlement
     }
 
     /** Every booking with a settlement still open for this account — the badge beside the notifications. */
-    public function pendingFor(int $userId): \Illuminate\Support\Collection
+    /** @param list<int> $employers the hotels this account works for with «الحجوزات» (staff delegation) */
+    public function pendingFor(int $userId, array $employers = []): \Illuminate\Support\Collection
     {
         return Booking::query()
-            ->where(fn ($q) => $q->where('user_id', $userId)->orWhere('business_id', $userId))
+            ->where(fn ($q) => $q->where('user_id', $userId)->orWhereIn('business_id', array_values(array_unique([...$employers, $userId]))))
             ->where('meta->' . self::META_KEY . '->status', self::OPEN)
             ->orderByDesc('id')->limit(50)->get();
     }
@@ -486,6 +491,7 @@ final class StaySettlement
             return null;
         }
 
+        // the guest reads the client side; the hotel's owner AND its staff read the business side
         $side = $viewerId === (int) $booking->user_id ? 'client' : 'business';
         $opened = isset($state['opened_at']) ? \Illuminate\Support\Carbon::parse($state['opened_at']) : null;
 
@@ -499,6 +505,8 @@ final class StaySettlement
             'opened_at' => $state['opened_at'] ?? null,
             'client_confirmed_at' => $state['client_confirmed_at'] ?? null,
             'business_confirmed_at' => $state['business_confirmed_at'] ?? null,
+            // who pressed «تمت التسوية» for the hotel — its owner, or a staff member by name
+            'business_confirmed_by' => isset($state['business_confirmed_by']) ? User::query()->whereKey((int) $state['business_confirmed_by'])->value('name') : null,
             'my_side' => $side,
             'arbitration_from' => $opened?->copy()->addDays(self::ARBITRATION_AFTER_DAYS)->toDateTimeString(),
             'can_request_arbitration' => ($state['status'] ?? null) === self::OPEN && $opened && now()->gte($opened->copy()->addDays(self::ARBITRATION_AFTER_DAYS)),

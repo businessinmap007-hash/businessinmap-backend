@@ -29,7 +29,7 @@ final class StaySettlementController extends Controller
     /** POST /api/v2/bookings/{booking}/stay-settlement/confirm — «تمت التسوية» */
     public function confirm(Request $request, Booking $booking)
     {
-        $this->settlement->confirm($booking, $this->party($request, $booking));
+        $this->settlement->confirm($booking, $this->party($request, $booking), (int) $request->user()->id);
 
         return $this->answer($request, $booking->fresh());
     }
@@ -66,7 +66,7 @@ final class StaySettlementController extends Controller
         $userId = $this->party($request, $booking);
         $data = $request->validate(['received' => ['required', 'boolean'], 'note' => ['nullable', 'string', 'max:500']]);
 
-        $this->settlement->answerPayment($booking, $payment, $userId, (bool) $data['received'], $data['note'] ?? null);
+        $this->settlement->answerPayment($booking, $payment, $userId, (bool) $data['received'], $data['note'] ?? null, (int) $request->user()->id);
 
         return $this->answer($request, $booking->fresh());
     }
@@ -77,7 +77,7 @@ final class StaySettlementController extends Controller
         $userId = $this->party($request, $booking);
         $data = $request->validate(['amount' => ['nullable', 'numeric', 'min:1']]);
 
-        $this->settlement->offerWallet($booking, $userId, isset($data['amount']) ? (float) $data['amount'] : null);
+        $this->settlement->offerWallet($booking, $userId, isset($data['amount']) ? (float) $data['amount'] : null, (int) $request->user()->id);
 
         return $this->answer($request, $booking->fresh());
     }
@@ -96,7 +96,7 @@ final class StaySettlementController extends Controller
         $userId = $this->party($request, $booking);
         $data = $request->validate(['accept' => ['required', 'boolean']]);
 
-        $this->settlement->answerWalletOffer($booking, $userId, (bool) $data['accept']);
+        $this->settlement->answerWalletOffer($booking, $userId, (bool) $data['accept'], (int) $request->user()->id);
 
         return $this->answer($request, $booking->fresh());
     }
@@ -113,13 +113,19 @@ final class StaySettlementController extends Controller
     public function mine(Request $request)
     {
         $userId = (int) $request->user()->id;
-        $rows = $this->settlement->pendingFor($userId)->load(['business:id,name', 'user:id,name']);
+        // …and those of every hotel this account works for with «الحجوزات»
+        $employers = app(\App\Services\Business\BusinessAccessService::class)->membershipsFor($userId)
+            ->filter(fn ($m) => in_array(\App\Support\BusinessCapability::BOOKINGS, \App\Support\BusinessCapability::sanitize((array) $m->capabilities), true))
+            ->pluck('business_id')->map(fn ($id) => (int) $id)->all();
+        $rows = $this->settlement->pendingFor($userId, $employers)->load(['business:id,name', 'user:id,name']);
 
         return response()->json(['success' => true, 'data' => [
             'count' => $rows->count(),
             'settlements' => $rows->map(fn (Booking $b) => [
                 'booking_id' => (int) $b->id,
                 'counterpart' => (int) $b->user_id === $userId ? $b->business?->name : $b->user?->name,
+                // a staff member sees for whom he settles
+                'for_business' => (int) $b->business_id !== $userId && (int) $b->user_id !== $userId ? $b->business?->name : null,
                 'starts_at' => $b->starts_at?->toIso8601String(),
             ] + (array) $this->settlement->payload($b, $userId))->values()->all(),
         ]]);
@@ -135,13 +141,28 @@ final class StaySettlementController extends Controller
         return response()->file($full, ['Cache-Control' => 'private, max-age=21600', 'X-Content-Type-Options' => 'nosniff']);
     }
 
-    /** The guest or the hotel of this booking — anyone else is told nothing. */
+    /**
+     * The party this caller acts as: the guest himself, or the HOTEL — its owner, or a staff member the hotel gave «الحجوزات»
+     * (staff delegation: BusinessAccessService::resolveContext, the same rule as business.member:bookings). Anyone else is told
+     * nothing (404).
+     */
     private function party(Request $request, Booking $booking): int
     {
-        $userId = (int) $request->user()->id;
-        abort_unless(in_array($userId, [(int) $booking->user_id, (int) $booking->business_id], true), 404);
+        $user = $request->user();
+        $userId = (int) $user->id;
 
-        return $userId;
+        if ($userId === (int) $booking->user_id || $userId === (int) $booking->business_id) {
+            return $userId;
+        }
+
+        $context = app(\App\Services\Business\BusinessAccessService::class)->resolveContext($user, (int) $booking->business_id);
+
+        abort_unless(
+            is_array($context) && in_array(\App\Support\BusinessCapability::BOOKINGS, (array) $context['capabilities'], true),
+            404
+        );
+
+        return (int) $booking->business_id;
     }
 
     private function answer(Request $request, Booking $booking, int $status = 200, array $extra = [])

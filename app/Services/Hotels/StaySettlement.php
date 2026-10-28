@@ -264,37 +264,103 @@ final class StaySettlement
     }
 
     /**
-     * «اقبل التسوية بالدفع من محفظة التطبيق»: the GUEST cancelled a non-refundable stay he agreed to — the hotel takes the deposit, or
-     * a smaller fine, from what is held for it: the guest's wallet hold first, then his guarantee (which takes his free balance
-     * before the guarantee itself). Everything else unwinds. Not when the hotel cancelled, and not when it already has the price.
+     * «التسوية من محفظة التطبيق» — a way to settle faster, never taken by one side alone (owner, 2026-10-28: «إذا عرض العميل التسوية من
+     * المحفظة أو وافق على ذلك فهو إجراء لتسريع حل النزاعات»). Either side proposes an amount up to the guest's held deposit — the guest
+     * offers to pay it, or the hotel asks for it — and it is taken only when the OTHER side accepts. One proposal at a time; the
+     * proposer may withdraw it until it is answered.
      */
-    public function collect(Booking $booking, int $businessId, ?float $amount = null): array
+    public function offerWallet(Booking $booking, int $userId, ?float $amount = null): array
     {
-        if ($businessId !== (int) $booking->business_id) {
-            throw ValidationException::withMessages(['settlement' => __('لست طرفًا في هذا الحجز.')]);
-        }
-
+        $side = $this->sideOf($booking, $userId);
         $state = $this->assertOpen($booking);
-
-        if (($state['cancelled_by'] ?? null) !== 'client') {
-            throw ValidationException::withMessages(['settlement' => __('يُحصَّل العربون من محفظة العميل فقط إذا ألغى العميل الحجز.')]);
-        }
-
-        if (data_get($booking->meta, \App\Services\ExternalDepositService::META_KEY . '.status') === 'received'
-            || StaySettlementPayment::query()->where('booking_id', $booking->id)->where('status', StaySettlementPayment::RECEIVED)->exists()) {
-            throw ValidationException::withMessages(['settlement' => __('استلمت المبلغ من العميل بالفعل؛ أكّد التسوية بدل التحصيل.')]);
-        }
-
-        $wallet = round((float) data_get($state, 'client.wallet', 0), 2);
-        $guarantee = round((float) data_get($state, 'client.guarantee', 0), 2);
-        $max = round($wallet + $guarantee, 2);
+        $max = $this->collectable($state);
         $amount = round($amount ?? $max, 2);
 
         if ($amount <= 0 || $amount > $max) {
             throw ValidationException::withMessages(['amount' => __('المبلغ بين 1 و:max (عربون العميل المجمّد).', ['max' => $max])]);
         }
 
-        DB::transaction(function () use ($booking, $amount, $wallet, $state) {
+        if (! empty($state['wallet_offer'])) {
+            throw ValidationException::withMessages(['settlement' => __('يوجد عرض تسوية من المحفظة بانتظار الرد.')]);
+        }
+
+        $state['wallet_offer'] = ['by' => $side, 'amount' => $amount, 'at' => now()->toDateTimeString()];
+        $this->write($booking, $state, true);
+
+        $other = $side === 'client' ? (int) $booking->business_id : (int) $booking->user_id;
+        $side === 'client'
+            ? $this->tell($booking, $other, 'booking.settlement_wallet_offer',
+                'العميل يعرض التسوية من المحفظة', 'The guest offers to settle from the wallet',
+                'يعرض العميل أن تأخذ ' . $amount . ' ج من عربونه المجمّد وتتم التسوية. وافق أو ارفض.',
+                'The guest offers ' . $amount . ' EGP of the held deposit to settle. Accept or decline.')
+            : $this->tell($booking, $other, 'booking.settlement_wallet_offer',
+                'الفندق يطلب التسوية من المحفظة', 'The hotel asks to settle from the wallet',
+                'يطلب الفندق ' . $amount . ' ج من عربونك المجمّد ليتم التسوية ويعود لك الباقي. وافق أو ارفض.',
+                'The hotel asks ' . $amount . ' EGP of your held deposit to settle; the rest comes back to you. Accept or decline.');
+
+        return $this->state($booking->fresh());
+    }
+
+    /** The proposer withdraws an unanswered proposal. */
+    public function withdrawWalletOffer(Booking $booking, int $userId): array
+    {
+        $side = $this->sideOf($booking, $userId);
+        $state = $this->assertOpen($booking);
+
+        if (($state['wallet_offer']['by'] ?? null) !== $side) {
+            throw ValidationException::withMessages(['settlement' => __('لا يوجد عرض منك لسحبه.')]);
+        }
+
+        unset($state['wallet_offer']);
+        $this->write($booking, $state, true);
+
+        return $this->state($booking->fresh());
+    }
+
+    /** The OTHER side answers the proposal: accepted, the amount is taken and it is settled; declined, the proposal is gone. */
+    public function answerWalletOffer(Booking $booking, int $userId, bool $accept): array
+    {
+        $side = $this->sideOf($booking, $userId);
+        $state = $this->assertOpen($booking);
+        $offer = $state['wallet_offer'] ?? null;
+
+        if (! $offer || $offer['by'] === $side) {
+            throw ValidationException::withMessages(['settlement' => __('لا يوجد عرض من الطرف الآخر للرد عليه.')]);
+        }
+
+        if (! $accept) {
+            unset($state['wallet_offer']);
+            $this->write($booking, $state, true);
+            $this->tell($booking, $side === 'client' ? (int) $booking->business_id : (int) $booking->user_id, 'booking.settlement_wallet_declined',
+                'رُفض عرض التسوية من المحفظة', 'The wallet settlement was declined',
+                'رفض الطرف الآخر عرض التسوية من المحفظة. يمكنكما الاتفاق بطريقة أخرى أو طلب التحكيم.',
+                'The other side declined the wallet settlement. You may agree otherwise or ask for arbitration.');
+
+            return $this->state($booking->fresh());
+        }
+
+        $this->collect($booking, (float) $offer['amount'], $offer['by']);
+
+        return $this->state($booking->fresh());
+    }
+
+    /** What the guest has held for the stay — the most a wallet settlement can take. */
+    private function collectable(array $state): float
+    {
+        return round((float) data_get($state, 'client.wallet', 0) + (float) data_get($state, 'client.guarantee', 0), 2);
+    }
+
+    /**
+     * Take [amount] from the guest's hold for the hotel — the guest's wallet hold first, then his guarantee (which takes his free
+     * balance before the guarantee itself) — and unwind everything else. Only ever after both sides agreed (answerWalletOffer).
+     */
+    private function collect(Booking $booking, float $amount, string $proposedBy): void
+    {
+        $state = $this->assertOpen($booking);
+        $wallet = round((float) data_get($state, 'client.wallet', 0), 2);
+        $amount = round($amount, 2);
+
+        DB::transaction(function () use ($booking, $amount, $wallet, $state, $proposedBy) {
             $fromHold = round(min($amount, $wallet), 2);
             $deposit = $this->deposits->latestDeposit($booking);
 
@@ -331,19 +397,21 @@ final class StaySettlement
                 );
             }
 
+            unset($state['wallet_offer']);
             $state['status'] = self::SETTLED;
             $state['settled_at'] = now()->toDateTimeString();
             $state['settled_by'] = 'wallet_collection';
             $state['collected'] = $amount;
+            $state['collection_proposed_by'] = $proposedBy;
             $this->write($booking, $state, true);
         });
 
-        $this->tell($booking, (int) $booking->user_id, 'booking.settlement_collected',
-            'حصّل الفندق العربون وتمت التسوية', 'The hotel collected the deposit — settled',
-            'ألغيت حجزًا غير قابل للاسترداد، فحصّل الفندق ' . $amount . ' ج من عربونك المجمّد، وعاد إليك الباقي وتمت التسوية.',
-            'You cancelled a non-refundable booking: the hotel collected ' . $amount . ' EGP from your held deposit; the rest came back to you and it is settled.');
-
-        return $this->state($booking->fresh());
+        foreach ([(int) $booking->user_id, (int) $booking->business_id] as $to) {
+            $this->tell($booking, $to, 'booking.settlement_collected',
+                'تمت التسوية من محفظة التطبيق', 'Settled from the app wallet',
+                'باتفاق الطرفين أُخذ ' . $amount . ' ج من عربون العميل للفندق، وعاد الباقي لأصحابه وتمت التسوية.',
+                'By both sides\' agreement ' . $amount . ' EGP of the guest\'s deposit went to the hotel; the rest went back and it is settled.');
+        }
     }
 
     /**
@@ -434,10 +502,9 @@ final class StaySettlement
             'my_side' => $side,
             'arbitration_from' => $opened?->copy()->addDays(self::ARBITRATION_AFTER_DAYS)->toDateTimeString(),
             'can_request_arbitration' => ($state['status'] ?? null) === self::OPEN && $opened && now()->gte($opened->copy()->addDays(self::ARBITRATION_AFTER_DAYS)),
-            // «اقبل التسوية بالدفع من محفظة التطبيق»: the hotel, when the guest cancelled — up to the guest's whole hold
-            'can_collect' => $side === 'business' && ($state['status'] ?? null) === self::OPEN && ($state['cancelled_by'] ?? null) === 'client'
-                && data_get($booking->meta, \App\Services\ExternalDepositService::META_KEY . '.status') !== 'received',
-            'collectable' => round((float) data_get($state, 'client.wallet', 0) + (float) data_get($state, 'client.guarantee', 0), 2),
+            // «التسوية من محفظة التطبيق»: one side proposes (up to the guest's whole hold), the other accepts
+            'collectable' => $this->collectable($state),
+            'wallet_offer' => $state['wallet_offer'] ?? null,
             'collected' => $state['collected'] ?? null,
             'settled_by' => $state['settled_by'] ?? null,
             'dispute_id' => $state['dispute_id'] ?? null,

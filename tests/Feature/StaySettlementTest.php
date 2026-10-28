@@ -206,7 +206,7 @@ class StaySettlementTest extends TestCase
         $this->assertSame('under_review', DB::table('disputes')->where('id', $res->json('data.dispute_id'))->value('status'));
     }
 
-    public function test_when_the_guest_cancelled_the_hotel_collects_the_deposit_from_the_app_wallet(): void
+    public function test_a_wallet_settlement_needs_the_other_sides_yes(): void
     {
         $this->wallet($this->guest, 1000);
         $this->wallet($this->hotel, 1000);
@@ -215,36 +215,37 @@ class StaySettlementTest extends TestCase
 
         // not while the stay stands
         Sanctum::actingAs($this->hotel);
-        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect")->assertStatus(422);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer")->assertStatus(422);
 
         Sanctum::actingAs($this->guest);
         $this->postJson("/api/v2/bookings/{$id}/cancel")->assertOk();
 
-        // the guest cannot collect from himself; the hotel may — a fine up to the held deposit
-        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect")->assertStatus(422);
+        // the hotel ASKS 200 — nothing moves; it cannot answer its own request
         Sanctum::actingAs($this->hotel);
-        $this->getJson("/api/v2/bookings/{$id}/stay-settlement")->assertOk()
-            ->assertJsonPath('data.settlement.can_collect', true)->assertJsonPath('data.settlement.collectable', 360);
-        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect", ['amount' => 500])->assertStatus(422)->assertJsonValidationErrors(['amount']);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer", ['amount' => 500])->assertStatus(422)->assertJsonValidationErrors(['amount']);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer", ['amount' => 200])->assertOk()
+            ->assertJsonPath('data.settlement.wallet_offer.by', 'business')->assertJsonPath('data.settlement.wallet_offer.amount', 200);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer/answer", ['accept' => true])->assertStatus(422);
+        $this->assertEquals(360, $this->locked($this->guest));
 
-        // a fine of 200: the guest keeps 160 of his hold, the hotel gets its 360 back plus 200
-        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect", ['amount' => 200])->assertOk()
+        // the guest declines: the request is gone, still frozen
+        Sanctum::actingAs($this->guest);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer/answer", ['accept' => false])->assertOk()
+            ->assertJsonPath('data.settlement.wallet_offer', null)->assertJsonPath('data.settlement.status', 'open');
+
+        // the guest OFFERS 200 himself, withdraws it, offers again; the hotel accepts
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer", ['amount' => 200])->assertOk();
+        $this->deleteJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer")->assertOk()->assertJsonPath('data.settlement.wallet_offer', null);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer", ['amount' => 200])->assertOk();
+        Sanctum::actingAs($this->hotel);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/wallet-offer/answer", ['accept' => true])->assertOk()
             ->assertJsonPath('data.settlement.status', 'settled')->assertJsonPath('data.settlement.collected', 200);
+
+        // the guest keeps 160 of his hold, the hotel gets its own 360 back plus 200
         $this->assertEquals(0, $this->locked($this->guest));
         $this->assertEquals(0, $this->locked($this->hotel));
         $this->assertEquals(1000 - 200, (float) Wallet::query()->where('user_id', $this->guest->id)->value('balance'));
         $this->assertEquals(1000 + 200, (float) Wallet::query()->where('user_id', $this->hotel->id)->value('balance'));
-    }
-
-    public function test_the_hotel_cannot_collect_when_it_cancelled_itself(): void
-    {
-        $this->wallet($this->guest, 1000);
-        $this->wallet($this->hotel, 1000);
-        $id = $this->book();
-        $this->accept($id)->assertOk();
-        Sanctum::actingAs($this->hotel);
-        $this->postJson("/api/v2/bookings/{$id}/cancel")->assertOk();
-        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect")->assertStatus(422)->assertJsonValidationErrors(['settlement']);
     }
 
     public function test_the_guest_paid_and_checked_in_so_everything_is_released(): void

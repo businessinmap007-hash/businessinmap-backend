@@ -71,13 +71,32 @@ final class StaySettlementController extends Controller
         return $this->answer($request, $booking->fresh());
     }
 
-    /** POST /api/v2/bookings/{booking}/stay-settlement/collect — `{amount?}` the hotel takes the deposit (or less) from the guest's hold */
-    public function collect(Request $request, Booking $booking)
+    /** POST /api/v2/bookings/{booking}/stay-settlement/wallet-offer — `{amount?}` the guest offers it, or the hotel asks for it */
+    public function offerWallet(Request $request, Booking $booking)
     {
         $userId = $this->party($request, $booking);
         $data = $request->validate(['amount' => ['nullable', 'numeric', 'min:1']]);
 
-        $this->settlement->collect($booking, $userId, isset($data['amount']) ? (float) $data['amount'] : null);
+        $this->settlement->offerWallet($booking, $userId, isset($data['amount']) ? (float) $data['amount'] : null);
+
+        return $this->answer($request, $booking->fresh());
+    }
+
+    /** DELETE /api/v2/bookings/{booking}/stay-settlement/wallet-offer — the proposer withdraws it */
+    public function withdrawWalletOffer(Request $request, Booking $booking)
+    {
+        $this->settlement->withdrawWalletOffer($booking, $this->party($request, $booking));
+
+        return $this->answer($request, $booking->fresh());
+    }
+
+    /** POST /api/v2/bookings/{booking}/stay-settlement/wallet-offer/answer — `{accept: bool}`, the other side */
+    public function answerWalletOffer(Request $request, Booking $booking)
+    {
+        $userId = $this->party($request, $booking);
+        $data = $request->validate(['accept' => ['required', 'boolean']]);
+
+        $this->settlement->answerWalletOffer($booking, $userId, (bool) $data['accept']);
 
         return $this->answer($request, $booking->fresh());
     }

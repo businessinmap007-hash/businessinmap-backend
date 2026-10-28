@@ -227,21 +227,54 @@ class DisputeCollectionTest extends TestCase
 
     // ─────────────────────── the block on new business ───────────────────────
 
-    /** Owing a ruling stops you starting new business with other people. */
-    public function test_an_unpaid_debt_blocks_new_operations(): void
+    /**
+     * Owing a ruling never stops the account (owner, 2026-10-28: «لا توقف الحساب في حالة النزاع ولكن تجميد الضمان أو العربون»):
+     * the debt is written down, the debtor's guarantee is frozen for it, and the account keeps working.
+     */
+    public function test_an_unpaid_debt_never_stops_the_account(): void
     {
         $dispute = $this->ruleAgainstClient();
         $this->wallet((int) $this->booking->user_id)->update(['balance' => 10]);
         $this->arbitration->chargeArbitrationFee($dispute);
 
-        $this->assertTrue($this->collections->isBlocked((int) $this->booking->user_id));
+        $this->assertFalse($this->collections->isBlocked((int) $this->booking->user_id));
         $this->assertEqualsWithDelta(100.0, $this->collections->outstandingFor((int) $this->booking->user_id), 0.01);
 
         Sanctum::actingAs($this->booking->user);
 
         $this->postJson('/api/v2/bookings', [])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('dispute_obligation');
+            ->assertJsonMissingValidationErrors('dispute_obligation');
+    }
+
+    /** The guarantee stands for the debt while it is unpaid, and goes back when it is paid. */
+    public function test_an_unpaid_debt_freezes_the_debtors_guarantee_until_paid(): void
+    {
+        $levelId = (int) \Illuminate\Support\Facades\DB::table('guarantee_levels')->value('id');
+        $client = $this->booking->user;
+
+        if ($levelId <= 0) {
+            $this->markTestSkipped('Needs a guarantee level.');
+        }
+
+        $client->forceFill(['guarantee_enabled' => 1])->save();
+        \App\Models\UserGuarantee::query()->where('user_id', $client->id)->where('target_type', 'client')->delete();
+        \App\Models\UserGuarantee::create([
+            'user_id' => $client->id, 'target_type' => 'client', 'purchased_level_id' => $levelId, 'effective_level_id' => $levelId,
+            'status' => \App\Models\UserGuarantee::STATUS_ACTIVE, 'current_coverage_amount' => 5000, 'used_coverage_amount' => 0,
+        ]);
+
+        $dispute = $this->ruleAgainstClient();
+        $this->wallet((int) $client->id)->update(['balance' => 10]);
+        $this->arbitration->chargeArbitrationFee($dispute);
+        $obligation = DisputeObligation::query()->where('dispute_id', $dispute->id)->firstOrFail();
+
+        $frozen = fn () => \App\Models\OperationGuarantor::query()->forOperation(DisputeCollectionService::HOLD_OPERATION, (int) $obligation->id)->active()->count();
+        $this->assertSame(1, $frozen(), 'the guarantee is frozen for the debt');
+
+        $this->wallet((int) $client->id)->update(['balance' => 500]);
+        $this->collections->settle($obligation->fresh());
+        $this->assertSame(0, $frozen(), 'paid: the guarantee goes back');
     }
 
     /**
@@ -254,7 +287,7 @@ class DisputeCollectionTest extends TestCase
         $this->wallet((int) $this->booking->user_id)->update(['balance' => 10]);
         $this->arbitration->chargeArbitrationFee($dispute);
 
-        $this->assertTrue($this->collections->isBlocked((int) $this->booking->user_id));
+        $this->assertFalse($this->collections->isBlocked((int) $this->booking->user_id));
 
         $this->wallet((int) $this->booking->user_id)->update(['balance' => 500]);
         $this->collections->settle(
@@ -326,7 +359,7 @@ class DisputeCollectionTest extends TestCase
         // The block is now visible and itemised.
         $this->getJson('/api/v2/me/dispute-obligations')
             ->assertOk()
-            ->assertJsonPath('data.blocked', true)
+            ->assertJsonPath('data.blocked', false)
             ->assertJsonCount(1, 'data.owed_by_me')
             ->assertJsonPath('data.owed_by_me.0.type', DisputeObligation::TYPE_SESSION_FEE)
             ->assertJsonPath('data.owed_by_me.0.dispute_id', (int) $dispute->id);

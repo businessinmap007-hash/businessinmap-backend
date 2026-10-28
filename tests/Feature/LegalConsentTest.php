@@ -116,7 +116,12 @@ class LegalConsentTest extends TestCase
             ->assertOk()
             ->assertSee('قبول الشروط')
             ->assertSee('المحفظة والمدفوعات')
-            ->assertSee('الملكية الفكرية');
+            ->assertSee('الملكية الفكرية')
+            // owner, 2026-10-28: the platform is a go-between, paying outside the app is the payer's own responsibility, and a
+            // dispute never stops an account
+            ->assertSee('المنصّة وسيط وليست طرفًا')
+            ->assertSee('الدفع خارج التطبيق على مسؤولية الدافع الشخصية')
+            ->assertSee('النزاع لا يوقف الحساب');
     }
 
     public function test_about_page_explains_the_app_and_its_dealings(): void

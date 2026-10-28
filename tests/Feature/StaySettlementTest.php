@@ -206,6 +206,71 @@ class StaySettlementTest extends TestCase
         $this->assertSame('under_review', DB::table('disputes')->where('id', $res->json('data.dispute_id'))->value('status'));
     }
 
+    public function test_when_the_guest_cancelled_the_hotel_collects_the_deposit_from_the_app_wallet(): void
+    {
+        $this->wallet($this->guest, 1000);
+        $this->wallet($this->hotel, 1000);
+        $id = $this->book();
+        $this->accept($id)->assertOk();
+
+        // not while the stay stands
+        Sanctum::actingAs($this->hotel);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect")->assertStatus(422);
+
+        Sanctum::actingAs($this->guest);
+        $this->postJson("/api/v2/bookings/{$id}/cancel")->assertOk();
+
+        // the guest cannot collect from himself; the hotel may — a fine up to the held deposit
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect")->assertStatus(422);
+        Sanctum::actingAs($this->hotel);
+        $this->getJson("/api/v2/bookings/{$id}/stay-settlement")->assertOk()
+            ->assertJsonPath('data.settlement.can_collect', true)->assertJsonPath('data.settlement.collectable', 360);
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect", ['amount' => 500])->assertStatus(422)->assertJsonValidationErrors(['amount']);
+
+        // a fine of 200: the guest keeps 160 of his hold, the hotel gets its 360 back plus 200
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect", ['amount' => 200])->assertOk()
+            ->assertJsonPath('data.settlement.status', 'settled')->assertJsonPath('data.settlement.collected', 200);
+        $this->assertEquals(0, $this->locked($this->guest));
+        $this->assertEquals(0, $this->locked($this->hotel));
+        $this->assertEquals(1000 - 200, (float) Wallet::query()->where('user_id', $this->guest->id)->value('balance'));
+        $this->assertEquals(1000 + 200, (float) Wallet::query()->where('user_id', $this->hotel->id)->value('balance'));
+    }
+
+    public function test_the_hotel_cannot_collect_when_it_cancelled_itself(): void
+    {
+        $this->wallet($this->guest, 1000);
+        $this->wallet($this->hotel, 1000);
+        $id = $this->book();
+        $this->accept($id)->assertOk();
+        Sanctum::actingAs($this->hotel);
+        $this->postJson("/api/v2/bookings/{$id}/cancel")->assertOk();
+        $this->postJson("/api/v2/bookings/{$id}/stay-settlement/collect")->assertStatus(422)->assertJsonValidationErrors(['settlement']);
+    }
+
+    public function test_the_guest_paid_and_checked_in_so_everything_is_released(): void
+    {
+        $this->wallet($this->guest, 1000);
+        $this->wallet($this->hotel, 1000);
+        $id = $this->book();
+        $this->accept($id)->assertOk();
+        $this->assertEquals(360, $this->locked($this->guest));
+
+        // the hotel received the prepayment, both sides confirmed attendance, the stay starts
+        Sanctum::actingAs($this->hotel);
+        $this->postJson("/api/v2/business/bookings/{$id}/deposit/confirm-received", ['method' => 'cash'])->assertOk();
+        $booking = Booking::find($id);
+        $meta = (array) $booking->meta;
+        $meta['_start_confirm'] = ['client' => true, 'business' => true];
+        $booking->forceFill(['meta' => $meta])->save();
+        app(\App\Services\ServiceExecutionEngine::class)->moveBookingToInProgress($booking->fresh());
+
+        $this->assertSame(Booking::STATUS_IN_PROGRESS, Booking::find($id)->status);
+        $this->assertEquals(0, $this->locked($this->guest));
+        $this->assertEquals(0, $this->locked($this->hotel));
+        $this->getJson("/api/v2/bookings/{$id}/stay-settlement")->assertOk()
+            ->assertJsonPath('data.settlement.status', 'settled')->assertJsonPath('data.settlement.settled_by', 'stay_started');
+    }
+
     public function test_a_guarantee_stands_instead_of_the_wallet(): void
     {
         $levelId = (int) DB::table('guarantee_levels')->value('id');

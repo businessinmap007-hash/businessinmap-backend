@@ -23,10 +23,12 @@ use Illuminate\Support\Facades\DB;
  *
  * The escalation the platform promised, in order:
  *   1. Take it from the wallet if the money is there.
- *   2. Otherwise leave it PENDING, block new operations, and tell them they
- *      have 24 hours.
- *   3. After that window, open their frozen guarantee and take it without
- *      asking again.
+ *   2. Otherwise leave it PENDING, FREEZE their guarantee for it, and tell them
+ *      they have 24 hours. The account itself is never stopped (owner,
+ *      2026-10-28: «لا توقف الحساب في حالة النزاع ولكن تجميد الضمان أو العربون»)
+ *      — it books and sells as usual; what it cannot do is spend the guarantee
+ *      that now stands for the debt.
+ *   3. After that window, take it from that guarantee without asking again.
  *
  * Step 3 is only defensible because of step 2. Raiding a guarantee the moment
  * a ruling lands is seizure; doing it after a deadline the person was told
@@ -109,9 +111,49 @@ class DisputeCollectionService
             return $this->payFromGuarantee($obligation, $amount);
         }
 
-        // Still within the window: they were already told, and the block on new
-        // operations is doing the persuading.
+        // Still within the window: they were told, and their guarantee is held for it
+        $this->holdGuarantee($obligation, $amount);
+
         return $obligation;
+    }
+
+    /** The operation a debt's guarantee freeze is recorded against. */
+    public const HOLD_OPERATION = 'dispute_obligation';
+
+    /**
+     * Freeze as much of the debtor's guarantee as stands for the debt (all of it, or what it has). A debtor with no guarantee
+     * freezes nothing: the debt is still written down and taken from the wallet the moment money is there.
+     */
+    private function holdGuarantee(DisputeObligation $obligation, float $amount): void
+    {
+        $user = User::query()->find((int) $obligation->user_id);
+
+        if (! $user) {
+            return;
+        }
+
+        $target = $user->type === User::TYPE_BUSINESS ? GuaranteeLevel::TARGET_BUSINESS : GuaranteeLevel::TARGET_CLIENT;
+
+        try {
+            $guarantors = app(\App\Services\Guarantees\OperationGuarantorService::class);
+            $freeze = round(min($amount, $guarantors->usableCoverage($user, $target)), 2);
+
+            if ($freeze > 0) {
+                $guarantors->freezeSelf(self::HOLD_OPERATION, (int) $obligation->id, $user, $freeze, $target);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** The debt is met: its guarantee freeze goes back. */
+    private function releaseHold(DisputeObligation $obligation): void
+    {
+        try {
+            app(\App\Services\Guarantees\OperationGuarantorService::class)->releaseOperation(self::HOLD_OPERATION, (int) $obligation->id);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /** @return array{settled: int, still_pending: int} */
@@ -149,10 +191,9 @@ class DisputeCollectionService
      */
     public function isBlocked(int $userId): bool
     {
-        return DisputeObligation::query()
-            ->where('user_id', $userId)
-            ->where('status', DisputeObligation::STATUS_PENDING)
-            ->exists();
+        // never: an unpaid ruling freezes the debtor's guarantee (holdGuarantee) and is collected from wallet or guarantee — the
+        // account keeps working (owner, 2026-10-28)
+        return false;
     }
 
     public function outstandingFor(int $userId): float
@@ -233,6 +274,7 @@ class DisputeCollectionService
             );
 
             $this->credit($obligation, $amount, $key);
+            $this->releaseHold($obligation);
 
             $obligation->update([
                 'status' => DisputeObligation::STATUS_PAID,
@@ -254,6 +296,9 @@ class DisputeCollectionService
             return $obligation;
         }
 
+        // the freeze steps aside for the guarantee to pay what it was held for
+        $this->releaseHold($obligation);
+
         try {
             $this->penalties->applyPenalty(
                 user: $user,
@@ -267,9 +312,10 @@ class DisputeCollectionService
                 meta: ['idempotency_key' => 'dispute_obligation_guarantee_' . $obligation->id]
             );
         } catch (\Throwable $e) {
-            // No active guarantee, or not enough locked in it. The debt stands
-            // and the block stays on — which is the only remaining lever.
+            // No active guarantee, or not enough locked in it. The debt stands, held again, and is taken from the wallet when
+            // money is there.
             report($e);
+            $this->holdGuarantee($obligation, $amount);
 
             return $obligation;
         }

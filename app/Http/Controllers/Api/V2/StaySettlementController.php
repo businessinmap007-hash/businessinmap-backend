@@ -71,6 +71,17 @@ final class StaySettlementController extends Controller
         return $this->answer($request, $booking->fresh());
     }
 
+    /** POST /api/v2/bookings/{booking}/stay-settlement/collect — `{amount?}` the hotel takes the deposit (or less) from the guest's hold */
+    public function collect(Request $request, Booking $booking)
+    {
+        $userId = $this->party($request, $booking);
+        $data = $request->validate(['amount' => ['nullable', 'numeric', 'min:1']]);
+
+        $this->settlement->collect($booking, $userId, isset($data['amount']) ? (float) $data['amount'] : null);
+
+        return $this->answer($request, $booking->fresh());
+    }
+
     /** POST /api/v2/bookings/{booking}/stay-settlement/arbitration — three days after the cancellation, one side is enough */
     public function arbitration(Request $request, Booking $booking)
     {

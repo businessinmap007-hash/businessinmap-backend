@@ -259,9 +259,9 @@ class DisputeComplianceTest extends TestCase
 
         $this->assertFalse($state['compliant'], 'an unpaid compensation is outstanding');
         $this->assertGreaterThan(0, $state['pending_obligations'], 'it lives in the ledger now');
-        $this->assertTrue(
+        $this->assertFalse(
             app(\App\Services\DisputeCollectionService::class)->isBlocked((int) $this->booking->user_id),
-            'and it blocks new operations like any other debt'
+            'it never stops the account — the guarantee is frozen for it instead'
         );
 
         $this->expectException(ValidationException::class);

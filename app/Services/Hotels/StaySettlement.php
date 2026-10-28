@@ -263,6 +263,114 @@ final class StaySettlement
         return $payment->fresh();
     }
 
+    /**
+     * «اقبل التسوية بالدفع من محفظة التطبيق»: the GUEST cancelled a non-refundable stay he agreed to — the hotel takes the deposit, or
+     * a smaller fine, from what is held for it: the guest's wallet hold first, then his guarantee (which takes his free balance
+     * before the guarantee itself). Everything else unwinds. Not when the hotel cancelled, and not when it already has the price.
+     */
+    public function collect(Booking $booking, int $businessId, ?float $amount = null): array
+    {
+        if ($businessId !== (int) $booking->business_id) {
+            throw ValidationException::withMessages(['settlement' => __('لست طرفًا في هذا الحجز.')]);
+        }
+
+        $state = $this->assertOpen($booking);
+
+        if (($state['cancelled_by'] ?? null) !== 'client') {
+            throw ValidationException::withMessages(['settlement' => __('يُحصَّل العربون من محفظة العميل فقط إذا ألغى العميل الحجز.')]);
+        }
+
+        if (data_get($booking->meta, \App\Services\ExternalDepositService::META_KEY . '.status') === 'received'
+            || StaySettlementPayment::query()->where('booking_id', $booking->id)->where('status', StaySettlementPayment::RECEIVED)->exists()) {
+            throw ValidationException::withMessages(['settlement' => __('استلمت المبلغ من العميل بالفعل؛ أكّد التسوية بدل التحصيل.')]);
+        }
+
+        $wallet = round((float) data_get($state, 'client.wallet', 0), 2);
+        $guarantee = round((float) data_get($state, 'client.guarantee', 0), 2);
+        $max = round($wallet + $guarantee, 2);
+        $amount = round($amount ?? $max, 2);
+
+        if ($amount <= 0 || $amount > $max) {
+            throw ValidationException::withMessages(['amount' => __('المبلغ بين 1 و:max (عربون العميل المجمّد).', ['max' => $max])]);
+        }
+
+        DB::transaction(function () use ($booking, $amount, $wallet, $state) {
+            $fromHold = round(min($amount, $wallet), 2);
+            $deposit = $this->deposits->latestDeposit($booking);
+
+            if ($deposit && ! $deposit->isFinal()) {
+                $total = round((float) $deposit->client_amount + (float) $deposit->business_amount, 2);
+                // the guest keeps what is left of his hold; the hotel gets its own hold back and the amount taken
+                $clientPercent = $total > 0 ? round(((float) $deposit->client_amount - $fromHold) / $total * 100, 6) : 0;
+                app(\App\Services\DepositsEscrowService::class)->split($deposit, $clientPercent, 100 - $clientPercent);
+            }
+
+            // every guarantee frozen for the stay goes back — the guest's is then charged for what the wallet hold did not cover
+            $this->core->releaseGuarantees($this->operation($booking));
+            $rest = round($amount - $fromHold, 2);
+
+            if ($rest > 0) {
+                $guest = User::query()->findOrFail((int) $booking->user_id);
+                app(\App\Services\Guarantees\GuaranteePenaltyService::class)->applyPenalty(
+                    user: $guest,
+                    amount: $rest,
+                    targetType: \App\Models\GuaranteeLevel::TARGET_CLIENT,
+                    referenceType: Booking::class,
+                    referenceId: (int) $booking->id,
+                    reason: 'Non-refundable stay cancelled by the guest: the hotel collected its deposit',
+                    meta: ['idempotency_key' => 'stay_settlement_collect_' . $booking->id]
+                );
+                app(\App\Services\WalletService::class)->deposit(
+                    userId: (int) $booking->business_id,
+                    amount: $rest,
+                    note: 'عربون حجز غير قابل للاسترداد #' . $booking->id,
+                    referenceType: 'stay_settlement',
+                    referenceId: (string) $booking->id,
+                    idempotencyKey: 'stay_settlement_collect_' . $booking->id . '_payee',
+                    meta: ['booking_id' => (int) $booking->id]
+                );
+            }
+
+            $state['status'] = self::SETTLED;
+            $state['settled_at'] = now()->toDateTimeString();
+            $state['settled_by'] = 'wallet_collection';
+            $state['collected'] = $amount;
+            $this->write($booking, $state, true);
+        });
+
+        $this->tell($booking, (int) $booking->user_id, 'booking.settlement_collected',
+            'حصّل الفندق العربون وتمت التسوية', 'The hotel collected the deposit — settled',
+            'ألغيت حجزًا غير قابل للاسترداد، فحصّل الفندق ' . $amount . ' ج من عربونك المجمّد، وعاد إليك الباقي وتمت التسوية.',
+            'You cancelled a non-refundable booking: the hotel collected ' . $amount . ' EGP from your held deposit; the rest came back to you and it is settled.');
+
+        return $this->state($booking->fresh());
+    }
+
+    /**
+     * The guest paid the hotel and the stay begins: the guest has the service, the hotel has its money — nothing is left to secure,
+     * so both holds unwind at once (owner, 2026-10-28). Runs inside the check-in.
+     */
+    public function releaseOnCheckIn(Booking $booking): void
+    {
+        if (($this->state($booking)['status'] ?? null) !== self::SECURED) {
+            return;
+        }
+
+        $deposit = $this->deposits->latestDeposit($booking);
+
+        if ($deposit && ! $deposit->isFinal()) {
+            $this->deposits->refundForBooking($booking, true, true);
+        } else {
+            $this->core->releaseGuarantees($this->operation($booking));
+        }
+
+        $state = $this->state($booking->fresh());
+        $state['status'] = self::SETTLED;
+        $state['settled_at'] = now()->toDateTimeString();
+        $state['settled_by'] = 'stay_started';
+        $this->write($booking, $state, true);
+    }
+
     /** Three days after the cancellation, one side may take it to a judge. */
     public function requestArbitration(Booking $booking, int $userId): \App\Models\Dispute
     {
@@ -326,6 +434,12 @@ final class StaySettlement
             'my_side' => $side,
             'arbitration_from' => $opened?->copy()->addDays(self::ARBITRATION_AFTER_DAYS)->toDateTimeString(),
             'can_request_arbitration' => ($state['status'] ?? null) === self::OPEN && $opened && now()->gte($opened->copy()->addDays(self::ARBITRATION_AFTER_DAYS)),
+            // «اقبل التسوية بالدفع من محفظة التطبيق»: the hotel, when the guest cancelled — up to the guest's whole hold
+            'can_collect' => $side === 'business' && ($state['status'] ?? null) === self::OPEN && ($state['cancelled_by'] ?? null) === 'client'
+                && data_get($booking->meta, \App\Services\ExternalDepositService::META_KEY . '.status') !== 'received',
+            'collectable' => round((float) data_get($state, 'client.wallet', 0) + (float) data_get($state, 'client.guarantee', 0), 2),
+            'collected' => $state['collected'] ?? null,
+            'settled_by' => $state['settled_by'] ?? null,
             'dispute_id' => $state['dispute_id'] ?? null,
             'settled_at' => $state['settled_at'] ?? null,
             'payments' => StaySettlementPayment::query()->where('booking_id', $booking->id)->orderBy('id')->get()

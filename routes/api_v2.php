@@ -1349,6 +1349,7 @@ Route::prefix('v2')->group(function () {
             Route::post('{booking}/stay-settlement/payments', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'recordPayment'])->whereNumber('booking');
             Route::post('{booking}/stay-settlement/payments/{payment}/answer', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'answerPayment'])->whereNumber(['booking', 'payment']);
             Route::post('{booking}/stay-settlement/arbitration', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'arbitration'])->whereNumber('booking');
+            Route::post('{booking}/stay-settlement/collect', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'collect'])->whereNumber('booking');
             Route::post('{booking}/client-confirm', [BookingController::class, 'clientConfirm'])->whereNumber('booking');
             Route::post('{booking}/business-confirm', [BookingController::class, 'businessConfirm'])->whereNumber('booking')->middleware('business.member:' . BusinessCapability::BOOKINGS);
             // «جاء عميل بدون حجز»: the business books a customer who is standing there (an account, or a named guest)

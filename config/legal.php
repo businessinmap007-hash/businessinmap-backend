@@ -6,6 +6,6 @@
  * new version, and you can tell who accepted which revision.
  */
 return [
-    'terms_version' => env('LEGAL_TERMS_VERSION', '2026-07-24'),
+    'terms_version' => env('LEGAL_TERMS_VERSION', '2026-10-28'),
     'privacy_version' => env('LEGAL_PRIVACY_VERSION', '2026-07-24'),
 ];

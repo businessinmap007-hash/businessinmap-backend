@@ -38,6 +38,9 @@ class ChildPolicy extends Model
         return ! $this->sellsExtraBeds() ? 0 : max((int) $this->extra_beds_max, 0) * max($rooms, 1);
     }
 
+    /** A hotel with no «سياسة الأطفال» counts every child of this age and older in the room — only a baby in a cot is free. */
+    public const DEFAULT_COUNTS_FROM_AGE = 2;
+
     public static function forBusiness(int $businessId): ?self
     {
         return $businessId > 0 ? static::query()->where('business_id', $businessId)->first() : null;

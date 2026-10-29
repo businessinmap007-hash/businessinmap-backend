@@ -3382,5 +3382,6 @@
     "أضف عنوانك أولًا ليعرف الفني أين يأتي.": "Add your address first so the technician knows where to come.",
     "الصور تُرفق بطلب الفني فقط.": "Photos can only be attached to a technician request.",
     "قيّم زيارة الفني": "Rate the technician's visit",
-    "انتهت الزيارة. قيّم عمل الفني ليعرف غيرك مستواه.": "The visit is over. Rate the technician's work so others know its standard."
+    "انتهت الزيارة. قيّم عمل الفني ليعرف غيرك مستواه.": "The visit is over. Rate the technician's work so others know its standard.",
+    "هذه الغرفة تتسع لـ :max أطفال فقط.": "This room takes only :max children."
 }

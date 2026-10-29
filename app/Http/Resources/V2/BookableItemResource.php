@@ -42,6 +42,8 @@ class BookableItemResource extends JsonResource
             'reserve_rooms' => (int) ($this->reserve_rooms ?? 0),
             // «إقامة فردية»: what one adult alone pays of the night (null = the whole room)
             'single_occupancy_percent' => $this->single_occupancy_percent === null ? null : (float) $this->single_occupancy_percent,
+            // «2 بالغ + 2 طفل»: the children a room takes besides its adults (null = not said)
+            'max_children' => $this->max_children,
             'status' => (string) ($this->status ?: \App\Models\BookableItem::STATUS_AVAILABLE),
             'is_currently_booked' => $this->resource->isCurrentlyBooked(),
             // «Day use» — only a room type of a stay has one

@@ -270,6 +270,7 @@ final class HotelRoomSearchController extends Controller
                         'line_option_id' => $kindId ?: null,
                         'name' => $this->kindName($first),
                         'capacity' => $first->capacity !== null ? (int) $first->capacity : null,
+                        'max_children' => $first->max_children !== null ? (int) $first->max_children : null,
                         'guest_scope' => (string) ($first->guest_scope ?: 'all'),
                         'image' => $unit->imagePayload()[0] ?? null,
                     ],

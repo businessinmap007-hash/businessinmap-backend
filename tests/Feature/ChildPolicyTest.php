@@ -236,7 +236,8 @@ class ChildPolicyTest extends TestCase
         $this->postJson('/api/v2/business/gala-dinners', ['date' => $gala, 'name' => 'x', 'adult_price' => 1])->assertStatus(422)->assertJsonValidationErrors(['date']);
         $this->postJson('/api/v2/business/gala-dinners', ['date' => now()->subDay()->toDateString(), 'name' => 'x', 'adult_price' => 1])->assertStatus(422);
 
-        // two adults, a child of 8 (half the dinner) and one of 3 (free): 2 × 1000 + 2 × 500 + 250
+        // two adults, a child of 8 (half the dinner) and one of 3 (free): 2 × 1000 + 2 × 500 + 250 — in a «2 بالغ + 2 طفل» room
+        $this->unit->update(['max_children' => 2]);
         $res = $this->stay(['party_size' => 2, 'children_ages' => [8, 3]])->assertCreated();
         $this->assertEquals(2000 + 1000 + 250, (float) Booking::find($res->json('data.booking.id'))->price);
 
@@ -259,10 +260,41 @@ class ChildPolicyTest extends TestCase
         $this->deleteJson("/api/v2/business/gala-dinners/{$id}")->assertStatus(403);
     }
 
-    public function test_a_hotel_with_no_policy_keeps_children_free_and_uncounted(): void
+    public function test_a_hotel_with_no_policy_charges_no_child(): void
     {
+        // the child sleeps besides the adults of a «2 بالغ + 1 طفل» room and pays nothing
+        $this->unit->update(['max_children' => 1]);
         $res = $this->stay(['party_size' => 2, 'children_ages' => [8]])->assertCreated();
 
         $this->assertEquals(1000 * 2, (float) Booking::find($res->json('data.booking.id'))->price);
+    }
+
+    public function test_a_hotel_with_no_policy_counts_every_child_from_two_only_a_baby_is_free(): void
+    {
+        // no «سياسة الأطفال»: a double takes two adults and a baby of one, not two adults and a child of three
+        $this->stay(['party_size' => 2, 'children_ages' => [3]])->assertStatus(422)->assertJsonValidationErrors(['party_size']);
+        $this->assertSame(\App\Models\ChildPolicy::DEFAULT_COUNTS_FROM_AGE, 2);
+        $this->stay(['party_size' => 2, 'children_ages' => [1]])->assertCreated();
+    }
+
+    public function test_a_room_of_two_adults_and_two_children_takes_its_children_besides_the_adults_and_no_more(): void
+    {
+        $this->policy()->assertOk();
+
+        Sanctum::actingAs($this->hotel);
+        $this->putJson("/api/v2/business/bookable-items/{$this->unit->id}", [
+            'service_id' => $this->serviceId, 'item_type' => 'booking_stay', 'code' => $this->unit->code, 'capacity' => 2, 'quantity' => 3, 'max_children' => 2,
+        ])->assertOk()->assertJsonPath('data.max_children', 2);
+
+        // each stay on its own nights: one guest cannot hold two stays at once
+        $on = fn (int $week) => ['starts_at' => $this->start->copy()->addWeeks($week)->toDateTimeString(), 'ends_at' => $this->start->copy()->addWeeks($week)->addDays(2)->toDateTimeString()];
+
+        // «2 بالغ + 2 طفل»: two children of 8 and 10 sleep besides the two adults; a third child is one too many (a baby still free)
+        $this->stay($on(0) + ['party_size' => 2, 'children_ages' => [8, 10, 1]])->assertCreated();
+        $this->stay($on(1) + ['party_size' => 2, 'children_ages' => [8, 10, 4]])->assertStatus(422)->assertJsonValidationErrors(['children_ages']);
+        // two rooms take four
+        $this->stay($on(3) + ['quantity' => 2, 'party_size' => 4, 'children_ages' => [8, 10, 4, 5]])->assertCreated();
+        // a guest of 13 is an adult by the policy: he takes an adult's place
+        $this->stay($on(2) + ['party_size' => 2, 'children_ages' => [13]])->assertStatus(422)->assertJsonValidationErrors(['party_size']);
     }
 }

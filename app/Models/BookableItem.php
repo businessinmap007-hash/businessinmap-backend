@@ -82,6 +82,7 @@ class BookableItem extends Model
         // rooms of the type the hotel keeps back for its own guests in peak: a partner sells the type only up to the stock less this
         'reserve_rooms',
         'single_occupancy_percent',
+        'max_children',
 
         'is_active',
         'status',
@@ -97,6 +98,7 @@ class BookableItem extends Model
         'quantity' => 'integer',
         'reserve_rooms' => 'integer',
         'single_occupancy_percent' => 'decimal:2',
+        'max_children' => 'integer',
 
         'is_active' => 'boolean',
         'meta' => 'array',

@@ -2702,7 +2702,8 @@ paths:
                 item_type: { type: string, description: Must be an item type the owner's subcategory offers. }
                 code: { type: string }
                 title: { type: string }
-                capacity: { type: integer, minimum: 1 }
+                capacity: { type: integer, minimum: 1, description: 'A room type: the ADULTS a room takes (one in a single, two in a double).' }
+                max_children: { type: integer, minimum: 0, maximum: 10, nullable: true, description: '«2 بالغ + 2 طفل»: the children of two and older a room of the type takes BESIDES its adults, times the rooms booked (null = not said: the children then count in the capacity from the age of the hotel child policy, or from two when it has none). A booking over it is refused on children_ages.' }
                 quantity: { type: integer, minimum: 1 }
                 is_active: { type: boolean }
       responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } }

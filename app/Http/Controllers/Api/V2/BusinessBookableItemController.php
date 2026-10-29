@@ -212,6 +212,8 @@ final class BusinessBookableItemController extends Controller
             'reserve_rooms' => ['nullable', 'integer', 'min:0', 'max:1000'],
             // «إقامة فردية»: one adult alone pays this % of the night (empty = the whole room)
             'single_occupancy_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
+            // «2 بالغ + 2 طفل»: the children (two and older) a room of the type takes besides its adults (empty = not said)
+            'max_children' => ['nullable', 'integer', 'min:0', 'max:10'],
         ]);
 
         $serviceId = (int) $data['service_id'];
@@ -241,6 +243,9 @@ final class BusinessBookableItemController extends Controller
           + (isset($data['reserve_rooms']) ? ['reserve_rooms' => (int) $data['reserve_rooms']] : [])
           + ($request->exists('single_occupancy_percent')
               ? ['single_occupancy_percent' => isset($data['single_occupancy_percent']) ? round((float) $data['single_occupancy_percent'], 2) : null]
+              : [])
+          + ($request->exists('max_children')
+              ? ['max_children' => isset($data['max_children']) ? (int) $data['max_children'] : null]
               : []);
     }
 

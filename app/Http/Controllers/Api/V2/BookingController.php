@@ -204,7 +204,9 @@ final class BookingController extends Controller
 
     /**
      * «Number of guests»: a room takes the guests its capacity says — one in a single, two in a double — times the rooms booked. More is
-     * refused, with the number the room can take. A child counts from the age the hotel's «سياسة الأطفال» names.
+     * refused, with the number the room can take. A child counts from the age the hotel's «سياسة الأطفال» names; a hotel with no policy
+     * counts every child from two (only a baby in a cot is free). Besides, a room type that says «2 بالغ + 2 طفل» takes at most that many
+     * children of two and older per room.
      *
      * @param  array<string,mixed>  $data
      */
@@ -213,11 +215,25 @@ final class BookingController extends Controller
         $limit = $bookable?->guestLimit(max((int) ($data['quantity'] ?? 1), 1));
         $party = max((int) ($data['party_size'] ?? 1), 1);
 
-        // «الأطفال يُحسبون من السعة من عمر محدد»: by the hotel's policy; a hotel with none counts no child
+        // «الأطفال يُحسبون من السعة من عمر محدد»: by the hotel's policy; a hotel with none counts every child from two
         $policy = $bookable && $limit !== null ? \App\Models\ChildPolicy::forBusiness((int) $bookable->business_id) : null;
+        $ages = array_map('intval', (array) ($data['children_ages'] ?? []));
 
-        if ($policy) {
-            $party += count(array_filter(array_map('intval', (array) ($data['children_ages'] ?? [])), fn ($age) => $policy->counts($age)));
+        $counted = $policy ? fn (int $age) => $policy->counts($age) : fn (int $age) => $age >= \App\Models\ChildPolicy::DEFAULT_COUNTS_FROM_AGE;
+
+        if ($limit !== null && $bookable->max_children !== null) {
+            // «2 بالغ + 2 طفل»: the children sleep in the room BESIDES its adults — up to that many per room; a guest the policy calls
+            // an adult still takes an adult's place
+            $children = array_filter($ages, fn ($age) => $age >= \App\Models\ChildPolicy::DEFAULT_COUNTS_FROM_AGE && ! ($policy?->isAdult($age)));
+            $maxChildren = (int) $bookable->max_children * max((int) ($data['quantity'] ?? 1), 1);
+
+            if (count($children) > $maxChildren) {
+                throw ValidationException::withMessages(['children_ages' => __('هذه الغرفة تتسع لـ :max أطفال فقط.', ['max' => $maxChildren])]);
+            }
+
+            $party += count(array_filter($ages, fn ($age) => (bool) $policy?->isAdult($age)));
+        } elseif ($limit !== null) {
+            $party += count(array_filter($ages, $counted));
         }
 
         // «سرير إضافي بسعره بدل الرفض»: the guests over the room's capacity sleep in extra beds, up to what the hotel allows

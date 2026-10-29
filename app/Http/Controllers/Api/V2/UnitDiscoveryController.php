@@ -593,6 +593,8 @@ final class UnitDiscoveryController extends Controller
             'label' => $byType ? (string) (optional($unit->lineOption)->name_ar ?: optional($unit->lineOption)->name_en ?: $unit->displayLabel()) : $unit->displayLabel(),
             'description' => $unit->description,
             'capacity' => $unit->capacity !== null ? (int) $unit->capacity : null,
+            // «2 بالغ + 2 طفل»
+            'max_children' => $unit->max_children !== null ? (int) $unit->max_children : null,
             'guest_scope' => (string) ($unit->guest_scope ?: 'all'),
             'images' => $unit->imagePayload(),
             // «Day use»: the room type is also sold through the day — {from, to, price}; null when it is not

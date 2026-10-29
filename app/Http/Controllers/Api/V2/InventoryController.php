@@ -579,7 +579,7 @@ final class InventoryController extends Controller
             'name' => [$creating ? 'required' : 'sometimes', 'string', 'max:80'],
             'role' => [$creating ? 'required' : 'sometimes', Rule::in(['main', 'warehouse', 'purchases', 'cashier', 'manager'])],
             'screens' => ['sometimes', 'nullable', 'array'],
-            'screens.*' => ['string', Rule::in(['dashboard', 'items', 'recipes', 'purchases', 'receive', 'stocktake', 'pos', 'devices', 'reports'])],
+            'screens.*' => ['string', Rule::in(['dashboard', 'items', 'recipes', 'purchases', 'receive', 'stocktake', 'pos', 'attendance', 'payroll', 'devices', 'reports'])],
             'is_hub' => ['sometimes', 'boolean'],
         ];
     }

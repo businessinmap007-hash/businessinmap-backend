@@ -2,12 +2,20 @@
 
 namespace App\Services\Schedules;
 
+use App\Models\AppNotification;
+use App\Models\Dispute;
+use App\Models\PlatformService;
+use App\Models\RatingOutcomeEvent;
 use App\Models\TripParcel;
 use App\Models\TripRun;
 use App\Models\TripSchedule;
 use App\Models\User;
+use App\Services\DisputeService;
+use App\Services\Media\ImageUploadService;
 use App\Services\Notifications\NotificationDispatcherService;
+use App\Services\Ratings\RatingService;
 use App\Support\HandoverCode;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -49,6 +57,11 @@ final class TripParcelService
             throw ValidationException::withMessages(['receiver_name' => __('اكتب اسم المستلم ورقم هاتفه.')]);
         }
 
+        // «الكيس المختوم»: the sender says the parcel is in a bag carrying his mark that is destroyed when opened
+        if (empty($data['sealed'])) {
+            throw ValidationException::withMessages(['sealed' => __('غلّف الشحنة في كيس مختوم بعلامتك يتلف عند فتحه، ثم أكّد ذلك.')]);
+        }
+
         $payer = (string) ($data['payer'] ?? TripParcel::PAYER_RECEIVER);
 
         if (! in_array($payer, TripParcel::PAYERS, true)) {
@@ -64,6 +77,8 @@ final class TripParcelService
             'receiver_phone' => $receiverId === null ? trim((string) $data['receiver_phone']) : null,
             'description' => trim((string) $data['description']),
             'payer' => $payer,
+            'sealed_ack_at' => now(),
+            'seal_number' => trim((string) ($data['seal_number'] ?? '')) ?: null,
             'currency' => (string) ($schedule->currency ?: 'EGP'),
             'status' => TripParcel::STATUS_REQUESTED,
         ]);
@@ -155,12 +170,21 @@ final class TripParcelService
      * claim the handover without the receiver. Cash is recorded here when the SENDER pays: when the driver has not said
      * whether he took it ([cashCollected] null), a right code is answered with the question and is NOT spent.
      */
-    public function load(TripParcel $parcel, string $code, ?bool $cashCollected = null): TripParcel
+    public function load(TripParcel $parcel, string $code, ?bool $cashCollected = null, ?UploadedFile $sealPhoto = null): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_ACCEPTED]);
 
+        // «الكيس المختوم»: the driver photographs the sealed bag before he takes it (asked before the code, so no attempt is spent)
+        if ($parcel->isSealed() && $sealPhoto === null) {
+            throw ValidationException::withMessages(['seal_photo' => __('صوّر الكيس المختوم بالكاميرا قبل تحميل الشحنة.')]);
+        }
+
         $this->assertCode($parcel, 'pickup_attempts', (string) $parcel->pickup_code_hash, $code);
         $this->askCashIfDue($parcel, TripParcel::PAYER_SENDER, $cashCollected);
+
+        if ($sealPhoto !== null) {
+            $parcel->update(['seal_photo' => app(ImageUploadService::class)->storePrivateShrunk($sealPhoto), 'seal_photo_at' => now()]);
+        }
 
         $delivery = HandoverCode::generate();
 
@@ -181,9 +205,14 @@ final class TripParcelService
     }
 
     /** Handed over: the driver scans the receiver's QR or types the code the receiver told him. */
-    public function deliver(TripParcel $parcel, string $code, int $driverId, ?bool $cashCollected = null): TripParcel
+    public function deliver(TripParcel $parcel, string $code, int $driverId, ?bool $cashCollected = null, ?bool $sealIntact = null): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_LOADED]);
+
+        // «الكيس المختوم»: the receiver says, at the handover, whether the seal is intact (asked before the code: no attempt spent)
+        if ($parcel->isSealed() && $sealIntact === null) {
+            throw ValidationException::withMessages(['seal_intact' => __('اسأل المستلم: هل ختم الكيس سليم؟')]);
+        }
 
         $this->assertCode($parcel, 'code_attempts', (string) $parcel->delivery_code_hash, $code);
         $this->askCashIfDue($parcel, TripParcel::PAYER_RECEIVER, $cashCollected);
@@ -193,13 +222,31 @@ final class TripParcelService
             'delivered_at' => now(),
             'delivered_by' => $driverId,
             'paid_at' => $cashCollected && $parcel->payer === TripParcel::PAYER_RECEIVER ? now() : $parcel->paid_at,
-        ]);
+        ] + ($parcel->isSealed() ? [
+            'seal_state' => $sealIntact ? TripParcel::SEAL_INTACT : TripParcel::SEAL_BROKEN,
+            'seal_checked_at' => now(),
+        ] : []));
+
+        // an opened seal is a dispute at once, in the sender's name against the carrier, with the pickup photo as the proof
+        if ($parcel->isSealed() && ! $sealIntact) {
+            $this->openSealDispute($parcel);
+        }
 
         $this->notify('trip_parcel_delivered', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel, 'open_trip_parcel');
 
         if ($parcel->receiver_user_id) {
             $this->notify('trip_parcel_delivered', (int) $parcel->receiver_user_id, (int) $parcel->business_id, $parcel, 'open_trip_parcel');
         }
+
+        return $parcel->refresh();
+    }
+
+    /** The driver refuses a parcel at pickup because it is not in a sealed bag: it does not ride, and the sender is told why. */
+    public function refuseUnsealed(TripParcel $parcel): TripParcel
+    {
+        $this->assertStatus($parcel, [TripParcel::STATUS_ACCEPTED]);
+        $parcel->update(['status' => TripParcel::STATUS_REJECTED, 'refused_unsealed_at' => now(), 'pickup_code' => null]);
+        $this->notify('trip_parcel_rejected', (int) $parcel->sender_id, (int) $parcel->business_id, $parcel, 'open_trip_parcel');
 
         return $parcel->refresh();
     }
@@ -273,6 +320,41 @@ final class TripParcelService
     {
         if ($cashCollected === null && $parcel->payer === $payer && (float) $parcel->price > 0 && $parcel->paid_at === null) {
             throw ValidationException::withMessages(['cash_collected' => __('الكود صحيح. هل استلمت ثمن الشحنة نقدًا؟')]);
+        }
+    }
+
+    private function openSealDispute(TripParcel $parcel): void
+    {
+        try {
+            $dispute = app(DisputeService::class)->open(
+                platformServiceId: (int) (PlatformService::query()->key(PlatformService::KEY_SCHEDULES)->value('id') ?? 0),
+                disputeableType: TripParcel::class,
+                disputeableId: (int) $parcel->id,
+                openedByUserId: (int) $parcel->sender_id,
+                againstUserId: (int) $parcel->business_id,
+                actorId: (int) $parcel->sender_id,
+                payload: ['reason_code' => 'damage', 'reason_text' => 'ختم الكيس مفتوح عند التسليم', 'type' => 'trip', 'source' => 'seal_broken'],
+            );
+
+            app(RatingService::class)->recordForBothParties(
+                businessUserId: (int) $parcel->business_id,
+                clientUserId: (int) $parcel->sender_id,
+                outcome: RatingOutcomeEvent::OUTCOME_DISPUTED,
+                operationType: TripParcel::OP_PARCEL,
+                operationId: (int) $parcel->id,
+            );
+
+            foreach ([(int) $parcel->sender_id, (int) $parcel->business_id] as $party) {
+                app(NotificationDispatcherService::class)->dispatch('dispute_opened', $party, [
+                    'type' => AppNotification::TYPE_DISPUTE,
+                    'notifiable_type' => Dispute::class,
+                    'notifiable_id' => (int) $dispute->id,
+                    'source_id' => (int) $dispute->id,
+                    'meta' => ['dispute_id' => (int) $dispute->id, 'parcel_id' => (int) $parcel->id],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 

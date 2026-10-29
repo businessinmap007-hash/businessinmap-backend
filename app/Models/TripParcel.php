@@ -65,7 +65,17 @@ class TripParcel extends Model
         'loaded_at',
         'delivered_at',
         'delivered_by',
+        'sealed_ack_at',
+        'seal_number',
+        'seal_photo',
+        'seal_photo_at',
+        'refused_unsealed_at',
+        'seal_state',
+        'seal_checked_at',
     ];
+
+    public const SEAL_INTACT = 'intact';
+    public const SEAL_BROKEN = 'broken';
 
     protected $casts = [
         'trip_schedule_id' => 'integer',
@@ -78,6 +88,10 @@ class TripParcel extends Model
         'delivery_code' => 'encrypted',
         'pickup_code' => 'encrypted',
         'pickup_attempts' => 'integer',
+        'sealed_ack_at' => 'datetime',
+        'seal_photo_at' => 'datetime',
+        'refused_unsealed_at' => 'datetime',
+        'seal_checked_at' => 'datetime',
         'paid_at' => 'datetime',
         'expected_arrival_at' => 'datetime',
         'picked_up_at' => 'datetime',
@@ -106,5 +120,11 @@ class TripParcel extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(User::class, 'business_id');
+    }
+
+    /** Sent in a sealed bag (every parcel asked for since the rule; older ones were not). */
+    public function isSealed(): bool
+    {
+        return $this->sealed_ack_at !== null;
     }
 }

@@ -307,6 +307,9 @@ Route::prefix('v2')->group(function () {
     // a photo of the problem on a «أحتاج فنيًا» request — the same signed link, handed only to the customer and the craftsmen who may answer
     Route::get('service-request-photos/{photo}', [\App\Http\Controllers\Api\V2\ServiceRequestController::class, 'photo'])
         ->whereNumber('photo')->middleware('signed')->name('service-request-photos.show');
+    // the driver's camera photo of a parcel's sealed bag — the same signed link, handed to the sender, the receiver and the carrier
+    Route::get('trip-parcel-seal-photos/{parcel}', [\App\Http\Controllers\Api\V2\TripParcelController::class, 'sealPhoto'])
+        ->whereNumber('parcel')->middleware('signed')->name('trip-parcel-seal-photos.show');
     Route::get('trainer-photos/{photo}', [TrainerPhotoController::class, 'show'])
         ->whereNumber('photo')->middleware('signed')->name('trainer-photos.show');
     // A file of an investigation order (a request photo or a result), from private storage — the same signed link.
@@ -1510,6 +1513,7 @@ Route::prefix('v2')->group(function () {
             Route::post('parcels/{parcel}/load', [TripParcelController::class, 'load'])->whereNumber('parcel');
             Route::post('parcels/{parcel}/deliver', [TripParcelController::class, 'deliver'])->whereNumber('parcel');
             Route::post('parcels/{parcel}/reject', [TripParcelController::class, 'reject'])->whereNumber('parcel');
+            Route::post('parcels/{parcel}/refuse-unsealed', [TripParcelController::class, 'refuseUnsealed'])->whereNumber('parcel');
             // «عربون الجدية» owed outside the platform / a held one given back after a no-show
             Route::post('reservations/{subject}/deposit/confirm-received', [VisitDepositController::class, 'confirmReceived'])->defaults('kind', 'trip-reservation')->whereNumber('subject');
             Route::post('reservations/{subject}/deposit/waive', [VisitDepositController::class, 'waive'])->defaults('kind', 'trip-reservation')->whereNumber('subject');

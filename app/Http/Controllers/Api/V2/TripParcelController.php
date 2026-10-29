@@ -28,6 +28,9 @@ final class TripParcelController extends Controller
             'receiver_user_id' => ['nullable', 'integer'],
             'receiver_name' => ['nullable', 'string', 'max:150'],
             'receiver_phone' => ['nullable', 'string', 'max:40'],
+            // «الكيس المختوم»: the sender confirms it, with the seal's number if it has one
+            'sealed' => ['nullable', 'boolean'],
+            'seal_number' => ['nullable', 'string', 'max:40'],
         ]);
 
         $leg = TripSchedule::query()->findOrFail($schedule);
@@ -123,11 +126,13 @@ final class TripParcelController extends Controller
         $data = $request->validate([
             'code' => ['required', 'string', 'max:20'],
             'cash_collected' => ['nullable', 'boolean'],
+            // the camera photo of the sealed bag, multipart
+            'seal_photo' => ['nullable', 'image', 'max:10240'],
         ]);
 
         $row = $this->carrierParcelOrFail($request, $parcel);
 
-        return $this->ok($service->load($row, $data['code'], $this->cashAnswer($request)), null, __('حُمّلت الشحنة على السيارة.'));
+        return $this->ok($service->load($row, $data['code'], $this->cashAnswer($request), $request->file('seal_photo')), null, __('حُمّلت الشحنة على السيارة.'));
     }
 
     /** POST business/schedules/parcels/{parcel}/deliver — {code}: what the receiver tells the driver. */
@@ -136,15 +141,35 @@ final class TripParcelController extends Controller
         $data = $request->validate([
             'code' => ['required', 'string', 'max:20'],
             'cash_collected' => ['nullable', 'boolean'],
+            // what the receiver says of the seal at the handover
+            'seal_intact' => ['nullable', 'boolean'],
         ]);
 
         $row = $this->carrierParcelOrFail($request, $parcel);
 
         return $this->ok(
-            $service->deliver($row, $data['code'], (int) $request->user()->id, $this->cashAnswer($request)),
+            $service->deliver($row, $data['code'], (int) $request->user()->id, $this->cashAnswer($request), $request->has('seal_intact') && $request->input('seal_intact') !== null ? $request->boolean('seal_intact') : null),
             null,
             __('سُلِّمت الشحنة.')
         );
+    }
+
+    /** POST business/schedules/parcels/{parcel}/refuse-unsealed — the driver refuses it at pickup: it is not in a sealed bag. */
+    public function refuseUnsealed(Request $request, int $parcel, TripParcelService $service)
+    {
+        $row = $this->carrierParcelOrFail($request, $parcel);
+
+        return $this->ok($service->refuseUnsealed($row), null, __('رُفضت الشحنة لأنها غير مختومة.'));
+    }
+
+    /** GET trip-parcel-seal-photos/{parcel} — `signed`: only the sender, the receiver and the carrier are handed the link */
+    public function sealPhoto(TripParcel $parcel)
+    {
+        abort_unless(\App\Services\Media\ImageUploadService::isPrivate($parcel->seal_photo), 404);
+        $full = \App\Services\Media\ImageUploadService::privatePath($parcel->seal_photo);
+        abort_unless(is_file($full), 404);
+
+        return response()->file($full, ['Cache-Control' => 'private, max-age=21600', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     /** Did the driver say whether he took the cash? Null when he has not been asked yet. */
@@ -219,6 +244,15 @@ final class TripParcelController extends Controller
             'loaded_at' => optional($p->loaded_at)->toIso8601String(),
             'delivered_at' => optional($p->delivered_at)->toIso8601String(),
             'created_at' => optional($p->created_at)->toIso8601String(),
+            // «الكيس المختوم»: confirmed by the sender, photographed by the driver at pickup, checked by the receiver at delivery
+            'seal' => [
+                'sealed' => $p->isSealed(),
+                'number' => $p->seal_number,
+                'photo_url' => $p->seal_photo ? \Illuminate\Support\Facades\URL::temporarySignedRoute('trip-parcel-seal-photos.show', now()->addHours(6), ['parcel' => (int) $p->id]) : null,
+                'photo_at' => optional($p->seal_photo_at)->toIso8601String(),
+                'state' => $p->seal_state,
+                'refused_unsealed' => $p->refused_unsealed_at !== null,
+            ],
         ];
     }
 }

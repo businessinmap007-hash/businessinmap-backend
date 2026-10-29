@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserGuarantee;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -198,6 +199,16 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
 
     // ---- 4. parcels -------------------------------------------------------------------------------------------
 
+    /** The driver loads a parcel: multipart, with the camera photo of its sealed bag. */
+    private function loadParcel(int $id, array $body, bool $photo = true)
+    {
+        if ($photo) {
+            $body['seal_photo'] = UploadedFile::fake()->createWithContent('seal.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='));
+        }
+
+        return $this->post("/api/v2/business/schedules/parcels/{$id}/load", $body, ['Accept' => 'application/json']);
+    }
+
     public function test_a_parcel_is_priced_by_the_driver_and_handed_over_only_against_the_code(): void
     {
         $leg = $this->schedule(capacity: 3);
@@ -207,7 +218,7 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         $id = (int) $this->postJson("/api/v2/schedules/{$leg->id}/parcels", [
             'description' => 'صندوق ملابس في شنطة السيارة',
             'receiver_name' => 'Omar',
-            'receiver_phone' => '01012345678',
+            'receiver_phone' => '01012345678', 'sealed' => true,
         ])->assertCreated()->assertJsonPath('data.parcel.status', 'requested')->json('data.parcel.id');
 
         // a receiver is either an account or a name and a phone
@@ -231,8 +242,8 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         Sanctum::actingAs($this->business);
 
         // a wrong code takes nothing; the right one (scanned or typed, any case) loads it
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => '0000zz'])->assertStatus(422);
-        $loaded = $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => strtoupper($pickup)])->assertOk();
+        $this->loadParcel($id, ['code' => '0000zz'])->assertStatus(422);
+        $loaded = $this->loadParcel($id, ['code' => strtoupper($pickup)])->assertOk();
         $this->assertNull($loaded->json('data.parcel.handover_code'), 'the carrier is never shown the code');
 
         // the code is spent: the sender's ONE code is now the delivery code — a new one the driver never saw
@@ -240,10 +251,10 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         $this->assertMatchesRegularExpression('/^\d{4}[a-z]{2}$/', $code);
         $this->assertNotSame($pickup, $code);
         Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $pickup])->assertStatus(422);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['seal_intact' => true, 'code' => $pickup])->assertStatus(422);
 
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => '0000zz'])->assertStatus(422);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => strtoupper($code), 'cash_collected' => true])->assertOk()
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['seal_intact' => true, 'code' => '0000zz'])->assertStatus(422);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['seal_intact' => true, 'code' => strtoupper($code), 'cash_collected' => true])->assertOk()
             ->assertJsonPath('data.parcel.status', 'delivered')
             ->assertJsonPath('data.parcel.payer', 'receiver');
 
@@ -258,7 +269,7 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
 
         Sanctum::actingAs($sender);
         $id = (int) $this->postJson("/api/v2/schedules/{$leg->id}/parcels", [
-            'description' => 'x', 'receiver_name' => 'Omar', 'receiver_phone' => '01012345678',
+            'description' => 'x', 'receiver_name' => 'Omar', 'receiver_phone' => '01012345678', 'sealed' => true,
         ])->assertCreated()->json('data.parcel.id');
 
         Sanctum::actingAs($this->business);
@@ -267,23 +278,23 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk()->json('data.parcel.handover_code');
 
         Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup])->assertOk();
+        $this->loadParcel($id, ['code' => $pickup])->assertOk();
         $code = $this->currentCode($sender, $id);
 
         Sanctum::actingAs($this->business);
         foreach (range(1, TripParcel::MAX_CODE_ATTEMPTS) as $_) {
-            $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => '9999xx'])->assertStatus(422);
+            $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['seal_intact' => true, 'code' => '9999xx'])->assertStatus(422);
         }
 
         // even the right code no longer works until the sender asks for a new one
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $code])->assertStatus(422);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['seal_intact' => true, 'code' => $code])->assertStatus(422);
 
         Sanctum::actingAs($sender);
         $this->postJson("/api/v2/schedules/parcels/{$id}/code")->assertOk();
         $fresh = $this->currentCode($sender, $id);
         $this->assertNotSame($code, $fresh);
         Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $fresh, 'cash_collected' => false])->assertOk();
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['seal_intact' => true, 'code' => $fresh, 'cash_collected' => false])->assertOk();
     }
 
     public function test_a_parcel_rides_in_the_run_is_settled_with_it_and_can_be_disputed(): void
@@ -294,7 +305,7 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
 
         Sanctum::actingAs($sender);
         $id = (int) $this->postJson("/api/v2/schedules/{$leg->id}/parcels", [
-            'description' => 'x', 'payer' => 'sender', 'receiver_name' => 'Omar', 'receiver_phone' => '01012345678',
+            'description' => 'x', 'payer' => 'sender', 'receiver_name' => 'Omar', 'receiver_phone' => '01012345678', 'sealed' => true,
         ])->assertCreated()->assertJsonPath('data.parcel.payer', 'sender')->json('data.parcel.id');
 
         Sanctum::actingAs($this->business);
@@ -308,12 +319,12 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         Sanctum::actingAs($this->business);
         // the sender pays in cash when handing it over: a wrong code is refused before any word about money; the right one is
         // answered with the question and is not spent until the driver says whether he took it
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => '0000zz'])->assertStatus(422)
+        $this->loadParcel($id, ['code' => '0000zz'])->assertStatus(422)
             ->assertJsonValidationErrors(['code'])->assertJsonMissingValidationErrors(['cash_collected']);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup])->assertStatus(422)
+        $this->loadParcel($id, ['code' => $pickup])->assertStatus(422)
             ->assertJsonValidationErrors(['cash_collected'])->assertJsonMissingValidationErrors(['code']);
         $this->assertSame(TripParcel::STATUS_ACCEPTED, TripParcel::query()->find($id)->status);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup, 'cash_collected' => true])->assertOk();
+        $this->loadParcel($id, ['code' => $pickup, 'cash_collected' => true])->assertOk();
         $this->assertNotNull(TripParcel::query()->find($id)->paid_at);
 
         // the run takes the parcel with it and shows it
@@ -362,5 +373,65 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
     private function remaining(TripSchedule $leg): int
     {
         return (int) app(\App\Services\Schedules\TripReservationService::class)->remainingCapacityFor([$leg->id])[$leg->id];
+    }
+
+    public function test_a_parcel_travels_in_a_sealed_bag_photographed_at_pickup_and_an_open_seal_opens_a_dispute(): void
+    {
+        $leg = $this->schedule(capacity: 3);
+        $sender = $this->makeUser('client', 'sender');
+        $receiver = ['description' => 'x', 'receiver_name' => 'Omar', 'receiver_phone' => '01012345678'];
+
+        // the sender must say it is in a sealed bag carrying his mark
+        Sanctum::actingAs($sender);
+        $this->postJson("/api/v2/schedules/{$leg->id}/parcels", $receiver)->assertStatus(422)->assertJsonValidationErrors(['sealed']);
+        $id = (int) $this->postJson("/api/v2/schedules/{$leg->id}/parcels", $receiver + ['sealed' => true, 'seal_number' => 'S-0042'])
+            ->assertCreated()->assertJsonPath('data.parcel.seal.sealed', true)->assertJsonPath('data.parcel.seal.number', 'S-0042')->json('data.parcel.id');
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/price", ['price' => 40])->assertOk();
+        Sanctum::actingAs($sender);
+        $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->json('data.parcel.handover_code');
+
+        // no photo of the sealed bag, no loading — and no code attempt spent on it
+        Sanctum::actingAs($this->business);
+        $this->loadParcel($id, ['code' => $pickup], photo: false)->assertStatus(422)->assertJsonValidationErrors(['seal_photo']);
+        $this->assertSame(0, (int) TripParcel::query()->find($id)->pickup_attempts);
+        $loaded = $this->loadParcel($id, ['code' => $pickup, 'cash_collected' => false])->assertOk();
+        $photo = (string) $loaded->json('data.parcel.seal.photo_url');
+        $this->get($photo)->assertOk();
+
+        // at delivery the receiver's word on the seal is asked; an open seal still hands it over, and opens a dispute at once
+        $code = $this->currentCode($sender, $id);
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $code, 'cash_collected' => true])->assertStatus(422)
+            ->assertJsonValidationErrors(['seal_intact']);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $code, 'cash_collected' => true, 'seal_intact' => false])->assertOk()
+            ->assertJsonPath('data.parcel.status', 'delivered')->assertJsonPath('data.parcel.seal.state', 'broken');
+
+        $dispute = \App\Models\Dispute::query()->where('disputeable_type', TripParcel::class)->where('disputeable_id', $id)->first();
+        $this->assertNotNull($dispute, 'an open seal is a dispute');
+        $this->assertSame((int) $sender->id, (int) $dispute->opened_by_user_id);
+        $this->assertSame((int) $this->business->id, (int) $dispute->against_user_id);
+    }
+
+    public function test_the_driver_refuses_a_parcel_that_is_not_sealed(): void
+    {
+        $leg = $this->schedule(capacity: 3);
+        $sender = $this->makeUser('client', 'sender');
+
+        Sanctum::actingAs($sender);
+        $id = (int) $this->postJson("/api/v2/schedules/{$leg->id}/parcels", [
+            'description' => 'x', 'receiver_name' => 'Omar', 'receiver_phone' => '01012345678', 'sealed' => true,
+        ])->json('data.parcel.id');
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/price", ['price' => 40, 'seats' => 1])->assertOk();
+        Sanctum::actingAs($sender);
+        $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->assertOk();
+        $this->assertSame(2, $this->remaining($leg));
+
+        Sanctum::actingAs($this->business);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/refuse-unsealed")->assertOk()
+            ->assertJsonPath('data.parcel.status', 'rejected')->assertJsonPath('data.parcel.seal.refused_unsealed', true);
+        $this->assertSame(3, $this->remaining($leg), 'its seat is free again');
     }
 }

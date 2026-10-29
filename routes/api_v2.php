@@ -935,6 +935,51 @@ Route::prefix('v2')->group(function () {
             Route::get('business/staff/attendance-settings', [StaffAttendanceController::class, 'settings']);
             Route::patch('business/staff/attendance-settings', [StaffAttendanceController::class, 'updateSettings']);
         });
+        // ── «الحضور والمرتبات» (desktop suite phase 2, owner 2026-10-30) ─────────────────────────────────────────────
+        // The manager's side needs `attendance`, the money side `payroll`; an employee reads and asks only for himself.
+        Route::prefix('business/hr')->group(function () {
+            $hr = \App\Http\Controllers\Api\V2\HrController::class;
+            $pay = \App\Http\Controllers\Api\V2\PayrollController::class;
+
+            Route::middleware('business.member:' . BusinessCapability::ATTENDANCE . '|' . BusinessCapability::PAYROLL)->group(function () use ($hr) {
+                Route::get('settings', [$hr, 'settings']);
+                Route::get('law-tables', [$hr, 'lawTables']);
+                Route::get('shifts', [$hr, 'shifts']);
+                Route::get('holidays', [$hr, 'holidays']);
+                Route::get('employees', [$hr, 'employees']);
+                Route::patch('employees/{user}', [$hr, 'updateEmployee'])->whereNumber('user');
+                Route::get('attendance', [$hr, 'board']);
+            });
+
+            Route::middleware('business.member:' . BusinessCapability::ATTENDANCE)->group(function () use ($hr) {
+                Route::patch('settings', [$hr, 'updateSettings']);
+                Route::post('shifts', [$hr, 'storeShift']);
+                Route::patch('shifts/{shift}', [$hr, 'updateShift'])->whereNumber('shift');
+                Route::post('holidays', [$hr, 'storeHoliday']);
+                Route::delete('holidays/{holiday}', [$hr, 'destroyHoliday'])->whereNumber('holiday');
+                Route::get('requests', [$hr, 'requests']);
+                Route::post('requests', [$hr, 'storeRequest']);
+                Route::post('requests/{hrRequest}/decide', [$hr, 'decide'])->whereNumber('hrRequest');
+            });
+
+            Route::middleware('business.member:' . BusinessCapability::PAYROLL)->group(function () use ($pay) {
+                Route::get('advances', [$pay, 'advances']);
+                Route::post('advances', [$pay, 'storeAdvance']);
+                Route::get('adjustments', [$pay, 'adjustments']);
+                Route::post('adjustments', [$pay, 'storeAdjustment']);
+                Route::get('payroll/{month}', [$pay, 'show'])->where('month', '\d{4}-\d{2}');
+                Route::post('payroll/{month}/generate', [$pay, 'generate'])->where('month', '\d{4}-\d{2}');
+                Route::post('payroll/{month}/approve', [$pay, 'approve'])->where('month', '\d{4}-\d{2}');
+                Route::post('payslips/{payslip}/paid', [$pay, 'paid'])->whereNumber('payslip');
+            });
+        });
+
+        Route::middleware('business.member')->group(function () {
+            Route::get('staff/hr/me', [\App\Http\Controllers\Api\V2\StaffHrController::class, 'me']);
+            Route::post('staff/hr/requests', [\App\Http\Controllers\Api\V2\StaffHrController::class, 'store']);
+            Route::post('staff/hr/requests/{hrRequest}/cancel', [\App\Http\Controllers\Api\V2\StaffHrController::class, 'cancel'])->whereNumber('hrRequest');
+        });
+
         // A delegate (who may be a plain client) lists what they may manage.
         Route::get('business/memberships', [BusinessStaffController::class, 'memberships']);
 

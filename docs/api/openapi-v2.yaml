@@ -65,6 +65,11 @@ tags:
   - name: Orders (Customer)
   - name: Orders (Business)
   - name: Business Hours
+  - name: Attendance & Payroll
+    description: >-
+      The desktop suite, phase 2: shifts and the business's own lateness / absence / overtime rules over the existing
+      punches, leave / correction / overtime requests, advances, and a monthly payroll (gross to net by the law's dated
+      tables — social insurance, wage tax brackets) that locks once approved; payments are recorded, never moved.
   - name: Inventory
     description: >-
       The desktop suite, phase 1 (owner, 2026-10-29): inventory as a ledger of moves with average cost, purchases with the
@@ -7009,3 +7014,49 @@ paths:
     get: { tags: [Inventory], summary: "The supplier side: purchase orders other businesses sent to THIS business (approved and later), with the buyer", responses: { '200': { description: OK } } }
   /business/incoming-purchase-orders/{order}/confirm:
     post: { tags: [Inventory], summary: "The supplier confirms an order it received; the buyer is told", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/settings:
+    get: { tags: [Attendance & Payroll], summary: "The business's own rules: grace_minutes, late_tiers [{upto_minutes|null, day_fraction}] (lateness and early leave), absence_day_fraction, monthly_cap_days, overtime_day_pct / overtime_night_pct, night_from / night_to, days_per_month, hours_per_day, rest_days (Carbon dayOfWeek; Friday by default)", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+    patch: { tags: [Attendance & Payroll], summary: "Change the rules (capability attendance). An overtime rate below the law's minimum (law table overtime) is refused", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/law-tables:
+    get: { tags: [Attendance & Payroll], summary: "The law's dated tables (read-only): social_insurance {employee_pct, employer_pct, min_wage, max_wage}, wage_tax {exemption, brackets [[upper|null, rate]], review_above}, overtime {day_min_pct, night_min_pct}, annual_leave {first_year, after_first_year, after_ten_years_or_fifty}, each with effective_from and source", responses: { '200': { description: OK } } }
+  /business/hr/shifts:
+    get: { tags: [Attendance & Payroll], summary: "Shifts {name, starts_at, ends_at (HH:MM; an end before the start belongs to the next day)}", responses: { '200': { description: OK } } }
+    post: { tags: [Attendance & Payroll], summary: "A shift", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/shifts/{shift}:
+    patch: { tags: [Attendance & Payroll], summary: "Edit a shift", parameters: [{ name: shift, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/hr/holidays:
+    get: { tags: [Attendance & Payroll], summary: "The business's holidays {year?}", responses: { '200': { description: OK } } }
+    post: { tags: [Attendance & Payroll], summary: "{date, name} — a holiday is neither absence nor leave", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/holidays/{holiday}:
+    delete: { tags: [Attendance & Payroll], summary: "Remove a holiday", parameters: [{ name: holiday, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/hr/employees:
+    get: { tags: [Attendance & Payroll], summary: "The active staff with their HR file (shift, hire / birth date, rest days) and leave balance {entitlement, used, remaining}; the pay fields (basic_salary, allowances [{name, amount, insurable}], insurable_wage, insured, taxable, pay_method) only for the owner or the payroll capability", responses: { '200': { description: OK } } }
+  /business/hr/employees/{user}:
+    patch: { tags: [Attendance & Payroll], summary: "Edit an employee's HR file; the pay fields need the payroll capability (403 otherwise)", parameters: [{ name: user, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/hr/attendance:
+    get: { tags: [Attendance & Payroll], summary: "The month's board {month=YYYY-MM}: every employee's days [{date, status present|late|absent|leave|unpaid_leave|rest|holiday|none, check_in, check_out, late_minutes, early_minutes, overtime_minutes, overtime_night_minutes, deduction (days)}] and totals (deduction_days capped by the monthly cap; suggested vs approved overtime); pending_requests", responses: { '200': { description: OK } } }
+  /business/hr/requests:
+    get: { tags: [Attendance & Payroll], summary: "Leave / correction / overtime requests {status?}", responses: { '200': { description: OK } } }
+    post: { tags: [Attendance & Payroll], summary: "The manager records one for an employee {user_id, kind leave|correction|overtime, date_from, date_to?, leave_type annual|casual|sick|unpaid, check_in?, check_out?, minutes?, night_minutes?, reason?} — approved at once", responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/requests/{hrRequest}/decide:
+    post: { tags: [Attendance & Payroll], summary: "{approve, note?} — an approved correction writes the punch (corrected_by, correction_request_id); the employee is told", parameters: [{ name: hrRequest, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/advances:
+    get: { tags: [Attendance & Payroll], summary: "Advances (capability payroll) with what remains", responses: { '200': { description: OK } } }
+    post: { tags: [Attendance & Payroll], summary: "{user_id, amount, installments, first_month YYYY-MM, note?} — taken in equal installments from that month's payroll", responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/adjustments:
+    get: { tags: [Attendance & Payroll], summary: "A month's bonuses and penalties {month?}", responses: { '200': { description: OK } } }
+    post: { tags: [Attendance & Payroll], summary: "{user_id, month, kind bonus|penalty, amount, reason (required)} — refused once that month is approved", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/payroll/{month}:
+    get: { tags: [Attendance & Payroll], summary: "The month's run {status draft|approved, totals} and its payslips [{user_id, user_name, lines [{type earning|deduction, key, label, amount, detail}], attendance, gross, deductions, net, employer_insurance, paid_at, paid_method}]", parameters: [{ name: month, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK } } }
+  /business/hr/payroll/{month}/generate:
+    post: { tags: [Attendance & Payroll], summary: "(Re)compute the draft for every active employee with a salary: basic + allowances + approved overtime + bonuses − attendance − unpaid leave − advance installment − penalties − social insurance (inside the law's limits) − wage tax (brackets after the exemption). Refused once approved", parameters: [{ name: month, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/payroll/{month}/approve:
+    post: { tags: [Attendance & Payroll], summary: "Approve and lock the month: installments come off the advances, and each employee is told his payslip is ready", parameters: [{ name: month, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/hr/payslips/{payslip}/paid:
+    post: { tags: [Attendance & Payroll], summary: "RECORD the payslip handed over {method cash|transfer|wallet_outside} — the money moves outside the app; the BIM wallet never pays salaries", parameters: [{ name: payslip, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/hr/me:
+    get: { tags: [Attendance & Payroll], summary: "The employee's own month {month?}: days and totals, leave balance, his requests, and his payslips of approved months", responses: { '200': { description: OK } } }
+  /staff/hr/requests:
+    post: { tags: [Attendance & Payroll], summary: "The employee asks: leave (annual held to the balance, counted in work days), a punch correction, or overtime — the manager is notified", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /staff/hr/requests/{hrRequest}/cancel:
+    post: { tags: [Attendance & Payroll], summary: "Withdraw his own request while still pending", parameters: [{ name: hrRequest, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }

@@ -22,7 +22,7 @@ final class NotificationCategories
         'money' => ['المحفظة والضمانات والنزاعات', 'Wallet, guarantees & disputes', ['wallet_', 'guarantee_', 'coguarantor_', 'dispute_']],
         'health' => ['الأدوية والوصفات والفحوصات', 'Medicine, prescriptions & tests', ['prescription_', 'investigation_', 'hospital_', 'procedure_']],
         'training' => ['التدريب والخطط', 'Training & plans', ['training_']],
-        'team' => ['الموظفون', 'Staff', ['staff_']],
+        'team' => ['الموظفون', 'Staff', ['staff_', 'hr_']],
         'inventory' => ['المخزون والمشتريات', 'Inventory & purchases', ['inventory_', 'business_suite_']],
     ];
 

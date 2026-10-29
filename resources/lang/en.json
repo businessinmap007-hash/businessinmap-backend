@@ -3434,5 +3434,18 @@
     "لا تملك صلاحية اعتماد أوامر الشراء.": "You are not allowed to approve purchase orders.",
     "اعتُمد هذا الجرد ولا يُلغى؛ صحّحه بجرد جديد.": "This stocktake was applied and cannot be cancelled; correct it with a new count.",
     "المخزون غير مفعّل لهذا النشاط. يفعّله صاحب النشاط من إعدادات المخزون.": "Inventory is not switched on for this business. The owner switches it on in the inventory settings.",
-    "اشتراك تطبيق الكمبيوتر غير مدفوع: البيانات للقراءة والتصدير فقط حتى تشحن المحفظة وتجدد الاشتراك.": "The desktop suite subscription is unpaid: data is read and export only until you top up your wallet and renew."
+    "اشتراك تطبيق الكمبيوتر غير مدفوع: البيانات للقراءة والتصدير فقط حتى تشحن المحفظة وتجدد الاشتراك.": "The desktop suite subscription is unpaid: data is read and export only until you top up your wallet and renew.",
+    "تاريخ النهاية قبل البداية.": "The end date is before the start date.",
+    "رصيد الإجازة الاعتيادية لا يكفي (المتبقي :n يوم).": "Not enough annual leave left (:n days remaining).",
+    "اكتب وقت الحضور أو الانصراف الصحيح.": "Enter the correct check-in or check-out time.",
+    "اكتب دقائق الإضافي.": "Enter the overtime minutes.",
+    "لا يوجد جدول قانوني ساري لهذا الشهر: :kind": "No law table is in force for this month: :kind",
+    "مسير هذا الشهر معتمد ومقفل؛ التعديل يكون في الشهر التالي.": "This month's payroll is approved and locked; changes go into next month.",
+    "هذا المسير معتمد من قبل.": "This payroll is already approved.",
+    "أعد حساب المسير أولًا؛ لا كشوف فيه.": "Recalculate the payroll first; it has no payslips.",
+    "اعتمد المسير قبل تسجيل الصرف.": "Approve the payroll before recording payments.",
+    "الشهر بصيغة YYYY-MM.": "The month must be YYYY-MM.",
+    "نسبة الإضافي أقل من الحد القانوني (:min%).": "The overtime rate is below the legal minimum (:min%).",
+    "لا تملك صلاحية تعديل المرتبات.": "You are not allowed to change salaries.",
+    "سجّله المدير": "Recorded by the manager"
 }

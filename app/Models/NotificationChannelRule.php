@@ -242,6 +242,11 @@ class NotificationChannelRule extends Model
             'inventory_po_incoming' => ['أمر شراء جديد من عميل', 'New purchase order from a customer', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'order_new'],
             'inventory_po_decided' => ['تحديث على أمر شراء', 'Purchase order update', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'inventory_low_stock' => ['صنف عند حد إعادة الطلب', 'Stock item at its reorder level', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'warning'],
+            // Attendance and payroll (desktop suite phase 2): a staff request waiting for the manager, its answer back to the
+            // employee, and the month's payslip reaching each employee once the payroll is approved.
+            'hr_request_pending' => ['طلب موظف بانتظار اعتمادك', 'Staff request awaiting approval', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'hr_request_decided' => ['رد على طلبك', 'Answer to your request', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'hr_payslip_ready' => ['كشف المرتب جاهز', 'Payslip ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'business_suite_subscription' => ['اشتراك تطبيق الكمبيوتر', 'Desktop suite subscription', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'warning'],
         ];
     }

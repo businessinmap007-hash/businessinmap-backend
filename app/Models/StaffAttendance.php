@@ -19,6 +19,8 @@ class StaffAttendance extends Model
         'date',
         'checked_in_at',
         'checked_out_at',
+        'corrected_by',
+        'correction_request_id',
     ];
 
     protected $casts = [

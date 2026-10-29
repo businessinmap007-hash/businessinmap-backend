@@ -37,6 +37,8 @@ final class BusinessCapability
     public const PURCHASES = 'purchases';
     public const PURCHASE_APPROVAL = 'purchase_approval';
     public const POS = 'pos';
+    public const ATTENDANCE = 'attendance';
+    public const PAYROLL = 'payroll';
 
     /**
      * «الطبيب المعالج»: what the role carries on its own — the visit, the prescription, the test / radiology orders and
@@ -74,6 +76,8 @@ final class BusinessCapability
             self::PURCHASES => ['المشتريات والموردون', 'Purchases and suppliers'],
             self::PURCHASE_APPROVAL => ['اعتماد أوامر الشراء', 'Approving purchase orders'],
             self::POS => ['الكاشير', 'Cashier'],
+            self::ATTENDANCE => ['الحضور والإجازات', 'Attendance and leave'],
+            self::PAYROLL => ['المرتبات والسلف', 'Payroll and advances'],
         ];
     }
 

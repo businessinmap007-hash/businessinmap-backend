@@ -51,6 +51,16 @@ final class StaffHrController extends Controller
         return response()->json(['success' => true, 'data' => ['request' => $made]], 201);
     }
 
+    /** POST /staff/hr/payslips/{payslip}/confirm-received — «استلمت راتبي», from the employee's own account */
+    public function confirmReceived(Request $request, int $payslip)
+    {
+        $slip = Payslip::query()->where('business_id', BusinessContext::id($request))->findOrFail($payslip);
+
+        return response()->json(['success' => true, 'data' => [
+            'payslip' => app(\App\Services\Hr\PayrollService::class)->confirmReceived($slip, (int) $request->user()->id),
+        ]]);
+    }
+
     /** POST /staff/hr/requests/{hrRequest}/cancel — while still pending */
     public function cancel(Request $request, int $hrRequest)
     {

@@ -114,6 +114,40 @@ final class PayrollService
         return $slip->fresh();
     }
 
+    /**
+     * The employee, from his own account, confirms he received this salary — the other half of a handover the manager
+     * records as paid. Only his own payslip, only once the month is approved; confirming twice changes nothing.
+     */
+    public function confirmReceived(Payslip $slip, int $employeeId): Payslip
+    {
+        if ((int) $slip->user_id !== $employeeId) {
+            abort(404);
+        }
+
+        $run = PayrollRun::query()->find($slip->run_id);
+        if (! $run || $run->status !== self::APPROVED) {
+            throw ValidationException::withMessages(['status' => __('لا يُؤكد الاستلام قبل اعتماد المسير.')]);
+        }
+
+        if (! $slip->received_confirmed_at) {
+            $slip->update(['received_confirmed_at' => now()]);
+
+            try {
+                $name = (string) optional(User::query()->find($employeeId))->name;
+                app(NotificationDispatcherService::class)->dispatch('hr_payslip_received', (int) $slip->business_id, [
+                    'body_ar' => "أكّد {$name} استلام راتب {$run->month}: " . number_format((float) $slip->net, 2) . ' ج.',
+                    'body_en' => "{$name} confirmed receiving the {$run->month} salary: " . number_format((float) $slip->net, 2) . ' EGP.',
+                    'source_type' => 'hr_payslip',
+                    'source_id' => $slip->id,
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $slip->fresh();
+    }
+
     private function assertMonth(string $month): void
     {
         if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {

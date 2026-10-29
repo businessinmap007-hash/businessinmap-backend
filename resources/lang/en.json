@@ -3447,5 +3447,6 @@
     "الشهر بصيغة YYYY-MM.": "The month must be YYYY-MM.",
     "نسبة الإضافي أقل من الحد القانوني (:min%).": "The overtime rate is below the legal minimum (:min%).",
     "لا تملك صلاحية تعديل المرتبات.": "You are not allowed to change salaries.",
-    "سجّله المدير": "Recorded by the manager"
+    "سجّله المدير": "Recorded by the manager",
+    "لا يُؤكد الاستلام قبل اعتماد المسير.": "Receipt cannot be confirmed before the payroll is approved."
 }

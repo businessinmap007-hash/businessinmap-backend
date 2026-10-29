@@ -246,6 +246,7 @@ class NotificationChannelRule extends Model
             // employee, and the month's payslip reaching each employee once the payroll is approved.
             'hr_request_pending' => ['طلب موظف بانتظار اعتمادك', 'Staff request awaiting approval', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'hr_request_decided' => ['رد على طلبك', 'Answer to your request', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'hr_payslip_received' => ['تأكيد موظف لاستلام راتبه', 'Employee confirmed receiving the salary', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'hr_payslip_ready' => ['كشف المرتب جاهز', 'Payslip ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'business_suite_subscription' => ['اشتراك تطبيق الكمبيوتر', 'Desktop suite subscription', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'warning'],
         ];

@@ -978,6 +978,7 @@ Route::prefix('v2')->group(function () {
             Route::get('staff/hr/me', [\App\Http\Controllers\Api\V2\StaffHrController::class, 'me']);
             Route::post('staff/hr/requests', [\App\Http\Controllers\Api\V2\StaffHrController::class, 'store']);
             Route::post('staff/hr/requests/{hrRequest}/cancel', [\App\Http\Controllers\Api\V2\StaffHrController::class, 'cancel'])->whereNumber('hrRequest');
+            Route::post('staff/hr/payslips/{payslip}/confirm-received', [\App\Http\Controllers\Api\V2\StaffHrController::class, 'confirmReceived'])->whereNumber('payslip');
         });
 
         // A delegate (who may be a plain client) lists what they may manage.

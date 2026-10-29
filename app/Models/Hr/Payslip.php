@@ -11,5 +11,5 @@ class Payslip extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['lines' => 'array', 'attendance' => 'array', 'gross' => 'float', 'deductions' => 'float', 'net' => 'float', 'employer_insurance' => 'float', 'paid_at' => 'datetime'];
+    protected $casts = ['lines' => 'array', 'attendance' => 'array', 'gross' => 'float', 'deductions' => 'float', 'net' => 'float', 'employer_insurance' => 'float', 'paid_at' => 'datetime', 'received_confirmed_at' => 'datetime'];
 }

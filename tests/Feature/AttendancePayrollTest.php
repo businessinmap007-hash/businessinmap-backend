@@ -139,6 +139,32 @@ class AttendancePayrollTest extends TestCase
         $this->assertTrue(DB::table('app_notifications')->where('user_id', $this->ahmed->id)->where('source_type', 'hr_payslip')->exists());
     }
 
+    public function test_the_employee_confirms_receiving_his_salary_from_his_own_account(): void
+    {
+        $this->ahmedsMonth();
+        $slipId = $this->postJson('/api/v2/business/hr/payroll/' . self::MONTH . '/generate')->json('data.payslips.0.id');
+
+        // not before the month is approved
+        Sanctum::actingAs($this->ahmed);
+        $this->postJson("/api/v2/staff/hr/payslips/{$slipId}/confirm-received")->assertStatus(422);
+
+        Sanctum::actingAs($this->owner);
+        $this->postJson('/api/v2/business/hr/payroll/' . self::MONTH . '/approve')->assertOk();
+        $this->postJson("/api/v2/business/hr/payslips/{$slipId}/paid", ['method' => 'cash'])->assertOk();
+
+        // nobody else's payslip
+        $other = $this->user(User::TYPE_CLIENT);
+        BusinessStaff::create(['business_id' => $this->owner->id, 'user_id' => $other->id, 'capabilities' => ['inventory'], 'is_active' => 1]);
+        Sanctum::actingAs($other);
+        $this->postJson("/api/v2/staff/hr/payslips/{$slipId}/confirm-received")->assertNotFound();
+
+        Sanctum::actingAs($this->ahmed);
+        $this->postJson("/api/v2/staff/hr/payslips/{$slipId}/confirm-received")->assertOk()->assertJsonPath('data.payslip.paid_method', 'cash');
+        $this->assertNotNull(DB::table('hr_payslips')->where('id', $slipId)->value('received_confirmed_at'));
+        $this->getJson('/api/v2/staff/hr/me?month=' . self::MONTH)->assertOk()->assertJsonPath('data.payslips.0.id', $slipId);
+        $this->assertTrue(DB::table('app_notifications')->where('user_id', $this->owner->id)->where('source_type', 'hr_payslip')->exists());
+    }
+
     public function test_leave_is_held_to_the_balance_and_a_correction_writes_the_punch(): void
     {
         Sanctum::actingAs($this->owner);

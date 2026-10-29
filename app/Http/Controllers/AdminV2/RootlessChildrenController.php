@@ -44,7 +44,7 @@ use Illuminate\View\View;
  * Everything else referencing `category_children_master.id` already has a real
  * foreign key (`information_schema.REFERENTIAL_CONSTRAINTS`, checked
  * 2026-08-25): `business_service_prices`, `category_child_service_fees`,
- * `category_service_configs`, `category_child_option_new` CASCADE; `users`,
+ * `category_service_configs` CASCADE; `users`,
  * `posts`, `job_follows`, `platform_service_fee_promotions` SET NULL. MySQL
  * handles those on its own.
  */
@@ -128,7 +128,7 @@ class RootlessChildrenController extends Controller
             DB::table('category_platform_services')->where('child_id', $categoryChild->id)->delete();
 
             // Everything else — business_service_prices, category_service_configs,
-            // category_child_service_fees, category_child_option_new — has a real
+            // category_child_service_fees — has a real
             // foreign key with ON DELETE CASCADE, and users/posts/job_follows/
             // platform_service_fee_promotions SET NULL. MySQL clears those.
             $categoryChild->delete();

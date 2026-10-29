@@ -62,9 +62,9 @@ class ServiceKindsCollapseSeeder extends Seeder
      * to declare the relationship.
      *
      * Listed by hand on purpose. Matching on column NAME across the schema is
-     * what made the parallel options sweep refuse seven healthy rows: the
-     * paused taxonomy-lab clone carries `*_new` tables whose ids belong to
-     * their own clone, and a name match cannot tell the two apart. Add a column
+     * what made the parallel options sweep refuse seven healthy rows: a column
+     * of the same name may belong to another table's ids (the taxonomy-lab
+     * clone, since deleted, did), and a name match cannot tell them apart. Add a column
      * here when one is introduced; the tests will not know about it otherwise.
      *
      * @var list<array{0: string, 1: string}>

@@ -64,9 +64,6 @@ use App\Http\Controllers\AdminV2\{
     PlatformServiceItemGroupController,
     PlatformServiceItemTypeController,
     ServiceBranchBoardController,
-    TaxonomyLabController,
-    LabListController,
-    LabOptionsController,
     PostController,
     SubscriptionController,
     UploadController,
@@ -354,29 +351,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('branches', [ServiceBranchBoardController::class, 'storeBranch'])->name('branches.store');
             Route::post('branches/{platformServiceItemGroup}/rename', [ServiceBranchBoardController::class, 'renameBranch'])->whereNumber('platformServiceItemGroup')->name('branches.rename');
             Route::delete('branches/{platformServiceItemGroup}', [ServiceBranchBoardController::class, 'destroyBranch'])->whereNumber('platformServiceItemGroup')->name('branches.destroy');
-        });
-
-        // Taxonomy Lab — isolated rebuild sandbox for the services + options
-        // organization (works only on the `_new` clone tables; live untouched).
-        Route::prefix('taxonomy-lab')->name('taxonomy-lab.')->middleware('can:' . AdminAbility::CATALOG)->group(function () {
-            Route::get('/', [TaxonomyLabController::class, 'index'])->name('index');
-            Route::post('reset', [TaxonomyLabController::class, 'reset'])->name('reset');
-
-            // Hierarchical unified lists (sections → sub-sections → items).
-            Route::get('lists', [LabListController::class, 'index'])->name('lists.index');
-            Route::post('lists', [LabListController::class, 'store'])->name('lists.store');
-            Route::get('lists/{list}', [LabListController::class, 'show'])->whereNumber('list')->name('lists.show');
-            Route::post('lists/{list}/rename', [LabListController::class, 'rename'])->whereNumber('list')->name('lists.rename');
-            Route::delete('lists/{list}', [LabListController::class, 'destroy'])->whereNumber('list')->name('lists.destroy');
-            Route::get('lists/{list}/pool', [LabListController::class, 'pool'])->whereNumber('list')->name('lists.pool');
-            Route::post('lists/{list}/items', [LabListController::class, 'addItem'])->whereNumber('list')->name('lists.items.add');
-            Route::post('lists/{list}/sync', [LabListController::class, 'syncItems'])->whereNumber('list')->name('lists.items.sync');
-            Route::delete('lists/{list}/items/{item}', [LabListController::class, 'removeItem'])->whereNumber('list')->whereNumber('item')->name('lists.items.remove');
-
-            // Child ↔ options builder (two-column transfer over category_child_option_new).
-            Route::get('options-builder', [LabOptionsController::class, 'index'])->name('options.index');
-            Route::get('options-builder/{child}', [LabOptionsController::class, 'child'])->whereNumber('child')->name('options.child');
-            Route::post('options-builder/{child}/save', [LabOptionsController::class, 'save'])->whereNumber('child')->name('options.save');
         });
 
         Route::resource('platform-service-item-types', PlatformServiceItemTypeController::class)->except(['show'])->names('platform-service-item-types')->middleware('can:' . AdminAbility::CATALOG);

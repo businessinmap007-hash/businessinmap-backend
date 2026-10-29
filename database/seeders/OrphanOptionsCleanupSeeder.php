@@ -86,11 +86,11 @@ class OrphanOptionsCleanupSeeder extends Seeder
      * business_service_prices.line_option_id, has no foreign key at all — it
      * would simply dangle — so it is named explicitly below.
      *
-     * Matching on the COLUMN NAME instead was tried and is wrong: the paused
-     * taxonomy-lab clone has a `category_child_option_new.option_id` whose ids
-     * belong to `options_new`, a different 151-row table. It collides
-     * numerically with live option ids and made the sweep refuse seven rows it
-     * should have deleted. Follow the reference, never the name.
+     * Matching on the COLUMN NAME instead was tried and is wrong: a column
+     * named `option_id` may point at another table altogether (the taxonomy-lab
+     * clone, since deleted, had one whose ids collided with live option ids and
+     * made the sweep refuse seven rows it should have deleted). Follow the
+     * reference, never the name.
      *
      * @return array{0: list<string>, 1: list<string>} [deleted names, refused names]
      */

@@ -146,7 +146,6 @@
                 ['label' => 'مركز الإشعارات', 'route' => 'admin.notification-center.index', 'active' => 'admin.notification-center.'],
             ]],
         ]],
-        ['label' => '🧪 مختبر تنظيم الخدمات والخيارات', 'route' => 'admin.taxonomy-lab.index', 'icon' => 'folder', 'active' => ['admin.taxonomy-lab.']],
         /*
         | ما يقع بين طرفَى عمليةٍ أيًّا كانت خدمتُها — لا يخصّ خدمةً بعينها،
         | فلا يسكن شجرتها. وما كان هنا من حجزٍ ومنيو وتدريبٍ وعيادات انتقل

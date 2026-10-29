@@ -13,6 +13,16 @@ class Order extends Model implements \App\Contracts\HasVisitDeposit, \App\Contra
             if ($order->wasChanged('status') && $order->status === 'cancelled' && $order->installments()->exists()) {
                 app(\App\Services\InstallmentPlan::class)->syncAgenda($order);
             }
+
+            // A business that keeps its stock in the inventory suite: accepted → the recipes leave the stock;
+            // cancelled after that → they come back. Never fails the order's own save.
+            $stock = app(\App\Services\Inventory\OrderStockDeduction::class);
+            if ($order->wasChanged('prep_status') && $order->prep_status === self::PREP_ACCEPTED) {
+                $stock->safely(fn () => $stock->deduct($order));
+            }
+            if ($order->wasChanged('status') && in_array($order->status, ['cancelled', 'rejected'], true)) {
+                $stock->safely(fn () => $stock->restore($order));
+            }
         });
 
         // The deposit frozen for an order goes back when the order ends: cancelled → refunded; completed (and the cash

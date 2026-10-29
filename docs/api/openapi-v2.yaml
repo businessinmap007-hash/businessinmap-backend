@@ -65,6 +65,12 @@ tags:
   - name: Orders (Customer)
   - name: Orders (Business)
   - name: Business Hours
+  - name: Inventory
+    description: >-
+      The desktop suite, phase 1 (owner, 2026-10-29): inventory as a ledger of moves with average cost, purchases with the
+      owner's approval limit and a three-way match, the blind stocktake, the cashier, devices and the sync feed; the
+      owner's phone reads the same (coverage, approving orders). Features per category (the inventory service's item
+      types); a monthly subscription from the wallet, read-only when unpaid.
   - name: Business Staff
     description: >-
       Delegated staff on a business account — a clinic secretary, a shop/
@@ -6903,3 +6909,103 @@ paths:
     post: { tags: [Schedules], summary: "The carrier accepts the reservation without the deposit owed outside.", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/schedules/reservations/{subject}/deposit/give-back:
     post: { tags: [Schedules], summary: "The carrier returns a HELD wallet deposit (after a no-show) — both holds and any coverage go back.", parameters: [{ name: subject, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/settings:
+    get: { tags: [Inventory], summary: "The inventory suite's switch for the acting business: {available (its category offers the «المخزون والمشتريات» service), enabled, features [{key units|sales_link|recipes|lots_expiry|barcode|multi_warehouse|waste|purchases|pos, label, on, optional}], po_approval_threshold, subscription {status none|active|grace|read_only, price, paid_until, grace_until, months_paid, writable}, is_owner, capabilities}. Features are the item types the admin ticked for the category; optional ones start off", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+    patch: { tags: [Inventory], summary: "Owner only — {enabled?, features? (the list switched ON), po_approval_threshold? (orders above it from someone without the approval capability wait for the owner)}. Switching on takes the first month of the subscription from the wallet (platform event fee business_suite_month, priced in the control panel; 422 balance when short) and creates the main warehouse", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/subscription/renew:
+    post: { tags: [Inventory], summary: "Owner only — pay the month now from the wallet; lifts read-only at once. Unpaid months: a reminder 3 days before, 7 grace days with a daily retry, then read-only (reads and exports only, writes answer 402 suite_read_only); nothing is ever deleted and app sales keep updating the stock", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/dashboard:
+    get: { tags: [Inventory], summary: "Today's board: summary {stock_value (at average cost), below_reorder, open_purchase_orders, waste_this_month}, low (the coverage rows below reorder or short today), recent_moves. 403 inventory_disabled while the suite is off", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /business/inventory/coverage:
+    get: { tags: [Inventory], summary: "«يكفي مبيعات اليوم؟» for every item, worst first: {item_id, name, base_unit, on_hand, used_today, weekday_average (same weekday, last 4 weeks), expected_rest_of_today, daily_average (28 days), days_left, reorder_level, below_reorder, verdict no|tight|yes|empty|unknown}", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+  /business/inventory/items:
+    get: { tags: [Inventory], summary: "Stock items {search?, group?, below?, barcode? (the item's or one of its units'), include_inactive?} with units, on_hand (base unit), on_hand_display («20 بالتة و30 كرتونة»), value, below_reorder, levels per warehouse/lot; plus groups", responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' } } }
+    post: { tags: [Inventory], summary: "A stock item {uuid?, name_ar, name_en?, group_name?, base_unit, unit_kind count|weight|volume|length, barcode?, reorder_level?, track_lots?, units [{name, factor (in base units), barcode?}], opening_qty?, opening_cost?, opening_uuid?, warehouse_id?}. Idempotent by uuid", responses: { '201': { description: Created }, '402': { description: Read-only (unpaid subscription) }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/items/{item}:
+    get: { tags: [Inventory], summary: "One item with its last 50 moves, what sells it (used_by recipe owners) and its coverage", parameters: [{ name: item, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    patch: { tags: [Inventory], summary: "Edit the item; `units` replaces the list. The base unit never changes once moves were booked in it", parameters: [{ name: item, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/items/{item}/moves:
+    get: { tags: [Inventory], summary: "The item's ledger, newest first, each move with balance_after; paginated (per_page ≤ 200)", parameters: [{ name: item, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/inventory/warehouses:
+    get: { tags: [Inventory], summary: "The business's warehouses (the main one is created on first use)", responses: { '200': { description: OK } } }
+    post: { tags: [Inventory], summary: "Another warehouse {uuid?, name} — needs the multi_warehouse feature", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/warehouses/{warehouse}:
+    patch: { tags: [Inventory], summary: "{name?, is_active?, is_default?}", parameters: [{ name: warehouse, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/inventory/moves:
+    post: { tags: [Inventory], summary: "A ledger move by hand {kind opening|waste|transfer, uuid?, item_id, qty (> 0), unit_cost? (opening), warehouse_id?, to_warehouse_id (transfer), lot_id?, reason?, device_uuid?, occurred_at?}. Waste needs the waste feature, transfer the multi_warehouse one. Idempotent by uuid: a replayed move is booked once", responses: { '201': { description: Created }, '402': { description: Read-only (unpaid subscription) }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/moves/{move}/reverse:
+    post: { tags: [Inventory], summary: "The only undo: an opposite move {uuid?, reason?}. Sales, receipts and stocktake adjustments are corrected from their own document instead", parameters: [{ name: move, in: path, required: true, schema: { type: integer } }], responses: { '201': { description: Created }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/links:
+    get: { tags: [Inventory], summary: "Every menu item (with its sizes and extras) and retail listing, with its recipe lines, link none|direct|recipe and cost at average cost", responses: { '200': { description: OK } } }
+  /business/inventory/recipes:
+    put: { tags: [Inventory], summary: "Replace what one sale takes {owner_type menu_item|menu_variant|menu_extra|retail_listing, owner_id, lines [{item_id, qty (base units), waste_pct?}]} — an empty list unlinks. A size or an extra ADDS to the item's lines. Several lines (or a size / extra) need the recipes feature. App orders take these on accept and give them back on cancel; the menu's available quantity follows the stock", responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/devices:
+    get: { tags: [Inventory], summary: "The business's registered computers (main / warehouse / purchases / cashier), the main one first", responses: { '200': { description: OK } } }
+    post: { tags: [Inventory], summary: "Owner only — register a computer by its own uuid {uuid, name, role main|warehouse|purchases|cashier|manager, screens?, is_hub?}. One main computer at a time (is_hub)", responses: { '201': { description: Created }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/devices/{device}:
+    patch: { tags: [Inventory], summary: "Owner only — {name?, role?, screens?, is_hub?}", parameters: [{ name: device, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' } } }
+    delete: { tags: [Inventory], summary: "Owner only — revoke a device; its history stays", parameters: [{ name: device, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/inventory/devices/{uuid}/seen:
+    post: { tags: [Inventory], summary: "A device says it is alive; a revoked one gets 403 device_revoked", parameters: [{ name: uuid, in: path, required: true, schema: { type: string } }], responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/inventory/changes:
+    get: { tags: [Inventory], summary: "What the main computer pulls {after_move?, since?}: moves after the last it holds (500 at a time, has_more), and items, warehouses, suppliers, purchase orders and devices changed since; server_time for the next pull. App orders' moves arrive here too", responses: { '200': { description: OK } } }
+  /business/inventory/stocktakes:
+    get: { tags: [Inventory], summary: "The business's counts, newest first", responses: { '200': { description: OK } } }
+    post: { tags: [Inventory], summary: "Start a count {uuid?, warehouse_id?, title?, blind? (default true), item_ids?, group_name?}: the expected figures are snapshotted NOW, so sales during the count stay moves of their own", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/stocktakes/{stocktake}:
+    get: { tags: [Inventory], summary: "The count; while a blind count runs, expected_qty / difference are null", parameters: [{ name: stocktake, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/inventory/stocktakes/{stocktake}/count:
+    post: { tags: [Inventory], summary: "{lines [{item_id, lot_id?, counted_qty, reason?}]}", parameters: [{ name: stocktake, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/stocktakes/{stocktake}/finish:
+    post: { tags: [Inventory], summary: "Counting ends; the differences and their value show for review", parameters: [{ name: stocktake, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/stocktakes/{stocktake}/apply:
+    post: { tags: [Inventory], summary: "Every counted difference becomes one adjustment move", parameters: [{ name: stocktake, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/stocktakes/{stocktake}/cancel:
+    post: { tags: [Inventory], summary: "Drop an unapplied count", parameters: [{ name: stocktake, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/suppliers:
+    get: { tags: [Inventory], summary: "Suppliers with their balance (bills − payments − returns) — needs the purchases feature", responses: { '200': { description: OK } } }
+    post: { tags: [Inventory], summary: "{uuid?, name, phone?, linked_business_id? (a business on BIM: it receives the orders in its app), notes?}", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/suppliers/{supplier}:
+    get: { tags: [Inventory], summary: "The supplier's account: orders, bills, payments, returns, balance", parameters: [{ name: supplier, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    patch: { tags: [Inventory], summary: "Edit a supplier", parameters: [{ name: supplier, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/inventory/purchase-orders:
+    get: { tags: [Inventory], summary: "Purchase orders {status? (comma list: draft, pending_approval, approved, partially_received, received, closed, rejected, cancelled)}, paginated", responses: { '200': { description: OK } } }
+    post: { tags: [Inventory], summary: "A draft {uuid?, supplier_id, warehouse_id?, expected_on?, notes?, lines [{item_id, unit_id? | unit_name + unit_factor, qty (purchase units), unit_price (per purchase unit)}], submit?}. With submit: above the owner's limit and from someone without the approval capability it waits for him (he is notified); otherwise approved and sent at once — a supplier on BIM is notified", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/purchase-orders/{order}:
+    get: { tags: [Inventory], summary: "The order with its receipts, the three-way match {matched, lines [{ordered, received, billed, issues billed_more_than_received|price_differs, difference_value}], totals} and can_approve", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+    patch: { tags: [Inventory], summary: "Edit a draft (lines replaced)", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/purchase-orders/{order}/submit:
+    post: { tags: [Inventory], summary: "Send the draft on (approval rule as on create)", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/purchase-orders/{order}/approve:
+    post: { tags: [Inventory], summary: "The owner, or staff with purchase_approval — from the phone too", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/purchase-orders/{order}/reject:
+    post: { tags: [Inventory], summary: "{reason?} — the creator is told", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '403': { $ref: '#/components/responses/Forbidden' }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/purchase-orders/{order}/cancel:
+    post: { tags: [Inventory], summary: "Only while nothing was received", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/purchase-orders/{order}/close:
+    post: { tags: [Inventory], summary: "Close a (partially) received order", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/receipts:
+    post: { tags: [Inventory], summary: "Receive goods {uuid?, purchase_order_id?, supplier_id?, warehouse_id?, received_at?, notes?, device_uuid?, lines [{po_line_id? | item_id, unit_name?, unit_factor?, qty, damaged_qty?, unit_price?, lot_code?, expires_on?}]}. The good part of each line enters the stock at its price (the average cost moves); damaged stays out and open on the order. Lots need the lots_expiry feature. Idempotent by uuid", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/supplier-bills:
+    post: { tags: [Inventory], summary: "The supplier's bill {uuid?, supplier_id, purchase_order_id?, number?, bill_date?, amount?, lines [{po_line_id, qty, unit_price?}]} — answers with the three-way match", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/supplier-payments:
+    post: { tags: [Inventory], summary: "RECORD a payment made outside the app {uuid?, supplier_id, bill_id?, amount, method cash|transfer|cheque|other, paid_on?, note?} — the wallet never pays for goods; answers with the supplier's balance", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/supplier-returns:
+    post: { tags: [Inventory], summary: "Goods back to the supplier {uuid?, supplier_id, purchase_order_id?, warehouse_id?, reason?, lines [{item_id, qty (base units), unit_cost?, lot_id?}]} at average cost, credited against his balance", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/pos/catalog:
+    get: { tags: [Inventory], summary: "What the cashier sells — active menu items (sizes, extras) and retail listings at the business's prices, with available (what the stock can make) and barcodes (of a single-line linked item)", responses: { '200': { description: OK } } }
+  /business/inventory/pos/shifts:
+    post: { tags: [Inventory], summary: "Open a drawer {uuid?, device_uuid?, opening_cash?, opened_at?}", responses: { '201': { description: Created } } }
+  /business/inventory/pos/shifts/{shift}:
+    get: { tags: [Inventory], summary: "The drawer so far {shift, expected_cash, sales_count, sales_total, difference}", parameters: [{ name: shift, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/inventory/pos/shifts/{shift}/close:
+    post: { tags: [Inventory], summary: "{counted_cash} — counted against opening cash + paid sales", parameters: [{ name: shift, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/inventory/pos/sales:
+    get: { tags: [Inventory], summary: "Counter sales {shift_id?}", responses: { '200': { description: OK } } }
+    post: { tags: [Inventory], summary: "A counter sale {uuid?, shift_id?, device_uuid?, warehouse_id?, sold_at?, paid, lines [{owner_type menu_item|retail_listing, owner_id, qty, variant_id?, extras [{id, qty?}]}]}: priced on the server (a device's price is ignored), paid must cover the total, the recipes leave the stock. Cash outside the app. Answers with change. Idempotent by uuid", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/pos/sales/{sale}/return:
+    post: { tags: [Inventory], summary: "The whole sale back: its stock returns by opposite moves and it leaves the drawer's expected cash", parameters: [{ name: sale, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /business/incoming-purchase-orders:
+    get: { tags: [Inventory], summary: "The supplier side: purchase orders other businesses sent to THIS business (approved and later), with the buyer", responses: { '200': { description: OK } } }
+  /business/incoming-purchase-orders/{order}/confirm:
+    post: { tags: [Inventory], summary: "The supplier confirms an order it received; the buyer is told", parameters: [{ name: order, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/Validation' } } }

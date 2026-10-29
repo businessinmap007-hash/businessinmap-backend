@@ -746,6 +746,8 @@ final class DiscoveryController extends Controller
             ->where('key', '!=', PlatformService::KEY_DELIVERY)
             // offers are a tab on every business page now, not a service to browse by
             ->where('key', '!=', 'business_offers')
+            // the inventory suite runs the business's own back office — nothing a customer browses by
+            ->where('key', '!=', 'inventory')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get(['id', 'key', 'name_ar', 'name_en']);
@@ -788,6 +790,7 @@ final class DiscoveryController extends Controller
             ->where('s.is_active', 1)
             // «العروض والخصومات» is open to every business and shows as a tab on its own page — it is no longer a service to filter by
             ->where('s.key', '!=', 'business_offers')
+            ->where('s.key', '!=', 'inventory')
             ->orderBy('cps.sort_order')
             ->orderBy('s.id')
             ->get(['s.id', 's.key', 's.name_ar', 's.name_en', 's.supports_deposit', 'cps.sort_order']);

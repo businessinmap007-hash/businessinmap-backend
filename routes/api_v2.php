@@ -1136,6 +1136,102 @@ Route::prefix('v2')->group(function () {
             Route::put('rate-plans', [\App\Http\Controllers\Api\V2\BusinessRatePlanController::class, 'update']);
         });
 
+        // ── «تطبيق الكمبيوتر» phase 1: inventory, purchases, cashier (owner, 2026-10-29) ─────────────────────────────
+        // The switch and the devices are the owner's; everything else is a capability a staff member is given.
+        // `inventory.ready` = switched on; `:write` = and the monthly subscription is paid or in grace (else 402, read-only).
+        Route::prefix('business/inventory')->group(function () {
+            $inv = \App\Http\Controllers\Api\V2\InventoryController::class;
+            $buy = \App\Http\Controllers\Api\V2\InventoryPurchaseController::class;
+            $cp = \App\Http\Controllers\Api\V2\InventoryCountPosController::class;
+            $any = 'business.member:' . BusinessCapability::INVENTORY . '|' . BusinessCapability::PURCHASES . '|' . BusinessCapability::PURCHASE_APPROVAL . '|' . BusinessCapability::POS;
+
+            Route::get('settings', [$inv, 'settings'])->middleware($any);
+            Route::patch('settings', [$inv, 'updateSettings'])->middleware('business.member');
+            Route::post('subscription/renew', [$inv, 'renew'])->middleware('business.member');
+
+            Route::middleware([$any, 'inventory.ready'])->group(function () use ($inv) {
+                Route::get('dashboard', [$inv, 'dashboard']);
+                Route::get('coverage', [$inv, 'coverage']);
+                Route::get('items', [$inv, 'items']);
+                Route::get('items/{item}', [$inv, 'showItem'])->whereNumber('item');
+                Route::get('items/{item}/moves', [$inv, 'itemMoves'])->whereNumber('item');
+                Route::get('warehouses', [$inv, 'warehouses']);
+                Route::get('devices', [$inv, 'devices']);
+                Route::get('changes', [$inv, 'changes']);
+                Route::post('devices/{uuid}/seen', [$inv, 'deviceSeen']);
+            });
+
+            Route::middleware(['business.member', 'inventory.ready:write'])->group(function () use ($inv) {
+                Route::post('devices', [$inv, 'storeDevice']);
+                Route::patch('devices/{device}', [$inv, 'updateDevice'])->whereNumber('device');
+                Route::delete('devices/{device}', [$inv, 'revokeDevice'])->whereNumber('device');
+            });
+
+            Route::middleware(['business.member:' . BusinessCapability::INVENTORY, 'inventory.ready'])->group(function () use ($inv, $cp) {
+                Route::get('links', [$inv, 'links']);
+                Route::get('stocktakes', [$cp, 'stocktakes']);
+                Route::get('stocktakes/{stocktake}', [$cp, 'showStocktake'])->whereNumber('stocktake');
+            });
+
+            Route::middleware(['business.member:' . BusinessCapability::INVENTORY, 'inventory.ready:write'])->group(function () use ($inv, $cp) {
+                Route::post('items', [$inv, 'storeItem']);
+                Route::patch('items/{item}', [$inv, 'updateItem'])->whereNumber('item');
+                Route::post('warehouses', [$inv, 'storeWarehouse']);
+                Route::patch('warehouses/{warehouse}', [$inv, 'updateWarehouse'])->whereNumber('warehouse');
+                Route::post('moves', [$inv, 'storeMove']);
+                Route::post('moves/{move}/reverse', [$inv, 'reverseMove'])->whereNumber('move');
+                Route::put('recipes', [$inv, 'saveRecipe']);
+                Route::post('stocktakes', [$cp, 'startStocktake']);
+                Route::post('stocktakes/{stocktake}/count', [$cp, 'countLines'])->whereNumber('stocktake');
+                Route::post('stocktakes/{stocktake}/finish', [$cp, 'finishStocktake'])->whereNumber('stocktake');
+                Route::post('stocktakes/{stocktake}/apply', [$cp, 'applyStocktake'])->whereNumber('stocktake');
+                Route::post('stocktakes/{stocktake}/cancel', [$cp, 'cancelStocktake'])->whereNumber('stocktake');
+            });
+
+            $buyers = 'business.member:' . BusinessCapability::PURCHASES . '|' . BusinessCapability::PURCHASE_APPROVAL;
+            Route::middleware([$buyers, 'inventory.ready'])->group(function () use ($buy) {
+                Route::get('suppliers', [$buy, 'suppliers']);
+                Route::get('suppliers/{supplier}', [$buy, 'showSupplier'])->whereNumber('supplier');
+                Route::get('purchase-orders', [$buy, 'index']);
+                Route::get('purchase-orders/{order}', [$buy, 'show'])->whereNumber('order');
+            });
+            Route::middleware([$buyers, 'inventory.ready:write'])->group(function () use ($buy) {
+                Route::post('purchase-orders/{order}/approve', [$buy, 'approve'])->whereNumber('order');
+                Route::post('purchase-orders/{order}/reject', [$buy, 'reject'])->whereNumber('order');
+            });
+            Route::middleware(['business.member:' . BusinessCapability::PURCHASES, 'inventory.ready:write'])->group(function () use ($buy) {
+                Route::post('suppliers', [$buy, 'storeSupplier']);
+                Route::patch('suppliers/{supplier}', [$buy, 'updateSupplier'])->whereNumber('supplier');
+                Route::post('purchase-orders', [$buy, 'store']);
+                Route::patch('purchase-orders/{order}', [$buy, 'update'])->whereNumber('order');
+                Route::post('purchase-orders/{order}/submit', [$buy, 'submit'])->whereNumber('order');
+                Route::post('purchase-orders/{order}/cancel', [$buy, 'cancel'])->whereNumber('order');
+                Route::post('purchase-orders/{order}/close', [$buy, 'close'])->whereNumber('order');
+                Route::post('receipts', [$buy, 'receive']);
+                Route::post('supplier-bills', [$buy, 'storeBill']);
+                Route::post('supplier-payments', [$buy, 'storePayment']);
+                Route::post('supplier-returns', [$buy, 'storeReturn']);
+            });
+
+            Route::middleware(['business.member:' . BusinessCapability::POS, 'inventory.ready'])->group(function () use ($cp) {
+                Route::get('pos/catalog', [$cp, 'catalog']);
+                Route::get('pos/sales', [$cp, 'sales']);
+                Route::get('pos/shifts/{shift}', [$cp, 'showShift'])->whereNumber('shift');
+            });
+            Route::middleware(['business.member:' . BusinessCapability::POS, 'inventory.ready:write'])->group(function () use ($cp) {
+                Route::post('pos/shifts', [$cp, 'openShift']);
+                Route::post('pos/shifts/{shift}/close', [$cp, 'closeShift'])->whereNumber('shift');
+                Route::post('pos/sales', [$cp, 'sell']);
+                Route::post('pos/sales/{sale}/return', [$cp, 'returnSale'])->whereNumber('sale');
+            });
+        });
+
+        // A business that supplies another one on BIM: the purchase orders it received, and its confirmation.
+        Route::middleware('business.member:' . BusinessCapability::ORDERS)->group(function () {
+            Route::get('business/incoming-purchase-orders', [\App\Http\Controllers\Api\V2\InventoryPurchaseController::class, 'incoming']);
+            Route::post('business/incoming-purchase-orders/{order}/confirm', [\App\Http\Controllers\Api\V2\InventoryPurchaseController::class, 'confirmIncoming'])->whereNumber('order');
+        });
+
         // «شاشة الغرف»: the month board of a hotel's room types, taken and free night by night.
         Route::get('business/occupancy', [\App\Http\Controllers\Api\V2\HotelOccupancyController::class, 'index'])->middleware('business.member:' . BusinessCapability::BOOKINGS);
 

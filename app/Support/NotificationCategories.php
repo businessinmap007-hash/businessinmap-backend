@@ -23,6 +23,7 @@ final class NotificationCategories
         'health' => ['الأدوية والوصفات والفحوصات', 'Medicine, prescriptions & tests', ['prescription_', 'investigation_', 'hospital_', 'procedure_']],
         'training' => ['التدريب والخطط', 'Training & plans', ['training_']],
         'team' => ['الموظفون', 'Staff', ['staff_']],
+        'inventory' => ['المخزون والمشتريات', 'Inventory & purchases', ['inventory_', 'business_suite_']],
     ];
 
     /** Never silenced: the platform speaking to you. */

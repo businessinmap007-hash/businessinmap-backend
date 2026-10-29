@@ -234,6 +234,15 @@ class NotificationChannelRule extends Model
             // it (2026-08-28 investigation: zero business_catalog_listings
             // despite 1,295 catalog rows). Sent once per business, ever.
             'retail_catalog_ready' => ['بضاعة جاهزة في كتالوج التجزئة', 'Retail catalog has products for you', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+
+            // The inventory suite (desktop app): a purchase order waiting for the owner's approval, an order from a
+            // customer business reaching its supplier, the answer back, a stock item at its reorder level, and the
+            // monthly subscription's reminders.
+            'inventory_po_pending_approval' => ['أمر شراء بانتظار اعتمادك', 'Purchase order awaiting your approval', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            'inventory_po_incoming' => ['أمر شراء جديد من عميل', 'New purchase order from a customer', AppNotification::TYPE_OFFER, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'order_new'],
+            'inventory_po_decided' => ['تحديث على أمر شراء', 'Purchase order update', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'inventory_low_stock' => ['صنف عند حد إعادة الطلب', 'Stock item at its reorder level', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'warning'],
+            'business_suite_subscription' => ['اشتراك تطبيق الكمبيوتر', 'Desktop suite subscription', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'warning'],
         ];
     }
 

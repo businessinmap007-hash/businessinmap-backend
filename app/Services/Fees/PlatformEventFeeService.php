@@ -26,6 +26,7 @@ final class PlatformEventFeeService
     public const NUTRITION_PROGRAM_CHANGE = 'nutrition_program_change';
     public const PROJECT_PLAN_AGREED = 'project_plan_agreed';
     public const PROJECT_STAGE_STARTED = 'project_stage_started';
+    public const BUSINESS_SUITE_MONTH = 'business_suite_month';
 
     /** A deposit HELD for the life of an owner listing and handed back — priced here, never taken as a fee. */
     public const OWNER_LISTING_DEPOSIT = 'owner_listing_deposit';
@@ -58,6 +59,9 @@ final class PlatformEventFeeService
         self::PROJECT_STAGE_STARTED => ['متابعة المشاريع: عند بدء كل مرحلة رئيسية (بموافقة العميل)', 'Project tracking: when each main stage starts (with the customer\'s approval)', 'لا شيء (مبلغ ثابت)', [
             'business' => ['النشاط', 'Business'],
             'client' => ['العميل', 'Customer'],
+        ]],
+        self::BUSINESS_SUITE_MONTH => ['اشتراك تطبيق الكمبيوتر (المخزون والمشتريات والكاشير) — كل شهر', 'Desktop suite subscription (inventory, purchases, cashier) — every month', 'لا شيء (مبلغ ثابت)', [
+            'business' => ['النشاط', 'Business'],
         ]],
     ];
 

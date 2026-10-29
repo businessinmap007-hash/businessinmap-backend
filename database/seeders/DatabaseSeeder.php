@@ -414,6 +414,10 @@ class DatabaseSeeder extends Seeder
            SpecialtyServicesSeeder::class,
            TherapeuticExercisesSeeder::class,
 
+           // «المخزون والمشتريات» for every trade that sells goods, with the features its kind starts with.
+           // Additive; a pair the admin already decided on is never touched.
+           InventoryServiceDistributionSeeder::class,
+
             //  EgyptCountriesSeeder::class,
             //  EgyptGovernoratesSeeder::class,
             //  EgyptCitiesSeeder::class,

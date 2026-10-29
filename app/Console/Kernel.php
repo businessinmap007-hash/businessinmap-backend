@@ -46,6 +46,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('training:alert-lapses')->dailyAt('10:00')->withoutOverlapping();
         // A plan's paid month is about to run out: tell trainer and client once.
         $schedule->command('training:alert-expiring')->dailyAt('10:05')->withoutOverlapping();
+        // the desktop suite's monthly subscription: reminders, renewal from the wallet, grace, read-only
+        $schedule->command('suite:renew-subscriptions')->dailyAt('09:20')->withoutOverlapping();
         // An approved account deletion whose grace period (for the account's written objection) is over runs now.
         $schedule->command('moderation:execute-deletions')->hourly()->withoutOverlapping();
         $schedule->command('guarantees:process-expired-grace --limit=200')->hourly();

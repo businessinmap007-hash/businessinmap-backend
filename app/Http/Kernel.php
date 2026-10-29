@@ -76,6 +76,8 @@ class Kernel extends HttpKernel
         'business' => \App\Http\Middleware\BusinessOnly::class,
         // Owner OR a capable delegated staff member: `business.member:orders`.
         'business.member' => \App\Http\Middleware\BusinessMember::class,
+        // The inventory suite is switched on (and, with :write, its subscription is paid or in grace).
+        'inventory.ready' => \App\Http\Middleware\InventoryReady::class,
         'check.pin' => \App\Http\Middleware\CheckWalletPin::class,
         // Owe a ruling, start no new business until it is met.
         'dispute.settled' => \App\Http\Middleware\BlockUnpaidDisputeObligations::class,

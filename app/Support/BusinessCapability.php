@@ -33,6 +33,10 @@ final class BusinessCapability
     public const PROCEDURES = 'procedures';
     public const PARTNERSHIPS = 'partnerships';
     public const TRIP_PROGRAMS = 'trip_programs';
+    public const INVENTORY = 'inventory';
+    public const PURCHASES = 'purchases';
+    public const PURCHASE_APPROVAL = 'purchase_approval';
+    public const POS = 'pos';
 
     /**
      * «الطبيب المعالج»: what the role carries on its own — the visit, the prescription, the test / radiology orders and
@@ -66,6 +70,10 @@ final class BusinessCapability
             self::CLINIC => ['مواعيد العيادة', 'Clinic appointments'],
             self::DRIVERS => ['مناديب التوصيل', 'Delivery drivers'],
             self::PROCEDURES => ['قرارات الإجراءات الجراحية', 'Procedure decisions'],
+            self::INVENTORY => ['المخزون والجرد', 'Inventory and stocktake'],
+            self::PURCHASES => ['المشتريات والموردون', 'Purchases and suppliers'],
+            self::PURCHASE_APPROVAL => ['اعتماد أوامر الشراء', 'Approving purchase orders'],
+            self::POS => ['الكاشير', 'Cashier'],
         ];
     }
 
@@ -95,6 +103,11 @@ final class BusinessCapability
         self::SCHEDULES => 'schedules',
         self::TRAINING => 'training',
         self::PROJECTS => 'projects',
+        // the desktop suite (owner, 2026-10-29): only where the category offers «المخزون والمشتريات»
+        self::INVENTORY => 'inventory',
+        self::PURCHASES => 'inventory',
+        self::PURCHASE_APPROVAL => 'inventory',
+        self::POS => 'inventory',
     ];
 
     /**

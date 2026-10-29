@@ -304,6 +304,9 @@ Route::prefix('v2')->group(function () {
     // what a guest recorded as paid to a hotel outside the app, his proof — the same signed link, handed to the two parties only
     Route::get('stay-payment-proofs/{payment}', [\App\Http\Controllers\Api\V2\StaySettlementController::class, 'proof'])
         ->whereNumber('payment')->middleware('signed')->name('stay-payment-proofs.show');
+    // a photo of the problem on a «أحتاج فنيًا» request — the same signed link, handed only to the customer and the craftsmen who may answer
+    Route::get('service-request-photos/{photo}', [\App\Http\Controllers\Api\V2\ServiceRequestController::class, 'photo'])
+        ->whereNumber('photo')->middleware('signed')->name('service-request-photos.show');
     Route::get('trainer-photos/{photo}', [TrainerPhotoController::class, 'show'])
         ->whereNumber('photo')->middleware('signed')->name('trainer-photos.show');
     // A file of an investigation order (a request photo or a result), from private storage — the same signed link.

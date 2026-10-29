@@ -44,6 +44,11 @@ interface RequestKind
     /** May this business answer it? */
     public function mayAnswer(ServiceRequest $request, User $business): bool;
 
-    /** What the accepted offer becomes: the platform's ordinary operation (a booking). */
-    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer): Model;
+    /**
+     * What the accepted offer becomes: the platform's ordinary operation (a booking). [choice] is what the customer said while
+     * accepting (a home visit: which of his saved addresses the craftsman goes to).
+     *
+     * @param  array<string,mixed>  $choice
+     */
+    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer, array $choice = []): Model;
 }

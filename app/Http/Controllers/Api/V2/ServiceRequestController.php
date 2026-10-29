@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\ServiceRequest;
 use App\Models\ServiceRequestOffer;
 use App\Models\User;
+use App\Models\ServiceRequestPhoto;
+use App\Services\Media\ImageUploadService;
+use App\Services\Requests\RequestPhotos;
 use App\Services\Requests\RideQuote;
 use App\Services\Requests\ServiceRequestService;
 use App\Support\BusinessContext;
@@ -21,7 +24,10 @@ use Illuminate\Validation\ValidationException;
  */
 class ServiceRequestController extends Controller
 {
-    public function __construct(private readonly ServiceRequestService $service) {}
+    public function __construct(
+        private readonly ServiceRequestService $service,
+        private readonly RequestPhotos $photos,
+    ) {}
 
     // ---- the customer ----------------------------------------------------------------------------------------------
 
@@ -65,11 +71,30 @@ class ServiceRequestController extends Controller
         return response()->json(['success' => true, 'data' => ['trades' => app(\App\Services\Requests\WorkQuoteRequestKind::class)->formOptions()]]);
     }
 
-    /** POST service-requests — {kind: ride, origin, destination, passengers?, starts_at?, price?, distance_km?, details?} */
+    /**
+     * POST service-requests — {kind: ride, origin, destination, passengers?, starts_at?, price?, distance_km?, details?}; a
+     * «أحتاج فنيًا» may come as multipart with up to four `photos[]` of the problem.
+     */
     public function store(Request $request)
     {
         $kind = (string) $request->input('kind', ServiceRequest::KIND_RIDE);
-        $created = $this->service->create($request->user(), $kind, $request->all());
+
+        $photos = [];
+        if ($request->hasFile('photos')) {
+            abort_unless($kind === ServiceRequest::KIND_HOME_SERVICE, 422, __('الصور تُرفق بطلب الفني فقط.'));
+            $request->validate([
+                'photos' => ['array', 'max:' . RequestPhotos::MAX],
+                'photos.*' => ['image', 'max:10240'],
+            ]);
+            $photos = array_values((array) $request->file('photos'));
+        }
+
+        $created = DB::transaction(function () use ($request, $kind, $photos) {
+            $created = $this->service->create($request->user(), $kind, $request->all());
+            $this->photos->attach($created, $photos);
+
+            return $created;
+        });
 
         return response()->json([
             'success' => true,
@@ -114,13 +139,14 @@ class ServiceRequestController extends Controller
         return response()->json(['success' => true, 'data' => ['request' => $this->serialize($row, $request->user(), withOffers: true)]]);
     }
 
-    /** POST service-requests/{id}/offers/{offer}/accept — he picks one: it becomes the booking. */
+    /** POST service-requests/{id}/offers/{offer}/accept {address_id?} — he picks one: it becomes the booking. */
     public function accept(Request $request, int $id, int $offer)
     {
+        $data = $request->validate(['address_id' => ['nullable', 'integer']]);
         $row = $this->mineOrFail($request, $id);
         $chosen = ServiceRequestOffer::query()->where('service_request_id', $row->id)->findOrFail($offer);
 
-        $done = $this->service->accept($row, $chosen);
+        $done = $this->service->accept($row, $chosen, array_filter(['address_id' => $data['address_id'] ?? null]));
 
         return response()->json([
             'success' => true,
@@ -138,6 +164,16 @@ class ServiceRequestController extends Controller
         $row = $this->service->cancel($this->mineOrFail($request, $id));
 
         return response()->json(['success' => true, 'data' => ['request' => $this->serialize($row, $request->user(), withOffers: true)]]);
+    }
+
+    /** GET service-request-photos/{photo} — `signed`: only the customer and the craftsmen who may answer are handed the link */
+    public function photo(ServiceRequestPhoto $photo)
+    {
+        abort_unless(ImageUploadService::isPrivate($photo->path), 404);
+        $full = ImageUploadService::privatePath($photo->path);
+        abort_unless(is_file($full), 404);
+
+        return response()->file($full, ['Cache-Control' => 'private, max-age=21600', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     // ---- the business ----------------------------------------------------------------------------------------------
@@ -277,6 +313,11 @@ class ServiceRequestController extends Controller
             'offers_count' => $offersCount,
             'created_at' => optional($r->created_at)->toIso8601String(),
         ];
+
+        // the photos of the problem: to the customer, and to a craftsman while he may still answer
+        if ($r->kind === ServiceRequest::KIND_HOME_SERVICE && ((int) $r->requester_id === (int) $viewer->id || ($forBusiness && $r->isOpen()))) {
+            $out['photos'] = $this->photos->urls((int) $r->id);
+        }
 
         if ($forBusiness) {
             $name = trim((string) ($r->relationLoaded('requester') ? $r->requester?->name : User::query()->whereKey($r->requester_id)->value('name')));

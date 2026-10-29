@@ -975,6 +975,15 @@ final class BookingController extends Controller
                 'financial_preview' => $this->partyPreview(request(), $booking),
                 // «قبول الديبوزت كدفعة»: may it be asked, was it, was it accepted
                 'deposit_as_payment' => app(\App\Services\BookingDepositPaymentService::class)->state($booking),
+                // «أحتاج فنيًا»: where the craftsman goes and the photos of the problem, to the customer and the one he chose
+                'home_visit' => is_array(data_get($booking->meta, 'home_service'))
+                    ? [
+                        'address' => data_get($booking->meta, 'visit_address'),
+                        'photos' => data_get($booking->meta, 'service_request_id')
+                            ? app(\App\Services\Requests\RequestPhotos::class)->urls((int) data_get($booking->meta, 'service_request_id'))
+                            : [],
+                    ]
+                    : null,
             ],
         ]);
     }

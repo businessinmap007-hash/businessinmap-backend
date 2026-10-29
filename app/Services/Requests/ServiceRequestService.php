@@ -141,15 +141,17 @@ final class ServiceRequestService
     }
 
     /**
-     * The customer picks an offer: it becomes the operation, the others are turned down, everyone is told.
+     * The customer picks an offer: it becomes the operation, the others are turned down, everyone is told. [choice] is what
+     * he said while picking (see {@see RequestKind::fulfil}).
      *
+     * @param  array<string,mixed>  $choice
      * @return array{request: ServiceRequest, operation: Model}
      */
-    public function accept(ServiceRequest $request, ServiceRequestOffer $offer): array
+    public function accept(ServiceRequest $request, ServiceRequestOffer $offer, array $choice = []): array
     {
         $handler = $this->kind($request->kind);
 
-        $operation = DB::transaction(function () use ($request, $offer, $handler) {
+        $operation = DB::transaction(function () use ($request, $offer, $handler, $choice) {
             $locked = ServiceRequest::query()->whereKey($request->id)->lockForUpdate()->firstOrFail();
 
             if (! $locked->isOpen()) {
@@ -164,7 +166,7 @@ final class ServiceRequestService
                 throw ValidationException::withMessages(['offer' => __('هذا العرض لم يعد متاحًا.')]);
             }
 
-            $operation = $handler->fulfil($locked, $chosen);
+            $operation = $handler->fulfil($locked, $chosen, $choice);
 
             $chosen->update(['status' => ServiceRequestOffer::STATUS_ACCEPTED]);
             ServiceRequestOffer::query()
@@ -201,6 +203,8 @@ final class ServiceRequestService
         }
 
         $request->update(['status' => ServiceRequest::STATUS_CANCELLED]);
+        // nobody needs the photos of a need that is gone
+        app(RequestPhotos::class)->purge((int) $request->id);
 
         $offerers = ServiceRequestOffer::query()
             ->where('service_request_id', $request->id)->where('status', ServiceRequestOffer::STATUS_PENDING)

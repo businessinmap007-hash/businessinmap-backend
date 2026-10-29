@@ -39,6 +39,8 @@ class Kernel extends ConsoleKernel
         $schedule->call(fn () => app(\App\Services\Partnerships\AllocationService::class)->expireEnded())->dailyAt('04:10')->name('allocations-expire')->withoutOverlapping();
         // «تحت التعامل»: holds nobody finished stop counting when their minutes end; this only clears the old rows
         $schedule->call(fn () => app(\App\Services\BookingHolds::class)->prune())->dailyAt('04:00')->name('booking-holds-prune')->withoutOverlapping();
+        // «أحتاج فنيًا»: the photos of a request that was cancelled, ran out, or whose visit is over are deleted, rows and files
+        $schedule->call(fn () => app(\App\Services\Requests\RequestPhotos::class)->sweep())->dailyAt('04:20')->name('service-request-photos-sweep')->withoutOverlapping();
         // Once a day, mid-morning: a trainer told a client has missed their
         // scheduled training days (once per lapse, not every day).
         $schedule->command('training:alert-lapses')->dailyAt('10:00')->withoutOverlapping();

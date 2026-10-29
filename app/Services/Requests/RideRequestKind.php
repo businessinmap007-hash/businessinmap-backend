@@ -157,7 +157,7 @@ final class RideRequestKind implements RequestKind
             && $business->acceptsRequests();
     }
 
-    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer): Model
+    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer, array $choice = []): Model
     {
         $start = $request->starts_at ?? now();
         $serviceId = (int) PlatformService::query()->where('key', PlatformService::KEY_BOOKING)->value('id');

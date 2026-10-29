@@ -3377,5 +3377,10 @@
     "لا تملك غرفة غير مباعة من هذا النوع لتحريرها.": "You have no unsold room of this type to release.",
     "برامج الرحلات لأنشطة السياحة والفنادق.": "Trip programmes are for tourism and hotel businesses.",
     "هذه الإقامة خارج الفترة التي تغطيها الحصة.": "This stay is outside the dates the allocation covers.",
-    "لديك طلبات تحرير كثيرة بانتظار الرد. انتظر ردها أولًا.": "You have several release requests waiting for an answer. Wait for them first."
+    "لديك طلبات تحرير كثيرة بانتظار الرد. انتظر ردها أولًا.": "You have several release requests waiting for an answer. Wait for them first.",
+    "هذا العنوان ليس من عناوينك.": "This address is not one of yours.",
+    "أضف عنوانك أولًا ليعرف الفني أين يأتي.": "Add your address first so the technician knows where to come.",
+    "الصور تُرفق بطلب الفني فقط.": "Photos can only be attached to a technician request.",
+    "قيّم زيارة الفني": "Rate the technician's visit",
+    "انتهت الزيارة. قيّم عمل الفني ليعرف غيرك مستواه.": "The visit is over. Rate the technician's work so others know its standard."
 }

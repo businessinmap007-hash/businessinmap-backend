@@ -90,6 +90,17 @@ class ServiceEventNotificationService
 
     protected function bookingCompleted(ServiceEvent $event): void
     {
+        // «أحتاج فنيًا»: the customer is asked to rate the craftsman's visit, so the next one knows his work
+        if (is_array(data_get($this->booking($event)?->meta, 'home_service'))) {
+            $this->notifyBusiness($event, 'تم إنهاء الحجز', 'تم إنهاء الحجز بنجاح.', ['booking_id' => $event->subject_id]);
+            $this->notifyClient($event, 'قيّم زيارة الفني', 'انتهت الزيارة. قيّم عمل الفني ليعرف غيرك مستواه.', [
+                'booking_id' => $event->subject_id,
+                'rate' => true,
+            ]);
+
+            return;
+        }
+
         $this->notifyBoth($event, 'تم إنهاء الحجز', 'تم إنهاء الحجز بنجاح.', [
             'booking_id' => $event->subject_id,
         ]);

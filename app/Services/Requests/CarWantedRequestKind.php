@@ -149,7 +149,7 @@ final class CarWantedRequestKind implements RequestKind
     }
 
     /** The viewing: an appointment with the dealer, at the time the buyer proposed (tomorrow noon when he named none). */
-    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer): Model
+    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer, array $choice = []): Model
     {
         $start = $request->starts_at ?? now()->addDay()->setTime(12, 0);
         $serviceId = (int) PlatformService::query()->where('key', PlatformService::KEY_BOOKING)->value('id');

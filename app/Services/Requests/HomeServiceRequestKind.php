@@ -2,6 +2,7 @@
 
 namespace App\Services\Requests;
 
+use App\Models\Address;
 use App\Models\Booking;
 use App\Models\PlatformService;
 use App\Models\ServiceRequest;
@@ -20,8 +21,9 @@ use Illuminate\Validation\ValidationException;
  * an appointment with him. A quote, not a fixed price: the customer cannot know what the job costs, the craftsman can.
  *
  * Unlike a ride, whose drivers are all one trade, the trade is part of the request: a plumber never sees an
- * electrician's job. The customer's address is not in the request — only his city; the exact place is agreed once he
- * has chosen (the booking's chat), so it is never shown to the businesses that did not win.
+ * electrician's job. The customer's address is not in the request — only his city. When he picks an offer he says which of
+ * his saved addresses the craftsman comes to (his primary one when he says nothing); it is copied onto the visit, so only
+ * the one he chose ever reads it, and a later edit of his address book never moves a visit already arranged.
  */
 final class HomeServiceRequestKind implements RequestKind
 {
@@ -141,8 +143,9 @@ final class HomeServiceRequestKind implements RequestKind
     }
 
     /** The visit: an appointment with the craftsman at the time asked (tomorrow at ten when none), at the quoted price. */
-    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer): Model
+    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer, array $choice = []): Model
     {
+        $address = $this->visitAddress((int) $request->requester_id, isset($choice['address_id']) ? (int) $choice['address_id'] : null);
         $start = $request->starts_at ?? now()->addDay()->setTime(10, 0);
         $serviceId = (int) PlatformService::query()->where('key', PlatformService::KEY_BOOKING)->value('id');
 
@@ -166,8 +169,40 @@ final class HomeServiceRequestKind implements RequestKind
                 'offer_id' => (int) $offer->id,
                 'display_title' => (string) $request->title,
                 'home_service' => $request->params,
+                // where the craftsman goes — read only by the two of them, on the booking
+                'visit_address' => $address,
                 'created_by_user_id' => (int) $request->requester_id,
             ],
         ]);
+    }
+
+    /**
+     * The address the visit goes to: the saved address he picked (his own only), else his primary one, else his latest.
+     *
+     * @return array{address_id:int,line:string,lat:?float,lng:?float}
+     */
+    private function visitAddress(int $customerId, ?int $addressId): array
+    {
+        $book = Address::query()->with(['city', 'governorate'])->where('user_id', $customerId);
+
+        $address = $addressId !== null
+            ? (clone $book)->whereKey($addressId)->first()
+            : (clone $book)->orderByDesc('is_primary')->orderByDesc('id')->first();
+
+        if ($address === null) {
+            throw ValidationException::withMessages(['address_id' => $addressId !== null
+                ? __('هذا العنوان ليس من عناوينك.')
+                : __('أضف عنوانك أولًا ليعرف الفني أين يأتي.')]);
+        }
+
+        $lat = $address->lat ?? $address->latitude;
+        $lng = $address->lng ?? $address->longitude;
+
+        return [
+            'address_id' => (int) $address->id,
+            'line' => $address->toDeliveryLine(),
+            'lat' => $lat !== null ? (float) $lat : null,
+            'lng' => $lng !== null ? (float) $lng : null,
+        ];
     }
 }

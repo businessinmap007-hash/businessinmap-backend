@@ -2,9 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\Address;
 use App\Models\AppNotification;
 use App\Models\Booking;
 use App\Models\ServiceRequest;
+use App\Models\ServiceRequestPhoto;
+use App\Services\Media\ImageUploadService;
+use App\Services\Requests\RequestPhotos;
+use App\Services\ServiceEventDispatcher;
+use Illuminate\Http\UploadedFile;
 use App\Models\User;
 use App\Services\Requests\HomeServiceRequestKind;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -73,6 +79,35 @@ class HomeServiceRequestsTest extends TestCase
         return $this->user(User::TYPE_BUSINESS, $tag, ['category_id' => 5, 'category_child_id' => $trade, 'governorate_id' => $city->governorate_id, 'city_id' => $city->id]);
     }
 
+    private function address(User $owner, string $line, bool $primary = false): Address
+    {
+        return Address::create([
+            'user_id' => $owner->id,
+            'governorate_id' => $this->city->governorate_id,
+            'city_id' => $this->city->id,
+            'address_line' => $line,
+            'is_primary' => $primary,
+        ]);
+    }
+
+    private function photo(string $name = 'leak.png'): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent($name, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='));
+    }
+
+    /** A posted request with photos, answered by [craftsman] at 200: → [request id, offer id]. */
+    private function answered(User $client, User $craftsman, int $photos = 2): array
+    {
+        Sanctum::actingAs($client);
+        $id = $this->post('/api/v2/service-requests', $this->job(['photos' => array_map(fn ($i) => $this->photo("p{$i}.png"), range(1, $photos))]), ['Accept' => 'application/json'])
+            ->assertCreated()->json('data.request.id');
+
+        Sanctum::actingAs($craftsman);
+        $this->postJson("/api/v2/business/service-requests/{$id}/offers", ['price' => 200])->assertSuccessful();
+
+        return [$id, (int) DB::table('service_request_offers')->where('service_request_id', $id)->where('business_id', $craftsman->id)->value('id')];
+    }
+
     private function job(array $extra = []): array
     {
         return $extra + [
@@ -131,6 +166,7 @@ class HomeServiceRequestsTest extends TestCase
         $b = $this->craftsman('b', $this->plumber);
 
         $client = $this->user(User::TYPE_CLIENT, 'cust');
+        $this->address($client, 'شارع النيل 5', true);
         Sanctum::actingAs($client);
         $id = $this->postJson('/api/v2/service-requests', $this->job(['max_price' => 300]))->assertCreated()->json('data.request.id');
 
@@ -178,5 +214,109 @@ class HomeServiceRequestsTest extends TestCase
 
         $this->assertFalse(AppNotification::where('user_id', $resting->id)->where('actor_id', $client->id)->exists());
         $this->assertCount(0, app(HomeServiceRequestKind::class)->eligible(ServiceRequest::where('requester_id', $client->id)->first())->where('id', $resting->id));
+    }
+
+    public function test_the_photos_of_the_problem_reach_the_customer_and_the_plumbers_only_and_go_with_a_cancelled_request(): void
+    {
+        $plumber = $this->craftsman('plumb', $this->plumber);
+        $electrician = $this->craftsman('elec', $this->electrician);
+        $client = $this->user(User::TYPE_CLIENT, 'cust');
+
+        [$id] = $this->answered($client, $plumber, 2);
+        $paths = ServiceRequestPhoto::where('service_request_id', $id)->pluck('path');
+        $this->assertCount(2, $paths);
+        $this->assertTrue($paths->every(fn ($p) => ImageUploadService::isPrivate($p) && is_file(ImageUploadService::privatePath($p))));
+
+        Sanctum::actingAs($client);
+        $this->assertCount(2, $this->getJson("/api/v2/service-requests/{$id}")->assertOk()->json('data.request.photos'));
+
+        Sanctum::actingAs($plumber);
+        $seen = $this->getJson('/api/v2/business/service-requests?kind=home_service')->assertOk()->json('data.data.0.photos');
+        $this->assertCount(2, $seen);
+
+        // the link is the credential: the signed one works, the bare path does not
+        $this->get($seen[0])->assertOk();
+        $photoId = (int) ServiceRequestPhoto::where('service_request_id', $id)->orderBy('sort')->value('id');
+        $this->get("/api/v2/service-request-photos/{$photoId}")->assertStatus(403);
+
+        Sanctum::actingAs($electrician);
+        $this->getJson('/api/v2/business/service-requests?kind=home_service')->assertOk()->assertJsonPath('data.total', 0);
+
+        Sanctum::actingAs($client);
+        $this->postJson("/api/v2/service-requests/{$id}/cancel")->assertOk();
+        $this->assertSame(0, ServiceRequestPhoto::where('service_request_id', $id)->count());
+        $this->assertTrue($paths->every(fn ($p) => ! is_file(ImageUploadService::privatePath($p))));
+    }
+
+    public function test_at_most_four_photos_and_only_on_a_home_service_request(): void
+    {
+        Sanctum::actingAs($this->user(User::TYPE_CLIENT, 'cust'));
+
+        $this->post('/api/v2/service-requests', $this->job(['photos' => array_map(fn ($i) => $this->photo("p{$i}.png"), range(1, 5))]), ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonValidationErrors('photos');
+        $this->post('/api/v2/service-requests', $this->job(['kind' => 'work_quote', 'photos' => [$this->photo()]]), ['Accept' => 'application/json'])
+            ->assertStatus(422);
+        $this->assertSame(0, ServiceRequest::where('kind', 'home_service')->count());
+    }
+
+    public function test_the_address_he_picks_goes_to_the_one_he_chose_only_never_to_the_others(): void
+    {
+        $chosen = $this->craftsman('a', $this->plumber);
+        $loser = $this->craftsman('b', $this->plumber);
+        $client = $this->user(User::TYPE_CLIENT, 'cust');
+        $theirs = $this->address($this->user(User::TYPE_CLIENT, 'other'), 'Not his');
+
+        [$id, $offer] = $this->answered($client, $chosen, 1);
+        Sanctum::actingAs($loser);
+        $this->postJson("/api/v2/business/service-requests/{$id}/offers", ['price' => 180])->assertSuccessful();
+
+        // no address yet, then another person's: refused, and nothing was arranged
+        Sanctum::actingAs($client);
+        $this->postJson("/api/v2/service-requests/{$id}/offers/{$offer}/accept")->assertStatus(422)->assertJsonValidationErrors('address_id');
+        $this->postJson("/api/v2/service-requests/{$id}/offers/{$offer}/accept", ['address_id' => $theirs->id])->assertStatus(422)->assertJsonValidationErrors('address_id');
+        $this->assertSame('open', ServiceRequest::findOrFail($id)->status);
+
+        $this->address($client, 'شارع النيل 5', true);
+        $work = $this->address($client, 'برج الأطباء الدور 3');
+        $bookingId = $this->postJson("/api/v2/service-requests/{$id}/offers/{$offer}/accept", ['address_id' => $work->id])->assertOk()->json('data.booking_id');
+
+        $this->assertStringStartsWith('برج الأطباء الدور 3', (string) data_get(Booking::findOrFail($bookingId)->meta, 'visit_address.line'));
+
+        Sanctum::actingAs($chosen);
+        $visit = $this->getJson("/api/v2/bookings/{$bookingId}")->assertOk()->json('data.home_visit');
+        $this->assertStringStartsWith('برج الأطباء الدور 3', $visit['address']['line']);
+        $this->assertCount(1, $visit['photos']);
+
+        // the plumber who lost sees neither the visit nor, any more, the request
+        Sanctum::actingAs($loser);
+        $this->assertContains($this->getJson("/api/v2/bookings/{$bookingId}")->status(), [403, 404]);
+        $this->getJson('/api/v2/business/service-requests?kind=home_service')->assertOk()->assertJsonPath('data.total', 0);
+    }
+
+    public function test_the_primary_address_is_used_when_he_names_none_and_the_visit_ends_with_a_rating_request(): void
+    {
+        $plumber = $this->craftsman('a', $this->plumber);
+        $client = $this->user(User::TYPE_CLIENT, 'cust');
+        $this->address($client, 'Old place');
+        $this->address($client, 'Home sweet home', true);
+
+        [$id, $offer] = $this->answered($client, $plumber, 1);
+        Sanctum::actingAs($client);
+        $bookingId = $this->postJson("/api/v2/service-requests/{$id}/offers/{$offer}/accept")->assertOk()->json('data.booking_id');
+        $booking = Booking::findOrFail($bookingId);
+        $this->assertStringStartsWith('Home sweet home', (string) data_get($booking->meta, 'visit_address.line'));
+
+        // the photos stay while the visit is ahead, and go once it is over
+        app(RequestPhotos::class)->sweep();
+        $this->assertSame(1, ServiceRequestPhoto::where('service_request_id', $id)->count());
+
+        $booking->forceFill(['status' => Booking::STATUS_COMPLETED])->save();
+        app(ServiceEventDispatcher::class)->bookingCompleted($booking, $plumber->id);
+
+        $this->assertTrue(AppNotification::where('user_id', $client->id)->where('title_ar', 'قيّم زيارة الفني')->exists());
+        $this->assertFalse(AppNotification::where('user_id', $plumber->id)->where('title_ar', 'قيّم زيارة الفني')->exists());
+
+        app(RequestPhotos::class)->sweep();
+        $this->assertSame(0, ServiceRequestPhoto::where('service_request_id', $id)->count());
     }
 }

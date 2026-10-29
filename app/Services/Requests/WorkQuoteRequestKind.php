@@ -161,7 +161,7 @@ final class WorkQuoteRequestKind implements RequestKind
      * The first meeting: an appointment at the maker's (tomorrow at eleven) to see the place, measure and agree what
      * the quote covers, at the quoted price. The days the maker said he needs travel in the booking's meta.
      */
-    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer): Model
+    public function fulfil(ServiceRequest $request, ServiceRequestOffer $offer, array $choice = []): Model
     {
         $start = now()->addDay()->setTime(11, 0);
         $serviceId = (int) PlatformService::query()->where('key', PlatformService::KEY_BOOKING)->value('id');

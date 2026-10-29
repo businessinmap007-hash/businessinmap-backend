@@ -152,13 +152,15 @@ final class TripParcelService
     /**
      * Taken from the sender: the driver scans the sender's QR (or types the code). That code is spent here and a NEW one
      * is born for the delivery — the sender's screen shows it from now on, so the driver (who saw the first) can never
-     * claim the handover without the receiver. Cash is recorded here when the SENDER pays.
+     * claim the handover without the receiver. Cash is recorded here when the SENDER pays: when the driver has not said
+     * whether he took it ([cashCollected] null), a right code is answered with the question and is NOT spent.
      */
-    public function load(TripParcel $parcel, string $code, bool $cashCollected = false): TripParcel
+    public function load(TripParcel $parcel, string $code, ?bool $cashCollected = null): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_ACCEPTED]);
 
         $this->assertCode($parcel, 'pickup_attempts', (string) $parcel->pickup_code_hash, $code);
+        $this->askCashIfDue($parcel, TripParcel::PAYER_SENDER, $cashCollected);
 
         $delivery = HandoverCode::generate();
 
@@ -179,11 +181,12 @@ final class TripParcelService
     }
 
     /** Handed over: the driver scans the receiver's QR or types the code the receiver told him. */
-    public function deliver(TripParcel $parcel, string $code, int $driverId, bool $cashCollected = false): TripParcel
+    public function deliver(TripParcel $parcel, string $code, int $driverId, ?bool $cashCollected = null): TripParcel
     {
         $this->assertStatus($parcel, [TripParcel::STATUS_LOADED]);
 
         $this->assertCode($parcel, 'code_attempts', (string) $parcel->delivery_code_hash, $code);
+        $this->askCashIfDue($parcel, TripParcel::PAYER_RECEIVER, $cashCollected);
 
         $parcel->update([
             'status' => TripParcel::STATUS_DELIVERED,
@@ -259,6 +262,17 @@ final class TripParcelService
             $parcel->increment($attemptsColumn);
 
             throw ValidationException::withMessages(['code' => __('الكود غير صحيح.')]);
+        }
+    }
+
+    /**
+     * The price is paid by [payer] at this handover and the driver has not said whether he took it: the code was right, so ask
+     * him now (`cash_collected`) — only after the code, never before, so a wrong code is never met with a question about money.
+     */
+    private function askCashIfDue(TripParcel $parcel, string $payer, ?bool $cashCollected): void
+    {
+        if ($cashCollected === null && $parcel->payer === $payer && (float) $parcel->price > 0 && $parcel->paid_at === null) {
+            throw ValidationException::withMessages(['cash_collected' => __('الكود صحيح. هل استلمت ثمن الشحنة نقدًا؟')]);
         }
     }
 

@@ -283,7 +283,7 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         $fresh = $this->currentCode($sender, $id);
         $this->assertNotSame($code, $fresh);
         Sanctum::actingAs($this->business);
-        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $fresh])->assertOk();
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/deliver", ['code' => $fresh, 'cash_collected' => false])->assertOk();
     }
 
     public function test_a_parcel_rides_in_the_run_is_settled_with_it_and_can_be_disputed(): void
@@ -306,7 +306,13 @@ class TripOfflinePassengersAndParcelsTest extends TestCase
         $pickup = (string) $this->postJson("/api/v2/schedules/parcels/{$id}/accept")->json('data.parcel.handover_code');
 
         Sanctum::actingAs($this->business);
-        // the sender pays in cash when handing it over
+        // the sender pays in cash when handing it over: a wrong code is refused before any word about money; the right one is
+        // answered with the question and is not spent until the driver says whether he took it
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => '0000zz'])->assertStatus(422)
+            ->assertJsonValidationErrors(['code'])->assertJsonMissingValidationErrors(['cash_collected']);
+        $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup])->assertStatus(422)
+            ->assertJsonValidationErrors(['cash_collected'])->assertJsonMissingValidationErrors(['code']);
+        $this->assertSame(TripParcel::STATUS_ACCEPTED, TripParcel::query()->find($id)->status);
         $this->postJson("/api/v2/business/schedules/parcels/{$id}/load", ['code' => $pickup, 'cash_collected' => true])->assertOk();
         $this->assertNotNull(TripParcel::query()->find($id)->paid_at);
 

@@ -127,7 +127,7 @@ final class TripParcelController extends Controller
 
         $row = $this->carrierParcelOrFail($request, $parcel);
 
-        return $this->ok($service->load($row, $data['code'], (bool) ($data['cash_collected'] ?? false)), null, __('حُمّلت الشحنة على السيارة.'));
+        return $this->ok($service->load($row, $data['code'], $this->cashAnswer($request)), null, __('حُمّلت الشحنة على السيارة.'));
     }
 
     /** POST business/schedules/parcels/{parcel}/deliver — {code}: what the receiver tells the driver. */
@@ -141,10 +141,16 @@ final class TripParcelController extends Controller
         $row = $this->carrierParcelOrFail($request, $parcel);
 
         return $this->ok(
-            $service->deliver($row, $data['code'], (int) $request->user()->id, (bool) ($data['cash_collected'] ?? false)),
+            $service->deliver($row, $data['code'], (int) $request->user()->id, $this->cashAnswer($request)),
             null,
             __('سُلِّمت الشحنة.')
         );
+    }
+
+    /** Did the driver say whether he took the cash? Null when he has not been asked yet. */
+    private function cashAnswer(Request $request): ?bool
+    {
+        return $request->has('cash_collected') && $request->input('cash_collected') !== null ? $request->boolean('cash_collected') : null;
     }
 
     public function reject(Request $request, int $parcel, TripParcelService $service)

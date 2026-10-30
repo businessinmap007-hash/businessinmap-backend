@@ -154,6 +154,28 @@ class MenuSheetImportTest extends TestCase
         $this->assertSame(['شاي', 'قهوه'], MenuItem::query()->where('business_id', $kitchen->id)->where('menu_section_id', $drinks)->orderBy('id')->pluck('name_ar')->all());
     }
 
+    public function test_a_big_file_comes_in_batches_that_carry_the_section_and_the_row_numbers(): void
+    {
+        $kitchen = User::query()->where('type', 'business')->where('id', '!=', $this->factory->id)->orderByDesc('id')->firstOrFail();
+        DB::table('users')->where('id', $kitchen->id)->update(['category_id' => 16, 'category_child_id' => 245]);
+        Sanctum::actingAs($kitchen->fresh());
+
+        // «استيراد الداتا يجب ان تكون مفتوحة المساحة»: the app reads the file and sends it a batch at a time
+        $first = $this->postJson('/api/v2/business/menu/import', ['rows' => [
+            ['الاسم عربي' => 'مشروبات', 'السعر' => ''],
+            ['الاسم عربي' => 'شاي', 'السعر' => 15],
+        ], 'dry_run' => false])->assertOk()->json('data');
+        $this->assertSame('مشروبات', $first['last_section']);
+
+        $second = $this->postJson('/api/v2/business/menu/import', ['rows' => [
+            ['الاسم عربي' => 'قهوه', 'السعر' => 20],
+        ], 'start_row' => 4, 'section' => $first['last_section'], 'dry_run' => false])->assertOk()->json('data');
+
+        $this->assertSame(4, $second['rows'][0]['row']);
+        $drinks = DB::table('menu_sections')->where('business_id', $kitchen->id)->where('name_ar', 'مشروبات')->value('id');
+        $this->assertSame(['شاي', 'قهوه'], MenuItem::query()->where('business_id', $kitchen->id)->where('menu_section_id', $drinks)->orderBy('id')->pluck('name_ar')->all());
+    }
+
     public function test_an_unpriced_name_with_nothing_priced_after_it_is_still_an_error(): void
     {
         $kitchen = User::query()->where('type', 'business')->where('id', '!=', $this->factory->id)->orderByDesc('id')->firstOrFail();

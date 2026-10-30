@@ -51,7 +51,7 @@ final class BusinessMenuSheetController extends Controller
      */
     public function inspect(Request $request)
     {
-        $request->validate(['file' => ['nullable', 'file', 'max:5120'], 'grid' => ['nullable', 'array']]);
+        $request->validate(['file' => ['nullable', 'file', 'max:40960'], 'grid' => ['nullable', 'array']]);
 
         $grid = $this->sheet->gridFromRequest($request);
         if ($grid === []) {
@@ -69,11 +69,14 @@ final class BusinessMenuSheetController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => ['nullable', 'file', 'max:5120'],
+            // the apps read the file themselves and send it in batches — a file of any size; an uploaded CSV is the old path
+            'file' => ['nullable', 'file', 'max:40960'],
             'rows' => ['nullable', 'array'],
             'grid' => ['nullable', 'array'],
             'mapping' => ['nullable'],
             'dry_run' => ['nullable', 'boolean'],
+            'start_row' => ['nullable', 'integer', 'min:2'],
+            'section' => ['nullable', 'string', 'max:120'],
         ]);
 
         $rows = $request->hasFile('file') || $request->has('grid')

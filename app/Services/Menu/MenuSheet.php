@@ -298,11 +298,14 @@ final class MenuSheet
                 ->groupBy(fn ($m) => $this->norm((string) $m->name_ar));
 
             $rows = array_values($rows);
-            $currentSection = null;
+            // A file of any size comes in batches (owner, 2026-10-30: «استيراد الداتا يجب ان تكون مفتوحة المساحة»): each
+            // batch says where it starts in the sheet and the section the one before it ended in.
+            $firstRow = max(2, (int) $outer->input('start_row', 2));
+            $currentSection = trim((string) $outer->input('section', '')) ?: null;
 
             foreach ($rows as $i => $raw) {
                 $row = $this->normaliseKeys((array) $raw);
-                $number = $i + 2; // the sheet's own row number: the header is row 1
+                $number = $i + $firstRow; // the sheet's own row number: the header is row 1
                 $errors = [];
                 $warnings = [];
 
@@ -444,7 +447,7 @@ final class MenuSheet
             $summary['section'] = $count('section');
         }
 
-        return ['summary' => $summary, 'rows' => $report];
+        return ['summary' => $summary, 'rows' => $report, 'last_section' => $currentSection];
     }
 
     /**

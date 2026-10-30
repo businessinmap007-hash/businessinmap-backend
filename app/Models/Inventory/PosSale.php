@@ -15,7 +15,7 @@ class PosSale extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = ['total' => 'float', 'paid' => 'float', 'sold_at' => 'datetime', 'returned_at' => 'datetime'];
+    protected $casts = ['total' => 'float', 'paid' => 'float', 'on_account' => 'float', 'sold_at' => 'datetime', 'returned_at' => 'datetime'];
 
     public function lines(): HasMany
     {

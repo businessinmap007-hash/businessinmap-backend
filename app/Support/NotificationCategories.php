@@ -19,7 +19,7 @@ final class NotificationCategories
         'messages' => ['الرسائل والمحادثات', 'Messages & chats', ['chat_', 'dispute_room_message']],
         'social' => ['المنشورات والعروض والوظائف', 'Posts, offers & jobs', ['post_', 'comment_', 'offer_', 'job_', 'owner_listing_', 'moderation_']],
         'trips' => ['الرحلات والمشاريع', 'Trips & projects', ['trip_', 'project_', 'service_request_']],
-        'money' => ['المحفظة والضمانات والنزاعات', 'Wallet, guarantees & disputes', ['wallet_', 'guarantee_', 'coguarantor_', 'dispute_']],
+        'money' => ['المحفظة والضمانات والنزاعات', 'Wallet, guarantees & disputes', ['wallet_', 'guarantee_', 'coguarantor_', 'dispute_', 'crm_']],
         'health' => ['الأدوية والوصفات والفحوصات', 'Medicine, prescriptions & tests', ['prescription_', 'investigation_', 'hospital_', 'procedure_']],
         'training' => ['التدريب والخطط', 'Training & plans', ['training_']],
         'team' => ['الموظفون', 'Staff', ['staff_', 'hr_']],

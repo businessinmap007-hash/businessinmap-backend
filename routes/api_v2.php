@@ -981,6 +981,46 @@ Route::prefix('v2')->group(function () {
             Route::post('staff/hr/payslips/{payslip}/confirm-received', [\App\Http\Controllers\Api\V2\StaffHrController::class, 'confirmReceived'])->whereNumber('payslip');
         });
 
+        // ── «ملفات العملاء ودفتر الآجل» (desktop suite phase 3, owner approved 2026-10-30) ─────────────────────────────
+        // Part of the suite: switched on with it (`inventory.ready`); a lapsed subscription stops new files, limits and
+        // charges (`:write`) but never the reading, the payments or their confirmations. The cashier finds or adds a
+        // customer with `pos` alone; the file itself needs `customers`.
+        $crm = \App\Http\Controllers\Api\V2\CustomerFileController::class;
+        $crmAny = 'business.member:' . BusinessCapability::CUSTOMERS . '|' . BusinessCapability::POS;
+        $crmOwn = 'business.member:' . BusinessCapability::CUSTOMERS;
+        Route::middleware([$crmAny, 'inventory.ready'])->group(function () use ($crm) {
+            Route::get('business/customers', [$crm, 'index']);
+            Route::post('business/customers/resolve-code', [$crm, 'resolveCode']);
+        });
+        Route::middleware([$crmAny, 'inventory.ready:write'])->post('business/customers', [$crm, 'store']);
+        Route::middleware([$crmOwn, 'inventory.ready'])->group(function () use ($crm) {
+            Route::get('business/customers/{customer}', [$crm, 'show'])->whereNumber('customer');
+            Route::get('business/customers/{customer}/statement', [$crm, 'statement'])->whereNumber('customer');
+            Route::delete('business/customers/{customer}', [$crm, 'destroy'])->whereNumber('customer');
+            Route::post('business/customers/{customer}/payments', [$crm, 'storePayment'])->whereNumber('customer');
+            Route::post('business/customers/{customer}/remind', [$crm, 'remind'])->whereNumber('customer');
+            Route::get('business/customer-payments', [$crm, 'payments']);
+            Route::post('business/customer-payments/{payment}/confirm', [$crm, 'confirmPayment'])->whereNumber('payment');
+            Route::post('business/customer-payments/{payment}/reject', [$crm, 'rejectPayment'])->whereNumber('payment');
+            Route::post('business/customer-payments/{payment}/cancel', [$crm, 'cancelPayment'])->whereNumber('payment');
+        });
+        Route::middleware([$crmOwn, 'inventory.ready:write'])->group(function () use ($crm) {
+            Route::patch('business/customers/{customer}', [$crm, 'update'])->whereNumber('customer');
+            Route::post('business/customers/{customer}/link', [$crm, 'link'])->whereNumber('customer');
+            Route::post('business/customers/{customer}/charge-order', [$crm, 'chargeOrder'])->whereNumber('customer');
+            Route::post('business/customers/{customer}/adjust', [$crm, 'adjust'])->whereNumber('customer');
+        });
+
+        // «حسابي عند المحلات» — the customer's own side: read, confirm, and the code he shows at a counter.
+        $acct = \App\Http\Controllers\Api\V2\CustomerAccountController::class;
+        Route::get('customer-accounts', [$acct, 'index']);
+        Route::post('customer-accounts/link-code', [$acct, 'linkCode']);
+        Route::get('customer-accounts/{customer}', [$acct, 'show'])->whereNumber('customer');
+        Route::post('customer-accounts/{customer}/payments', [$acct, 'storePayment'])->whereNumber('customer');
+        Route::post('customer-accounts/payments/{payment}/confirm', [$acct, 'confirmPayment'])->whereNumber('payment');
+        Route::post('customer-accounts/payments/{payment}/reject', [$acct, 'rejectPayment'])->whereNumber('payment');
+        Route::post('customer-accounts/payments/{payment}/cancel', [$acct, 'cancelPayment'])->whereNumber('payment');
+
         // A delegate (who may be a plain client) lists what they may manage.
         Route::get('business/memberships', [BusinessStaffController::class, 'memberships']);
 

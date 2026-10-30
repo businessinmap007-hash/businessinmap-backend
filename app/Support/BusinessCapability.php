@@ -39,6 +39,8 @@ final class BusinessCapability
     public const POS = 'pos';
     public const ATTENDANCE = 'attendance';
     public const PAYROLL = 'payroll';
+    public const CUSTOMERS = 'customers';
+    public const CREDIT_OVERRIDE = 'credit_override';
 
     /**
      * «الطبيب المعالج»: what the role carries on its own — the visit, the prescription, the test / radiology orders and
@@ -78,6 +80,8 @@ final class BusinessCapability
             self::POS => ['الكاشير', 'Cashier'],
             self::ATTENDANCE => ['الحضور والإجازات', 'Attendance and leave'],
             self::PAYROLL => ['المرتبات والسلف', 'Payroll and advances'],
+            self::CUSTOMERS => ['ملفات العملاء والآجل', 'Customer files and credit'],
+            self::CREDIT_OVERRIDE => ['تجاوز حد الآجل', 'Exceeding a credit limit'],
         ];
     }
 
@@ -112,6 +116,9 @@ final class BusinessCapability
         self::PURCHASES => 'inventory',
         self::PURCHASE_APPROVAL => 'inventory',
         self::POS => 'inventory',
+        // customer files and the credit book (phase 3) ride the same suite and subscription
+        self::CUSTOMERS => 'inventory',
+        self::CREDIT_OVERRIDE => 'inventory',
     ];
 
     /**

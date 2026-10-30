@@ -248,6 +248,12 @@ class NotificationChannelRule extends Model
             'hr_request_decided' => ['رد على طلبك', 'Answer to your request', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'hr_payslip_received' => ['تأكيد موظف لاستلام راتبه', 'Employee confirmed receiving the salary', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'hr_payslip_ready' => ['كشف المرتب جاهز', 'Payslip ready', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            // The credit book (phase 3): a payment waiting for the other side, its outcome, and the business's reminder.
+            'crm_payment_pending' => ['دفعة آجل بانتظار تأكيدك', 'Credit payment awaiting your confirmation', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'system'],
+            'crm_payment_confirmed' => ['تأكيد دفعة آجل', 'Credit payment confirmed', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
+            'crm_payment_rejected' => ['رفض دفعة آجل', 'Credit payment rejected', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'warning'],
+            'crm_payment_mismatch' => ['رقم العملية لم يتطابق', 'Transaction reference did not match', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'warning'],
+            'crm_reminder' => ['تذكير بحسابك عند محل', 'Reminder of your account at a shop', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_NORMAL, true, true, true, true, false, false, 0, 'system'],
             'business_suite_subscription' => ['اشتراك تطبيق الكمبيوتر', 'Desktop suite subscription', AppNotification::TYPE_SYSTEM, AppNotification::PRIORITY_HIGH, true, true, true, true, false, false, 0, 'warning'],
         ];
     }

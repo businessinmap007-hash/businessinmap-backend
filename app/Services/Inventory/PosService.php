@@ -3,6 +3,8 @@
 namespace App\Services\Inventory;
 
 use App\Models\BusinessCatalogListing;
+use App\Models\Crm\AccountMove;
+use App\Models\Crm\Customer;
 use App\Models\Inventory\Move;
 use App\Models\Inventory\PosSale;
 use App\Models\Inventory\PosSaleLine;
@@ -11,6 +13,7 @@ use App\Models\Inventory\Setting;
 use App\Models\MenuItem;
 use App\Models\MenuItemExtra;
 use App\Models\MenuItemVariant;
+use App\Services\Crm\CreditLedger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,7 +23,8 @@ use Illuminate\Validation\ValidationException;
  * «الكاشير» — a counter sale on the business's own computer. It sells what the apps sell (menu items, retail listings) at
  * the prices the business set — resolved here, never taken from the device — and takes the stock by the same recipes as
  * an app order. The money is cash in the drawer, outside the app: the wallet never pays for goods. A shift ends with the
- * drawer counted against what the sales say it should hold.
+ * drawer counted against what the sales say it should hold. A sale may name a customer's file and put part or all of it
+ * «على الحساب» (phase 3): that part enters his credit book within his limit, and never the drawer.
  */
 final class PosService
 {
@@ -28,6 +32,7 @@ final class PosService
         private readonly InventoryAccess $access,
         private readonly RecipeService $recipes,
         private readonly StockLedger $ledger,
+        private readonly CreditLedger $credit,
     ) {}
 
     public function openShift(int $businessId, int $actorId, array $data): PosShift
@@ -59,7 +64,8 @@ final class PosService
     public function shiftSummary(PosShift $shift): array
     {
         $sales = PosSale::query()->where('shift_id', $shift->id)->where('status', PosSale::PAID);
-        $total = round((float) $sales->sum('total'), 2);
+        // what went on a customer's account never entered the drawer
+        $total = round((float) (clone $sales)->sum(DB::raw('total - on_account')), 2);
         $expected = round((float) $shift->opening_cash + $total, 2);
 
         return [
@@ -89,15 +95,34 @@ final class PosService
 
         $priced = array_map(fn ($row) => $this->price($businessId, $row), $data['lines']);
         $total = round(array_sum(array_column($priced, 'total')), 2);
-        $paid = round((float) ($data['paid'] ?? $total), 2);
+        $onAccount = round((float) ($data['on_account'] ?? 0), 2);
+        $customer = null;
+        if (! empty($data['customer_id'])) {
+            $customer = Customer::query()->where('business_id', $businessId)->whereNull('anonymized_at')->find((int) $data['customer_id']);
+            if (! $customer) {
+                throw ValidationException::withMessages(['customer_id' => __('ملف العميل غير موجود.')]);
+            }
+        }
+        if ($onAccount > 0 && ! $customer) {
+            throw ValidationException::withMessages(['on_account' => __('البيع على الحساب يحتاج ملف عميل.')]);
+        }
+        if ($onAccount > $total + 0.001) {
+            throw ValidationException::withMessages(['on_account' => __('المبلغ على الحساب أكبر من الإجمالي.')]);
+        }
 
-        if ($paid + 0.001 < $total) {
+        $paid = round((float) ($data['paid'] ?? ($total - $onAccount)), 2);
+        if ($paid + $onAccount + 0.001 < $total) {
             throw ValidationException::withMessages(['paid' => __('المدفوع أقل من الإجمالي (:total).', ['total' => $total])]);
+        }
+
+        $override = (bool) ($data['credit_override'] ?? false);
+        if ($customer && $onAccount > 0) {
+            $this->credit->assertWithinLimit($customer, $onAccount, $override);
         }
 
         $warehouse = $this->access->warehouse($businessId, $data['warehouse_id'] ?? null);
 
-        return DB::transaction(function () use ($businessId, $actorId, $data, $uuid, $shift, $priced, $total, $paid, $warehouse) {
+        return DB::transaction(function () use ($businessId, $actorId, $data, $uuid, $shift, $priced, $total, $paid, $warehouse, $customer, $onAccount, $override) {
             $sale = PosSale::create([
                 'uuid' => $uuid,
                 'business_id' => $businessId,
@@ -106,8 +131,11 @@ final class PosService
                 'device_uuid' => $data['device_uuid'] ?? null,
                 'user_id' => $actorId,
                 'warehouse_id' => $warehouse->id,
+                'customer_id' => $customer?->id,
                 'total' => $total,
                 'paid' => $paid,
+                'on_account' => $onAccount,
+                'credit_override_by' => $override && $onAccount > 0 ? $actorId : null,
                 'sold_at' => isset($data['sold_at']) ? Carbon::parse($data['sold_at']) : now(),
             ]);
 
@@ -138,6 +166,18 @@ final class PosService
                 $this->ledger->postMany($businessId, $specs);
             }
 
+            if ($customer && $onAccount > 0) {
+                $this->credit->post($customer, AccountMove::SALE, $onAccount, [
+                    'uuid' => $this->uuidFrom($uuid . '|credit'),
+                    'source_type' => 'pos_sale',
+                    'source_id' => $sale->id,
+                    'note' => __('فاتورة كاشير #:n — على الحساب', ['n' => $sale->number]),
+                    'created_by' => $actorId,
+                    'device_uuid' => $data['device_uuid'] ?? null,
+                    'occurred_at' => $sale->sold_at,
+                ]);
+            }
+
             return $sale->fresh('lines');
         });
     }
@@ -153,6 +193,8 @@ final class PosService
             foreach (Move::query()->where('reference_type', 'pos_sale')->where('reference_id', $sale->id)->where('type', Move::SALE)->get() as $move) {
                 $this->ledger->reverse($move, Move::SALE_REVERSAL, $actorId, __('مرتجع فاتورة كاشير #:n', ['n' => $sale->number]));
             }
+            // the part that went on the customer's account comes off it
+            $this->credit->reverseSource('pos_sale', $sale->id, __('مرتجع فاتورة كاشير #:n', ['n' => $sale->number]), $actorId);
             $sale->update(['status' => PosSale::RETURNED, 'returned_at' => now()]);
         });
 

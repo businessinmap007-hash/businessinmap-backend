@@ -22,6 +22,24 @@ class Order extends Model implements \App\Contracts\HasVisitDeposit, \App\Contra
             }
             if ($order->wasChanged('status') && in_array($order->status, ['cancelled', 'rejected'], true)) {
                 $stock->safely(fn () => $stock->restore($order));
+                // an order the business had put on the customer's account comes off it
+                try {
+                    app(\App\Services\Crm\CreditLedger::class)->reverseSource('order', (int) $order->id, __('إلغاء الطلب #:n', ['n' => $order->id]));
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        });
+
+        // «ملفات العملاء»: the customer's file at this business opens with his first order. Never fails the order.
+        static::created(function (self $order) {
+            if (! $order->user_id || ! $order->business_id) {
+                return;
+            }
+            try {
+                app(\App\Services\Crm\CustomerFiles::class)->ensureForUser((int) $order->business_id, (int) $order->user_id);
+            } catch (\Throwable $e) {
+                report($e);
             }
         });
 

@@ -15,9 +15,11 @@ use App\Services\Inventory\InventoryAccess;
 use App\Services\Inventory\PosService;
 use App\Services\Inventory\RecipeService;
 use App\Services\Inventory\StocktakeService;
+use App\Support\BusinessCapability;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /** «الجرد» and «الكاشير» — the two counter-side screens of the desktop suite. */
 final class InventoryCountPosController extends Controller
@@ -190,6 +192,9 @@ final class InventoryCountPosController extends Controller
             'warehouse_id' => ['nullable', 'integer'],
             'sold_at' => ['nullable', 'date'],
             'paid' => ['nullable', 'numeric', 'min:0'],
+            'customer_id' => ['nullable', 'integer'],
+            'on_account' => ['nullable', 'numeric', 'min:0'],
+            'credit_override' => ['nullable', 'boolean'],
             'lines' => ['required', 'array', 'min:1', 'max:200'],
             'lines.*.owner_type' => ['required', Rule::in([RecipeService::MENU_ITEM, RecipeService::RETAIL_LISTING])],
             'lines.*.owner_id' => ['required', 'integer'],
@@ -200,9 +205,14 @@ final class InventoryCountPosController extends Controller
             'lines.*.extras.*.qty' => ['nullable', 'integer', 'min:1'],
         ]);
 
+        // passing a customer's credit limit is a capability of its own (the owner always has it)
+        if (! empty($data['credit_override']) && ! BusinessContext::isOwner($request) && ! in_array(BusinessCapability::CREDIT_OVERRIDE, BusinessContext::capabilities($request), true)) {
+            throw ValidationException::withMessages(['credit_override' => __('تجاوز حد الآجل يحتاج صلاحية «تجاوز حد الآجل».')]);
+        }
+
         $sale = $this->pos->sell(BusinessContext::id($request), (int) $request->user()->id, $data);
 
-        return $this->ok(['sale' => $sale, 'change' => round((float) $sale->paid - (float) $sale->total, 2)], 201);
+        return $this->ok(['sale' => $sale, 'change' => round((float) $sale->paid + (float) $sale->on_account - (float) $sale->total, 2)], 201);
     }
 
     /** POST /business/inventory/pos/sales/{sale}/return */

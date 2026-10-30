@@ -1277,6 +1277,7 @@ Route::prefix('v2')->group(function () {
             $buyers = 'business.member:' . BusinessCapability::PURCHASES . '|' . BusinessCapability::PURCHASE_APPROVAL;
             Route::middleware([$buyers, 'inventory.ready'])->group(function () use ($buy) {
                 Route::get('suppliers', [$buy, 'suppliers']);
+                Route::get('supplier-candidates', [$buy, 'supplierCandidates']);
                 Route::get('suppliers/{supplier}', [$buy, 'showSupplier'])->whereNumber('supplier');
                 Route::get('purchase-orders', [$buy, 'index']);
                 Route::get('purchase-orders/{order}', [$buy, 'show'])->whereNumber('order');

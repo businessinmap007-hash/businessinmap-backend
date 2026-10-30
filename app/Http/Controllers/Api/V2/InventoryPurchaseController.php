@@ -9,12 +9,14 @@ use App\Models\Inventory\Supplier;
 use App\Models\Inventory\SupplierBill;
 use App\Models\Inventory\SupplierPayment;
 use App\Models\Inventory\SupplierReturn;
+use App\Models\User;
 use App\Services\Inventory\InventoryAccess;
 use App\Services\Inventory\InventoryPayload;
 use App\Services\Inventory\PurchaseService;
 use App\Support\BusinessCapability;
 use App\Support\BusinessContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
@@ -38,6 +40,55 @@ final class InventoryPurchaseController extends Controller
 
         return $this->ok(['suppliers' => Supplier::query()->where('business_id', BusinessContext::id($request))->orderBy('name')->get()
             ->map(fn ($s) => InventoryPayload::supplier($s, $this->purchases->balance($s)))->values()]);
+    }
+
+    /**
+     * GET /business/inventory/supplier-candidates?q=&my_city= — a business on BIM to buy from, found by its name, its
+     * trade (category) or its city/governorate in one box (owner, 2026-10-30: «اختيار للبزنس الذى يقوم بالتوريد
+     * وارسال القائمة مباشرة اليه»). Linked as a supplier, its purchase orders reach it as «أوامر الشراء الواردة».
+     */
+    public function supplierCandidates(Request $request)
+    {
+        $this->feature($request);
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:80'], 'my_city' => ['nullable', 'boolean']]);
+        $me = BusinessContext::business($request);
+        $q = trim((string) ($data['q'] ?? ''));
+        $myCity = (bool) ($data['my_city'] ?? false);
+
+        if (mb_strlen($q) < 2 && ! $myCity) {
+            return $this->ok(['businesses' => []]);
+        }
+
+        $like = '%' . $q . '%';
+        $children = mb_strlen($q) >= 2 ? DB::table('category_children_master')->where('name_ar', 'like', $like)->orWhere('name_en', 'like', $like)->pluck('id') : collect();
+        $cities = mb_strlen($q) >= 2 ? DB::table('cities')->where('name_ar', 'like', $like)->orWhere('name_en', 'like', $like)->pluck('id') : collect();
+        $governorates = mb_strlen($q) >= 2 ? DB::table('governorates')->where('name_ar', 'like', $like)->orWhere('name_en', 'like', $like)->pluck('id') : collect();
+
+        $rows = User::query()->live()->where('type', User::TYPE_BUSINESS)->where('id', '!=', $me->id)
+            ->when($myCity && $me->city_id, fn ($w) => $w->where('city_id', $me->city_id))
+            ->when(mb_strlen($q) >= 2, fn ($w) => $w->where(function ($x) use ($q, $children, $cities, $governorates) {
+                $x->searchByName($q)
+                    ->orWhereIn('category_child_id', $children)
+                    ->orWhereIn('city_id', $cities)
+                    ->orWhereIn('governorate_id', $governorates);
+            }))
+            ->orderByRaw('city_id = ? desc', [(int) $me->city_id])
+            ->limit(40)
+            ->get(['id', 'name', 'name_en', 'type', 'logo', 'category_child_id', 'governorate_id', 'city_id']);
+
+        $trades = DB::table('category_children_master')->whereIn('id', $rows->pluck('category_child_id')->filter())->pluck('name_ar', 'id');
+        $cityNames = DB::table('cities')->whereIn('id', $rows->pluck('city_id')->filter())->pluck('name_ar', 'id');
+        $govNames = DB::table('governorates')->whereIn('id', $rows->pluck('governorate_id')->filter())->pluck('name_ar', 'id');
+        $linked = Supplier::query()->where('business_id', $me->id)->whereNotNull('linked_business_id')->pluck('id', 'linked_business_id');
+
+        return $this->ok(['businesses' => $rows->map(fn (User $b) => [
+            'id' => (int) $b->id,
+            'name' => $b->displayName(),
+            'logo' => $b->logo,
+            'trade' => $trades[$b->category_child_id] ?? null,
+            'place' => implode(' — ', array_filter([$govNames[$b->governorate_id] ?? null, $cityNames[$b->city_id] ?? null])) ?: null,
+            'supplier_id' => isset($linked[$b->id]) ? (int) $linked[$b->id] : null,
+        ])->values()]);
     }
 
     /** POST /business/inventory/suppliers */

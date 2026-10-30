@@ -121,13 +121,17 @@ final class InventoryCountPosController extends Controller
             return array_values(array_filter(array_merge([optional($item)->barcode], optional($item)->units?->pluck('barcode')->all() ?? [])));
         };
 
-        $menu = MenuItem::query()->where('business_id', $businessId)->where('is_active', 1)->with(['variants', 'extras' => fn ($q) => $q->where('is_active', 1)])
+        $menu = MenuItem::query()->where('business_id', $businessId)->where('is_active', 1)->with(['variants', 'images', 'catalogProduct', 'extras' => fn ($q) => $q->where('is_active', 1)])
             ->orderBy('menu_section_id')->orderBy('sort_order')->get()
             ->map(fn (MenuItem $m) => [
                 'owner_type' => RecipeService::MENU_ITEM,
                 'owner_id' => $m->id,
                 'name' => $m->name_ar ?: $m->name_en,
                 'section_id' => $m->menu_section_id,
+                // the card's photo as the customer sees it (the merchant's cover with his crop, else the catalog's);
+                // the desktop keeps it on disk, so it still shows offline
+                'image' => optional($m->coverImage())->image ?: ($m->image ?: ($m->catalogProduct?->main_image ?: null)),
+                'crop' => ($cover = $m->coverImage()) ? ['x' => (float) ($cover->focal_x ?? 0.5), 'y' => (float) ($cover->focal_y ?? 0.5), 'zoom' => (float) ($cover->zoom ?? 1.0)] : null,
                 'price' => (float) $m->base_price,
                 'available' => $recipes->has(RecipeService::MENU_ITEM . ':' . $m->id) ? $this->availability->canMake(RecipeService::MENU_ITEM, $m->id) : null,
                 'barcodes' => $barcodeOf(RecipeService::MENU_ITEM, $m->id),
@@ -135,11 +139,13 @@ final class InventoryCountPosController extends Controller
                 'extras' => $m->extras->map(fn ($e) => ['id' => $e->id, 'name' => $e->name_ar ?: $e->name_en, 'price' => (float) $e->price])->values(),
             ]);
 
-        $retail = BusinessCatalogListing::query()->where('business_id', $businessId)->where('is_active', 1)->get()
+        $retail = BusinessCatalogListing::query()->where('business_id', $businessId)->where('is_active', 1)->with('product')->get()
             ->map(fn (BusinessCatalogListing $l) => [
                 'owner_type' => RecipeService::RETAIL_LISTING,
                 'owner_id' => $l->id,
                 'name' => $l->offeringLabel('#' . $l->id),
+                'image' => $l->product?->main_image ?: null,
+                'crop' => null,
                 'price' => (float) $l->price,
                 'available' => $recipes->has(RecipeService::RETAIL_LISTING . ':' . $l->id) ? $this->availability->canMake(RecipeService::RETAIL_LISTING, $l->id) : null,
                 'barcodes' => $barcodeOf(RecipeService::RETAIL_LISTING, $l->id),

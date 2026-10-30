@@ -6976,6 +6976,8 @@ paths:
   /business/inventory/suppliers:
     get: { tags: [Inventory], summary: "Suppliers with their balance (bills − payments − returns) — needs the purchases feature", responses: { '200': { description: OK } } }
     post: { tags: [Inventory], summary: "{uuid?, name, phone?, linked_business_id? (a business on BIM: it receives the orders in its app), notes?}", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
+  /business/inventory/supplier-candidates:
+    get: { tags: [Inventory], summary: "A business on BIM to buy from, by its name, trade (category) or city/governorate in one box (?q, 2 letters at least) and/or ?my_city=1 (same city as mine, which also ranks first). Each: id, name, logo, trade, place, supplier_id (already one of my suppliers). Link it as linked_business_id and its purchase orders reach it in its app", responses: { '200': { description: OK } } }
   /business/inventory/suppliers/{supplier}:
     get: { tags: [Inventory], summary: "The supplier's account: orders, bills, payments, returns, balance", parameters: [{ name: supplier, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
     patch: { tags: [Inventory], summary: "Edit a supplier", parameters: [{ name: supplier, in: path, required: true, schema: { type: integer } }], responses: { '200': { description: OK }, '404': { $ref: '#/components/responses/NotFound' } } }
@@ -7004,7 +7006,7 @@ paths:
   /business/inventory/supplier-returns:
     post: { tags: [Inventory], summary: "Goods back to the supplier {uuid?, supplier_id, purchase_order_id?, warehouse_id?, reason?, lines [{item_id, qty (base units), unit_cost?, lot_id?}]} at average cost, credited against his balance", responses: { '201': { description: Created }, '422': { $ref: '#/components/responses/Validation' } } }
   /business/inventory/pos/catalog:
-    get: { tags: [Inventory], summary: "What the cashier sells — active menu items (sizes, extras) and retail listings at the business's prices, with available (what the stock can make) and barcodes (of a single-line linked item)", responses: { '200': { description: OK } } }
+    get: { tags: [Inventory], summary: "What the cashier sells — active menu items (sizes, extras) and retail listings at the business's prices, with available (what the stock can make), barcodes (of a single-line linked item), image (the customer card photo: the merchant cover, else the catalog photo; a path or a full URL) and crop {x, y, zoom} (null = the whole photo)", responses: { '200': { description: OK } } }
   /business/inventory/pos/shifts:
     post: { tags: [Inventory], summary: "Open a drawer {uuid?, device_uuid?, opening_cash?, opened_at?}", responses: { '201': { description: Created } } }
   /business/inventory/pos/shifts/{shift}:

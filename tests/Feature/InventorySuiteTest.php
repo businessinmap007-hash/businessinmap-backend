@@ -370,6 +370,49 @@ class InventorySuiteTest extends TestCase
 
     // ── «يكفي مبيعات اليوم؟» ──────────────────────────────────────────────────────────────────────────────────────────
 
+    public function test_the_cashier_catalog_carries_the_card_photo_with_its_crop(): void
+    {
+        $this->enable();
+        $drink = $this->seedMenuItem($this->owner->id, null, 25, 'عصير مانجو');
+        $photo = \App\Models\Image::create(['image' => 'files/uploads/zz-mango.png', 'imageable_id' => $drink->id, 'imageable_type' => $drink->getMorphClass(), 'source' => 'upload', 'focal_x' => 0.3, 'focal_y' => 0.6, 'zoom' => 1.5]);
+        $drink->update(['cover_image_id' => $photo->id]);
+        $plain = $this->seedMenuItem($this->owner->id, null, 10, 'ماء');
+
+        $products = collect($this->getJson('/api/v2/business/inventory/pos/catalog')->assertOk()->json('data.products'))->keyBy('owner_id');
+        $this->assertSame('files/uploads/zz-mango.png', $products[$drink->id]['image']);
+        $this->assertEquals(['x' => 0.3, 'y' => 0.6, 'zoom' => 1.5], $products[$drink->id]['crop']);
+        $this->assertNull($products[$plain->id]['image']);
+    }
+
+    public function test_a_supplier_on_bim_is_found_by_name_trade_or_city(): void
+    {
+        $this->enable();
+        $city = (int) DB::table('cities')->orderBy('id')->value('id');
+        $governorate = (int) DB::table('cities')->where('id', $city)->value('governorate_id');
+        $cityName = (string) DB::table('cities')->where('id', $city)->value('name_ar');
+        DB::table('users')->where('id', $this->owner->id)->update(['city_id' => $city, 'governorate_id' => $governorate]);
+        $trade = DB::table('category_children_master')->where('id', 215)->value('name_ar');
+
+        $supplier = $this->business(self::PHARMACY_ROOT, self::PHARMACY_CHILD);
+        DB::table('users')->where('id', $supplier->id)->update(['name' => 'Zz مورد الأمانة ' . uniqid(), 'city_id' => $city, 'governorate_id' => $governorate]);
+
+        Sanctum::actingAs($this->owner->fresh());
+        $byName = collect($this->getJson('/api/v2/business/inventory/supplier-candidates?q=' . urlencode('مورد الأمانة'))->assertOk()->json('data.businesses'));
+        $this->assertTrue($byName->contains('id', $supplier->id));
+        $this->assertFalse($byName->contains('id', $this->owner->id));
+
+        $byTrade = collect($this->getJson('/api/v2/business/inventory/supplier-candidates?q=' . urlencode($trade) . '&my_city=1')->assertOk()->json('data.businesses'));
+        $this->assertTrue($byTrade->contains('id', $supplier->id));
+        $this->assertSame($trade, $byTrade->firstWhere('id', $supplier->id)['trade']);
+        $this->assertStringContainsString($cityName, (string) $byTrade->firstWhere('id', $supplier->id)['place']);
+
+        $this->postJson('/api/v2/business/inventory/suppliers', ['name' => 'مورد', 'linked_business_id' => $supplier->id])->assertCreated();
+        $again = collect($this->getJson('/api/v2/business/inventory/supplier-candidates?q=' . urlencode('مورد الأمانة'))->json('data.businesses'));
+        $this->assertNotNull($again->firstWhere('id', $supplier->id)['supplier_id']);
+
+        $this->assertSame([], $this->getJson('/api/v2/business/inventory/supplier-candidates?q=x')->json('data.businesses'));
+    }
+
     public function test_coverage_reads_the_same_weekday_and_says_no_when_short(): void
     {
         $this->enable();

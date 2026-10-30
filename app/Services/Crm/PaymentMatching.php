@@ -212,7 +212,7 @@ final class PaymentMatching
             'uuid' => $this->ledger->uuidFrom('payment|' . $payment->uuid),
             'source_type' => 'crm_payment',
             'source_id' => $payment->id,
-            'note' => __('دفعة :method — إيصال :n', ['method' => __(self::methodLabel($payment->method)), 'n' => $number]),
+            'note' => 'دفعة ' . self::methodLabel($payment->method) . ' — إيصال ' . $number,
             'created_by' => $payment->business_confirmed_by ?? $payment->created_by,
             'device_uuid' => $payment->device_uuid,
         ]);

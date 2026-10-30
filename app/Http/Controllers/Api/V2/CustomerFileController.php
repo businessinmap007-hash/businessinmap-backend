@@ -121,7 +121,7 @@ class CustomerFileController extends Controller
                 'created_by' => (int) $request->user()->id,
             ]);
             if (! empty($data['opening_balance']) && $this->mayManageCredit($request)) {
-                $this->ledger->post($customer, AccountMove::OPENING, (float) $data['opening_balance'], ['note' => __('رصيد سابق'), 'created_by' => (int) $request->user()->id]);
+                $this->ledger->post($customer, AccountMove::OPENING, (float) $data['opening_balance'], ['note' => 'رصيد سابق', 'created_by' => (int) $request->user()->id]);
             }
 
             return $customer->fresh();
@@ -249,7 +249,7 @@ class CustomerFileController extends Controller
             'uuid' => $this->ledger->uuidFrom('order|' . $order->id),
             'source_type' => 'order',
             'source_id' => $order->id,
-            'note' => __('طلب تطبيق #:n — تحصيل آجل', ['n' => $order->id]),
+            'note' => 'طلب تطبيق #' . $order->id . ' — تحصيل آجل',
             'created_by' => (int) $request->user()->id,
         ]);
 

@@ -24,7 +24,7 @@ class Order extends Model implements \App\Contracts\HasVisitDeposit, \App\Contra
                 $stock->safely(fn () => $stock->restore($order));
                 // an order the business had put on the customer's account comes off it
                 try {
-                    app(\App\Services\Crm\CreditLedger::class)->reverseSource('order', (int) $order->id, __('إلغاء الطلب #:n', ['n' => $order->id]));
+                    app(\App\Services\Crm\CreditLedger::class)->reverseSource('order', (int) $order->id, 'إلغاء الطلب #' . $order->id);
                 } catch (\Throwable $e) {
                     report($e);
                 }

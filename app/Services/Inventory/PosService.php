@@ -171,7 +171,7 @@ final class PosService
                     'uuid' => $this->uuidFrom($uuid . '|credit'),
                     'source_type' => 'pos_sale',
                     'source_id' => $sale->id,
-                    'note' => __('فاتورة كاشير #:n — على الحساب', ['n' => $sale->number]),
+                    'note' => 'فاتورة كاشير #' . $sale->number . ' — على الحساب',
                     'created_by' => $actorId,
                     'device_uuid' => $data['device_uuid'] ?? null,
                     'occurred_at' => $sale->sold_at,
@@ -194,7 +194,7 @@ final class PosService
                 $this->ledger->reverse($move, Move::SALE_REVERSAL, $actorId, __('مرتجع فاتورة كاشير #:n', ['n' => $sale->number]));
             }
             // the part that went on the customer's account comes off it
-            $this->credit->reverseSource('pos_sale', $sale->id, __('مرتجع فاتورة كاشير #:n', ['n' => $sale->number]), $actorId);
+            $this->credit->reverseSource('pos_sale', $sale->id, 'مرتجع فاتورة كاشير #' . $sale->number, $actorId);
             $sale->update(['status' => PosSale::RETURNED, 'returned_at' => now()]);
         });
 

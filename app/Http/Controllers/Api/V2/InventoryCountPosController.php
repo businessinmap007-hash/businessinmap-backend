@@ -127,6 +127,10 @@ final class InventoryCountPosController extends Controller
                 'owner_type' => RecipeService::MENU_ITEM,
                 'owner_id' => $m->id,
                 'name' => $m->name_ar ?: $m->name_en,
+                // what the phone draws when there is no photo — the same emoji on the computer (see produceEmoji)
+                'name_en' => $m->name_en,
+                'line' => ($line = $m->lineOption()) ? ['name_ar' => $line->name_ar, 'name_en' => $line->name_en] : null,
+                'from_catalog' => $m->catalog_product_id !== null,
                 'section_id' => $m->menu_section_id,
                 // the card's photo as the customer sees it (the merchant's cover with his crop, else the catalog's);
                 // the desktop keeps it on disk, so it still shows offline
@@ -144,6 +148,9 @@ final class InventoryCountPosController extends Controller
                 'owner_type' => RecipeService::RETAIL_LISTING,
                 'owner_id' => $l->id,
                 'name' => $l->offeringLabel('#' . $l->id),
+                'name_en' => $l->product?->name_en,
+                'line' => null,
+                'from_catalog' => true,
                 'image' => $l->product?->main_image ?: null,
                 'crop' => null,
                 'price' => (float) $l->price,

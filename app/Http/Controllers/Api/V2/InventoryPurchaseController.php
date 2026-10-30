@@ -44,7 +44,8 @@ final class InventoryPurchaseController extends Controller
 
     /**
      * GET /business/inventory/supplier-candidates?q=&my_city= — a business on BIM to buy from, found by its name, its
-     * trade (category) or its city/governorate in one box (owner, 2026-10-30: «اختيار للبزنس الذى يقوم بالتوريد
+     * trade (category), its city/governorate or its WHOLE mobile number in one box (a number matches only in full, so the
+     * box cannot be used to fish for which numbers are registered) (owner, 2026-10-30: «اختيار للبزنس الذى يقوم بالتوريد
      * وارسال القائمة مباشرة اليه»). Linked as a supplier, its purchase orders reach it as «أوامر الشراء الواردة».
      */
     public function supplierCandidates(Request $request)
@@ -63,11 +64,13 @@ final class InventoryPurchaseController extends Controller
         $children = mb_strlen($q) >= 2 ? DB::table('category_children_master')->where('name_ar', 'like', $like)->orWhere('name_en', 'like', $like)->pluck('id') : collect();
         $cities = mb_strlen($q) >= 2 ? DB::table('cities')->where('name_ar', 'like', $like)->orWhere('name_en', 'like', $like)->pluck('id') : collect();
         $governorates = mb_strlen($q) >= 2 ? DB::table('governorates')->where('name_ar', 'like', $like)->orWhere('name_en', 'like', $like)->pluck('id') : collect();
+        $phones = $this->phoneForms($q);
 
         $rows = User::query()->live()->where('type', User::TYPE_BUSINESS)->where('id', '!=', $me->id)
             ->when($myCity && $me->city_id, fn ($w) => $w->where('city_id', $me->city_id))
-            ->when(mb_strlen($q) >= 2, fn ($w) => $w->where(function ($x) use ($q, $children, $cities, $governorates) {
+            ->when(mb_strlen($q) >= 2, fn ($w) => $w->where(function ($x) use ($q, $children, $cities, $governorates, $phones) {
                 $x->searchByName($q)
+                    ->when($phones !== [], fn ($y) => $y->orWhereIn('phone', $phones))
                     ->orWhereIn('category_child_id', $children)
                     ->orWhereIn('city_id', $cities)
                     ->orWhereIn('governorate_id', $governorates);
@@ -89,6 +92,24 @@ final class InventoryPurchaseController extends Controller
             'place' => implode(' — ', array_filter([$govNames[$b->governorate_id] ?? null, $cityNames[$b->city_id] ?? null])) ?: null,
             'supplier_id' => isset($linked[$b->id]) ? (int) $linked[$b->id] : null,
         ])->values()]);
+    }
+
+    /**
+     * The ways an Egyptian mobile is written (01…, +201…, 00201…, 201…) when [q] is a whole one; otherwise none.
+     *
+     * @return list<string>
+     */
+    private function phoneForms(string $q): array
+    {
+        $digits = strtr($q, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']);
+        $digits = (string) preg_replace('/\D/', '', $digits);
+        $local = preg_replace('/^(00)?20(?=1)/', '0', $digits);
+        if (! preg_match('/^01\d{9}$/', (string) $local)) {
+            return [];
+        }
+        $national = substr((string) $local, 1);
+
+        return [$local, '+20' . $national, '0020' . $national, '20' . $national];
     }
 
     /** POST /business/inventory/suppliers */

@@ -382,6 +382,8 @@ class InventorySuiteTest extends TestCase
         $this->assertSame('files/uploads/zz-mango.png', $products[$drink->id]['image']);
         $this->assertEquals(['x' => 0.3, 'y' => 0.6, 'zoom' => 1.5], $products[$drink->id]['crop']);
         $this->assertNull($products[$plain->id]['image']);
+        $this->assertArrayHasKey('line', $products[$plain->id]);
+        $this->assertFalse($products[$plain->id]['from_catalog']);
     }
 
     public function test_a_supplier_on_bim_is_found_by_name_trade_or_city(): void
@@ -409,6 +411,13 @@ class InventorySuiteTest extends TestCase
         $this->postJson('/api/v2/business/inventory/suppliers', ['name' => 'مورد', 'linked_business_id' => $supplier->id])->assertCreated();
         $again = collect($this->getJson('/api/v2/business/inventory/supplier-candidates?q=' . urlencode('مورد الأمانة'))->json('data.businesses'));
         $this->assertNotNull($again->firstWhere('id', $supplier->id)['supplier_id']);
+
+        // a whole mobile number finds it, however it is written; part of one finds nothing
+        $phone = '010' . random_int(10000000, 99999999);
+        DB::table('users')->where('id', $supplier->id)->update(['phone' => $phone]);
+        $byPhone = collect($this->getJson('/api/v2/business/inventory/supplier-candidates?q=' . urlencode('+20 ' . substr($phone, 1)))->json('data.businesses'));
+        $this->assertTrue($byPhone->contains('id', $supplier->id));
+        $this->assertFalse(collect($this->getJson('/api/v2/business/inventory/supplier-candidates?q=' . substr($phone, 0, 7))->json('data.businesses'))->contains('id', $supplier->id));
 
         $this->assertSame([], $this->getJson('/api/v2/business/inventory/supplier-candidates?q=x')->json('data.businesses'));
     }
